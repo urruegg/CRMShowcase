@@ -1,3 +1,11 @@
+locals {
+  # GitHub's current default OIDC subject prefix embeds numeric owner + repo IDs
+  # so the credential stays bound to this exact owner/repo even across renames:
+  #   repo:{owner}@{owner_id}/{repo}@{repo_id}:...
+  # See https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-cloud-providers
+  gh_sub_prefix = "repo:${var.github_owner}@${var.github_owner_id}/${var.github_repository}@${var.github_repository_id}"
+}
+
 resource "azuread_application" "ci" {
   for_each = var.app_registrations
 
@@ -37,12 +45,12 @@ resource "azuread_application_federated_identity_credential" "gh_env" {
   description    = "GitHub Actions OIDC for ${var.github_owner}/${var.github_repository} :: environment ${each.value.github_environment}"
   audiences      = ["api://AzureADTokenExchange"]
   issuer         = "https://token.actions.githubusercontent.com"
-  subject        = "repo:${var.github_owner}/${var.github_repository}:environment:${each.value.github_environment}"
+  subject        = "${local.gh_sub_prefix}:environment:${each.value.github_environment}"
 }
 
 # Additional federated credential for PR runs so plan-on-PR can still authenticate
 # to Entra (but nothing dangerous — the SP has read-only permissions unless a PR
-# is merged and the environment approval gate lets a apply-scoped run through).
+# is merged and the environment approval gate lets an apply-scoped run through).
 resource "azuread_application_federated_identity_credential" "gh_pull_request" {
   for_each = var.app_registrations
 
@@ -51,5 +59,5 @@ resource "azuread_application_federated_identity_credential" "gh_pull_request" {
   description    = "GitHub Actions OIDC for pull_request events in ${var.github_owner}/${var.github_repository}"
   audiences      = ["api://AzureADTokenExchange"]
   issuer         = "https://token.actions.githubusercontent.com"
-  subject        = "repo:${var.github_owner}/${var.github_repository}:pull_request"
+  subject        = "${local.gh_sub_prefix}:pull_request"
 }

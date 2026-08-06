@@ -5,11 +5,21 @@ module "powerplatform" {
   tenant_settings = var.tenant_settings
 }
 
+data "github_repository" "self" {
+  full_name = "${var.github_owner}/${var.github_repository}"
+}
+
+data "github_user" "owner" {
+  username = var.github_owner
+}
+
 module "entra" {
   source = "./modules/entra"
 
-  github_owner      = var.github_owner
-  github_repository = var.github_repository
+  github_owner         = var.github_owner
+  github_owner_id      = tostring(data.github_user.owner.id)
+  github_repository    = var.github_repository
+  github_repository_id = tostring(data.github_repository.self.repo_id)
 
   app_registrations = {
     dev = {
