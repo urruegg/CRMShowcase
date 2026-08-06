@@ -1,0 +1,118 @@
+name: Solution CI
+
+on:
+  pull_request:
+    paths:
+      - 'solution/**'
+      - 'scripts/solution/**'
+      - '.github/workflows/solution-*.yml'
+  # Also fire on branch pushes so this workflow starts validating as soon as it
+  # lands on a feature branch — the `pull_request` trigger only picks up the
+  # workflow file version that lives on the PR's base branch (main), so a
+  # brand-new workflow file needs to be validated via `push` until it makes it
+  # onto main.
+  push:
+    branches-ignore: [main]
+    paths:
+      - 'solution/**'
+      - 'scripts/solution/**'
+      - '.github/workflows/solution-*.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  gate1:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-solution-ci')"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pac CLI
+        uses: microsoft/powerplatform-actions/actions-install@v1
+
+      - name: Install PowerShell modules
+        shell: pwsh
+        run: |
+          Install-Module -Name Pester -MinimumVersion 5.5.0 -Force -SkipPublisherCheck
+
+      - name: Validate manifest
+        shell: pwsh
+        run: |
+          . ./scripts/solution/Get-Manifest.ps1
+          . ./scripts/solution/Get-SolutionOrder.ps1
+          $m = Get-Manifest -Path ./solution/manifest.json -Validate
+          $order = Get-SolutionOrder -Manifest $m
+          Write-Host "Solutions in dependency order:"
+          $order | ForEach-Object { Write-Host "  $($_.uniqueName)" }
+          $solutionRoot = (Resolve-Path ./solution).Path
+          $onDisk = Get-ChildItem -Path ./solution -Recurse -Directory |
+                     Where-Object { Test-Path (Join-Path $_.FullName 'Other/Solution.xml') } |
+                     ForEach-Object { $_.FullName.Substring($solutionRoot.Length + 1) -replace '\\','/' }
+          $inManifest = $m.solutions | ForEach-Object { $_.path }
+          foreach ($p in $onDisk) {
+            if ($inManifest -notcontains $p) { throw "Folder $p exists on disk but is not in manifest" }
+          }
+          foreach ($p in $inManifest) {
+            if ($onDisk -notcontains $p) { throw "Manifest lists $p but the folder does not exist on disk" }
+          }
+
+      - name: Pester unit tests
+        shell: pwsh
+        run: |
+          $r = Invoke-Pester -Path ./scripts/solution/tests/ -PassThru -Output Detailed
+          if ($r.FailedCount -gt 0) { exit 1 }
+
+      - name: Pack all solutions
+        shell: pwsh
+        run: |
+          . ./scripts/solution/Get-Manifest.ps1
+          . ./scripts/solution/Get-SolutionOrder.ps1
+          $m = Get-Manifest -Path ./solution/manifest.json
+          New-Item -ItemType Directory -Force -Path solution-artifacts | Out-Null
+          foreach ($s in Get-SolutionOrder -Manifest $m) {
+            $out = "solution-artifacts/$($s.uniqueName).zip"
+            ./scripts/solution/Pack-Solution.ps1 -Folder "solution/$($s.path)" -OutFile $out
+          }
+          Get-ChildItem solution-artifacts
+
+      - name: Solution Checker
+        uses: microsoft/powerplatform-actions/check-solution@v1
+        continue-on-error: true
+        with:
+          path: 'solution-artifacts'
+          use-desktop-flow-runner: false
+
+      - name: Detect breaking changes
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        run: |
+          . ./scripts/solution/Test-BreakingChange.ps1
+          $base = "${{ github.event.pull_request.base.sha }}"
+          $head = "${{ github.event.pull_request.head.sha }}"
+          $diff = (git diff $base $head -- 'solution/**/Solution.xml' 'solution/**/Customizations.xml') | Out-String
+          $kind = Test-BreakingChange -Diff $diff
+          Write-Host "Detected bump kind: $kind"
+          if ($kind -eq 'major') {
+            $labels = "${{ join(github.event.pull_request.labels.*.name, ',') }}"
+            if ($labels -notmatch 'version-bump:major') {
+              gh pr comment ${{ github.event.pull_request.number }} --body "This PR removes or renames a schema element (MAJOR change). Add label ``version-bump:major`` to unblock merge."
+              exit 1
+            }
+          }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Terraform validate
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - name: Run terraform validate
+        run: |
+          cd infra/terraform
+          terraform init -input=false -backend=false
+          terraform validate

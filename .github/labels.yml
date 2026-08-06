@@ -1,0 +1,12 @@
+- name: version-bump:major
+  color: b60205
+  description: This PR is a breaking change and the manifest MAJOR version must bump.
+- name: version-bump:minor
+  color: 0e8a16
+  description: This PR is an additive feature; the manifest MINOR version bumps.
+- name: version-bump:patch
+  color: fbca04
+  description: This PR is a fix; the manifest PATCH version bumps.
+- name: skip-solution-ci
+  color: cccccc
+  description: Skip the solution CI workflow (docs-only edits, etc.).
