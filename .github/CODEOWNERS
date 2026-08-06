@@ -1,0 +1,13 @@
+# CRM Showcase — Code Owners
+#
+# Default owner
+*                         @urruegg
+
+# Governance
+/SUPERPOWERS_CONTRACT.md  @urruegg
+/AGENTS.md                @urruegg
+/.github/                 @urruegg
+/docs/adr/                @urruegg
+
+# AI / RAI paths (should require RAI officer sign-off in real projects)
+/docs/AI.md               @urruegg
