@@ -1,0 +1,75 @@
+{
+  "$schema": "./manifest.schema.json",
+  "publisher": {
+    "displayName": "CRM Showcase",
+    "uniqueName": "CRMShowcase",
+    "prefix": "crmshow",
+    "customizationOptionValuePrefix": 10000
+  },
+  "versioning": {
+    "scheme": "semver-four-part",
+    "format": "MAJOR.MINOR.PATCH.BUILD",
+    "rules": {
+      "MAJOR": "breaking schema change (rename, delete, type change on published column)",
+      "MINOR": "additive feature (new table, new column, new form)",
+      "PATCH": "fix (label typo, form layout, business rule tweak)",
+      "BUILD": "GitHub Actions run number ($env:GITHUB_RUN_NUMBER); source of uniqueness"
+    }
+  },
+  "solutions": [
+    {
+      "uniqueName": "crmshow_Foundation",
+      "displayName": "CRM Showcase - Foundation",
+      "path": "core/foundation",
+      "version": "1.0.0.0",
+      "dependsOn": [],
+      "owner": "AG-E-08",
+      "description": "Publisher, security roles baseline, shared choice sets."
+    },
+    {
+      "uniqueName": "crmshow_DataModel",
+      "displayName": "CRM Showcase - Data Model",
+      "path": "core/datamodel",
+      "version": "1.0.0.0",
+      "dependsOn": ["crmshow_Foundation"],
+      "owner": "AG-E-08",
+      "description": "ADR-0006..0010 extensions."
+    },
+    {
+      "uniqueName": "crmshow_Integration",
+      "displayName": "CRM Showcase - Integration",
+      "path": "core/integration",
+      "version": "1.0.0.0",
+      "dependsOn": ["crmshow_Foundation"],
+      "owner": "AG-E-09",
+      "description": "Custom API defs, plug-in registrations, event-schema pointers."
+    },
+    {
+      "uniqueName": "crmshow_Sales",
+      "displayName": "CRM Showcase - Sales",
+      "path": "apps/sales",
+      "version": "1.0.0.0",
+      "dependsOn": ["crmshow_Foundation", "crmshow_DataModel", "crmshow_Integration"],
+      "owner": "AG-E-01",
+      "description": "Sales-cockpit extensions on top of native Sales App."
+    },
+    {
+      "uniqueName": "crmshow_Service",
+      "displayName": "CRM Showcase - Service",
+      "path": "apps/service",
+      "version": "1.0.0.0",
+      "dependsOn": ["crmshow_Foundation", "crmshow_DataModel", "crmshow_Integration"],
+      "owner": "AG-E-01",
+      "description": "Case triage on top of native Customer Service."
+    },
+    {
+      "uniqueName": "crmshow_Marketing",
+      "displayName": "CRM Showcase - Marketing",
+      "path": "apps/marketing",
+      "version": "1.0.0.0",
+      "dependsOn": ["crmshow_Foundation", "crmshow_DataModel", "crmshow_Integration"],
+      "owner": "AG-E-01",
+      "description": "Segment / campaign extensions."
+    }
+  ]
+}
