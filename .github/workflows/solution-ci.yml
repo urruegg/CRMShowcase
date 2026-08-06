@@ -25,9 +25,21 @@ permissions:
   contents: read
   pull-requests: write
 
+# Only keep the newest run per branch. Older runs on the same branch are
+# cancelled automatically. Prevents pile-up during GitHub Actions outages and
+# during rapid push cycles from Maker Studio intake syncs.
+concurrency:
+  group: solution-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   gate1:
     runs-on: ubuntu-latest
+    # Guardrail against GitHub Actions capacity incidents: if a runner does not
+    # pick this job up within a reasonable window, fail fast so downstream
+    # checks stay meaningful rather than blocking for hours. Adjust upward
+    # only after tuning the Solution Checker step (the slow one).
+    timeout-minutes: 25
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-solution-ci')"
     steps:
       - uses: actions/checkout@v4
