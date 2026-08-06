@@ -53,6 +53,27 @@ household relocates across a jurisdiction boundary. See
 | US-403 | Regression suite green on the eight curveballs ([TEST.md](./TEST.md)) | `[TBD]` |
 | US-404 | `.github/workflows/terraform.yml` extended with `plan` on real remote state | `[TBD]` |
 
+## Epic 5 — Solution containers (Sprint 1)
+
+Traces to spec [`docs/superpowers/specs/2026-08-06-solution-containers-design.md`](./superpowers/specs/2026-08-06-solution-containers-design.md).
+
+| ID | Story | Status |
+| --- | --- | --- |
+| US-501 | Provision pac CLI on runner + local install docs | `[TBD]` |
+| US-502 | Add pac auth create to CI + verify Power Platform OIDC | `[TBD]` |
+| US-503 | solution/manifest.json + schema + parser | `[TBD]` |
+| US-504 | Scaffold six empty solutions in DEV, export, unpack, commit | `[TBD]` |
+| US-505 | scripts/solution/*.ps1 (export, unpack, pack, import, bump-version) | `[TBD]` |
+| US-506 | .github/workflows/solution-ci.yml (Gate 1) | `[TBD]` |
+| US-507 | .github/workflows/solution-deploy-dev.yml | `[TBD]` |
+| US-508 | GitHub Environment test reviewers + solution-deploy-test.yml | `[TBD]` |
+| US-509 | solution-intake-on-demand.yml + solution-intake-drift.yml | `[TBD]` |
+| US-510 | ADR-0019 solution versioning strategy | `[TBD]` |
+| US-511 | Extend .github/CODEOWNERS with folder-scoped rules | `[TBD]` |
+| US-512 | docs/ideas/UC-02-git-integration-preview + issue | `[TBD]` |
+| US-513 | docs/runbooks/solution-rollback.md | `[TBD]` |
+| US-514 | End-to-end verification: fresh commit -> DEV -> TEST -> smoke green | `[TBD]` |
+
 ## Bootstrap stories already delivered
 
 | ID | Story | Commit |

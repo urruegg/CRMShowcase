@@ -72,6 +72,34 @@ operations audience, and it will be tested in year two.
 `[TBD — model the effort with the delivery team: platform ops, release
 management, test maintenance, integration monitoring, agent evaluation upkeep.]`
 
+## Local pac CLI setup
+
+To work with the six Power Platform solutions locally (`solution/manifest.json`),
+install the Power Platform CLI once:
+
+```powershell
+# One-off install (a specific stable version — the auto-selected 1.44.x had a
+# broken NuGet package at the time of writing)
+dotnet tool install --global Microsoft.PowerApps.CLI.Tool --version 1.43.6
+
+# Sign in per environment (device-code, one browser prompt each)
+pac auth create --name crmshowdev  --url https://crmshowdev.crm.dynamics.com  --deviceCode
+pac auth create --name crmshowtest --url https://crmshowtest.crm.dynamics.com --deviceCode
+
+# Switch between them
+pac auth select --name crmshowdev
+pac auth select --name crmshowtest
+
+# Verify the active connection
+pac org who
+```
+
+The auth session is cached in `%LOCALAPPDATA%\.PowerAppsCli` and is separate
+from `az` — the `az login` context is NOT reused by `pac`, and vice-versa.
+
+`--url` is deprecated in newer pac releases; `--environment <env-id-or-url>` is
+the future-proof form. Both work on 1.43.x.
+
 ## How complexity stays controllable
 
 - Every change traceable to an ADR — the estate is self-documenting.

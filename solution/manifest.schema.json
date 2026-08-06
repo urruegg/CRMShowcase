@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/urruegg/CRMShowcase/main/solution/manifest.schema.json",
+  "title": "CRM Showcase Solution Manifest",
+  "type": "object",
+  "required": ["publisher", "versioning", "solutions"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "publisher": {
+      "type": "object",
+      "required": ["displayName", "uniqueName", "prefix", "customizationOptionValuePrefix"],
+      "additionalProperties": false,
+      "properties": {
+        "displayName": { "type": "string", "minLength": 1 },
+        "uniqueName": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" },
+        "prefix": { "type": "string", "pattern": "^[a-z][a-z0-9]{1,7}$" },
+        "customizationOptionValuePrefix": { "type": "integer", "minimum": 10000, "maximum": 99999 }
+      }
+    },
+    "versioning": {
+      "type": "object",
+      "required": ["scheme", "format", "rules"],
+      "properties": {
+        "scheme": { "const": "semver-four-part" },
+        "format": { "const": "MAJOR.MINOR.PATCH.BUILD" },
+        "rules": { "type": "object" }
+      }
+    },
+    "solutions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["uniqueName", "displayName", "path", "version", "dependsOn", "owner"],
+        "additionalProperties": false,
+        "properties": {
+          "uniqueName": { "type": "string", "pattern": "^crmshow_[A-Za-z][A-Za-z0-9]*$" },
+          "displayName": { "type": "string" },
+          "path": { "type": "string" },
+          "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+\\.\\d+$" },
+          "dependsOn": { "type": "array", "items": { "type": "string" } },
+          "owner": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    }
+  }
+}
