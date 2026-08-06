@@ -25,11 +25,18 @@ that surface the identifiers to CI as **non-secret variables**.
 
 ### Entra app registrations (created in the ABSx demo tenant)
 
-| App | Purpose | Federated subjects |
+| App | Purpose | Federated subject template |
 | --- | --- | --- |
-| `crm-showcase-ci-dev`  | CI targeting the `dev` (`crmshowdev`) environment  | `repo:urruegg/CRMShowcase:environment:dev` and `repo:urruegg/CRMShowcase:pull_request` |
-| `crm-showcase-ci-test` | CI targeting the `test` (`crmshowtest`) environment | `repo:urruegg/CRMShowcase:environment:test` and `repo:urruegg/CRMShowcase:pull_request` |
+| `crm-showcase-ci-dev`  | CI targeting the `dev` (`crmshowdev`) environment  | `repo:{owner}@{owner_id}/{repo}@{repo_id}:environment:dev` and `repo:{owner}@{owner_id}/{repo}@{repo_id}:pull_request` |
+| `crm-showcase-ci-test` | CI targeting the `test` (`crmshowtest`) environment | `repo:{owner}@{owner_id}/{repo}@{repo_id}:environment:test` and `repo:{owner}@{owner_id}/{repo}@{repo_id}:pull_request` |
 
+- The subject template embeds the **numeric owner and repository IDs** — that
+  matches GitHub's current default OIDC subject prefix on this repo
+  (`sub_claim_prefix: repo:urruegg@46865858/CRMShowcase@1324936766`) and binds
+  the credential to *this specific* owner/repo even across renames. The IDs are
+  looked up at plan time via `data "github_user"` and `data "github_repository"`
+  so the module is portable to any owner/repo. See
+  [../../infra/terraform/modules/entra/main.tf](../../infra/terraform/modules/entra/main.tf).
 - **No client secret.** Federation replaces it. Adding a client secret would be a
   policy violation ([SUPERPOWERS_CONTRACT.md §1.2](../../SUPERPOWERS_CONTRACT.md)).
 - **`sign_in_audience = "AzureADMyOrg"`** — single-tenant apps, only usable in the
