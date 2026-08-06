@@ -42,16 +42,23 @@ opportunity generated. See
 [ideas/UC-01-relocation-across-jurisdictions/](./ideas/UC-01-relocation-across-jurisdictions/).
 
 ### UC-02 — Assisted lead-to-close
-Advisor + Lead Qualification Assistant (`AG-F-01`) collaborate from a new
-inbound lead through to a first meeting scheduled.
+Advisor + Next-Best-Action Agent (`AG-F-01`) collaborate from a governed
+signal (life event, service touchpoint, campaign response) through to a
+scheduled first meeting.
 
 ### UC-03 — Agentic service triage & resolution
-Assistance agent + Service Triage Agent (`AG-F-02`) collaborate to categorise,
-respond to, and resolve incoming cases with grounded knowledge.
+Assistance agent + Case Management Agent (`AG-F-03`) + Conversation
+Intelligence Agent (`AG-F-04`) collaborate to categorise, respond to, and
+resolve incoming cases with grounded knowledge.
 
 ### UC-04 — Human-in-the-loop marketing campaign generation
-Marketer + Campaign Copy Generator (`AG-F-03`) collaborate to produce
+Marketer + Campaign & Content Assist Agent (`AG-F-06`) collaborate to produce
 segment-appropriate copy variants for a scheduled campaign.
+
+### UC-05 — Closed-loop data quality
+Data steward + Data-Quality & Identity-Resolution Agent (`AG-F-05`) collaborate
+to close a duplicate / ambiguous-identity remediation task with a recorded
+decision.
 
 ## 5. Backlog
 

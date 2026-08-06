@@ -469,3 +469,7 @@ infra/**/crash.log
 infra/**/terraform.tfvars
 infra/**/*.auto.tfvars
 !infra/**/terraform.tfvars.example
+
+# Solution build outputs and unpacked artefacts (keep the solution ZIPs)
+solution/**/*.zip
+!solution/**/*.zip

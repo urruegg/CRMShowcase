@@ -25,6 +25,8 @@ one below has a test.
 | DP-12 | **Maturity and licensing are stated, never implied** | A capability is shown with no maturity or licence flag |
 | DP-13 | **Grounded generation** | An AI-generated customer-visible message cites a source it did not retrieve |
 | DP-14 | **Synthetic-only demo data** ([SUPERPOWERS_CONTRACT.md](../SUPERPOWERS_CONTRACT.md) §1.3) | Real customer data appears anywhere in the repo |
+| DP-15 | **Every model has a golden-set eval and a monitoring plan** | A deployed model has no defined eval baseline or no drift/monitoring signal |
+| DP-16 | **Every feature has documented lineage and a named owner** | A feature in production has no lineage record or no owner |
 
 ## Technological independence
 

@@ -37,10 +37,12 @@ household relocates across a jurisdiction boundary. See
 
 | ID | Story | Status |
 | --- | --- | --- |
-| US-301 | AG-F-01 Lead Qualification: drafts a grounded summary on a new lead | `[TBD]` |
-| US-302 | AG-F-02 Service Triage: classifies + drafts first response with grounded knowledge | `[TBD]` |
-| US-303 | AG-F-03 Campaign Copy: drafts segment-appropriate variants against an approved brief | `[TBD]` |
-| US-304 | AG-F-04 RevOps Insights: summarises pipeline movement and flags anomalies | `[TBD]` |
+| US-301 | AG-F-01 Next-Best-Action: scores the book and emits explainable NBA cards into the advisor cockpit | `[TBD]` |
+| US-302 | AG-F-02 Life-Event Detection: detects a governed-attribute change and emits a typed domain event | `[TBD]` |
+| US-303 | AG-F-03 Case Management (prefill): predicts and populates case fields at conversation end | `[TBD]` |
+| US-304 | AG-F-04 Conversation Intelligence: summarises interaction + writes back with provenance badge | `[TBD]` |
+| US-305 | AG-F-05 Data-Quality: detects duplicates / ambiguous identity, raises closed-loop remediation | `[TBD]` |
+| US-306 | AG-F-06 Campaign & Content Assist: NLQ segment building + content generation for marketing | `[TBD]` |
 
 ## Epic 4 — Governance evidence
 
