@@ -1,0 +1,105 @@
+name: Solution Intake — On Demand
+
+# Exports one solution from DEV, unpacks it into solution/<path>/, opens a PR.
+# For maker-driven changes done in make.powerapps.com that need to land in Git.
+
+on:
+  workflow_dispatch:
+    inputs:
+      solution:
+        description: 'Solution unique name to intake from DEV'
+        required: true
+        type: choice
+        options:
+          - crmshow_Foundation
+          - crmshow_DataModel
+          - crmshow_Integration
+          - crmshow_Sales
+          - crmshow_Service
+          - crmshow_Marketing
+      reason:
+        description: 'Short PR description (why this intake)'
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  group: solution-intake-${{ github.event.inputs.solution }}
+  cancel-in-progress: false
+
+jobs:
+  intake:
+    runs-on: ubuntu-latest
+    environment: dev
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install pac
+        uses: microsoft/powerplatform-actions/actions-install@v1
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: pac auth via GitHub OIDC federation
+        shell: pwsh
+        run: |
+          pac auth create `
+            --applicationId ${{ vars.AZURE_CLIENT_ID }} `
+            --tenant ${{ vars.AZURE_TENANT_ID }} `
+            --environment ${{ vars.POWER_PLATFORM_ENV_URL }} `
+            --cloud Public `
+            --githubFederated
+          pac org who
+
+      - name: Export + unpack
+        shell: pwsh
+        run: |
+          . ./scripts/solution/Get-Manifest.ps1
+          $m = Get-Manifest -Path ./solution/manifest.json
+          $s = $m.solutions | Where-Object { $_.uniqueName -eq '${{ github.event.inputs.solution }}' }
+          if (-not $s) { throw "Unknown solution: ${{ github.event.inputs.solution }}" }
+          New-Item -ItemType Directory -Force -Path .export-tmp | Out-Null
+          $zip = ".export-tmp/$($s.uniqueName).zip"
+          ./scripts/solution/Export-Solution.ps1 -SolutionName $s.uniqueName -OutFile $zip
+          # Clear the target folder so removed components are actually removed
+          $target = "solution/$($s.path)"
+          if (Test-Path $target) { Remove-Item $target -Recurse -Force }
+          ./scripts/solution/Unpack-Solution.ps1 -ZipFile $zip -Folder $target
+
+      - name: Open PR
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOLUTION: ${{ github.event.inputs.solution }}
+          REASON:   ${{ github.event.inputs.reason }}
+          RUN_NUM:  ${{ github.run_number }}
+        run: |
+          BRANCH="intake/${SOLUTION}/${RUN_NUM}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add solution/
+          if git diff --cached --quiet; then
+            echo "No changes detected on DEV — nothing to intake."
+            exit 0
+          fi
+
+          printf 'feat(solution): maker intake from DEV — %s\n\nReason: %s\n\nCo-authored-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>\n' "${SOLUTION}" "${REASON}" > /tmp/commit-msg.txt
+          printf 'Reason: %s\n\nAuto-opened by `solution-intake-on-demand.yml` run #%s.\nSolution: `%s`\n' "${REASON}" "${RUN_NUM}" "${SOLUTION}" > /tmp/pr-body.md
+
+          git commit -F /tmp/commit-msg.txt
+          git push -u origin "$BRANCH"
+          gh pr create \
+            --title "feat(solution): maker intake — ${SOLUTION}" \
+            --body-file /tmp/pr-body.md \
+            --base main --head "$BRANCH"

@@ -45,6 +45,7 @@ Copy [ADR-TEMPLATE.md](./ADR-TEMPLATE.md) and edit — do not invent a new shape
 | [0016](./ADR-0016-governed-outbound.md) | Governed, consent-checked outbound messaging | A5 · A6 | Accepted |
 | [0017](./ADR-0017-alm-everything-through-the-pipeline.md) | Everything reaches an environment through the pipeline | A4 · A8 | Proposed |
 | [0018](./ADR-0018-analytics-split-crm-vs-databricks.md) | Analytics split — CRM vs. analytics platform | A7 | Proposed |
+| [0019](./ADR-0019-solution-versioning-strategy.md) | Solution versioning strategy | A4 · A8 | Accepted |
 
 `[TBD]` — ADRs 0011, 0012, 0013, 0017, 0018 remain proposed until confirmed with
 customer architecture in the next review.

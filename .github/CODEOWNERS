@@ -11,3 +11,15 @@
 
 # AI / RAI paths (should require RAI officer sign-off in real projects)
 /docs/AI.md               @urruegg
+
+# Sprint 1 — Power Platform solution containers (US-511)
+/solution/manifest.json           @urruegg
+/solution/manifest.schema.json    @urruegg
+/solution/core/foundation/        @urruegg
+/solution/core/datamodel/         @urruegg
+/solution/core/integration/       @urruegg
+/solution/apps/sales/             @urruegg
+/solution/apps/service/           @urruegg
+/solution/apps/marketing/         @urruegg
+/.github/workflows/solution-*.yml @urruegg
+/scripts/solution/                @urruegg

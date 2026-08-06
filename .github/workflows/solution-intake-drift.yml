@@ -1,0 +1,113 @@
+name: Solution Intake — Drift Check
+
+# Weekday 06:00 UTC: exports all 6 solutions from DEV and diffs against Git.
+# If anything drifted (maker edits not yet in Git), opens a PR.
+
+on:
+  schedule:
+    - cron: '0 6 * * 1-5'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  group: solution-intake-drift
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    environment: dev
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Skip if last commit says so
+        run: |
+          if git log -1 --pretty=%B | grep -q '\[skip drift\]'; then
+            echo "skip requested"; exit 0
+          fi
+
+      - name: Install pac
+        uses: microsoft/powerplatform-actions/actions-install@v1
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: pac auth via GitHub OIDC federation
+        shell: pwsh
+        run: |
+          pac auth create `
+            --applicationId ${{ vars.AZURE_CLIENT_ID }} `
+            --tenant ${{ vars.AZURE_TENANT_ID }} `
+            --environment ${{ vars.POWER_PLATFORM_ENV_URL }} `
+            --cloud Public `
+            --githubFederated
+          pac org who
+
+      - name: Export + diff each solution
+        id: diff
+        shell: pwsh
+        run: |
+          . ./scripts/solution/Get-Manifest.ps1
+          $m = Get-Manifest -Path ./solution/manifest.json
+          New-Item -ItemType Directory -Force -Path .drift-tmp | Out-Null
+          $drifted = @()
+          foreach ($s in $m.solutions) {
+            $tmp = ".drift-tmp/$($s.uniqueName)"
+            $zip = "$tmp.zip"
+            ./scripts/solution/Export-Solution.ps1 -SolutionName $s.uniqueName -OutFile $zip
+            ./scripts/solution/Unpack-Solution.ps1 -ZipFile $zip -Folder $tmp
+            $target = "solution/$($s.path)"
+            $diffExit = 0
+            & git diff --no-index --quiet -- $target $tmp
+            $diffExit = $LASTEXITCODE
+            if ($diffExit -eq 0) { continue }
+            # Overwrite tracked folder with exported copy (drift resolution = maker wins)
+            if (Test-Path $target) { Remove-Item $target -Recurse -Force }
+            Copy-Item -Recurse -Force $tmp $target
+            $drifted += $s.uniqueName
+          }
+          if ($drifted.Count -eq 0) {
+            "drifted=" | Out-File $env:GITHUB_OUTPUT -Append
+            Write-Host "No drift detected."
+          } else {
+            $val = "drifted=" + ($drifted -join ',')
+            $val | Out-File $env:GITHUB_OUTPUT -Append
+            Write-Host "Drifted: $($drifted -join ', ')"
+          }
+
+      - name: Open PR if drift
+        if: steps.diff.outputs.drifted != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRIFTED:  ${{ steps.diff.outputs.drifted }}
+          RUN_NUM:  ${{ github.run_number }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          BRANCH="intake/drift/${DATE}-${RUN_NUM}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add solution/
+
+          printf 'chore(solution): DEV drift detected %s\n\nDrifted solutions: %s\n\nCo-authored-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>\n' "${DATE}" "${DRIFTED}" > /tmp/commit-msg.txt
+          printf 'Drifted solutions: %s\n\nAuto-opened by `solution-intake-drift.yml` scheduled run #%s.\n' "${DRIFTED}" "${RUN_NUM}" > /tmp/pr-body.md
+
+          git commit -F /tmp/commit-msg.txt
+          git push -u origin "$BRANCH"
+          gh pr create \
+            --title "chore(solution): DEV drift ${DATE}" \
+            --body-file /tmp/pr-body.md \
+            --base main --head "$BRANCH"

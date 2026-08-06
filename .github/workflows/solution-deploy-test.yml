@@ -1,0 +1,90 @@
+name: Solution Deploy — TEST
+
+# Deploys the six Power Platform solutions from a chosen main SHA to the TEST
+# environment. Gated behind the `test` GitHub Environment which requires a
+# named human reviewer.
+#
+# Auth pattern: OIDC federation via `pac auth create --githubFederated`.
+# See docs/adr/ADR-0002, 0004, 0005.
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'Commit SHA on main to deploy'
+        required: true
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: solution-deploy-test
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: test
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.commit_sha }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify commit is on main
+        run: |
+          git branch -r --contains ${{ github.event.inputs.commit_sha }} | grep -q 'origin/main' || (echo "Commit is not on main"; exit 1)
+
+      - name: Install pac CLI
+        uses: microsoft/powerplatform-actions/actions-install@v1
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: pac auth via GitHub OIDC federation
+        shell: pwsh
+        run: |
+          pac auth create `
+            --applicationId ${{ vars.AZURE_CLIENT_ID }} `
+            --tenant ${{ vars.AZURE_TENANT_ID }} `
+            --environment ${{ vars.POWER_PLATFORM_ENV_URL }} `
+            --cloud Public `
+            --githubFederated
+          pac auth list
+          pac org who
+
+      - name: Pack all solutions (managed)
+        shell: pwsh
+        run: |
+          . ./scripts/solution/Get-Manifest.ps1
+          . ./scripts/solution/Get-SolutionOrder.ps1
+          $m = Get-Manifest -Path ./solution/manifest.json
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          foreach ($s in Get-SolutionOrder -Manifest $m) {
+            ./scripts/solution/Pack-Solution.ps1 -Folder "solution/$($s.path)" -OutFile "artifacts/$($s.uniqueName).zip" -PackageType Managed
+          }
+          Get-ChildItem artifacts
+
+      - name: Import in dependency order (managed)
+        shell: pwsh
+        run: |
+          . ./scripts/solution/Get-Manifest.ps1
+          . ./scripts/solution/Get-SolutionOrder.ps1
+          $m = Get-Manifest -Path ./solution/manifest.json
+          foreach ($s in Get-SolutionOrder -Manifest $m) {
+            Write-Host "===== Importing $($s.uniqueName) (managed) ====="
+            ./scripts/solution/Import-Solution.ps1 -ZipFile "artifacts/$($s.uniqueName).zip" -PublishChanges
+          }
+
+      - name: Tag the release
+        run: |
+          TAG=deploy/test/$(date -u +%Y-%m-%dT%H%M%SZ)-$(git rev-parse --short ${{ github.event.inputs.commit_sha }})
+          git tag $TAG ${{ github.event.inputs.commit_sha }}
+          git push origin $TAG

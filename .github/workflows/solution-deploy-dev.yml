@@ -1,0 +1,122 @@
+name: Solution Deploy — DEV
+
+# Deploys the six Power Platform solutions from `main` to the DEV environment.
+#
+# Auth pattern: OIDC federation via `pac auth create --githubFederated`
+# (no client secret in repo). Requires:
+#   - Entra app `crm-showcase-ci-dev` (federated credential for main + workflow_dispatch)
+#   - GitHub Environment `dev` with vars AZURE_CLIENT_ID / AZURE_TENANT_ID /
+#     POWER_PLATFORM_ENV_URL / POWER_PLATFORM_ENV_ID
+# See docs/adr/ADR-0002, 0004, 0005.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'solution/**'
+      - '.github/workflows/solution-deploy-dev.yml'
+      - 'scripts/solution/**'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: solution-deploy-dev
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: dev
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install pac CLI
+        uses: microsoft/powerplatform-actions/actions-install@v1
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: pac auth via GitHub OIDC federation
+        shell: pwsh
+        run: |
+          pac auth create `
+            --applicationId ${{ vars.AZURE_CLIENT_ID }} `
+            --tenant ${{ vars.AZURE_TENANT_ID }} `
+            --environment ${{ vars.POWER_PLATFORM_ENV_URL }} `
+            --cloud Public `
+            --githubFederated
+          pac auth list
+          pac org who
+
+      - name: Bump BUILD in manifest
+        shell: pwsh
+        run: |
+          . ./scripts/solution/Get-Manifest.ps1
+          . ./scripts/solution/Bump-Version.ps1
+          $mPath = './solution/manifest.json'
+          $m = Get-Manifest -Path $mPath
+          foreach ($s in $m.solutions) {
+            $s.version = Bump-Version -Current $s.version -Kind 'build' -Build ${{ github.run_number }}
+            Write-Host "$($s.uniqueName): $($s.version)"
+          }
+          $m | ConvertTo-Json -Depth 10 | Set-Content -Path $mPath -Encoding utf8NoBOM
+
+      - name: Pack all solutions (unmanaged)
+        shell: pwsh
+        run: |
+          . ./scripts/solution/Get-Manifest.ps1
+          . ./scripts/solution/Get-SolutionOrder.ps1
+          $m = Get-Manifest -Path ./solution/manifest.json
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          foreach ($s in Get-SolutionOrder -Manifest $m) {
+            # Write the new version into the unpacked Solution.xml before pack
+            $solXml = "solution/$($s.path)/Other/Solution.xml"
+            $xml = Get-Content -Raw $solXml
+            $xml = $xml -replace '(<Version>)[^<]+(</Version>)', "`$1$($s.version)`$2"
+            Set-Content -Path $solXml -Value $xml -Encoding utf8NoBOM
+            ./scripts/solution/Pack-Solution.ps1 -Folder "solution/$($s.path)" -OutFile "artifacts/$($s.uniqueName).zip"
+          }
+          Get-ChildItem artifacts
+
+      - name: Import in dependency order
+        shell: pwsh
+        run: |
+          . ./scripts/solution/Get-Manifest.ps1
+          . ./scripts/solution/Get-SolutionOrder.ps1
+          $m = Get-Manifest -Path ./solution/manifest.json
+          foreach ($s in Get-SolutionOrder -Manifest $m) {
+            Write-Host "===== Importing $($s.uniqueName) ====="
+            ./scripts/solution/Import-Solution.ps1 -ZipFile "artifacts/$($s.uniqueName).zip" -PublishChanges
+          }
+
+      - name: Smoke test — versions match manifest
+        shell: pwsh
+        run: |
+          . ./scripts/solution/Get-Manifest.ps1
+          $m = Get-Manifest -Path ./solution/manifest.json
+          $envUrl = "${{ vars.POWER_PLATFORM_ENV_URL }}".TrimEnd('/')
+          $token = (az account get-access-token --resource "$envUrl/" --query accessToken -o tsv)
+          $failed = $false
+          foreach ($s in $m.solutions) {
+            $u = "$envUrl/api/data/v9.2/solutions?" + '$filter=' + "uniquename eq '$($s.uniqueName)'&" + '$select=' + 'uniquename,version'
+            $r = Invoke-RestMethod -Uri $u -Headers @{ Authorization = "Bearer $token"; Accept = 'application/json' }
+            $observed = $r.value[0].version
+            if ($observed -ne $s.version) {
+              Write-Host "MISMATCH $($s.uniqueName): manifest=$($s.version) target=$observed"
+              $failed = $true
+            } else {
+              Write-Host "OK $($s.uniqueName) @ $observed"
+            }
+          }
+          if ($failed) { exit 1 }
