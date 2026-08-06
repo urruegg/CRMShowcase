@@ -3,7 +3,19 @@
 | Field | Value |
 | --- | --- |
 | **Topic area** | **A8** — Operations, lifecycle management, technical governance |
-| Status | Draft 0.2 · **Owner** `AG-E-04` SecDevOps |
+| Status | Draft 0.3 · **Owner** `AG-E-04` SecDevOps |
+
+## Framing — CAF and WAF
+
+Operations of the showcase align with:
+
+- The **Manage**, **Govern**, and **Secure** methodologies of the
+  [Cloud Adoption Framework](https://learn.microsoft.com/azure/cloud-adoption-framework/overview).
+- The **Operational Excellence** and **Reliability** pillars of the
+  [Well-Architected Framework](https://learn.microsoft.com/azure/well-architected/pillars).
+
+Full framework-to-artefact mapping in
+[MICROSOFT-FRAMEWORKS.md](./MICROSOFT-FRAMEWORKS.md).
 
 ## What the customer asks
 

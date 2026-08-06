@@ -3,7 +3,22 @@
 | Field | Value |
 | --- | --- |
 | **Topic area** | **A6** — AI, agents and governance |
-| Status | Draft 0.2 · **Owner** `AG-E-06` |
+| Status | Draft 0.3 · **Owner** `AG-E-06` |
+
+## Framing — Microsoft Responsible AI
+
+The showcase's AI stance is grounded in the six principles of the
+[Microsoft Responsible AI Standard](https://learn.microsoft.com/azure/machine-learning/concept-responsible-ai):
+
+1. **Fairness** — quality parity across representative cohorts (DP-12, §7.3 below).
+2. **Reliability and safety** — golden-set evals with a regression gate; Content Safety; deterministic action layer.
+3. **Privacy and security** — no real customer data; consent-per-channel; grounded generation.
+4. **Inclusiveness** — persona breadth in journeys; accessibility review as a follow-up.
+5. **Transparency** — disclosure of AI-drafted output; provenance markers; every model, prompt, tool schema and feature versioned in Git; explainability required on Next-Best-Actions.
+6. **Accountability** — agents recommend, humans decide; required reviewers on model / prompt / eval changes; non-delegable decisions named.
+
+The full mapping to concrete artefacts is in
+[MICROSOFT-FRAMEWORKS.md §Responsible AI](./MICROSOFT-FRAMEWORKS.md#responsible-ai-rai).
 
 ## What the customer asks
 

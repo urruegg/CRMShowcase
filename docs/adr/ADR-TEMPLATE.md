@@ -9,6 +9,10 @@
 | **Use case** | UC-… |
 | **Licence** | ✅ in the offer \| ➕ additional licence required \| 🧩 configuration / own build \| 🗺️ roadmap |
 | **Upgrade impact** | None \| Low \| Medium \| High — and why |
+| **CAF methodology** | Strategy \| Plan \| Ready \| Adopt \| Govern \| Secure \| Manage (see [MICROSOFT-FRAMEWORKS.md](../MICROSOFT-FRAMEWORKS.md#cloud-adoption-framework-caf)) |
+| **WAF pillar(s)** | Primary + trade-off. Reliability · Security · Cost Optimization · Operational Excellence · Performance Efficiency (see [MICROSOFT-FRAMEWORKS.md](../MICROSOFT-FRAMEWORKS.md#azure-well-architected-framework-waf)) |
+| **Zero Trust** | If identity/access-relevant: name the principle — verify explicitly · least privilege · assume breach |
+| **Responsible AI** | If AI-relevant: name the principle(s) advanced — fairness · reliability & safety · privacy & security · inclusiveness · transparency · accountability |
 
 ## Context
 

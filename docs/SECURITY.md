@@ -2,7 +2,22 @@
 
 | Field | Value |
 | --- | --- |
-| Status | **Draft 0.2** · **Owner** `AG-E-04` SecDevOps |
+| Status | **Draft 0.3** · **Owner** `AG-E-04` SecDevOps |
+
+## Framing — Zero Trust
+
+Every rule below sits inside Microsoft's **Zero Trust** stance:
+*never trust, always verify*. The three principles from the
+[Zero Trust overview](https://learn.microsoft.com/security/zero-trust/zero-trust-overview)
+— **verify explicitly · use least privilege · assume breach** — map to
+concrete artefacts. See
+[MICROSOFT-FRAMEWORKS.md §Zero Trust](./MICROSOFT-FRAMEWORKS.md#zero-trust)
+for the full mapping.
+
+The Security posture also satisfies the **Security pillar** of the
+[Well-Architected Framework](https://learn.microsoft.com/azure/well-architected/pillars)
+and the **Secure** methodology of the
+[Cloud Adoption Framework](https://learn.microsoft.com/azure/cloud-adoption-framework/overview).
 
 ## Standing rules already in force
 

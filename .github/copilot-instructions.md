@@ -69,6 +69,18 @@ task in this repo.
 
 ## 3. Mandatory guardrails (never violate)
 
+The guardrails below are grounded in four Microsoft frameworks. The
+concrete framework-to-artefact mapping is in
+[docs/MICROSOFT-FRAMEWORKS.md](../docs/MICROSOFT-FRAMEWORKS.md); do not
+repeat the mapping here, but do cite the relevant framework in ADRs and PRs.
+
+- **Cloud Adoption Framework** — [overview](https://learn.microsoft.com/azure/cloud-adoption-framework/overview). Every environment-shaping decision (Strategy, Plan, Ready, Adopt, Govern, Secure, Manage) traces to a CAF methodology.
+- **Well-Architected Framework** — [pillars](https://learn.microsoft.com/azure/well-architected/pillars). Every material change names which pillars it advances or trades off (Reliability, Security, Cost Optimization, Operational Excellence, Performance Efficiency).
+- **Zero Trust** — [overview](https://learn.microsoft.com/security/zero-trust/zero-trust-overview). Every access decision verifies explicitly, uses least privilege, and assumes breach.
+- **Responsible AI** — [Microsoft standard](https://learn.microsoft.com/azure/machine-learning/concept-responsible-ai). Every AI capability has a named enforcement mechanism for each of the six principles: fairness · reliability and safety · privacy and security · inclusiveness · transparency · accountability.
+
+Non-negotiables:
+
 1. **No real customer data in the demo.** Use only synthetic or
    clearly-labelled sample data. Never introduce real names, emails, phone
    numbers, contract values, or CRM exports into fixtures, tests, seed

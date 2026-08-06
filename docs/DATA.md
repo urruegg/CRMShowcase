@@ -16,6 +16,52 @@ assured; and how **household structures, life events, partner relationships
 and contracts** integrate — and in what form that information is available to
 different roles.
 
+## Ground the model in the Common Data Model
+
+Before we invent a table, we check what Microsoft's **Common Data Model
+(CDM)** already ships. CDM is the shared semantic layer Dataverse, Dynamics
+365, Power Platform, Azure Data Lake and Fabric already agree on
+([About CDM](https://learn.microsoft.com/common-data-model/use)).
+
+For the illustrated insurance vertical the natural anchors are:
+
+- **[Property and Casualty Data Model](https://learn.microsoft.com/common-data-model/schema/core/industrycommon/financialservices/propertyandcasualtydatamodel/overview)**
+  — `Policy`, `PolicyProduct`, `PolicyTransaction`, `LOB` (Line of Business),
+  `Coverage` / `CoverageLOB` / `CoverageDetail`, `ExclusionInclusion(LOB)`,
+  `CauseOfLoss(LOB)`, `Claim` / `ClaimRevision`, `InsuredAutoAsset` /
+  `InsuredHomeAsset` / `InsuredGenericAsset`, `InsuredAssetLocation`,
+  `Insurer`, `Agency`, `Agent`, `PolicyAgent`, `PolicyAgency`, `Payment`,
+  `AuthorizedJurisdiction`. This is the canonical entity set for the golden
+  thread.
+- **[Financial Services Common Data Model](https://learn.microsoft.com/common-data-model/schema/core/industrycommon/financialservices/financialservicescommondatamodel/overview)**
+  — horizontal FSI entities including `Group` and `Groupmember` (households).
+- **[Industry accelerators catalogue](https://learn.microsoft.com/dynamics365/industry/accelerators/overview)**
+  — cross-vertical patterns worth studying.
+
+**The Healthcare accelerator is the pattern to steal, even for insurance.**
+The [Dataverse Healthcare APIs](https://learn.microsoft.com/industry/healthcare/business-applications/dataverse-healthcare-apis-overview)
+put a **thin CRM on top of FHIR** — FHIR stays the master, Dataverse holds a
+mapped projection with reference keys, and a data-integration toolkit handles
+the boundary. That is the exact shape of
+[ADR-0008 — Thin CRM over the systems of record](./adr/ADR-0008-thin-crm-over-systems-of-record.md):
+Microsoft ships this pattern as first-party architecture. We are not
+inventing it.
+
+### Mapping our ADRs to CDM
+
+| Our concept (ADR) | Reuse CDM entity | Extension pattern |
+| --- | --- | --- |
+| Household as `Account` with `accountType` ([ADR-0006](./adr/ADR-0006-account-centre-of-gravity.md)) | `Account` (P&C + core) | Add `accountType` optionset; do not create a parallel container. |
+| Portfolio at Account with `ContactRole` ([ADR-0007](./adr/ADR-0007-portfolio-at-account.md)) | `Policy` + `Contact` + `Account`; roles via `PolicyAgent` / `RelatedPartyContract` | Add a `ContactRole` custom optionset on the party-role relationship. |
+| Reference keys to engines ([ADR-0008](./adr/ADR-0008-thin-crm-over-systems-of-record.md)) | `Policy.externalReferenceKey`, `Claim.externalReferenceKey`, `Payment.externalReferenceKey` | Add a required `externalSystem` + `externalId` on each projected record. |
+| Consent per channel ([ADR-0010](./adr/ADR-0010-consent-per-contact-per-channel.md)) | `Contact` + a Consent sub-entity | Custom table linked to `Contact`; do not overload existing preference fields. |
+| Event-driven cascade ([ADR-0011](./adr/ADR-0011-event-driven-cascade.md)) | `Policy`, `Claim`, `PolicyTransaction` state changes | Emit typed events from CDM P&C tables. |
+| Jurisdiction-driven eligibility ([ADR-0012](./adr/ADR-0012-jurisdiction-driven-eligibility.md)) | `AuthorizedJurisdiction` + `LOB` | Extend `AuthorizedJurisdiction` with a monopoly/free-market flag; enforce via a rule table. |
+| GA territory ([ADR-0013](./adr/ADR-0013-ga-ownership-and-territory.md)) | `Agency` + `Agent` + `PolicyAgency` + `PolicyAgent` | First-class, dated ownership relationship on `Account`. |
+
+Owners of this grounding: [AG-E-08 Dataverse Modeler](../.github/agents/dataverse-modeler.agent.md)
+and [AG-E-07 Data Engineer & Scientist](../.github/agents/data-engineer-scientist.agent.md).
+
 ## Non-negotiables
 
 - **No real customer data in the demo** (DP-14,

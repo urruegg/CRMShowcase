@@ -13,6 +13,7 @@ Frontier Firm.
 ## Start here
 
 - [DESIGN-PRINCIPLES.md](./DESIGN-PRINCIPLES.md) — read before any design decision. Each principle has a failure test.
+- [MICROSOFT-FRAMEWORKS.md](./MICROSOFT-FRAMEWORKS.md) — how the showcase maps to CAF, WAF, Zero Trust, Responsible AI.
 - [PRD.md](./PRD.md) — product intent, use cases, non-goals.
 - [BACKLOG.md](./BACKLOG.md) — working backlog by epic.
 - [PERSONAS-JOURNEY.md](./PERSONAS-JOURNEY.md) — who uses the showcase and how.

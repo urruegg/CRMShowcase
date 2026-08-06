@@ -27,6 +27,11 @@ one below has a test.
 | DP-14 | **Synthetic-only demo data** ([SUPERPOWERS_CONTRACT.md](../SUPERPOWERS_CONTRACT.md) §1.3) | Real customer data appears anywhere in the repo |
 | DP-15 | **Every model has a golden-set eval and a monitoring plan** | A deployed model has no defined eval baseline or no drift/monitoring signal |
 | DP-16 | **Every feature has documented lineage and a named owner** | A feature in production has no lineage record or no owner |
+| DP-17 | **CDM-first: reuse before inventing** | A custom entity was created where a Common Data Model entity (core, FSI, P&C, or an industry accelerator) already covers the concept |
+| DP-18 | **Cloud Adoption Framework — every environment step is CAF-mapped** ([MICROSOFT-FRAMEWORKS.md](./MICROSOFT-FRAMEWORKS.md#cloud-adoption-framework-caf)) | An environment-shaping change (Strategy, Plan, Ready, Adopt, Govern, Secure, Manage) has no traceable CAF anchor |
+| DP-19 | **Well-Architected — every material change names the pillars it advances** ([MICROSOFT-FRAMEWORKS.md](./MICROSOFT-FRAMEWORKS.md#azure-well-architected-framework-waf)) | A change touching architecture ships without naming which of Reliability / Security / Cost Optimization / Operational Excellence / Performance Efficiency it advances or trades off |
+| DP-20 | **Zero Trust — verify explicitly, use least privilege, assume breach** ([MICROSOFT-FRAMEWORKS.md](./MICROSOFT-FRAMEWORKS.md#zero-trust)) | An identity path exists that does not authenticate every request, uses more privilege than the task requires, or has no compromise-containment story |
+| DP-21 | **Responsible AI — the six principles are enforceable, not aspirational** ([MICROSOFT-FRAMEWORKS.md](./MICROSOFT-FRAMEWORKS.md#responsible-ai-rai)) | An AI capability ships without a named enforcement mechanism for each of fairness / reliability & safety / privacy & security / inclusiveness / transparency / accountability |
 
 ## Technological independence
 

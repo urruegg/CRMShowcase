@@ -28,7 +28,20 @@ regulatory regime and it must not imply that it is.
 - "Demonstrates a pattern for grounded AI in CRM."
 - "Illustrates human-agent teaming for sales, service, and marketing workflows."
 - "Uses synthetic data only."
-- "Aligns with Microsoft Responsible AI principles."
+- "Aligns with the six principles of the
+  [Microsoft Responsible AI Standard](https://learn.microsoft.com/azure/machine-learning/concept-responsible-ai)
+  — fairness, reliability and safety, privacy and security, inclusiveness,
+  transparency, accountability — as mapped in
+  [MICROSOFT-FRAMEWORKS.md](./MICROSOFT-FRAMEWORKS.md#responsible-ai-rai)."
+- "Aligns with
+  [Microsoft Zero Trust principles](https://learn.microsoft.com/security/zero-trust/zero-trust-overview)
+  — verify explicitly, use least privilege, assume breach — as mapped in
+  [MICROSOFT-FRAMEWORKS.md](./MICROSOFT-FRAMEWORKS.md#zero-trust)."
+- "Follows the
+  [Cloud Adoption Framework](https://learn.microsoft.com/azure/cloud-adoption-framework/overview)
+  and the
+  [Well-Architected Framework](https://learn.microsoft.com/azure/well-architected/pillars)
+  as design references."
 
 ## What the demo must not claim
 
