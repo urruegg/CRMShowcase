@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Version | 0.1 (Draft) |
+| Version | 0.2 (Draft) |
 | Status | Draft |
 | Classification | Public — anonymised demo |
 
@@ -16,7 +16,7 @@
 
 | Kind of value | Where it lives | Why |
 | --- | --- | --- |
-| Tenant / environment identifiers | Developer's local `.env.local` (git-ignored) | Not secrets, but identifying — kept off a public repo |
+| Tenant / environment identifiers | Developer's local `.env.local` and `infra/terraform/terraform.tfvars` (both git-ignored) | Not secrets, but identifying — kept off a public repo |
 | Service-principal / workload-identity IDs | GitHub Actions **environment secrets & variables** | Rotatable, scoped, auditable |
 | Any actual credential | **Azure Key Vault** in the demo tenant | Single source of truth, rotation, RBAC |
 | Human sign-in for local dev | Interactive `az login` / Power Platform CLI | No stored password anywhere |
@@ -27,24 +27,23 @@ The showcase uses two Power Platform environments. Slot names below are the anon
 identifiers used throughout the repo. Real branded names (if any) live only in
 local `.env.local` and in the tenant admin console — never in Git.
 
-### `crmshowdev` (slot `DEV`)
+### `crmshowdev` (slot `DEV`) — **live**
 - **Purpose.** Developer environment. Dynamics 365 Foundation + custom solution
   (**unmanaged**). Used for build and unit-level demo.
 - **Data classification.** Synthetic only.
-- **Target URL.** `https://crmshowdev.crm.dynamics.com` (after the rename tracked in
-  the current milestone — see the IaC in [../infra/](../infra/)).
-- **Target display name.** *CRM Showcase — DEV*.
+- **URL.** `https://crmshowdev.crm.dynamics.com/` — verified `HTTP 200` on 2026-08-06.
+- **Display name.** *CRM Showcase - DEV*.
 - **Placeholders in `.env.example`.** `${DEV_ENV_URL}`, `${DEV_ENV_ID}`, `${DEV_ORG_ID}`.
 - **Access model.** Least-privilege service principal for CI (see
   [adr/ADR-0002-oidc-federation-for-github-actions-to-entra.md](./adr/ADR-0002-oidc-federation-for-github-actions-to-entra.md)).
   Interactive human sign-in for local dev.
 
-### `crmshowtest` (slot `TEST`)
+### `crmshowtest` (slot `TEST`) — **live**
 - **Purpose.** Integration testing and demo environment. All **managed** solutions,
   including the custom solution promoted from `crmshowdev`.
 - **Data classification.** Synthetic only.
-- **Target URL.** `https://crmshowtest.crm.dynamics.com`.
-- **Target display name.** *CRM Showcase — TEST*.
+- **URL.** `https://crmshowtest.crm.dynamics.com/` — verified `HTTP 200` on 2026-08-06.
+- **Display name.** *CRM Showcase - TEST*.
 - **Placeholders in `.env.example`.** `${TEST_ENV_URL}`, `${TEST_ENV_ID}`, `${TEST_ORG_ID}`.
 - **Access model.** As `crmshowdev`. A separate app registration
   (`crm-showcase-ci-test`) so a compromise of `crmshowdev` does not reach `crmshowtest`.

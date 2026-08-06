@@ -1,0 +1,52 @@
+# CRM Showcase Terraform inputs — TEMPLATE
+#
+# Copy to `terraform.tfvars` and fill in real values. `terraform.tfvars` is git-ignored.
+# This file (`.example`) is committed and holds only placeholders.
+#
+# Real tenant identifiers, environment IDs, and account UPNs never live in a committed file.
+
+# --- Identifying values ---
+tenant_id              = "00000000-0000-0000-0000-000000000000"
+azure_subscription_id  = "" # empty if no Azure subscription yet
+github_owner           = "your-github-user-or-org"
+github_repository      = "CRMShowcase"
+
+# --- Power Platform environments ---
+# Keys are stable slot names used throughout the codebase. Never rename the keys.
+# `id` is the existing environment GUID; leave "" on a fresh tenant to create instead.
+environments = {
+  dev = {
+    id                = "00000000-0000-0000-0000-000000000000"
+    display_name      = "CRM Showcase - DEV"
+    domain            = "crmshowdev"
+    location          = "unitedstates"
+    env_type          = "Sandbox"
+    currency          = "USD"
+    language          = "1033"
+    cadence           = "Moderate"
+    security_group_id = ""
+  }
+  test = {
+    id                = "00000000-0000-0000-0000-000000000000"
+    display_name      = "CRM Showcase - TEST"
+    domain            = "crmshowtest"
+    location          = "unitedstates"
+    env_type          = "Sandbox"
+    currency          = "USD"
+    language          = "1033"
+    cadence           = "Moderate"
+    security_group_id = ""
+  }
+}
+
+# --- Tenant settings ---
+# These reflect the current ABSx demo tenant state. Adjust for other tenants.
+tenant_settings = {
+  disable_share_with_everyone         = true
+  disable_connection_sharing_everyone = false
+  enable_canvas_app_insights          = true
+  disable_copilot                     = false
+  enable_openai_bot_publishing        = true
+  storage_capacity_warning_threshold  = 85
+  disable_new_env_creation_non_admins = false
+}
