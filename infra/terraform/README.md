@@ -18,9 +18,9 @@ Design: [../../docs/adr/ADR-0003-terraform-as-iac-toolchain.md](../../docs/adr/A
 
 ## Bootstrap on the current tenant (ABSx demo)
 
-The two showcase environments already exist and were just renamed from
-`mobiliar*` to `crmshow*`. To bring them under Terraform management without
-recreating them:
+The two showcase environments already exist and were renamed to the anonymised
+`crmshowdev` / `crmshowtest` slot names. To bring them under Terraform management
+without recreating them:
 
 ```powershell
 # 1. Copy the example to the git-ignored real tfvars
@@ -74,5 +74,6 @@ terraform apply
   `Sandbox` — a first `terraform plan` after import will show drift on
   `environment_type`. That drift is ignored by `lifecycle.ignore_changes` in
   `modules/powerplatform/main.tf`.
-- Old URL aliases (`mobiliar*`) will keep redirecting for a period; that's
-  Microsoft-managed DNS TTL and not something Terraform controls.
+- Old URL aliases from before the rename will keep redirecting for a period after
+  the domain change; that's Microsoft-managed DNS TTL and not something Terraform
+  controls.

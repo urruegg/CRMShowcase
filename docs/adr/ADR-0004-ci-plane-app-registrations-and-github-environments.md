@@ -1,0 +1,98 @@
+# ADR-0004 — CI plane: app registrations, federated credentials, GitHub Environments
+
+| Field | Value |
+| --- | --- |
+| Status | Accepted |
+| Date | 2026-08-06 |
+| Deciders | Repo owner |
+| Related | [ADR-0002](./ADR-0002-oidc-federation-for-github-actions-to-entra.md), [ADR-0003](./ADR-0003-terraform-as-iac-toolchain.md), [../ENVIRONMENTS.md](../ENVIRONMENTS.md), [../SECURITY.md](../SECURITY.md) |
+
+## Context
+
+[ADR-0002](./ADR-0002-oidc-federation-for-github-actions-to-entra.md) established
+that GitHub Actions authenticate to the demo tenant via workload identity federation,
+never via stored secrets. [ADR-0003](./ADR-0003-terraform-as-iac-toolchain.md)
+established that Terraform is the toolchain for provisioning this. This ADR
+records **exactly what got provisioned** and how the pieces fit together, so a
+reader looking at the running showcase can trace each CI action back to a specific
+identity with a specific scope.
+
+## Decision
+
+Provision two Entra app registrations — one per environment slot — with **OIDC
+federated credentials only** (no client secrets), matching two GitHub Environments
+that surface the identifiers to CI as **non-secret variables**.
+
+### Entra app registrations (created in the ABSx demo tenant)
+
+| App | Purpose | Federated subjects |
+| --- | --- | --- |
+| `crm-showcase-ci-dev`  | CI targeting the `dev` (`crmshowdev`) environment  | `repo:urruegg/CRMShowcase:environment:dev` and `repo:urruegg/CRMShowcase:pull_request` |
+| `crm-showcase-ci-test` | CI targeting the `test` (`crmshowtest`) environment | `repo:urruegg/CRMShowcase:environment:test` and `repo:urruegg/CRMShowcase:pull_request` |
+
+- **No client secret.** Federation replaces it. Adding a client secret would be a
+  policy violation ([SUPERPOWERS_CONTRACT.md §1.2](../../SUPERPOWERS_CONTRACT.md)).
+- **`sign_in_audience = "AzureADMyOrg"`** — single-tenant apps, only usable in the
+  demo tenant.
+- **Two federated credentials per app:** one for `environment:<slot>` runs
+  (post-merge / manual dispatch), one for `pull_request` events (validate-only CI).
+
+### GitHub Environments
+
+| Environment | Purpose | Variables set |
+| --- | --- | --- |
+| `dev`  | CI targeting `crmshowdev`  | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `POWER_PLATFORM_ENV_ID`, `POWER_PLATFORM_ENV_URL` |
+| `test` | CI targeting `crmshowtest` | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `POWER_PLATFORM_ENV_ID`, `POWER_PLATFORM_ENV_URL` |
+
+- `prevent_self_review = true` — a maintainer opening a PR cannot approve their
+  own deployment to that environment.
+- `can_admins_bypass = false` — even repo admins go through the environment gate.
+- No `required_reviewers` yet — repo has one collaborator. Add reviewers once
+  a second maintainer joins.
+
+### CI workflow
+
+[`.github/workflows/terraform.yml`](../../.github/workflows/terraform.yml).
+
+- **PR trigger.** `terraform fmt -check`, `terraform init -backend=false`,
+  `terraform validate`. Never touches the tenant.
+- **Push-to-main / manual dispatch.** Signs in via OIDC to the `dev` (or chosen)
+  Entra app registration and prints the resolved identity + Power Platform
+  target. Proves the whole federation loop works.
+
+## What is deliberately NOT in this ADR
+
+- **Real `terraform plan` / `apply` in CI.** Requires remote state (Azure Storage
+  backend). The demo tenant currently has no Azure subscription, so remote state
+  is a follow-up: either add an Azure subscription and use Azure Storage, or use
+  Terraform Cloud's free tier. Until then, applies happen from the maintainer's
+  laptop with `az login` + local state (see [../../infra/terraform/README.md](../../infra/terraform/README.md)).
+- **Power Platform env access for the CI SPs.** The service principals authenticate
+  to Entra, but they are not yet registered as application users in Dataverse
+  environments. That's what a follow-up ADR (0005) will scope — with a specific
+  security role per slot (System Customizer in `dev`, System Administrator in
+  `test`) — once we have a concrete solution deployment to run.
+- **Copilot Studio / Dataverse solution deployment.** Sequenced after the CI
+  identity plane is proven working end-to-end.
+
+## Consequences
+
+**Positive**
+- Every CI run is auditable to a specific identity + a specific GitHub
+  Environment + a specific subject claim.
+- No stored secrets for CI to leak. Rotating auth = revoking the federated
+  credential, not rotating a password.
+- The whole CI identity plane is `terraform apply`-reproducible on any tenant.
+
+**Negative / cost**
+- No apply from CI until remote state exists. Applies stay on the maintainer
+  laptop for now. Documented and time-bounded.
+- The Power Platform env-user assignment step is manual until ADR-0005 lands.
+
+**Follow-ups**
+- **ADR-0005** — Power Platform env-user assignment for the CI SPs.
+- **ADR-0006** — Remote state backend choice.
+- Add `required_reviewers` on the `test` environment once a second maintainer
+  joins.
+- Add branch protection on `main` requiring at least one review + the `validate`
+  workflow to pass, once the org / collaborators exist.

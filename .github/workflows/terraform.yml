@@ -1,0 +1,85 @@
+name: Terraform
+
+# Purpose: validate infra/terraform/ on every PR, and prove OIDC federation to the
+# demo tenant works end-to-end on merges to main / manual dispatch.
+#
+# Guardrails
+# - Pull-request runs get NO tenant access. They only validate + fmt-check.
+# - Push-to-main and workflow_dispatch runs sign in via OIDC federation to the
+#   `dev` GitHub Environment's app registration (crm-showcase-ci-dev) and print
+#   the resulting identity — no writes yet. A future PR adds remote state and a
+#   real `terraform plan` here.
+#
+# Auth pattern: see docs/adr/ADR-0002-oidc-federation-for-github-actions-to-entra.md
+#               and docs/adr/ADR-0004-ci-plane-app-registrations-and-github-environments.md
+
+on:
+  pull_request:
+    paths:
+      - 'infra/terraform/**'
+      - '.github/workflows/terraform.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'infra/terraform/**'
+      - '.github/workflows/terraform.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment slot to smoke-test OIDC against'
+        required: true
+        default: 'dev'
+        type: choice
+        options: [dev, test]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  validate:
+    # PR-safe: never touches the tenant.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Terraform format check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init (no backend, no providers)
+        run: terraform init -backend=false
+
+      - name: Terraform validate
+        run: terraform validate
+
+  smoke_oidc:
+    # Push-to-main or manual dispatch: proves the Entra app + federated
+    # credential + GitHub Environment variable wiring end-to-end.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    steps:
+      - name: Sign in to Entra via OIDC federation
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Report resolved identity + tenant + Power Platform target
+        run: |
+          echo "Signed in as:"
+          az account show --output json | jq '{tenantId, user}'
+          echo ""
+          echo "Configured Power Platform environment:"
+          echo "  URL: ${{ vars.POWER_PLATFORM_ENV_URL }}"
+          echo "  ID:  ${{ vars.POWER_PLATFORM_ENV_ID }}"

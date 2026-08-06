@@ -4,3 +4,44 @@ module "powerplatform" {
   environments    = var.environments
   tenant_settings = var.tenant_settings
 }
+
+module "entra" {
+  source = "./modules/entra"
+
+  github_owner      = var.github_owner
+  github_repository = var.github_repository
+
+  app_registrations = {
+    dev = {
+      display_name       = "crm-showcase-ci-dev"
+      github_environment = "dev"
+      description        = "CRM Showcase CI (dev environment). OIDC federation only."
+    }
+    test = {
+      display_name       = "crm-showcase-ci-test"
+      github_environment = "test"
+      description        = "CRM Showcase CI (test environment). OIDC federation only."
+    }
+  }
+}
+
+module "github" {
+  source = "./modules/github"
+
+  repository = var.github_repository
+
+  environments = {
+    dev = {
+      ci_client_id          = module.entra.client_ids["dev"]
+      ci_tenant_id          = var.tenant_id
+      powerplatform_env_id  = module.powerplatform.environment_ids["dev"]
+      powerplatform_env_url = module.powerplatform.environment_urls["dev"]
+    }
+    test = {
+      ci_client_id          = module.entra.client_ids["test"]
+      ci_tenant_id          = var.tenant_id
+      powerplatform_env_id  = module.powerplatform.environment_ids["test"]
+      powerplatform_env_url = module.powerplatform.environment_urls["test"]
+    }
+  }
+}
