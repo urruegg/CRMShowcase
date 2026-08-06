@@ -6,17 +6,6 @@ on:
       - 'solution/**'
       - 'scripts/solution/**'
       - '.github/workflows/solution-*.yml'
-  # Also fire on branch pushes so this workflow starts validating as soon as it
-  # lands on a feature branch — the `pull_request` trigger only picks up the
-  # workflow file version that lives on the PR's base branch (main), so a
-  # brand-new workflow file needs to be validated via `push` until it makes it
-  # onto main.
-  push:
-    branches-ignore: [main]
-    paths:
-      - 'solution/**'
-      - 'scripts/solution/**'
-      - '.github/workflows/solution-*.yml'
 
 permissions:
   contents: read
@@ -87,7 +76,6 @@ jobs:
           use-desktop-flow-runner: false
 
       - name: Detect breaking changes
-        if: github.event_name == 'pull_request'
         shell: pwsh
         run: |
           . ./scripts/solution/Test-BreakingChange.ps1
