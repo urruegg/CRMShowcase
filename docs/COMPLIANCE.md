@@ -1,37 +1,48 @@
-# Compliance — What the Demo May and May Not Claim
+# Compliance
 
 | Field | Value |
 | --- | --- |
-| Version | 0.1 (Draft) |
-| Status | Draft |
+| Status | **Draft skeleton 0.2** · **Owner** `AG-E-06` |
 
-> **Template.** This file exists so the CRM Domain Expert
-> ([.github/agents/crm-domain-expert.agent.md](../.github/agents/crm-domain-expert.agent.md))
-> and Responsible-AI Officer
-> ([.github/agents/responsible-ai-officer.agent.md](../.github/agents/responsible-ai-officer.agent.md))
-> have a shared reference.
+> **This document is a skeleton.** It must be completed with the delivery and
+> legal teams before any position is asserted to a customer. **Not legal advice**
+> — the customer's legal function and DPO validate all positions.
 
-## 1. Scope
-The CRM Frontier Firm Showcase is a **demo**. It is not certified against any regulatory
-regime and it must not imply that it is.
+## Scope
 
-## 2. What the demo may claim
+The CRM Frontier Firm Showcase is a **demo**. It is not certified against any
+regulatory regime and it must not imply that it is.
+
+| Area | Status |
+| --- | --- |
+| GDPR (and equivalent local data-protection laws, e.g. Swiss revDSG) | `[TBD]` |
+| Financial-regulator outsourcing expectations | `[TBD]` |
+| Data residency commitment | `[TBD — must trace to the offer]` |
+| DPIA | `[TBD]` |
+| Retention & deletion | `[TBD]` |
+| Consent ([ADR-0010](./adr/ADR-0010-consent-per-contact-per-channel.md)) | Modelled per contact per channel with source and capture date |
+| AI-specific regulatory risk (A6) | See [AI.md](./AI.md) |
+
+## What the demo may claim
+
 - "Demonstrates a pattern for grounded AI in CRM."
 - "Illustrates human-agent teaming for sales, service, and marketing workflows."
 - "Uses synthetic data only."
 - "Aligns with Microsoft Responsible AI principles."
 
-## 3. What the demo must not claim
+## What the demo must not claim
+
 - "GDPR-compliant" or any equivalent certification.
 - "Ready for production use."
-- "Processes real customer data safely" — because it does not process real customer data at all.
+- "Processes real customer data safely" — because it does not process real
+  customer data at all.
 - "Replaces a human decision-maker for customer-visible actions."
 
-## 4. Responsible-AI stance
-- Every AI-drafted customer-facing message is disclosed as AI-assisted (DP-11).
-- Content Safety is applied on customer-visible output (AI.md §5).
-- A human is accountable for anything that reaches an actual customer (DP-03).
+## Standing rules already in force
 
-## 5. Data-handling stance
-- Synthetic-only in the demo (DP-05, [DATA.md](./DATA.md)).
-- Tenant isolation (DP-06, [SECURITY.md](./SECURITY.md)).
+- **No real customer data outside production**
+  ([SUPERPOWERS_CONTRACT.md](../SUPERPOWERS_CONTRACT.md) §1.3).
+- **Consent evaluated at the API layer**, not the UI
+  ([ADR-0010](./adr/ADR-0010-consent-per-contact-per-channel.md)).
+- **Human accountable for every customer-facing act**
+  ([ADR-0014](./adr/ADR-0014-agents-advisory-by-design.md)).

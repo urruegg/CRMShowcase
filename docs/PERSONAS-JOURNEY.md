@@ -1,47 +1,47 @@
-# Personas & Journeys — CRM Frontier Firm Showcase
+# Personas & End-to-End Journey
 
-| Field | Value |
-| --- | --- |
-| Version | 0.1 (Draft) |
-| Status | Draft |
+| Status | Draft 0.2 |
 
-> **Template.** Fill in journeys as the showcase concretises. Copilot agents in
-> [.github/agents/](../.github/agents/) reason over these entries.
+The narrative anchor: **customers do not experience departments, they
+experience the insurer.** They do not care whether a process belongs to sales,
+service or claims — only that somebody knows them.
 
-## P-01 — Sales Rep (Alex)
-- **Wants:** to spend time with prospects who will close, not on triage.
-- **Reality:** overloaded inbox, patchy CRM hygiene, high context-switching cost.
-- **Frontier-firm shift:** the Lead Qualification Assistant (`AG-F-01`) drafts summaries;
-  Alex decides which leads to pursue.
+| # | Persona | Cares about | Deep-dive |
+| --- | --- | --- | --- |
+| P-01 | **Advisor (GA)** | *"Every minute spent searching for information is one less minute helping customers."* No opportunity forgotten. | Sales |
+| P-02 | **General Agent lead** | Local steering, autonomy within governance, portfolio health | Sales |
+| P-03 | **Assistance agent** | *A customer beside a broken vehicle at 2 AM does not need a case number — they need reassurance.* | Service |
+| P-04 | **Marketer** | Relevance over volume; *"which customer needs our attention right now?"* | Marketing |
+| P-05 | **Broker manager** | Moving from retrospective reporting to proactive partnership management | Broker |
+| P-06 | **IT / Architect** | Boundaries, contracts, upgrade safety, operability, who is accountable | **This repository** |
+| P-07 | **Business owner / Data steward** | What they can change on Monday without a ticket; data quality ownership | A9 |
 
-## P-02 — Service Agent (Priya)
-- **Wants:** to resolve a case in one interaction with a happy customer.
-- **Reality:** knowledge scattered across tools, high volume of routine tickets.
-- **Frontier-firm shift:** the Service Triage Agent (`AG-F-02`) categorises and drafts;
-  Priya reviews and sends.
+## The Tag-1 persona
 
-## P-03 — Marketing Operator (Sam)
-- **Wants:** more variants, faster, without diluting the brand.
-- **Reality:** manual copy iteration is the bottleneck.
-- **Frontier-firm shift:** the Campaign Copy Generator (`AG-F-03`) drafts variants;
-  Sam approves before scheduling.
+**P-06 is the architecture audience.** They are not evaluating whether the UI
+is pleasant. They are evaluating whether this platform will still be
+maintainable in ten years, who they will be arguing with when an integration
+breaks, and whether the claims survive contact with their own architects.
 
-## P-04 — RevOps Lead (Jordan)
-- **Wants:** a weekly, honest read of the pipeline with anomalies flagged early.
-- **Reality:** dashboards say what happened, not what to do.
-- **Frontier-firm shift:** the RevOps Insights Agent (`AG-F-04`) summarises movement and
-  flags top-N anomalies; Jordan chooses what to act on.
+Everything is built for that persona: repository first because they distrust
+slides, ADRs because they want the reasoning not the conclusion, the live
+build because extensibility claims are cheap, and the rollback because
+operability claims are cheaper.
 
-## P-05 — Customer (external)
-- Interacts with the showcase indirectly, via messages a human on P-01/P-02/P-03 has
-  approved before sending. **Never** talks to an agent that can act autonomously in this demo.
+## Illustrated primary customer
 
-## Journeys
+- **Contoso Insurance** — a cooperative multi-line insurer with roughly 80
+  independent General Agent offices. The illustrated household is the **Smith
+  household**: existing customer with motor, contents, liability, natural-hazard
+  and building cover, and a multi-product discount. They relocate across a
+  jurisdiction boundary. See
+  [ideas/UC-01-relocation-across-jurisdictions/README.md](./ideas/UC-01-relocation-across-jurisdictions/README.md).
 
-> One journey per use case, referenced from [PRD.md](./PRD.md). Add as the showcase grows.
+## The journey on the golden thread
 
-### Journey — UC1 Assisted lead-to-cash
-1. Lead arrives → Dataverse `Lead` record.
-2. `AG-F-01` drafts a qualification summary grounded in the record + interactions.
-3. Alex reviews, edits if needed, and either dismisses or clicks *Approve → schedule meeting*.
-4. Nothing is sent externally until Alex approves.
+`Relocation → Cascade → Coverage check → GA reassignment → Advisory
+opportunity → Quote → Close`
+
+The customer experiences one continuous relationship. Internally it crosses
+marketing, sales, service, after-sales, the GA organisation, and four systems
+of record. That gap is the whole architecture conversation.
