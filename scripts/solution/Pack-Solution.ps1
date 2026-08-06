@@ -5,7 +5,7 @@
     Thin wrapper around `pac solution pack`. The counterpart of Unpack-Solution.ps1.
 .PARAMETER Folder
     Root folder produced by `pac solution unpack` (containing Other/Solution.xml).
-.PARAMETER ZipFile
+.PARAMETER OutFile
     Path where the packed zip should be written. Parent folder is created.
 .PARAMETER PackageType
     Unmanaged (default), Managed, or Both. Must match how the source was unpacked.
@@ -13,7 +13,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)] [string]$Folder,
-    [Parameter(Mandatory)] [string]$ZipFile,
+    [Parameter(Mandatory)] [string]$OutFile,
     [ValidateSet('Unmanaged','Managed','Both')] [string]$PackageType = 'Unmanaged'
 )
 
@@ -24,8 +24,8 @@ if (-not (Get-Command pac -ErrorAction SilentlyContinue)) {
     }
 }
 
-New-Item -ItemType Directory -Force -Path (Split-Path -Parent $ZipFile) | Out-Null
-Write-Host "Packing $Folder -> $ZipFile ($PackageType)"
-pac solution pack --folder $Folder --zipfile $ZipFile --packagetype $PackageType
+New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutFile) | Out-Null
+Write-Host "Packing $Folder -> $OutFile ($PackageType)"
+pac solution pack --folder $Folder --zipfile $OutFile --packagetype $PackageType
 if ($LASTEXITCODE -ne 0) { throw "pac solution pack failed" }
-Write-Host "Packed: $ZipFile"
+Write-Host "Packed: $OutFile"
