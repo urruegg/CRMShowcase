@@ -30,6 +30,8 @@
 
 ## 4. Storage
 > Fill in as decided (Dataverse tables, Azure AI Search indexes, blob containers, etc.).
+> Environment slots and where real values live are described in
+> [ENVIRONMENTS.md](./ENVIRONMENTS.md).
 
 ## 5. Deterministic action layer
 See [AI.md §4](./AI.md) — every agent-initiated mutation goes through a schema-validated

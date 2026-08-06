@@ -13,14 +13,22 @@
 - **No secrets in code.** Use Entra ID + Managed Identity. Any stored secret lives in
   Azure Key Vault and is justified in a PR.
 - **OIDC-federated deploys** — no long-lived cloud credentials in GitHub.
+  See [adr/ADR-0002-oidc-federation-for-github-actions-to-entra.md](./adr/ADR-0002-oidc-federation-for-github-actions-to-entra.md).
+- **No tenant identifiers in Git.** Real tenant IDs, environment URLs, GUIDs, and UPNs
+  live only in developer-local `.env.local` files and in GitHub Actions environment
+  secrets/variables. See [ENVIRONMENTS.md](./ENVIRONMENTS.md).
 - **Tenant isolation** — demo tenant only. No path into a customer's production tenant.
 - **Secret scanning + push protection** must stay enabled.
 - **CodeQL** on every PR.
 
 ## 2. Identity
-- All service-to-service auth uses Managed Identity.
+- All service-to-service auth uses **Entra ID workload identity federation** (OIDC)
+  or Managed Identity, per [ADR-0002](./adr/ADR-0002-oidc-federation-for-github-actions-to-entra.md).
 - All user-facing endpoints are behind Entra ID.
-- No shared service accounts.
+- **No Global Admin service accounts.** Global Admin is human-only and MFA-enforced.
+- **One app registration per environment slot** (`DEV`, `TEST`), least-privilege
+  roles only.
+- No shared service accounts across environments.
 
 ## 3. Secrets
 - Storage: Azure Key Vault.

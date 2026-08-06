@@ -427,3 +427,34 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# --- CRM Showcase: secrets & tenant details (never commit) ---
+
+# Local env files with real tenant / environment / credential values.
+# Real values live only on the developer's machine or in Azure Key Vault.
+.env
+.env.*
+!.env.example
+
+# Ad-hoc local secret storage
+secrets/
+.secrets/
+*.secret
+*.secrets
+
+# Common credential / token exports
+*.pfx
+*.p12
+*.pem
+azureauth.json
+pac-*.json
+*_token.json
+*.tokens
+
+# Power Platform / Dataverse local dev artefacts that may hold connection strings
+local.settings.json
+connection-references.local.*
+
+# MCP local config (may include personal tokens)
+.mcp/
+mcp.local.json

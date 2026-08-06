@@ -14,6 +14,7 @@ that the Copilot agents in [.github/agents/](../.github/agents/) reason over.
 
 - [AI.md](./AI.md) — model choices, prompts, evals, Content Safety.
 - [DATA.md](./DATA.md) — data model, synthetic data rules.
+- [ENVIRONMENTS.md](./ENVIRONMENTS.md) — Power Platform environments (anonymised).
 - [SECURITY.md](./SECURITY.md) — identity, secrets, network posture.
 - [COMPLIANCE.md](./COMPLIANCE.md) — what claims the demo may and may not make.
 - [TEST.md](./TEST.md) — testing strategy.
