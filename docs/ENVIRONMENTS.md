@@ -23,24 +23,31 @@
 
 ## 2. Environment slots
 
-The showcase uses two Power Platform environments. Names are **slots**, not brands —
-we refer to them by role, never by customer or product name.
+The showcase uses two Power Platform environments. Slot names below are the anonymised
+identifiers used throughout the repo. Real branded names (if any) live only in
+local `.env.local` and in the tenant admin console — never in Git.
 
-### `DEV`
+### `crmshowdev` (slot `DEV`)
 - **Purpose.** Developer environment. Dynamics 365 Foundation + custom solution
   (**unmanaged**). Used for build and unit-level demo.
 - **Data classification.** Synthetic only.
-- **Placeholders.** `${DEV_ENV_URL}`, `${DEV_ENV_ID}`, `${DEV_ORG_ID}`.
-- **Access model.** Least-privilege service principal for CI. Interactive human sign-in
-  for local dev.
+- **Target URL.** `https://crmshowdev.crm.dynamics.com` (after the rename tracked in
+  the current milestone — see the IaC in [../infra/](../infra/)).
+- **Target display name.** *CRM Showcase — DEV*.
+- **Placeholders in `.env.example`.** `${DEV_ENV_URL}`, `${DEV_ENV_ID}`, `${DEV_ORG_ID}`.
+- **Access model.** Least-privilege service principal for CI (see
+  [adr/ADR-0002-oidc-federation-for-github-actions-to-entra.md](./adr/ADR-0002-oidc-federation-for-github-actions-to-entra.md)).
+  Interactive human sign-in for local dev.
 
-### `TEST`
+### `crmshowtest` (slot `TEST`)
 - **Purpose.** Integration testing and demo environment. All **managed** solutions,
-  including the custom solution promoted from `DEV`.
+  including the custom solution promoted from `crmshowdev`.
 - **Data classification.** Synthetic only.
-- **Placeholders.** `${TEST_ENV_URL}`, `${TEST_ENV_ID}`, `${TEST_ORG_ID}`.
-- **Access model.** As `DEV`. A separate service principal (different app registration)
-  so a compromise of `DEV` does not reach `TEST`.
+- **Target URL.** `https://crmshowtest.crm.dynamics.com`.
+- **Target display name.** *CRM Showcase — TEST*.
+- **Placeholders in `.env.example`.** `${TEST_ENV_URL}`, `${TEST_ENV_ID}`, `${TEST_ORG_ID}`.
+- **Access model.** As `crmshowdev`. A separate app registration
+  (`crm-showcase-ci-test`) so a compromise of `crmshowdev` does not reach `crmshowtest`.
 
 ## 3. Rules
 
