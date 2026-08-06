@@ -50,3 +50,4 @@ variable "tenant_settings" {
   })
   description = "Tenant-wide Power Platform settings the showcase depends on."
 }
+

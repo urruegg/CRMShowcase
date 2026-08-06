@@ -51,3 +51,10 @@ resource "powerplatform_tenant_settings" "this" {
   disable_environment_creation_by_non_admin_users = var.tenant_settings.disable_new_env_creation_non_admins
 }
 
+# NOTE: Adding a service principal as a Dataverse application user is not a
+# Terraform-native operation in the current microsoft/power-platform provider
+# (`powerplatform_user` treats service principals as pre-existing users and
+# returns 404 when creating them from scratch). We use a script instead
+# (`infra/scripts/add-ci-app-users.ps1`) as documented in ADR-0005. This is
+# recorded here as a comment so the module's contract is clear.
+

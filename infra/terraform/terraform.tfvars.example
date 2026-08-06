@@ -50,3 +50,4 @@ tenant_settings = {
   storage_capacity_warning_threshold  = 85
   disable_new_env_creation_non_admins = false
 }
+

@@ -36,6 +36,9 @@ terraform init
 terraform plan
 # 7. Only if the plan shows exactly the intended changes:
 terraform apply
+# 8. Add the two CI service principals as Dataverse application users
+#    (Terraform provider does not yet support this — see ADR-0005)
+../../infra/scripts/add-ci-app-users.ps1 -Slot all
 ```
 
 ## Bootstrap on a fresh tenant
