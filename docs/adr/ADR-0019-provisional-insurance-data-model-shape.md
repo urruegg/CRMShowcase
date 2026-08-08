@@ -321,6 +321,9 @@ Adopt **Option C as the provisional target hypothesis**.
 
 This decision approves the logical layering and canonical vocabulary. It does
 not approve a final Dataverse table list or a specific integration mechanism.
+[ADR-0020](./ADR-0020-domain-ownership-within-six-solution-architecture.md)
+defines the provisional domain-to-solution packaging and component-ownership
+rules for implementing this hypothesis.
 No insurance-context entity is persisted merely because it exists in CDM.
 Every Layer 2 projection must name:
 

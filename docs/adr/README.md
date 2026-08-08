@@ -10,7 +10,7 @@ Two loose series live side by side:
 - **Governance / build ADRs (0001–0005)** record real decisions made while bringing
   the showcase up: Copilot governance, OIDC federation, Terraform, CI plane, CI app
   users.
-- **Domain ADRs (0006–0019)** record the CRM Frontier Firm design position on the
+- **Domain ADRs (0006–0020)** record the CRM Frontier Firm design position on the
   illustrated insurance vertical: party model, portfolio placement, thin CRM over
   the engines, consent, event cascade, jurisdiction eligibility, GA territory,
   agents-advisory, voice, outbound, ALM, analytics split.
@@ -46,9 +46,27 @@ Copy [ADR-TEMPLATE.md](./ADR-TEMPLATE.md) and edit — do not invent a new shape
 | [0017](./ADR-0017-alm-everything-through-the-pipeline.md) | Everything reaches an environment through the pipeline | A4 · A8 | Proposed |
 | [0018](./ADR-0018-analytics-split-crm-vs-databricks.md) | Analytics split — CRM vs. analytics platform | A7 | Proposed |
 | [0019](./ADR-0019-provisional-insurance-data-model-shape.md) | Provisional insurance data-model shape | A1 · A2 · A3 · A7 | Proposed |
+| [0020](./ADR-0020-domain-ownership-within-six-solution-architecture.md) | Domain ownership within the six-solution architecture | A1 · A2 · A4 · A8 | Proposed hypothesis |
 
-ADRs 0011, 0012, 0013, 0017, 0018, and 0019 remain proposed until confirmed
-with customer architecture in the next review.
+ADRs 0011, 0012, 0013, 0017, 0018, 0019, and 0020 remain proposed until
+confirmed with customer architecture in the next review.
+
+## Hypothesis-driven decisions
+
+When material evidence is incomplete, do not hide uncertainty and do not wait
+for perfect information. Use a **proposed hypothesis ADR**:
+
+1. compare credible alternatives;
+2. separate known facts, inferences, and missing evidence;
+3. select a reversible working hypothesis with a confidence level;
+4. define validation evidence, review triggers, and decision owners;
+5. implement only a reviewable slice that can produce evidence;
+6. update or supersede the ADR when evidence changes the decision.
+
+[ADR-0020](./ADR-0020-domain-ownership-within-six-solution-architecture.md)
+establishes this as the default decision pattern for CRM Showcase
+implementation sprints. A hypothesis may guide delivery, but it must not become
+an unreviewed permanent architecture through inertia.
 
 ## When to open an ADR
 

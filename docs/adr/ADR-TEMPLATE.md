@@ -2,8 +2,10 @@
 
 | Field | Value |
 | --- | --- |
-| **Status** | Proposed \| Accepted \| Superseded by ADR-NNNN |
+| **Status** | Proposed hypothesis \| Proposed \| Accepted \| Superseded by ADR-NNNN |
 | **Date** | YYYY-MM-DD |
+| **Decision mode** | Working hypothesis \| Committed decision |
+| **Confidence** | Low \| Medium \| High — and the evidence supporting it |
 | **Deciders** | &lt;names / roles&gt; |
 | **Topic area** | A# — &lt;name&gt; |
 | **Use case** | UC-… |
@@ -27,12 +29,25 @@ What it is. **Why not / why yes.**
 ### Option B — &lt;name&gt;
 What it is. **Why not / why yes.**
 
-### Option C — &lt;name&gt; ✅ chosen
-What it is. **Why.**
+### Option C — &lt;name&gt; ✅ preferred
+What it is. **Why.** State whether it is a working hypothesis or committed
+decision.
 
-## Decision
+## Decision or working hypothesis
 
 One paragraph. Unambiguous.
+
+## Evidence and assumptions
+
+- **Known:** verified facts and accepted constraints.
+- **Inferred:** reasoned assumptions based on current evidence.
+- **Evidence still required:** facts that may change the decision.
+
+## Validation and review triggers
+
+State the evidence that confirms or rejects the hypothesis, the events that
+force this ADR to be reopened, and the roles that decide. Architecture must not
+drift silently when new evidence appears.
 
 ## Consequences
 
