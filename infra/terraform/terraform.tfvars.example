@@ -23,6 +23,7 @@ environments = {
     env_type          = "Sandbox"
     currency          = "USD"
     language          = "1033"
+    required_languages = ["1033", "1031", "1036", "1040"]
     cadence           = "Moderate"
     security_group_id = ""
   }
@@ -34,6 +35,7 @@ environments = {
     env_type          = "Sandbox"
     currency          = "USD"
     language          = "1033"
+    required_languages = ["1033", "1031", "1036", "1040"]
     cadence           = "Moderate"
     security_group_id = ""
   }
@@ -50,4 +52,3 @@ tenant_settings = {
   storage_capacity_warning_threshold  = 85
   disable_new_env_creation_non_admins = false
 }
-

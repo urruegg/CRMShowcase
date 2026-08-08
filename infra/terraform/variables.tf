@@ -21,21 +21,34 @@ variable "github_repository" {
 
 variable "environments" {
   type = map(object({
-    id                = string
-    display_name      = string
-    domain            = string
-    location          = string
-    env_type          = string
-    currency          = string
-    language          = string
-    cadence           = optional(string, "Moderate")
-    security_group_id = optional(string, "")
+    id                 = string
+    display_name       = string
+    domain             = string
+    location           = string
+    env_type           = string
+    currency           = string
+    language           = string
+    required_languages = optional(set(string), ["1033", "1031", "1036", "1040"])
+    cadence            = optional(string, "Moderate")
+    security_group_id  = optional(string, "")
   }))
   description = <<-EOT
     Map of Power Platform environment slots. Keys are the slot names (e.g. "dev", "test").
     The id is the existing environment GUID in the tenant (used for `terraform import`).
     On a fresh tenant, set id = "" and terraform apply will create new environments.
   EOT
+
+  validation {
+    condition = alltrue([
+      for env in values(var.environments) :
+      contains(env.required_languages, env.language) &&
+      alltrue([
+        for lcid in env.required_languages :
+        contains(["1033", "1031", "1036", "1040"], lcid)
+      ])
+    ])
+    error_message = "Each environment must include its base language and may use only 1033, 1031, 1036 and 1040."
+  }
 }
 
 variable "tenant_settings" {
@@ -50,4 +63,3 @@ variable "tenant_settings" {
   })
   description = "Tenant-wide Power Platform settings the showcase depends on."
 }
-

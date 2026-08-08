@@ -39,6 +39,12 @@ terraform apply
 # 8. Add the two CI service principals as Dataverse application users
 #    (Terraform provider does not yet support this — see ADR-0005)
 ../../infra/scripts/add-ci-app-users.ps1 -Slot all
+# 9. Reconcile required languages before importing multilingual solutions
+../../infra/scripts/Set-DataverseLanguages.ps1 `
+  -EnvironmentUrl https://crmshowdev.crm.dynamics.com `
+  -LocaleId 1033,1031,1036,1040
+# 10. Import solutions only after language reconciliation reports every LCID Active
+../../scripts/solution/Import-Solution.ps1 -ZipFile <SOLUTION_ZIP>
 ```
 
 ## Bootstrap on a fresh tenant
@@ -56,6 +62,13 @@ terraform init
 terraform plan
 terraform apply
 ```
+
+For both existing and fresh environments, deployment ordering is strict:
+Dataverse application users first, language reconciliation second, and solution
+import third. `Set-DataverseLanguages.ps1` uses `az rest` to acquire its access
+token at runtime; no token or credential is stored in Terraform state or logs.
+Removing an LCID from `required_languages` does not deactivate that language.
+The reconciler only activates desired languages and never disables languages.
 
 ## Guardrails
 
