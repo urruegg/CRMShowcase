@@ -7,10 +7,21 @@
 | **Test type** | Prompt and instruction discovery acceptance |
 | **Data** | Synthetic prompts only |
 
-Run these scenarios after changing any capability imported by ADR-0022.
-Inspect the selected agent, skill or path-scoped instructions and compare the
-result with the expected outcome. A capability must not acquire decision
-authority merely because it is selected.
+Run these scenarios after changing any capability imported by ADR-0022. They
+are deterministic metadata-discovery tests, not claims about a model's
+free-form response quality.
+
+## Execution procedure
+
+1. Check out the candidate commit and run from the repository root.
+2. Give an isolated read-only Copilot reviewer one scenario at a time.
+3. For prompt scenarios, match the prompt to the `description` or trigger
+   metadata and inspect the selected capability's CRMShowcase overlay.
+4. For file scenarios, evaluate the instruction front matter `applyTo`
+   pattern against the supplied path.
+5. Record the selected files and verify every expected assertion below.
+6. Fail the scenario if discovery is ambiguous, an expected guardrail is
+   absent, or the capability claims authority owned by an `AG-E-##` role.
 
 ## Scenarios
 
@@ -23,6 +34,23 @@ authority merely because it is selected.
 
 ## Recorded result
 
-| Date | Upstream pin | Result |
+| Field | Value |
+| --- | --- |
+| **Date** | 2026-08-08 |
+| **Repository commit** | `3658630cf490fae76a2abd169ab6f5e104f89ffa` |
+| **Upstream pin** | `ab7544d03d4c49fdd07f5958e1888ad39c4118e2` |
+| **Runner** | GitHub Copilot CLI 1.0.79-9, isolated read-only `explore` agent |
+| **Model** | Not surfaced by the isolated runner |
+| **Method** | Repository metadata, trigger and `applyTo` inspection; no runtime Power Platform or MCP calls |
+
+| ID | Result | Captured evidence |
 | --- | --- | --- |
-| 2026-08-08 | `ab7544d03d4c49fdd07f5958e1888ad39c4118e2` | Pass — all four scenarios selected the intended capability and retained CRMShowcase authority and safety boundaries. |
+| CAP-01 | Pass | Selected `.github/agents/power-platform-mcp-integration-expert.agent.md`. Confirmed explicit MCP/custom-connector scope; AG-E-03/04/06/09 review; no implied MCP server, credentials or independent authority. |
+| CAP-02 | Pass | Selected `.github/skills/github-actions-hardening/SKILL.md`. Confirmed workflow permission review, pinned actions, OIDC, least privilege and rejection of long-lived credentials. |
+| CAP-03 | Pass | Selected both `.github/instructions/pcf-*.instructions.md` files for `solution/Controls/SampleControl/ControlManifest.Input.xml`. Confirmed they do not apply outside `solution/` and preserve multilingual, human-approval, DEV-unmanaged and TEST-managed rules. |
+| CAP-04 | Pass | Selected `.github/skills/power-apps-code-app-scaffold/SKILL.md`. Confirmed `pa app init`, `pa app add data-source`, `pa app run` and `pa app push`; `pac code` is explicitly legacy. |
+
+**Limitation:** this run proves repository discovery metadata and overlays are
+internally consistent. It does not prove live model behavior or external
+service availability; those require a separate eval or integration test when
+a delivery story enables the capability.
