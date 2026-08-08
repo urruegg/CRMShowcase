@@ -231,6 +231,28 @@ Describe 'az rest transport' {
         } | Should -Throw '*exited with code 17*'
         Test-Path -LiteralPath $script:bodyFile | Should -BeFalse
     }
+
+    It 'treats a Dataverse Not Found error emitted by az on stderr as absent metadata' {
+        function global:az {
+            Write-Error 'ERROR: {"error":{"code":"0x80060888","message":"Not Found"}}' `
+                -ErrorAction Continue
+            $global:LASTEXITCODE = 3
+        }
+
+        Get-GlobalOptionSet 'crmshow_accounttype' | Should -BeNullOrEmpty
+    }
+
+    It 'does not hide a non-404 Dataverse error emitted by az on stderr' {
+        function global:az {
+            Write-Error 'ERROR: {"error":{"code":"0x80040265","message":"Permission denied"}}' `
+                -ErrorAction Continue
+            $global:LASTEXITCODE = 4
+        }
+
+        {
+            Get-GlobalOptionSet 'crmshow_accounttype'
+        } | Should -Throw '*exited with code 4*Permission denied*'
+    }
 }
 
 Describe 'Insurance Foundation reconciliation' {
