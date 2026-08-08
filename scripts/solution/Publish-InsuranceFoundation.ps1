@@ -1306,7 +1306,7 @@ function Publish-TableMetadata {
 
 function Invoke-TableReconciliation {
     param($Table)
-    $existing = Get-One "/EntityDefinitions?`$select=MetadataId,LogicalName,SchemaName,OwnershipType,PrimaryNameAttribute,IsAuditEnabled,DisplayName,Description&`$expand=Attributes(`$select=MetadataId,LogicalName,SchemaName,AttributeType,DisplayName,Description),ManyToOneRelationships(`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute)&`$filter=LogicalName eq '$($Table.logicalName)'"
+    $existing = Get-One "/EntityDefinitions?`$select=MetadataId,LogicalName,SchemaName,OwnershipType,PrimaryNameAttribute,IsAuditEnabled,DisplayName,Description&`$expand=Attributes(`$select=MetadataId,LogicalName,SchemaName,AttributeType,DisplayName,Description),ManyToOneRelationships(`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute,CascadeConfiguration)&`$filter=LogicalName eq '$($Table.logicalName)'"
     if ($null -eq $existing) {
         $choiceMetadataIds = Get-GlobalChoiceMetadataIds @($Table.columns)
         Invoke-PlannedRequest (
@@ -1365,6 +1365,16 @@ function Invoke-TableReconciliation {
                     ($actualRelationship.ReferencingAttribute -and
                     $actualRelationship.ReferencingAttribute -ne $relationship.lookupColumn)) {
                     throw "Structural relationship target conflict for '$($wanted.SchemaName)'."
+                }
+                $expectedCascade = @{
+                    Assign='NoCascade'; Delete='Restrict'; Merge='NoCascade'
+                    Reparent='NoCascade'; Share='NoCascade'; Unshare='NoCascade'
+                }
+                foreach ($action in @($expectedCascade.Keys | Sort-Object)) {
+                    if ([string]$actualRelationship.CascadeConfiguration.$action -ne
+                        [string]$expectedCascade[$action]) {
+                        throw "Structural relationship cascade conflict for '$($wanted.SchemaName)': '$action' must be '$($expectedCascade[$action])'."
+                    }
                 }
             }
         }
