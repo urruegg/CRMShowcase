@@ -81,12 +81,12 @@ Traces to
 
 | ID | Story | Status |
 | --- | --- | --- |
-| US-601 | Export and unpack the Mobiliar prototype into a quarantined intake area | In progress |
-| US-602 | Scan and sanitize the snapshot for secrets, environment values, and customer content | In progress |
-| US-603 | Generate a deterministic machine-readable artefact BOM | In progress |
-| US-604 | Map BOM artefacts to domains, target solution containers, and review dispositions | In progress |
-| US-605 | Design the CRM Showcase target data-model extensions | In progress |
-| US-606 | Publish linked sprint evidence in a GitHub feature issue | In progress |
+| US-601 | Export and unpack the Mobiliar prototype into a quarantined intake area | Done — [#6](https://github.com/urruegg/CRMShowcase/issues/6) |
+| US-602 | Scan and sanitize the snapshot for secrets, environment values, and customer content | Done — [#6](https://github.com/urruegg/CRMShowcase/issues/6) |
+| US-603 | Generate a deterministic machine-readable artefact BOM | Done — [#6](https://github.com/urruegg/CRMShowcase/issues/6) |
+| US-604 | Map BOM artefacts to domains, target solution containers, and review dispositions | Done — [#6](https://github.com/urruegg/CRMShowcase/issues/6) |
+| US-605 | Design the CRM Showcase target data-model extensions | Done — [#6](https://github.com/urruegg/CRMShowcase/issues/6) |
+| US-606 | Publish linked sprint evidence in a GitHub feature issue | Done — [#6](https://github.com/urruegg/CRMShowcase/issues/6) |
 
 ## Bootstrap stories already delivered
 
