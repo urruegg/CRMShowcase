@@ -1158,7 +1158,7 @@ function Invoke-ExistingCustomerRelationshipReconciliation {
         "`$select=MetadataId,LogicalName,SchemaName,AttributeType,Targets"
     )
     $relationshipResponse = Invoke-DataverseRequest -Method GET -Path (
-        "/EntityDefinitions(LogicalName='$escapedLogicalName')/OneToManyRelationships?" +
+        "/EntityDefinitions(LogicalName='$escapedLogicalName')/ManyToOneRelationships?" +
         "`$select=MetadataId,SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute"
     )
 
@@ -1254,7 +1254,7 @@ function Publish-TableMetadata {
 
 function Invoke-TableReconciliation {
     param($Table)
-    $existing = Get-One "/EntityDefinitions?`$select=MetadataId,LogicalName,SchemaName,OwnershipType,PrimaryNameAttribute,IsAuditEnabled,DisplayName,Description&`$expand=Attributes(`$select=MetadataId,LogicalName,SchemaName,AttributeType,DisplayName,Description),OneToManyRelationships(`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute)&`$filter=LogicalName eq '$($Table.logicalName)'"
+    $existing = Get-One "/EntityDefinitions?`$select=MetadataId,LogicalName,SchemaName,OwnershipType,PrimaryNameAttribute,IsAuditEnabled,DisplayName,Description&`$expand=Attributes(`$select=MetadataId,LogicalName,SchemaName,AttributeType,DisplayName,Description),ManyToOneRelationships(`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute)&`$filter=LogicalName eq '$($Table.logicalName)'"
     if ($null -eq $existing) {
         $choiceMetadataIds = Get-GlobalChoiceMetadataIds @($Table.columns)
         Invoke-PlannedRequest (
@@ -1286,7 +1286,7 @@ function Invoke-TableReconciliation {
                 ReferencedEntity = [string]$relationship.referencedTables[0]
             }
             foreach ($wanted in @($expected)) {
-                $actualRelationship = @($existing.OneToManyRelationships |
+                $actualRelationship = @($existing.ManyToOneRelationships |
                     Where-Object SchemaName -eq $wanted.SchemaName)
                 if ($actualRelationship.Count -ne 1) {
                     throw "Structural relationship conflict for '$($wanted.SchemaName)': the expected relationship is missing or ambiguous."

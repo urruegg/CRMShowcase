@@ -563,7 +563,7 @@ Describe 'Insurance Foundation reconciliation' {
                                 Description=ConvertTo-LocalizedLabel $_.metadata.description
                             }
                         })
-                    OneToManyRelationships=@($table.relationships |
+                    ManyToOneRelationships=@($table.relationships |
                         Where-Object authoring -eq 'InitialTableCreate' |
                         ForEach-Object {
                             [pscustomobject]@{
@@ -593,7 +593,7 @@ Describe 'Insurance Foundation reconciliation' {
                     Description=ConvertTo-LocalizedLabel $column.metadata.description
                 }) }
             }
-            if ($Method -eq 'GET' -and $Path -match '/OneToManyRelationships\?') {
+            if ($Method -eq 'GET' -and $Path -match '/ManyToOneRelationships\?') {
                 return [pscustomobject]@{ value=@() }
             }
             if ($Method -eq 'GET' -and
@@ -650,7 +650,7 @@ Describe 'Insurance Foundation reconciliation' {
                 $Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.LookupAttributeMetadata') {
                 return [pscustomobject]@{ value=@() }
             }
-            if ($Method -eq 'GET' -and $Path -match '/OneToManyRelationships\?') {
+            if ($Method -eq 'GET' -and $Path -match '/ManyToOneRelationships\?') {
                 return [pscustomobject]@{ value=@([pscustomobject]@{
                     SchemaName='crmshow_PolicyPartyRole_Party_account'
                     ReferencedEntity='account'
@@ -855,7 +855,7 @@ Describe 'Insurance Foundation reconciliation' {
                     SolutionUniqueName = 'crmshow_DataModel'
                     DisplayName = ConvertTo-LocalizedLabel $table.metadata.label
                     Description = ConvertTo-LocalizedLabel $table.metadata.description
-                    OneToManyRelationships = @($table.relationships | ForEach-Object {
+                    ManyToOneRelationships = @($table.relationships | ForEach-Object {
                         [pscustomobject]@{
                             SchemaName = $_.schemaName
                             ReferencedEntity = [string]$_.referencedTables[0]
@@ -953,6 +953,10 @@ Describe 'Insurance Foundation reconciliation' {
             $_.Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.(?:String|DateTime|Lookup)AttributeMetadata\?'
         }).Count | Should -Be 7
         @($script:calls | Where-Object {
+            $_.Method -eq 'GET' -and
+            $_.Path -match '\$expand=.*ManyToOneRelationships'
+        }).Count | Should -Be 1
+        @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and $_.Path -eq '/PublishXml'
         }).Count | Should -Be 2
     }
@@ -984,7 +988,7 @@ Describe 'Insurance Foundation reconciliation' {
                     DisplayName=ConvertTo-LocalizedLabel $table.metadata.label
                     Description=ConvertTo-LocalizedLabel $table.metadata.description
                     Attributes=@()
-                    OneToManyRelationships=@()
+                    ManyToOneRelationships=@()
                 }) }
             }
             if ($Method -eq 'GET' -and
