@@ -67,10 +67,11 @@ function Invoke-DataverseRequest {
             $arguments += @('--body', "@$($tempFile.FullName)")
         }
 
-        $output = & az @arguments
-        if ($LASTEXITCODE -ne 0) {
+        $output = & az @arguments 2>&1
+        $exitCode = $LASTEXITCODE
+        if ($exitCode -ne 0) {
             $detail = ($output | Out-String).Trim()
-            throw "Dataverse request failed ($Method $Path); az rest exited with code $LASTEXITCODE. $detail"
+            throw "Dataverse request failed ($Method $Path); az rest exited with code $exitCode. $detail"
         }
         if (-not [string]::IsNullOrWhiteSpace(($output | Out-String))) {
             return ($output | Out-String) | ConvertFrom-Json
