@@ -108,9 +108,9 @@ Confidence: HIGH / MEDIUM / LOW
 
 🔴 CRITICAL — Hardcoded API Key
   File: src/config/database.js, Line 12
-  
+
   Found: STRIPE_SECRET_KEY = "[REDACTED]"
-  
+
   Action Required:
   1. Rotate this key IMMEDIATELY at https://dashboard.stripe.com
   2. Remove from source code
