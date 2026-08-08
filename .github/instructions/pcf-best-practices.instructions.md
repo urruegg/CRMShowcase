@@ -1,6 +1,6 @@
 ---
 description: 'Best practices and guidance for developing PCF code components'
-applyTo: '**/*.{ts,tsx,js,json,xml,pcfproj,csproj,css,html}'
+applyTo: 'solution/**/*.{ts,tsx,js,json,xml,pcfproj,csproj,css,html}'
 ---
 
 # Best Practices and Guidance for Code Components

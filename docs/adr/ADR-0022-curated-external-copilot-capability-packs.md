@@ -45,8 +45,9 @@ complete Power Platform MCP connector surface.
 Import only capabilities that fill a verified gap. Pin every file to an
 immutable upstream commit, retain the upstream MIT notice in
 [`THIRD-PARTY-NOTICES.md`](../../THIRD-PARTY-NOTICES.md), add CRMShowcase
-guardrails, test representative discovery scenarios, and keep decision
-authority with the existing `AG-E-##` owners.
+guardrails, test the representative discovery scenarios in
+[`US-801-capability-pack-acceptance.md`](../testing/US-801-capability-pack-acceptance.md),
+and keep decision authority with the existing `AG-E-##` owners.
 
 ## Decision
 
@@ -88,7 +89,9 @@ on-demand until a concrete story needs them.
 
 ## Validation and review triggers
 
-- Re-run scenario-based acceptance tests after changing imported instructions.
+- Re-run the documented
+  [US-801 scenario-based acceptance tests](../testing/US-801-capability-pack-acceptance.md)
+  after changing imported instructions.
 - Review upstream changes before updating the pinned commit.
 - Revisit this ADR when a paid MCP service, custom MCP connector, or Python
   Dataverse implementation becomes an approved story.
