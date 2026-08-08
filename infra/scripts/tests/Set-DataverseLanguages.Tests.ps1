@@ -67,3 +67,51 @@ Describe 'Wait-DataverseLanguage' {
         Should -Invoke Start-Sleep -Times 0 -Exactly
     }
 }
+
+Describe 'Invoke-DataverseLanguageReconciliation' {
+    BeforeEach {
+        $script:events = [System.Collections.Generic.List[string]]::new()
+
+        Mock Invoke-DataverseRest {
+            if ($Method -eq 'PATCH') {
+                [void]$script:events.Add("PATCH:$Url")
+                return
+            }
+
+            $lcid = [int]([regex]::Match($Url, 'localeid eq (\d+)').Groups[1].Value)
+            [void]$script:events.Add("GET:$lcid")
+            return @{
+                value = @(
+                    @{
+                        languagelocaleid = "language-$lcid"
+                        localeid         = $lcid
+                        statecode        = 1
+                        statuscode       = 2
+                    }
+                )
+            }
+        }
+        Mock Wait-DataverseLanguage {
+            [void]$script:events.Add("WAIT:$LocaleId")
+        }
+    }
+
+    It 'submits every inactive activation before starting the first wait' {
+        $evidence = @(
+            Invoke-DataverseLanguageReconciliation `
+                -BaseUrl 'https://crmshowdev.crm.dynamics.com' `
+                -RequiredLocaleId @(1031, 1036)
+        )
+
+        $script:events | Should -Be @(
+            'GET:1031'
+            'GET:1036'
+            'PATCH:https://crmshowdev.crm.dynamics.com/api/data/v9.2/languagelocale(language-1031)'
+            'PATCH:https://crmshowdev.crm.dynamics.com/api/data/v9.2/languagelocale(language-1036)'
+            'WAIT:1031'
+            'WAIT:1036'
+        )
+        $evidence.LocaleId | Should -Be @(1031, 1036)
+        $evidence.State | Should -Be @('Active', 'Active')
+    }
+}

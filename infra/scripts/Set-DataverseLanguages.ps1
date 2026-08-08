@@ -140,11 +140,18 @@ function Invoke-DataverseRest {
     }
 }
 
-if ($MyInvocation.InvocationName -ne '.') {
-    $baseUrl = $EnvironmentUrl.TrimEnd('/')
-    $requiredLocaleIds = Get-NormalizedLocaleIds -LocaleId $LocaleId
+function Invoke-DataverseLanguageReconciliation {
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [Parameter(Mandatory)]
+        [string]$BaseUrl,
 
-    foreach ($lcid in $requiredLocaleIds) {
+        [Parameter(Mandatory)]
+        [int[]]$RequiredLocaleId
+    )
+
+    $baseUrl = $BaseUrl.TrimEnd('/')
+    $languages = foreach ($lcid in $RequiredLocaleId) {
         $queryUrl = "$baseUrl/api/data/v9.2/languagelocale?`$select=languagelocaleid,localeid,statecode,statuscode&`$filter=localeid eq $lcid"
         $response = Invoke-DataverseRest -Method GET -Url $queryUrl
         if ($response.value.Count -ne 1) {
@@ -153,28 +160,40 @@ if ($MyInvocation.InvocationName -ne '.') {
 
         $language = $response.value[0]
         $transition = Get-LanguageTransition -LocaleId $lcid -StateCode ([int]$language.statecode)
-        $shouldVerify = $true
-        if ($transition -eq 'Activate') {
-            $target = "$baseUrl locale $lcid"
-            if ($PSCmdlet.ShouldProcess($target, 'Activate Dataverse language')) {
-                $patchUrl = "$baseUrl/api/data/v9.2/languagelocale($($language.languagelocaleid))"
-                Invoke-DataverseRest -Method PATCH -Url $patchUrl -Body @{
-                    statecode  = 0
-                    statuscode = 1
-                } | Out-Null
-            }
-            else {
-                $shouldVerify = $false
-            }
-        }
-
-        if ($shouldVerify) {
-            Wait-DataverseLanguage -BaseUrl $baseUrl -LocaleId $lcid
-            Write-Output ([pscustomobject]@{
-                    Environment = $baseUrl
-                    LocaleId    = $lcid
-                    State       = 'Active'
-                })
+        [pscustomobject]@{
+            LocaleId         = $lcid
+            LanguageLocaleId = $language.languagelocaleid
+            Transition       = $transition
+            ShouldVerify     = $true
         }
     }
+
+    foreach ($language in $languages | Where-Object Transition -eq 'Activate') {
+        $target = "$baseUrl locale $($language.LocaleId)"
+        if ($PSCmdlet.ShouldProcess($target, 'Activate Dataverse language')) {
+            $patchUrl = "$baseUrl/api/data/v9.2/languagelocale($($language.LanguageLocaleId))"
+            Invoke-DataverseRest -Method PATCH -Url $patchUrl -Body @{
+                statecode  = 0
+                statuscode = 1
+            } | Out-Null
+        }
+        else {
+            $language.ShouldVerify = $false
+        }
+    }
+
+    foreach ($language in $languages | Where-Object ShouldVerify) {
+        Wait-DataverseLanguage -BaseUrl $baseUrl -LocaleId $language.LocaleId
+        Write-Output ([pscustomobject]@{
+                Environment = $baseUrl
+                LocaleId    = $language.LocaleId
+                State       = 'Active'
+            })
+    }
+}
+
+if ($MyInvocation.InvocationName -ne '.') {
+    $baseUrl = $EnvironmentUrl.TrimEnd('/')
+    $requiredLocaleIds = Get-NormalizedLocaleIds -LocaleId $LocaleId
+    Invoke-DataverseLanguageReconciliation -BaseUrl $baseUrl -RequiredLocaleId $requiredLocaleIds
 }
