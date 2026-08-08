@@ -10,7 +10,7 @@ Two loose series live side by side:
 - **Governance / build ADRs (0001–0005)** record real decisions made while bringing
   the showcase up: Copilot governance, OIDC federation, Terraform, CI plane, CI app
   users.
-- **Domain ADRs (0006–0018)** record the CRM Frontier Firm design position on the
+- **Domain ADRs (0006–0019)** record the CRM Frontier Firm design position on the
   illustrated insurance vertical: party model, portfolio placement, thin CRM over
   the engines, consent, event cascade, jurisdiction eligibility, GA territory,
   agents-advisory, voice, outbound, ALM, analytics split.
@@ -45,9 +45,10 @@ Copy [ADR-TEMPLATE.md](./ADR-TEMPLATE.md) and edit — do not invent a new shape
 | [0016](./ADR-0016-governed-outbound.md) | Governed, consent-checked outbound messaging | A5 · A6 | Accepted |
 | [0017](./ADR-0017-alm-everything-through-the-pipeline.md) | Everything reaches an environment through the pipeline | A4 · A8 | Proposed |
 | [0018](./ADR-0018-analytics-split-crm-vs-databricks.md) | Analytics split — CRM vs. analytics platform | A7 | Proposed |
+| [0019](./ADR-0019-provisional-insurance-data-model-shape.md) | Provisional insurance data-model shape | A1 · A2 · A3 · A7 | Proposed |
 
-`[TBD]` — ADRs 0011, 0012, 0013, 0017, 0018 remain proposed until confirmed with
-customer architecture in the next review.
+ADRs 0011, 0012, 0013, 0017, 0018, and 0019 remain proposed until confirmed
+with customer architecture in the next review.
 
 ## When to open an ADR
 

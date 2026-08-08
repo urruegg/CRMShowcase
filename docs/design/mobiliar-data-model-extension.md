@@ -6,7 +6,7 @@
 | Date | 2026-08-08 |
 | Source | Structural BOM from the isolated Mobiliar rapid prototype |
 | Target owner | AG-E-03 Enterprise Architect and AG-E-08 Dataverse Modeler |
-| Related ADRs | ADR-0006, ADR-0007, ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0012, ADR-0013 |
+| Related ADRs | ADR-0006, ADR-0007, ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0012, ADR-0013, ADR-0019 |
 | Licence | Configuration and own build; native product dependencies require capability-level validation |
 | Maturity | Data-model design; no runtime AI capability is approved by this document |
 | Upgrade impact | Additive target-model proposal. Source schema and publisher are not retained. |
@@ -27,6 +27,13 @@ prototype solution.
 The CRM Showcase will therefore rebuild selected capabilities on the existing
 six-solution architecture. It will not import the source solution, retain its
 publisher, or preserve its parallel party tables.
+
+[ADR-0019](../adr/ADR-0019-provisional-insurance-data-model-shape.md) records
+three candidate target shapes. Its working hypothesis is a layered hybrid:
+retain the CRM operating model, use canonical P&C semantics in versioned
+contracts, and persist only insurance-context projections justified by a named
+CRM journey. The final physical projection mechanism remains subject to
+Mobiliar core-system integration and data-platform discovery.
 
 ## Source observations
 
