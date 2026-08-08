@@ -622,8 +622,13 @@ Describe 'Insurance Foundation reconciliation' {
 
         { Invoke-TableReconciliation $table } |
             Should -Throw '*simulated interruption*'
+        $beforeRecovery = $script:calls.Count
         { Invoke-TableReconciliation $table } | Should -Not -Throw
 
+        $recoveryMutations = @($script:calls[$beforeRecovery..($script:calls.Count - 1)] |
+            Where-Object Method -ne 'GET')
+        $recoveryMutations[0].Path | Should -Be '/PublishXml'
+        $recoveryMutations[1].Path | Should -Be '/CreateCustomerRelationships'
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and $_.Path -eq '/EntityDefinitions'
         }).Count | Should -Be 1
@@ -944,7 +949,7 @@ Describe 'Insurance Foundation reconciliation' {
         }).Count | Should -Be 7
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and $_.Path -eq '/PublishXml'
-        }).Count | Should -Be 1
+        }).Count | Should -Be 2
     }
 
     It 'binds a missing choice column on an existing table by metadata ID' {
