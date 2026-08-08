@@ -17,6 +17,14 @@ Describe "Get-Manifest" {
         { Get-Manifest -Path (Join-Path $script:repoRoot 'solution/manifest.json') -Validate } | Should -Not -Throw
     }
 
+    It "versions the Sprint 3 Foundation and DataModel solutions at 1.1.0.0" {
+        $m = Get-Manifest -Path (Join-Path $script:repoRoot 'solution/manifest.json')
+        ($m.solutions | Where-Object uniqueName -eq 'crmshow_Foundation').version |
+            Should -Be '1.1.0.0'
+        ($m.solutions | Where-Object uniqueName -eq 'crmshow_DataModel').version |
+            Should -Be '1.1.0.0'
+    }
+
     It "throws on missing file" {
         { Get-Manifest -Path 'nonexistent.json' } | Should -Throw
     }

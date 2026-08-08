@@ -88,6 +88,24 @@ Traces to
 | US-605 | Design the CRM Showcase target data-model extensions | Done — [#6](https://github.com/urruegg/CRMShowcase/issues/6) |
 | US-606 | Publish linked sprint evidence in a GitHub feature issue | Done — [#6](https://github.com/urruegg/CRMShowcase/issues/6) |
 
+## Epic 7 — Insurance Foundation (Sprint 3)
+
+Traces to [GitHub issue #8](https://github.com/urruegg/CRMShowcase/issues/8)
+and the
+[Sprint 3 design](./superpowers/specs/2026-08-08-insurance-foundation-design.md).
+
+| ID | Story | Status |
+| --- | --- | --- |
+| US-701 | Reconcile EN/DE/FR/IT environment languages as IaC desired state | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
+| US-702 | Deliver shared insurance choices and security roles | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
+| US-703 | Extend Account and Contact | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
+| US-704 | Deliver effective-dated AccountContactRole | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
+| US-705 | Deliver Account-owned PolicyProjection | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
+| US-706 | Deliver effective-dated PolicyPartyRole | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
+| US-707 | Validate schema and multilingual semantic metadata | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
+| US-708 | Deploy unmanaged to DEV and managed to TEST | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
+| US-709 | Load synthetic fixtures and publish smoke evidence | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
+
 ## Bootstrap stories already delivered
 
 | ID | Story | Commit |
