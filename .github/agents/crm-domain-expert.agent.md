@@ -27,6 +27,13 @@ An architecturally clean feature that no rep would ever use is a failure.
 - The demo never pretends to be a specific real customer.
 - Copy avoids fake compliance claims (e.g., don't imply GDPR-signoff we don't have).
 - Journeys respect that a human is accountable for what the customer sees.
+- Review Dataverse display names, descriptions, choices, help text and form
+  labels for business clarity in English, German, French and Italian. English is
+  the base language; translations must preserve CRM meaning rather than mirror
+  English word-for-word.
+- Reject metadata that exposes implementation jargon, unexplained
+  abbreviations, or wording a sales, service or marketing user would
+  misinterpret.
 
 ## When to stop and escalate
 - A journey requires access to a real CRM system as its data source — refuse for the demo tenant.

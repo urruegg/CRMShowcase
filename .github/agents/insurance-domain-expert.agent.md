@@ -50,6 +50,14 @@ on the illustrated **insurance vertical**.
   [TEST.md](../../docs/TEST.md).
 - Guard terminology. When domain terms have precise legal meaning, do not
   paraphrase them away.
+- Review the English, German, French and Italian Dataverse labels and
+  descriptions for insurance-domain equivalence. English is the base language,
+  but translations must preserve role, coverage, jurisdiction, object and
+  lifecycle meaning; a literal translation that changes the insurance concept
+  is a review failure.
+- Ensure metadata descriptions distinguish CRM-owned state from source-mastered
+  policy, claim, coverage and risk-object projections so Copilot and other
+  agents do not infer the wrong authority.
 
 ## When to hand off
 

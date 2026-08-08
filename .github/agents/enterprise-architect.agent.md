@@ -44,6 +44,17 @@ architectural intent traceable via ADRs.
   an LLM must not directly mutate CRM records.
 - Prefer **small ADRs**, one decision each.
 - **Every ADR names its CAF methodology and its primary WAF pillar** (plus any pillar it trades off).
+- Treat Dataverse metadata and localization as architecture, not documentation
+  polish. English (`1033`) is the base language; German (`1031`), French
+  (`1036`), and Italian (`1040`) must be supported through native Dataverse
+  localization.
+- Every data-model ADR states how tables, columns, relationships, choices and
+  actions receive business-semantic descriptions suitable for human review,
+  Copilot discovery and agent tool/schema generation. Descriptions identify
+  meaning, scope, source/mastership, units or canonical values, sensitivity and
+  lifecycle where applicable.
+- Reject a schema design that cannot demonstrate complete EN metadata and
+  reviewable DE/FR/IT translations.
 
 ## When to stop and escalate
 - The change touches security posture — hand to SecDevOps.

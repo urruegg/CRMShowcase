@@ -37,6 +37,9 @@ local `.env.local` and in the tenant admin console — never in Git.
 - **Access model.** Least-privilege service principal for CI (see
   [adr/ADR-0002-oidc-federation-for-github-actions-to-entra.md](./adr/ADR-0002-oidc-federation-for-github-actions-to-entra.md)).
   Interactive human sign-in for local dev.
+- **Languages.** English (`1033`) is the base language. German (`1031`), French
+  (`1036`), and Italian (`1040`) must be enabled before Sprint 3 metadata is
+  deployed ([ADR-0021](./adr/ADR-0021-multilingual-semantic-dataverse-metadata.md)).
 
 ### `crmshowtest` (slot `TEST`) — **live**
 - **Purpose.** Integration testing and demo environment. All **managed** solutions,
@@ -47,6 +50,8 @@ local `.env.local` and in the tenant admin console — never in Git.
 - **Placeholders in `.env.example`.** `${TEST_ENV_URL}`, `${TEST_ENV_ID}`, `${TEST_ORG_ID}`.
 - **Access model.** As `crmshowdev`. A separate app registration
   (`crm-showcase-ci-test`) so a compromise of `crmshowdev` does not reach `crmshowtest`.
+- **Languages.** The enabled-language set must match DEV: EN base plus DE, FR
+  and IT. Promotion smoke tests verify the language set before managed imports.
 
 ## 3. Rules
 

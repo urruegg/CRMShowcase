@@ -10,7 +10,7 @@ Two loose series live side by side:
 - **Governance / build ADRs (0001–0005)** record real decisions made while bringing
   the showcase up: Copilot governance, OIDC federation, Terraform, CI plane, CI app
   users.
-- **Domain ADRs (0006–0020)** record the CRM Frontier Firm design position on the
+- **Domain ADRs (0006–0021)** record the CRM Frontier Firm design position on the
   illustrated insurance vertical: party model, portfolio placement, thin CRM over
   the engines, consent, event cascade, jurisdiction eligibility, GA territory,
   agents-advisory, voice, outbound, ALM, analytics split.
@@ -47,6 +47,7 @@ Copy [ADR-TEMPLATE.md](./ADR-TEMPLATE.md) and edit — do not invent a new shape
 | [0018](./ADR-0018-analytics-split-crm-vs-databricks.md) | Analytics split — CRM vs. analytics platform | A7 | Proposed |
 | [0019](./ADR-0019-provisional-insurance-data-model-shape.md) | Provisional insurance data-model shape | A1 · A2 · A3 · A7 | Proposed |
 | [0020](./ADR-0020-domain-ownership-within-six-solution-architecture.md) | Domain ownership within the six-solution architecture | A1 · A2 · A4 · A8 | Proposed hypothesis |
+| [0021](./ADR-0021-multilingual-semantic-dataverse-metadata.md) | Multilingual semantic Dataverse metadata | A2 · A4 · A6 · A8 | Accepted |
 
 ADRs 0011, 0012, 0013, 0017, 0018, 0019, and 0020 remain proposed until
 confirmed with customer architecture in the next review.

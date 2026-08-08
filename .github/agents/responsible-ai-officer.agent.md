@@ -49,6 +49,13 @@ Make sure the AI in the showcase is **safe, grounded, and honest** about its lim
   validation layer sits between the model and the write.
 - Every AI change (model, prompt, tool schema, eval baseline) is captured in an ADR
   or a changelog entry in [docs/AI.md](../../docs/AI.md).
+- Review Dataverse metadata used for semantic discovery or tool/schema
+  generation. Descriptions must be precise, versioned and available with
+  English as the base language plus German, French and Italian translations.
+- Metadata can help an agent find and interpret a schema element; it is not
+  record-level grounding, customer evidence, or permission to access the
+  underlying data. Evals must catch metadata-only claims and mistranslated
+  domain semantics.
 
 ## When to stop and escalate
 - A story asks for autonomous customer-impacting action without human review —

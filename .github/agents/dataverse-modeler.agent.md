@@ -110,6 +110,38 @@ rules). When you extend a CDM entity:
    downstream analytics ([ADR-0018](../../docs/adr/ADR-0018-analytics-split-crm-vs-databricks.md))
    inherit the semantics.
 
+## Metadata and localization contract
+
+Dataverse metadata is part of the executable semantic model. Copilot, agents,
+makers, integrators and downstream data products must be able to understand a
+component without reverse-engineering its implementation.
+
+- **Base language:** English (`1033`).
+- **Supported translations:** German (`1031`), French (`1036`), and Italian
+  (`1040`), enabled and maintained through native Dataverse language support.
+- Every table, column, relationship, choice, action and custom API has a
+  precise English display name and description.
+- Every user-visible table/column name, choice label, relationship label, help
+  text, form label, view name, command and relevant description has DE/FR/IT
+  translations.
+- A description states the business meaning and scope. Where applicable it also
+  states source/mastership, units, canonical values, effective-dating or
+  lifecycle semantics, sensitivity, and whether the value is a projection.
+- Never use tautologies such as "Policy ID identifies the policy", placeholders,
+  UI-only wording, unexplained abbreviations, or descriptions copied from a
+  different entity.
+- Logical and schema names remain stable English identifiers. Localization
+  changes labels and descriptions, never API names.
+- All localized labels and descriptions ship in the owning solution and are
+  source-controlled. Manual translations in an environment are drift.
+- Add metadata validation that fails when required descriptions or any of the
+  four language labels are missing, blank, duplicated from the logical name, or
+  marked TBD/TODO.
+
+AI semantic discovery may use metadata descriptions to locate and interpret
+schema elements, but metadata is not record-level grounding and must never be
+presented as customer evidence.
+
 ## Platform gotchas — treat these as constraints
 
 - **Define all lookups in one `create_table` call.** Create/delete/recreate has
@@ -129,7 +161,9 @@ rules). When you extend a CDM entity:
    PR description.
 4. Everything lands in `solution/` under source control
    ([ADR-0017](../../docs/adr/ADR-0017-alm-everything-through-the-pipeline.md)).
-5. Add a test. Declare the upgrade impact. Set the licensing flag in
+5. Add EN/DE/FR/IT labels and descriptions in the same change as the component.
+6. Add a metadata completeness test plus the behavior test. Declare the upgrade
+   impact. Set the licensing flag in
    [LICENSING.md](../../docs/LICENSING.md).
 
 ## You must not
@@ -142,6 +176,8 @@ rules). When you extend a CDM entity:
 - Create a duplicate person on lead qualification
   ([ADR-0009](../../docs/adr/ADR-0009-lead-as-interest-on-existing-person.md)).
 - Ship a schema change that has no test and no declared upgrade impact.
+- Ship a table, column, relationship, choice or action with missing,
+  placeholder, monolingual, or semantically empty metadata.
 
 ## Authoritative references
 

@@ -27,6 +27,12 @@ traits, do not invent a parallel entity. This is the same rule the Dataverse
 Modeler ([AG-E-08](./dataverse-modeler.agent.md)) operates under; you and they
 share the map.
 
+The shared semantic layer is multilingual at the presentation boundary.
+English (`1033`) is the canonical/base metadata language; German (`1031`),
+French (`1036`), and Italian (`1040`) are maintained as native Dataverse
+localized labels and descriptions. Preserve stable English logical identifiers
+and semantic traits across Dataverse, CDM exports, Fabric and Power BI.
+
 ### CDM foundations to reason from
 
 - **[CDM core entity reference](https://learn.microsoft.com/common-data-model/schema/core/overview)**
@@ -121,6 +127,11 @@ yet, or we are extending CDM and should say so in the ADR.
   lineage traces to CDM entities and — where extended — to the ADR that
   justified the extension. Export as CDM (Dataverse → Data Lake Storage
   Gen2) preserves semantics for Fabric and Power BI.
+- **Descriptions are model inputs.** Review table, column, relationship, choice
+  and event descriptions for precise business meaning, source/mastership,
+  units, canonical values, sensitivity and lifecycle. Reject placeholder or
+  tautological descriptions. Metadata may guide semantic discovery, but actual
+  records and governed knowledge remain the grounding source for AI output.
 - **Models with registry, evals, and monitoring.** Which model runs where.
   Model registry, lineage from training data to deployed inference.
   Golden-set evals with a defined regression gate. Live monitoring: drift,

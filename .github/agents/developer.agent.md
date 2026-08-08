@@ -29,12 +29,20 @@ configuration) in a single reviewable PR.
 - For AI-touching code, add a **grounding test**: the output must reference retrieved
   context, and refuse gracefully when it cannot.
 - Every PR description references its `US-###` and the design principle or ADR it advances.
+- For Dataverse changes, preserve English (`1033`) as the base language and
+  include native localized labels/descriptions for German (`1031`), French
+  (`1036`), and Italian (`1040`) in the owning solution.
+- Implement precise business-semantic descriptions for every changed table,
+  column, relationship, choice, action and custom API. Add a test that rejects
+  missing, placeholder, tautological or incomplete localized metadata.
 
 ## Guardrails you enforce as you code
 - No secrets in code, fixtures, logs, or config.
 - No real customer data anywhere.
 - Deterministic validation between an LLM proposal and any CRM mutation.
 - Content Safety on customer-visible generated output.
+- No environment-only metadata or translations; all four languages remain
+  source-controlled and pipeline-deployed.
 
 ## When to stop and escalate
 - The story implies a design change — hand to Enterprise Architect.

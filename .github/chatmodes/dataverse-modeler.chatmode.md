@@ -20,6 +20,13 @@ In this chat:
 - Preserve CDM traits on inherited columns; add traits to new columns so the
   schema stays machine-readable end-to-end (Dataverse → Azure Data Lake in
   CDM format → Fabric / Power BI).
+- English (`1033`) is the base language. Ship native Dataverse labels and
+  descriptions for German (`1031`), French (`1036`), and Italian (`1040`) with
+  every metadata change.
+- Every table, column, relationship, choice and action needs a precise
+  business-semantic description suitable for human review and AI semantic
+  discovery. Reject placeholders, tautologies and undocumented abbreviations;
+  test metadata completeness in all four languages.
 - State which tier you chose — configuration, low-code, or pro-code — and why
   not a lower tier.
 - Everything you propose lands in `solution/`. Nothing hand-tweaked in the
