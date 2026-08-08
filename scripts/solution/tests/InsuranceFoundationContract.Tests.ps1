@@ -1,4 +1,4 @@
-BeforeAll {
+﻿BeforeAll {
     $script:repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../../..')).Path
     $script:contractPath = Join-Path $script:repoRoot 'solution/schema/insurance-foundation.json'
     $script:schemaPath = Join-Path $script:repoRoot 'solution/schema/insurance-foundation.schema.json'
@@ -248,6 +248,140 @@ Describe 'Insurance Foundation JSON contract' {
         @($party.lookup.targets) | Should -Be @('account', 'contact')
     }
 
+    It 'locks mixed mastership and non-evidentiary AccountContactRole semantics' {
+        $contract = Get-Contract
+        $table = $contract.tables | Where-Object logicalName -eq 'crmshow_accountcontactrole'
+        $expectedTableDescriptions = @{
+            '1033' = 'Effective-dated relationship between a person and a household, business or broker Account. Roles are either CRM-authored with no source identity or source-projected with a source identity; they grant no authorization and are not customer evidence.'
+            '1031' = 'Zeitlich gültige Beziehung einer Person zu einem Haushalts-, Unternehmens- oder Maklerkonto. Rollen sind entweder im CRM ohne Quellidentität erfasst oder mit Quellidentität aus einer Quelle projiziert; sie gewähren keine Berechtigung und sind kein Kundennachweis.'
+            '1036' = "Relation datée entre une personne et un compte ménage, entreprise ou courtier. Les rôles sont soit créés dans le CRM sans identité source, soit projetés depuis une source avec une identité source; ils n’accordent aucune autorisation et ne constituent pas une preuve client."
+            '1040' = 'Relazione con validità temporale tra una persona e un account familiare, aziendale o di brokeraggio assicurativo. I ruoli sono creati nel CRM senza identità della fonte oppure proiettati da una fonte con identità della fonte; non concedono autorizzazioni e non costituiscono prova per il cliente.'
+        }
+        foreach ($language in $script:languages) {
+            $table.metadata.description.$language | Should -Be $expectedTableDescriptions[$language]
+        }
+
+        foreach ($columnName in 'crmshow_accountid','crmshow_contactid') {
+            ($table.columns | Where-Object logicalName -eq $columnName).metadata.mastership |
+                Should -Be 'Mixed'
+        }
+
+        $choice = $contract.choices | Where-Object logicalName -eq 'crmshow_accountcontactroletype'
+        $expectedChoiceDescriptions = @{
+            '1033' = 'Canonical CRM classification of how a person participates in an Account relationship during an effective interval on both CRM-authored and source-projected records; it grants no access or authority.'
+            '1031' = 'Kanonische CRM-Klassifikation der Rolle einer Person in einer Kontobeziehung während eines Gültigkeitsintervalls für im CRM erfasste und aus einer Quelle projizierte Datensätze; sie gewährt weder Zugriff noch Befugnis.'
+            '1036' = "Classification CRM canonique de la participation d’une personne à une relation de compte pendant une période, pour les enregistrements créés dans le CRM comme pour ceux projetés depuis une source; elle n’accorde ni accès ni pouvoir."
+            '1040' = 'Classificazione CRM canonica della partecipazione di una persona alla relazione con un account durante un intervallo, sia per i record creati nel CRM sia per quelli proiettati da una fonte; non concede accesso né autorità.'
+        }
+        foreach ($language in $script:languages) {
+            $choice.metadata.description.$language | Should -Be $expectedChoiceDescriptions[$language]
+        }
+
+        $schema = Get-Content $script:schemaPath -Raw | ConvertFrom-Json
+        @($schema.'$defs'.semanticMetadata.properties.mastership.enum) | Should -Contain 'Mixed'
+    }
+
+    It 'locks PolicyPartyRole party relationship wording without a Customer label' {
+        $contract = Get-Contract
+        $table = $contract.tables | Where-Object logicalName -eq 'crmshow_policypartyrole'
+        $relationship = $table.relationships |
+            Where-Object name -eq 'crmshow_customer_policypartyroles'
+        $relationship.role |
+            Should -Be 'Policy party is an Account or Contact holding the projected role.'
+        $expectedLabels = @{
+            '1033' = 'Policy Party Roles by Party'
+            '1031' = 'Policenparteienrollen nach Partei'
+            '1036' = 'Rôles de partie à la police par partie'
+            '1040' = 'Ruoli delle parti di polizza per parte'
+        }
+        $expectedDescriptions = @{
+            '1033' = 'Many PolicyPartyRole records reference one Account or Contact as the policy party; that party may differ from the portfolio Account.'
+            '1031' = 'Viele Policenparteienrollen verweisen auf ein Konto oder einen Kontakt als Policenpartei; diese Partei kann vom Portfoliokonto abweichen.'
+            '1036' = 'Plusieurs enregistrements PolicyPartyRole référencent un compte ou un contact comme partie à la police; cette partie peut différer du compte de portefeuille.'
+            '1040' = "Più record PolicyPartyRole fanno riferimento a un account o contatto come parte della polizza; tale parte può differire dall’account di portafoglio."
+        }
+        foreach ($language in $script:languages) {
+            $relationship.metadata.label.$language | Should -Be $expectedLabels[$language]
+            $relationship.metadata.description.$language | Should -Be $expectedDescriptions[$language]
+        }
+        @($relationship.role, $relationship.metadata.label.'1033',
+            $relationship.metadata.description.'1033') -join ' ' |
+            Should -Not -Match '\bCustomer\b'
+    }
+
+    It 'locks authoritative-source correction and insurance exclusions on projection forms' {
+        $contract = Get-Contract
+        $expected = @{
+            crmshow_policyprojection = @{
+                '1033' = 'Form for authorized inspection and reconciliation of projected policy context. Correct business facts in the authoritative source, then refresh CRM; this form performs no premium or rate calculation, underwriting or risk acceptance, putting coverage into force, cancellation or termination, payment administration, or source-policy alteration.'
+                '1031' = 'Formular zur berechtigten Prüfung und Abstimmung des projizierten Policenkontexts. Fachliche Sachverhalte sind in der massgebenden Quelle zu korrigieren und danach im CRM zu aktualisieren; dieses Formular führt keine Prämien- oder Tarifberechnung, kein Underwriting oder keine Risikoannahme und keine Stornierung, Beendigung, Zahlungsverwaltung oder Änderung der Quellpolice durch und kann keinen Versicherungsschutz in Kraft setzen.'
+                '1036' = "Formulaire d’inspection autorisée et de rapprochement du contexte de police projeté. Les faits métier sont corrigés dans la source faisant autorité, puis le CRM est actualisé; ce formulaire n’effectue aucun calcul de prime ou de tarif, aucune souscription ou acceptation du risque, ne peut mettre les garanties en vigueur, résilier ou mettre fin à la police, administrer les paiements ni modifier la police source."
+                '1040' = "Modulo per l’ispezione autorizzata e la riconciliazione del contesto di polizza proiettato. I fatti aziendali vengono corretti nella fonte autorevole e poi il CRM viene aggiornato; il modulo non esegue calcoli di premio o tariffa, assunzione o accettazione del rischio, non può mettere in vigore la copertura, annullare o cessare la polizza, amministrare pagamenti né modificare la polizza fonte."
+            }
+            crmshow_policypartyrole = @{
+                '1033' = 'Form for authorized inspection and reconciliation of projected policy-party roles. Correct business facts in the authoritative source, then refresh CRM; this form performs no premium or rate calculation, underwriting or risk acceptance, putting coverage into force, cancellation or termination, payment administration, or source-policy alteration.'
+                '1031' = 'Formular zur berechtigten Prüfung und Abstimmung projizierter Policenparteienrollen. Fachliche Sachverhalte sind in der massgebenden Quelle zu korrigieren und danach im CRM zu aktualisieren; dieses Formular führt keine Prämien- oder Tarifberechnung, kein Underwriting oder keine Risikoannahme und keine Stornierung, Beendigung, Zahlungsverwaltung oder Änderung der Quellpolice durch und kann keinen Versicherungsschutz in Kraft setzen.'
+                '1036' = "Formulaire d’inspection autorisée et de rapprochement des rôles projetés de partie à la police. Les faits métier sont corrigés dans la source faisant autorité, puis le CRM est actualisé; ce formulaire n’effectue aucun calcul de prime ou de tarif, aucune souscription ou acceptation du risque, ne peut mettre les garanties en vigueur, résilier ou mettre fin à la police, administrer les paiements ni modifier la police source."
+                '1040' = "Modulo per l’ispezione autorizzata e la riconciliazione dei ruoli proiettati delle parti di polizza. I fatti aziendali vengono corretti nella fonte autorevole e poi il CRM viene aggiornato; il modulo non esegue calcoli di premio o tariffa, assunzione o accettazione del rischio, non può mettere in vigore la copertura, annullare o cessare la polizza, amministrare pagamenti né modificare la polizza fonte."
+            }
+        }
+        foreach ($tableName in $expected.Keys) {
+            $form = ($contract.tables | Where-Object logicalName -eq $tableName).forms[0]
+            foreach ($language in $script:languages) {
+                $form.metadata.description.$language |
+                    Should -Be $expected[$tableName][$language]
+            }
+        }
+    }
+
+    It 'locks high-risk multilingual insurance terms' {
+        $contract = Get-Contract
+        $accountRoles = $contract.choices |
+            Where-Object logicalName -eq 'crmshow_accountcontactroletype'
+        $policyRoles = $contract.choices |
+            Where-Object logicalName -eq 'crmshow_policypartyroletype'
+        $accountAuthorized = $accountRoles.options |
+            Where-Object code -eq 'AuthorizedRepresentative'
+        $policyAuthorized = $policyRoles.options |
+            Where-Object code -eq 'AuthorizedRepresentative'
+        $accountAuthorized.metadata.label.'1031' | Should -Be 'Bevollmächtigte Person'
+        $accountAuthorized.metadata.description.'1031' |
+            Should -Be 'Als bevollmächtigte Person in der Kontobeziehung erfasst; die aktuelle Befugnis ist anhand massgebender Nachweise zu prüfen.'
+        $policyAuthorized.metadata.label.'1031' | Should -Be 'Bevollmächtigte Partei'
+        $policyAuthorized.metadata.description.'1031' |
+            Should -Be 'Im Policenkontext als bevollmächtigte Partei abgebildet; die aktuelle Befugnis muss anhand der massgebenden Quelle geprüft werden.'
+
+        $status = $contract.choices | Where-Object logicalName -eq 'crmshow_policystatus'
+        $draft = $status.options | Where-Object code -eq 'Draft'
+        $cancelled = $status.options | Where-Object code -eq 'Cancelled'
+        @($cancelled.metadata.label.'1033', $cancelled.metadata.label.'1031',
+            $cancelled.metadata.label.'1036', $cancelled.metadata.label.'1040') |
+            Should -Be @('Cancelled / Terminated','Storniert / beendet',
+                'Annulée / résiliée','Annullata / cessata')
+        $expectedCancelledDescriptions = @{
+            '1033' = 'Broad mapped status for a policy ended in the authoritative source. CRM does not infer the legal mode, effective date or coverage consequence and cannot cancel, reinstate or determine coverage.'
+            '1031' = 'Breit abgebildeter Status für eine in der massgebenden Quelle beendete Police. Das CRM leitet weder Rechtsform, Wirksamkeitsdatum noch Deckungsfolge ab und kann weder stornieren, reaktivieren noch Deckung bestimmen.'
+            '1036' = "Statut mappé large pour une police terminée dans la source faisant autorité. Le CRM ne déduit ni le mode juridique, ni la date d’effet, ni les conséquences sur les garanties et ne peut ni résilier, ni rétablir, ni déterminer la couverture."
+            '1040' = 'Stato mappato ampio per una polizza cessata nella fonte autorevole. Il CRM non deduce la modalità giuridica, la data di efficacia o le conseguenze sulla copertura e non può annullare, riattivare o determinare la copertura.'
+        }
+        foreach ($language in $script:languages) {
+            $cancelled.metadata.description.$language |
+                Should -Be $expectedCancelledDescriptions[$language]
+        }
+        @($draft.metadata.description.'1033', $draft.metadata.description.'1031',
+            $draft.metadata.description.'1036', $draft.metadata.description.'1040') |
+            Should -Be @(
+                'Mapped state for a policy not yet active in its source lifecycle; CRM users cannot put coverage into force.',
+                'Abgebildeter Zustand einer im Quelllebenszyklus noch nicht aktiven Police; CRM-Benutzende können keinen Versicherungsschutz in Kraft setzen.',
+                "État mappé d’une police non encore active dans son cycle source; les utilisateurs CRM ne peuvent pas mettre les garanties en vigueur.",
+                'Stato mappato di una polizza non ancora attiva nel ciclo fonte; gli utenti CRM non possono mettere in vigore la copertura.'
+            )
+
+        $raw = Get-Content -LiteralPath $script:contractPath -Raw -Encoding UTF8
+        $raw | Should -Not -Match '(?i)Intermediario'
+        $raw | Should -Not -Match '(?i)\b(bind|binden|lier|vincolare)\b'
+    }
+
     It 'defines exact alternate keys' {
         $contract = Get-Contract
         $keys = @{}
@@ -292,7 +426,7 @@ Describe 'Insurance Foundation JSON contract' {
             )
             crmshow_policypartyrole = @(
                 'crmshow_policyprojection_partyroles|crmshow_policyid|crmshow_policypartyrole|crmshow_policyprojection|ManyToOne|PolicyProjection provides policy context; party-role records reference it.|InitialTableCreate',
-                'crmshow_customer_policypartyroles|crmshow_partyid|crmshow_policypartyrole|account,contact|ManyToOne|Customer party is an Account or Contact holding the policy role.|CreateCustomerRelationships'
+                'crmshow_customer_policypartyroles|crmshow_partyid|crmshow_policypartyrole|account,contact|ManyToOne|Policy party is an Account or Contact holding the projected role.|CreateCustomerRelationships'
             )
         }
         foreach ($table in $contract.tables) {
