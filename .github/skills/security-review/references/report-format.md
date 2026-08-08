@@ -109,7 +109,7 @@ Confidence: HIGH / MEDIUM / LOW
 🔴 CRITICAL — Hardcoded API Key
   File: src/config/database.js, Line 12
   
-  Found: STRIPE_SECRET_KEY = "sk_live_FAKE_KEY_..."
+  Found: STRIPE_SECRET_KEY = "[REDACTED]"
   
   Action Required:
   1. Rotate this key IMMEDIATELY at https://dashboard.stripe.com
@@ -117,7 +117,7 @@ Confidence: HIGH / MEDIUM / LOW
   3. Add to .env file and load via process.env.STRIPE_SECRET_KEY
   4. Add .env to .gitignore
   5. Audit git history — key may be in previous commits:
-     git log --all -p | grep "sk_live_"
+     git log --all -p | grep "STRIPE_SECRET_KEY"
      Use git-filter-repo or BFG to purge from history if found.
 ```
 

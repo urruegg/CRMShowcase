@@ -43,7 +43,8 @@ complete Power Platform MCP connector surface.
 ### Option C — Curate, pin and constrain selected capabilities ✅ chosen
 
 Import only capabilities that fill a verified gap. Pin every file to an
-immutable upstream commit, retain licence provenance, add CRMShowcase
+immutable upstream commit, retain the upstream MIT notice in
+[`THIRD-PARTY-NOTICES.md`](../../THIRD-PARTY-NOTICES.md), add CRMShowcase
 guardrails, test representative discovery scenarios, and keep decision
 authority with the existing `AG-E-##` owners.
 
@@ -90,4 +91,3 @@ on-demand until a concrete story needs them.
 - Review upstream changes before updating the pinned commit.
 - Revisit this ADR when a paid MCP service, custom MCP connector, or Python
   Dataverse implementation becomes an approved story.
-

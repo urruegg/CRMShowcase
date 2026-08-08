@@ -139,7 +139,7 @@ Also check `.gitignore` — if a secret file pattern is NOT in .gitignore, flag 
 ```yaml
 # Hardcoded values in env: blocks (should use ${{ secrets.NAME }})
 env:
-  API_KEY: "actual-value-here"   # VULNERABLE
+  API_KEY: "[REDACTED]"   # VULNERABLE
 
 # Printing secrets
 - run: echo ${{ secrets.MY_SECRET }}   # leaks to logs
@@ -148,10 +148,10 @@ env:
 ### Docker — flag these:
 ```dockerfile
 # Secrets in ENV (persisted in image layers)
-ENV AWS_SECRET_KEY=actual-value
+ENV AWS_SECRET_KEY=[REDACTED]
 
 # Secrets passed as build args (visible in image history)
-ARG API_KEY=actual-value
+ARG API_KEY=[REDACTED]
 ```
 
 ### Terraform — flag these:

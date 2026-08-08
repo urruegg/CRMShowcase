@@ -172,7 +172,7 @@ API_KEY = "[REDACTED]"
 password = "[REDACTED]"
 SECRET = "[REDACTED]"
 private_key = "[REDACTED]"
-aws_secret_access_key = "wJalrXUtn..."
+aws_secret_access_key = "[REDACTED]"
 ```
 
 Entropy heuristic: strings > 20 chars with high character variety in assignment context

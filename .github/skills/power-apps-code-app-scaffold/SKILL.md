@@ -124,7 +124,10 @@ const photoData = await Office365UsersService.UserPhoto_V2(profile.data.id);
 ```
 
 ### Current Limitations to Document
-- Content Security Policy (CSP) not yet supported
+- Configure Content Security Policy through the Power Platform admin center or
+  the Environment Management Settings REST API; keep directives least
+  privilege and environment-controlled. See
+  [Configure Content Security Policy](https://learn.microsoft.com/power-platform/admin/content-security-policy).
 - Storage SAS IP restrictions not supported
 - No Power Platform Git integration
 - Dataverse solution support exists, but source integration and packaging remain limited

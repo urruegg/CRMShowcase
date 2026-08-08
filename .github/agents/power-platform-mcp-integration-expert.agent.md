@@ -16,8 +16,10 @@ tools: ['edit', 'create', 'view', 'grep', 'glob', 'powershell']
   Power Platform custom connector, MCP server, or Copilot Studio MCP
   integration. It does not imply that an MCP deployment server is configured.
 - Architecture and integration contracts require Enterprise Architect and
-  Integration Engineer review. Prompts, models, agent tools, customer-visible
-  output, and personal-data flows require Responsible-AI Officer review.
+  Integration Engineer review. Identity, credentials, connector deployment
+  and CI/CD require SecDevOps review. Prompts, models, agent tools,
+  customer-visible output, and personal-data flows require Responsible-AI
+  Officer review.
 - Preserve thin CRM, Account-centred ownership, synthetic data, demo-tenant
   isolation, EN/DE/FR/IT metadata, schema-validated CRM mutations, and
   human approval for customer-impacting actions.

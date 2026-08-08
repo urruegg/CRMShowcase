@@ -169,7 +169,7 @@ These specialists do not add decision authority and do not replace the
 
 | Specialist | Use only when | Required owners |
 | --- | --- | --- |
-| [Power Platform MCP Integration Expert](./.github/agents/power-platform-mcp-integration-expert.agent.md) | A story introduces or changes a Power Platform custom connector, MCP server, or Copilot Studio MCP integration | AG-E-03 Enterprise Architect · AG-E-06 Responsible-AI Officer · AG-E-09 Integration Engineer |
+| [Power Platform MCP Integration Expert](./.github/agents/power-platform-mcp-integration-expert.agent.md) | A story introduces or changes a Power Platform custom connector, MCP server, or Copilot Studio MCP integration | AG-E-03 Enterprise Architect · AG-E-04 SecDevOps · AG-E-06 Responsible-AI Officer · AG-E-09 Integration Engineer |
 
 ### Authority
 

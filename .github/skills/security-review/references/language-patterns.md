@@ -69,7 +69,7 @@ User.objects.raw(f"SELECT * FROM users WHERE name = '{name}'")  # SQLi
 DEBUG = True  # in settings.py — exposes stack traces
 
 # SECRET_KEY
-SECRET_KEY = 'django-insecure-...'  # must be changed for production
+SECRET_KEY = '[REDACTED]'  # must be supplied securely outside source
 
 # ALLOWED_HOSTS
 ALLOWED_HOSTS = ['*']  # too permissive
