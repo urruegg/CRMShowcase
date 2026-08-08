@@ -99,6 +99,36 @@ function ConvertTo-RequiredLevel {
     return @{ Value = $(if ($Required) { 'ApplicationRequired' } else { 'None' }) }
 }
 
+function New-LocalizedMetadataUpdateBody {
+    param(
+        [Parameter(Mandatory)] $Metadata,
+        [switch]$IncludeDisplayCollectionName
+    )
+    $body = [ordered]@{
+        DisplayName = ConvertTo-LocalizedLabel $Metadata.label
+        Description = ConvertTo-LocalizedLabel $Metadata.description
+    }
+    if ($IncludeDisplayCollectionName) {
+        $body.DisplayCollectionName = ConvertTo-LocalizedLabel $Metadata.label
+    }
+    return $body
+}
+
+function New-ChoiceLocalizationUpdateBody {
+    param([Parameter(Mandatory)] $Choice)
+    $body = New-LocalizedMetadataUpdateBody $Choice.metadata
+    $body.Options = @(
+        for ($index = 0; $index -lt @($Choice.options).Count; $index++) {
+            @{
+                Value = 100000000 + $index
+                Label = ConvertTo-LocalizedLabel $Choice.options[$index].metadata.label
+                Description = ConvertTo-LocalizedLabel $Choice.options[$index].metadata.description
+            }
+        }
+    )
+    return $body
+}
+
 function New-AttributeMetadata {
     param([Parameter(Mandatory)] $Column)
 
@@ -601,12 +631,17 @@ function Test-LocalizedMetadataChanged {
         @{ Property = 'Description'; Contract = 'description' }
     )) {
         $actualProperty = $Existing.($pair.Property)
-        if (-not $actualProperty) { continue }
-        $actual = @($actualProperty.LocalizedLabels | Sort-Object LanguageCode |
-            ForEach-Object { "$($_.LanguageCode):$($_.Label)" })
-        $expected = @((ConvertTo-LocalizedLabel $Metadata.($pair.Contract)).LocalizedLabels |
-            Sort-Object LanguageCode | ForEach-Object { "$($_.LanguageCode):$($_.Label)" })
-        if (($actual -join '|') -ne ($expected -join '|')) { return $true }
+        if (-not $actualProperty) { return $true }
+        foreach ($language in $script:RequiredLanguages) {
+            $actualLabel = @($actualProperty.LocalizedLabels | Where-Object {
+                [int]$_.LanguageCode -eq [int]$language
+            })
+            if ($actualLabel.Count -ne 1 -or
+                [string]$actualLabel[0].Label -ne
+                [string]$Metadata.($pair.Contract).$language) {
+                return $true
+            }
+        }
     }
     return $false
 }
@@ -625,21 +660,7 @@ function Invoke-ChoiceReconciliation {
         throw "Structural choice conflict for '$($Choice.logicalName)'."
     }
     $desired = New-ChoiceRequest $Choice
-    $metadataChanged = $false
-    foreach ($property in 'DisplayName', 'Description') {
-        if (-not $existing.$property -or
-            @($existing.$property.LocalizedLabels).Count -ne $script:RequiredLanguages.Count) {
-            $metadataChanged = $true
-        } else {
-            $actualLabels = @($existing.$property.LocalizedLabels | Sort-Object LanguageCode |
-                ForEach-Object { "$($_.LanguageCode):$($_.Label)" })
-            $desiredLabels = @($desired.Body.$property.LocalizedLabels | Sort-Object LanguageCode |
-                ForEach-Object { "$($_.LanguageCode):$($_.Label)" })
-            if (($actualLabels -join '|') -ne ($desiredLabels -join '|')) {
-                $metadataChanged = $true
-            }
-        }
-    }
+    $metadataChanged = Test-LocalizedMetadataChanged $existing $Choice.metadata
     $actualOptions = @($existing.Options)
     if ($actualOptions.Count -gt @($Choice.options).Count) {
         throw "Structural option conflict for '$($Choice.logicalName)': unexpected options exist."
@@ -655,10 +676,12 @@ function Invoke-ChoiceReconciliation {
         if (-not $existing.MetadataId) {
             throw "Cannot reconcile missing options for '$($Choice.logicalName)' without its metadata ID."
         }
-        $update = New-ChoiceRequest $Choice
-        $update.Method = 'PUT'
-        $update.Path = "/GlobalOptionSetDefinitions($($existing.MetadataId))?MSCRM.MergeLabels=true"
-        $update.Body.Remove('Options') | Out-Null
+        $update = [pscustomobject]@{
+            Method = 'PUT'
+            Path = "/GlobalOptionSetDefinitions($($existing.MetadataId))?MSCRM.MergeLabels=true"
+            Solution = $Choice.solution
+            Body = New-LocalizedMetadataUpdateBody $Choice.metadata
+        }
         Invoke-PlannedRequest $update | Out-Null
         for ($index = $actualOptions.Count; $index -lt @($Choice.options).Count; $index++) {
             $option = $Choice.options[$index]
@@ -681,20 +704,19 @@ function Invoke-ChoiceReconciliation {
     if ($actualOptions.Count -gt 0) {
         for ($index = 0; $index -lt $actualOptions.Count; $index++) {
             foreach ($property in 'Label', 'Description') {
-                if (@($actualOptions[$index].$property.LocalizedLabels).Count -ne
-                    $script:RequiredLanguages.Count) {
-                    $metadataChanged = $true
-                } else {
-                    $actualLabels = @($actualOptions[$index].$property.LocalizedLabels |
-                        Sort-Object LanguageCode | ForEach-Object {
-                            "$($_.LanguageCode):$($_.Label)"
-                        })
-                    $desiredLabels = @($desired.Body.Options[$index].$property.LocalizedLabels |
-                        Sort-Object LanguageCode | ForEach-Object {
-                            "$($_.LanguageCode):$($_.Label)"
-                        })
-                    if (($actualLabels -join '|') -ne ($desiredLabels -join '|')) {
+                foreach ($language in $script:RequiredLanguages) {
+                    $actualLabel = @(
+                        $actualOptions[$index].$property.LocalizedLabels | Where-Object {
+                            [int]$_.LanguageCode -eq [int]$language
+                        }
+                    )
+                    $expectedLabel = [string]$Choice.options[$index].metadata.$(
+                        $property.ToLowerInvariant()
+                    ).$language
+                    if ($actualLabel.Count -ne 1 -or
+                        [string]$actualLabel[0].Label -ne $expectedLabel) {
                         $metadataChanged = $true
+                        break
                     }
                 }
             }
@@ -704,9 +726,12 @@ function Invoke-ChoiceReconciliation {
         if (-not $existing.MetadataId) {
             throw "Cannot update localized metadata for '$($Choice.logicalName)' without its metadata ID."
         }
-        $desired.Method = 'PUT'
-        $desired.Path = "/GlobalOptionSetDefinitions($($existing.MetadataId))?MSCRM.MergeLabels=true"
-        Invoke-PlannedRequest $desired | Out-Null
+        Invoke-PlannedRequest ([pscustomobject]@{
+            Method = 'PUT'
+            Path = "/GlobalOptionSetDefinitions($($existing.MetadataId))?MSCRM.MergeLabels=true"
+            Solution = $Choice.solution
+            Body = New-ChoiceLocalizationUpdateBody $Choice
+        }) | Out-Null
         Write-Output "$($Choice.logicalName): Updated"
         return
     }
@@ -754,9 +779,12 @@ function Invoke-NativeExtensionReconciliation {
         if (-not $existing.MetadataId) {
             throw "Cannot update localized metadata for '$($Extension.logicalName)' without its metadata ID."
         }
-        $request = New-NativeAttributeRequest $Extension
-        $request.Method = 'PUT'
-        $request.Path = "/EntityDefinitions(LogicalName='$($Extension.table)')/Attributes($($existing.MetadataId))?MSCRM.MergeLabels=true"
+        $request = [pscustomobject]@{
+            Method = 'PUT'
+            Path = "/EntityDefinitions(LogicalName='$($Extension.table)')/Attributes($($existing.MetadataId))?MSCRM.MergeLabels=true"
+            Solution = $Extension.solution
+            Body = New-LocalizedMetadataUpdateBody $Extension.metadata
+        }
         Invoke-PlannedRequest $request | Out-Null
         Write-Output "$($Extension.table)/$($Extension.logicalName): Updated"
     } else {
@@ -925,13 +953,8 @@ function Invoke-TableReconciliation {
                 Method = 'PUT'
                 Path = "/EntityDefinitions($($existing.MetadataId))?MSCRM.MergeLabels=true"
                 Solution = $Table.solution
-                Body = @{
-                    '@odata.type' = 'Microsoft.Dynamics.CRM.EntityMetadata'
-                    MetadataId = $existing.MetadataId
-                    DisplayName = ConvertTo-LocalizedLabel $Table.metadata.label
-                    DisplayCollectionName = ConvertTo-LocalizedLabel $Table.metadata.label
-                    Description = ConvertTo-LocalizedLabel $Table.metadata.description
-                }
+                Body = New-LocalizedMetadataUpdateBody $Table.metadata `
+                    -IncludeDisplayCollectionName
             }) | Out-Null
         }
         foreach ($column in $Table.columns) {
@@ -958,7 +981,7 @@ function Invoke-TableReconciliation {
                         Method = 'PUT'
                         Path = "/EntityDefinitions(LogicalName='$($Table.logicalName)')/Attributes($($actual[0].MetadataId))?MSCRM.MergeLabels=true"
                         Solution = $Table.solution
-                        Body = New-AttributeMetadata $column
+                        Body = New-LocalizedMetadataUpdateBody $column.metadata
                     }) | Out-Null
                 }
             } else {
@@ -1044,17 +1067,18 @@ function Invoke-RoleReconciliation {
     }
     $roleId = $existing.roleid
     $currentResponse = Invoke-DataverseRequest -Method GET -Path (
-        "/roleprivileges?`$select=privilegedepthmask&" +
-        "`$filter=_roleid_value eq $roleId&" +
-        "`$expand=privilegeid(`$select=privilegeid,name)"
+        "/RetrieveRolePrivilegesRole(RoleId=$roleId)"
     )
-    $current = @($currentResponse.value | ForEach-Object {
-        [pscustomobject]@{
-            name = $_.privilegeid.name
-            privilegeid = $_.privilegeid.privilegeid
-            Depth = [int]$_.privilegedepthmask
-        }
-    })
+    $current = @()
+    if ($null -ne $currentResponse.RolePrivileges) {
+        $current = @(foreach ($rolePrivilege in @($currentResponse.RolePrivileges)) {
+            [pscustomobject]@{
+                name = $rolePrivilege.PrivilegeName
+                privilegeid = $rolePrivilege.PrivilegeId
+                Depth = [string]$rolePrivilege.Depth
+            }
+        })
+    }
     $forbiddenVerbs = @($Role.deniedPrivileges)
     foreach ($entry in $current) {
         if ($forbiddenVerbs | Where-Object { $entry.name -like "prv$_*" }) {
@@ -1063,7 +1087,7 @@ function Invoke-RoleReconciliation {
     }
     $currentWanted = @($current | Where-Object name -in @($wanted.Name))
     $requiresReplacement = @($current | Where-Object name -notin @($wanted.Name)).Count -gt 0 -or
-        @($currentWanted | Where-Object Depth -ne 8).Count -gt 0
+        @($currentWanted | Where-Object Depth -ne 'Global').Count -gt 0
     $toResolve = if ($requiresReplacement) {
         @($wanted)
     } else {

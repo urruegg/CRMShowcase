@@ -29,6 +29,58 @@ Describe 'Insurance Foundation request builders' {
         }
     }
 
+    It 'builds minimal localization-only metadata update payloads' {
+        $tableBody = New-LocalizedMetadataUpdateBody $script:contract.tables[0].metadata `
+            -IncludeDisplayCollectionName
+        @($tableBody.Keys) |
+            Should -Be @('DisplayName', 'Description', 'DisplayCollectionName')
+
+        $attributeBody = New-LocalizedMetadataUpdateBody `
+            $script:contract.tables[0].columns[0].metadata
+        @($attributeBody.Keys) | Should -Be @('DisplayName', 'Description')
+
+        $choiceBody = New-ChoiceLocalizationUpdateBody $script:contract.choices[0]
+        @($choiceBody.Keys) | Should -Be @('DisplayName', 'Description', 'Options')
+        foreach ($option in $choiceBody.Options) {
+            @($option.Keys | Sort-Object) | Should -Be @('Description', 'Label', 'Value')
+        }
+
+        $json = @($tableBody, $attributeBody, $choiceBody) |
+            ConvertTo-Json -Depth 100
+        foreach ($forbidden in @(
+            'AttributeType', 'Targets', 'RequiredLevel', 'OwnershipType',
+            'LogicalName', 'SchemaName', 'MetadataId', 'IsGlobal',
+            'OptionSetType', '@odata.type', 'MaxLength'
+        )) {
+            $json | Should -Not -Match ([regex]::Escape('"' + $forbidden + '"'))
+        }
+    }
+
+    It 'compares every required localized label and description' {
+        $metadata = $script:contract.tables[0].metadata
+        $existing = [pscustomobject]@{
+            DisplayName = ConvertTo-LocalizedLabel $metadata.label
+            Description = ConvertTo-LocalizedLabel $metadata.description
+        }
+        Test-LocalizedMetadataChanged $existing $metadata | Should -BeFalse
+
+        foreach ($property in 'DisplayName', 'Description') {
+            foreach ($language in 1033, 1031, 1036, 1040) {
+                $changed = $existing | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+                ($changed.$property.LocalizedLabels |
+                    Where-Object LanguageCode -eq $language).Label = 'Incorrect'
+                Test-LocalizedMetadataChanged $changed $metadata | Should -BeTrue
+
+                $missing = $existing | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+                $missing.$property.LocalizedLabels = @(
+                    $missing.$property.LocalizedLabels |
+                        Where-Object LanguageCode -ne $language
+                )
+                Test-LocalizedMetadataChanged $missing $metadata | Should -BeTrue
+            }
+        }
+    }
+
     It 'puts every ordinary lookup in the initial table create' {
         $table = $script:contract.tables[0]
         $request = Get-TableCreateRequest -Table $table
@@ -338,9 +390,12 @@ Describe 'Insurance Foundation reconciliation' {
             })
             if ($Method -eq 'GET' -and $Path -match '^/EntityDefinitions\?') {
                 return [pscustomobject]@{ value = @([pscustomobject]@{
+                    MetadataId = 'compatible-table'
                     LogicalName = $table.logicalName
                     OwnershipType = 'UserOwned'
                     SolutionUniqueName = 'crmshow_DataModel'
+                    DisplayName = ConvertTo-LocalizedLabel $table.metadata.label
+                    Description = ConvertTo-LocalizedLabel $table.metadata.description
                     OneToManyRelationships = @($table.relationships | ForEach-Object {
                         [pscustomobject]@{
                             SchemaName = $_.schemaName
@@ -351,6 +406,7 @@ Describe 'Insurance Foundation reconciliation' {
                     })
                     Attributes = @($table.columns | ForEach-Object {
                         [pscustomobject]@{
+                            MetadataId = "compatible-$($_.logicalName)"
                             LogicalName = $_.logicalName
                             AttributeType = @{
                                 Text='String'; Lookup='Lookup'; GlobalChoice='Picklist'
@@ -358,6 +414,8 @@ Describe 'Insurance Foundation reconciliation' {
                             }[$_.type]
                             Targets = @($_.lookup.targets)
                             MaxLength = $_.maxLength
+                            DisplayName = ConvertTo-LocalizedLabel $_.metadata.label
+                            Description = ConvertTo-LocalizedLabel $_.metadata.description
                         }
                     })
                 }) }
@@ -473,7 +531,102 @@ Describe 'Insurance Foundation reconciliation' {
         $contract.choices = @($contract.choices[0]); $contract.nativeExtensions = @()
         $contract.tables = @(); $contract.roles = @()
         Invoke-InsuranceFoundationReconciliation $contract Foundation -Confirm:$false | Out-Null
-        @($script:calls | Where-Object Method -eq 'PUT').Count | Should -Be 1
+        $update = @($script:calls | Where-Object Method -eq 'PUT')
+        $update.Count | Should -Be 1
+        @($update[0].Body.Keys) | Should -Be @('DisplayName', 'Description', 'Options')
+    }
+
+    It 'updates choice localization for missing or incorrect non-English option labels' {
+        $choice = $script:contract.choices[0]
+        $desired = (New-ChoiceRequest $choice).Body
+        foreach ($language in 1031, 1036, 1040) {
+            foreach ($mode in 'Missing', 'Incorrect') {
+                $script:calls.Clear()
+                $actualOptions = $desired.Options | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+                if ($mode -eq 'Missing') {
+                    $actualOptions[0].Label.LocalizedLabels = @(
+                        $actualOptions[0].Label.LocalizedLabels |
+                            Where-Object LanguageCode -ne $language
+                    )
+                } else {
+                    ($actualOptions[0].Label.LocalizedLabels |
+                        Where-Object LanguageCode -eq $language).Label = 'Incorrect'
+                }
+                Mock Invoke-DataverseRequest {
+                    param($Method, $Path, $Body, $Headers)
+                    $script:calls.Add([pscustomobject]@{
+                        Method=$Method; Path=$Path; Body=$Body; Headers=$Headers
+                    })
+                    if ($Method -eq 'GET' -and
+                        $Path -like '/GlobalOptionSetDefinitions*') {
+                        return [pscustomobject]@{ value = @([pscustomobject]@{
+                            Name=$choice.logicalName; IsGlobal=$true
+                            MetadataId='option-localization'; Options=$actualOptions
+                            DisplayName=$desired.DisplayName
+                            Description=$desired.Description
+                            SolutionUniqueName='crmshow_Foundation'
+                        }) }
+                    }
+                    return [pscustomobject]@{ value=@() }
+                }
+                $contract = $script:contract |
+                    ConvertTo-Json -Depth 100 | ConvertFrom-Json
+                $contract.choices = @($contract.choices[0])
+                $contract.nativeExtensions = @()
+                $contract.tables = @()
+                $contract.roles = @()
+                Invoke-InsuranceFoundationReconciliation $contract Foundation `
+                    -Confirm:$false | Out-Null
+                @($script:calls | Where-Object Method -eq 'PUT').Count |
+                    Should -Be 1
+            }
+        }
+    }
+
+    It 'retrieves and parses role privileges through the documented function' {
+        $role = $script:contract.roles[0]
+        $roleId = '11111111-1111-1111-1111-111111111111'
+        $expectedPath = "/RetrieveRolePrivilegesRole(RoleId=$roleId)"
+        $wantedNames = foreach ($tablePrivilege in $role.tablePrivileges) {
+            foreach ($verb in $tablePrivilege.privileges) {
+                Get-PrivilegeName $verb $tablePrivilege.table
+            }
+        }
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Method=$Method; Path=$Path; Body=$Body; Headers=$Headers
+            })
+            if ($Method -eq 'GET' -and $Path -like '/roles?*') {
+                return [pscustomobject]@{ value = @([pscustomobject]@{
+                    roleid=$roleId; name=$role.name
+                    description=[string]$role.metadata.description.'1033'
+                }) }
+            }
+            if ($Method -eq 'GET' -and $Path -eq $expectedPath) {
+                return [pscustomobject]@{ RolePrivileges = @(
+                    $wantedNames | ForEach-Object {
+                        [pscustomobject]@{
+                            PrivilegeId=[guid]::NewGuid().ToString()
+                            PrivilegeName=$_
+                            Depth='Global'
+                        }
+                    }
+                ) }
+            }
+            return [pscustomobject]@{ value=@() }
+        }
+
+        Invoke-RoleReconciliation $role | Out-Null
+
+        @($script:calls | Where-Object {
+            $_.Method -eq 'GET' -and $_.Path -eq $expectedPath
+        }).Count | Should -Be 1
+        @($script:calls | Where-Object {
+            $_.Path -match '(?:Add|Replace)PrivilegesRole$'
+        }) | Should -BeNullOrEmpty
+        @($script:calls | Where-Object Path -like '/roleprivileges*') |
+            Should -BeNullOrEmpty
     }
 
     It 'validates referential integrity before transport' {
