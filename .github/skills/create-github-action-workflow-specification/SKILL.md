@@ -27,7 +27,7 @@ This specification serves as a specification for the workflow's behavior, requir
 
 Save as: `/docs/ci/spec-process-cicd-[workflow-name].md`
 
-```md
+````md
 ---
 title: CI/CD Workflow Specification - [Workflow Name]
 version: 1.0
@@ -229,7 +229,7 @@ build_artifact: file  # Description: [content type]
 - [Link to infrastructure specs]
 - [Link to deployment specs]
 
-```
+````
 
 ## Analysis Instructions
 

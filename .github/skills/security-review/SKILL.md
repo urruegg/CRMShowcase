@@ -135,6 +135,8 @@ For every CRITICAL and HIGH finding, generate a concrete patch:
 - Explain what changed and why
 - Preserve the original code style, variable names, and structure
 - Add a comment explaining the fix inline
+- Redact credentials, tokens, keys and other secret values in every snippet
+  and patch; never reproduce an exact secret from source.
 
 Explicitly state: **"Review each patch before applying. Nothing has been changed yet."**
 
@@ -142,8 +144,8 @@ Explicitly state: **"Review each patch before applying. Nothing has been changed
 
 | Severity | Meaning | Example |
 |----------|---------|---------|
-| 🔴 CRITICAL | Immediate exploitation risk, data breach likely | SQLi, RCE, auth bypass |
-| 🟠 HIGH | Serious vulnerability, exploit path exists | XSS, IDOR, hardcoded secrets |
+| 🔴 CRITICAL | Immediate exploitation risk, data breach likely | SQLi, RCE, auth bypass, hardcoded secrets |
+| 🟠 HIGH | Serious vulnerability, exploit path exists | XSS, IDOR |
 | 🟡 MEDIUM | Exploitable with conditions or chaining | CSRF, open redirect, weak crypto |
 | 🔵 LOW | Best practice violation, low direct risk | Verbose errors, missing headers |
 | ⚪ INFO | Observation worth noting, not a vulnerability | Outdated dependency (no CVE) |
@@ -154,7 +156,8 @@ Explicitly state: **"Review each patch before applying. Nothing has been changed
 - **Never** auto-apply any patch — present patches for human review only
 - **Always** include a confidence rating per finding (High / Medium / Low)
 - **Group findings** by category, not by file
-- **Be specific** — include file path, line number, and the exact vulnerable code snippet
+- **Be specific** — include file path, line number, and the vulnerable code
+  snippet, with every secret value redacted
 - **Explain the risk** in plain English — what could an attacker do with this?
 - If the codebase is clean, say so clearly: "No vulnerabilities found" with what was scanned
 

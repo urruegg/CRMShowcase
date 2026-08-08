@@ -54,7 +54,10 @@ Follow these steps **in order** for every workflow reviewed.
 Read every `on:` trigger and classify the workflow's privilege:
 
 * `push`, `pull_request` (from same repo) → runs with the contributor's own trust
-* `pull_request` from a **fork** → runs with a **read-only** token, **no secrets** (safe by design)
+* `pull_request` from a **fork** → normally uses a read-only token without
+  secrets, but private repositories can enable write tokens or secrets for
+  fork workflows. Check repository and organization fork-workflow settings
+  before assigning the trust level.
 * `pull_request_target`, `workflow_run`, `issue_comment`, `issues` → run in the context of the
   **base repository** with a **read/write token and full access to secrets**, but can be
   **triggered by outside contributors**. These are the dangerous triggers.

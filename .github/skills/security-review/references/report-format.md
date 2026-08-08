@@ -94,8 +94,9 @@ Confidence: HIGH / MEDIUM / LOW
   CVE-2023-45857: CSRF via withCredentials
   Fix: npm install axios@1.6.0
 
-⚪ INFO — express@4.18.2
-  No known CVEs. Current version is 4.19.2 — consider updating.
+🟠 HIGH — express@4.18.2
+  Version is below the bundled safe minimum of 4.19.2.
+  Verify against current lockfile-aware advisory data, then upgrade.
 ```
 
 ---

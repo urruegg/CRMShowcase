@@ -40,8 +40,9 @@ Create a well-organized folder structure:
 ```
 src/
 ├── components/          # Reusable UI components
-├── services/           # Generated connector services (created by Power Apps CLI)
-├── models/            # Generated TypeScript models (created by Power Apps CLI)
+├── generated/
+│   ├── services/        # Generated connector services (created by Power Apps CLI)
+│   └── models/          # Generated TypeScript models (created by Power Apps CLI)
 ├── hooks/             # Custom React hooks for Power Platform integration
 ├── utils/             # Utility functions
 ├── types/             # TypeScript type definitions

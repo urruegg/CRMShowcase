@@ -71,12 +71,17 @@ on:
     workflows: ["PR Build"]
     types: [completed]
 permissions:
+  actions: read
   pull-requests: write
 jobs:
   comment:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@<sha>   # data only, not executed
+        with:
+          name: pr
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
       # post results, using the trusted token — but never execute the artifact
 ```
 
