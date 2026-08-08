@@ -924,6 +924,40 @@ function Get-PicklistAttributeMetadata {
     )
 }
 
+function Get-TypedAttributeMetadata {
+    param(
+        [Parameter(Mandatory)] [string]$TableLogicalName,
+        [Parameter(Mandatory)] $Column
+    )
+    if ($Column.type -eq 'GlobalChoice') {
+        return Get-PicklistAttributeMetadata $TableLogicalName $Column.logicalName
+    }
+    $type = @{
+        Text = 'StringAttributeMetadata'
+        DateOnly = 'DateTimeAttributeMetadata'
+        DateTime = 'DateTimeAttributeMetadata'
+        Lookup = 'LookupAttributeMetadata'
+    }[$Column.type]
+    $derivedProperties = @{
+        Text = 'MaxLength'
+        DateOnly = 'Format,DateTimeBehavior'
+        DateTime = 'Format,DateTimeBehavior'
+        Lookup = 'Targets'
+    }[$Column.type]
+    if (-not $type) {
+        throw "Unsupported typed metadata query for '$($Column.type)' column '$($Column.logicalName)'."
+    }
+    $escapedTableName = ConvertTo-ODataKeyString $TableLogicalName
+    $escapedAttributeName = ConvertTo-ODataKeyString $Column.logicalName
+    return Get-One (
+        "/EntityDefinitions(LogicalName='$escapedTableName')/Attributes/" +
+        "Microsoft.Dynamics.CRM.$type?" +
+        "`$select=MetadataId,LogicalName,SchemaName,AttributeType," +
+        "DisplayName,Description,$derivedProperties&" +
+        "`$filter=LogicalName eq '$escapedAttributeName'"
+    )
+}
+
 function Invoke-NativeExtensionReconciliation {
     param($Extension)
     $existing = Get-PicklistAttributeMetadata $Extension.table `
@@ -1190,7 +1224,7 @@ function Invoke-ExistingCustomerRelationshipReconciliation {
 
 function Invoke-TableReconciliation {
     param($Table)
-    $existing = Get-One "/EntityDefinitions?`$select=MetadataId,LogicalName,SchemaName,OwnershipType,PrimaryNameAttribute,IsAuditEnabled,DisplayName,Description&`$expand=Attributes(`$select=MetadataId,LogicalName,SchemaName,AttributeType,Targets,MaxLength,Format,DateTimeBehavior,DisplayName,Description),OneToManyRelationships(`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute)&`$filter=LogicalName eq '$($Table.logicalName)'"
+    $existing = Get-One "/EntityDefinitions?`$select=MetadataId,LogicalName,SchemaName,OwnershipType,PrimaryNameAttribute,IsAuditEnabled,DisplayName,Description&`$expand=Attributes(`$select=MetadataId,LogicalName,SchemaName,AttributeType,DisplayName,Description),OneToManyRelationships(`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute)&`$filter=LogicalName eq '$($Table.logicalName)'"
     if ($null -eq $existing) {
         $choiceMetadataIds = Get-GlobalChoiceMetadataIds @($Table.columns)
         Invoke-PlannedRequest (
@@ -1248,30 +1282,36 @@ function Invoke-TableReconciliation {
         }
         foreach ($column in $Table.columns) {
             if ($column.type -eq 'Customer') { continue }
-            if ($column.type -eq 'GlobalChoice') {
-                $typedChoice = Get-PicklistAttributeMetadata $Table.logicalName `
-                    $column.logicalName
-                $actual = @($typedChoice)
+            $base = @($existing.Attributes |
+                Where-Object LogicalName -eq $column.logicalName)
+            if ($base.Count -gt 1) {
+                throw "Duplicate physical attributes found for '$($Table.logicalName)/$($column.logicalName)'."
+            }
+            $needsTypedMetadata = $column.type -eq 'GlobalChoice' -or
+                ($base.Count -eq 1 -and (
+                    ($column.type -eq 'Text' -and $null -eq $base[0].MaxLength) -or
+                    ($column.type -in @('DateOnly', 'DateTime') -and
+                        ($null -eq $base[0].Format -or
+                            $null -eq $base[0].DateTimeBehavior)) -or
+                    ($column.type -eq 'Lookup' -and $null -eq $base[0].Targets)
+                ))
+            if ($needsTypedMetadata) {
+                $typed = Get-TypedAttributeMetadata $Table.logicalName $column
+                $actual = @($typed)
                 if ($actual.Count -eq 1 -and $null -eq $actual[0]) {
                     $actual = @()
                 }
-                $baseChoice = @($existing.Attributes |
-                    Where-Object LogicalName -eq $column.logicalName)
-                if ($baseChoice.Count -gt 1) {
-                    throw "Duplicate physical attributes found for '$($Table.logicalName)/$($column.logicalName)'."
+                if ($base.Count -eq 1 -and $actual.Count -eq 0) {
+                    throw "Structural type conflict for '$($Table.logicalName)/$($column.logicalName)': base metadata exists but typed metadata is unavailable."
                 }
-                if ($baseChoice.Count -eq 1 -and $actual.Count -eq 0) {
-                    throw "Structural type conflict for '$($Table.logicalName)/$($column.logicalName)': base metadata exists but typed Picklist metadata is unavailable."
-                }
-                if ($baseChoice.Count -eq 1 -and $actual.Count -eq 1 -and
-                    $baseChoice[0].MetadataId -and $actual[0].MetadataId -and
-                    [string]$baseChoice[0].MetadataId -ne
+                if ($base.Count -eq 1 -and $actual.Count -eq 1 -and
+                    $base[0].MetadataId -and $actual[0].MetadataId -and
+                    [string]$base[0].MetadataId -ne
                     [string]$actual[0].MetadataId) {
                     throw "Structural metadata conflict for '$($Table.logicalName)/$($column.logicalName)': base and typed metadata IDs differ."
                 }
             } else {
-                $actual = @($existing.Attributes |
-                    Where-Object LogicalName -eq $column.logicalName)
+                $actual = $base
             }
             if ($actual.Count -eq 0) {
                 if ($column.type -in @('Lookup', 'Customer')) {

@@ -435,6 +435,14 @@ Describe 'Insurance Foundation reconciliation' {
             Should -Be @('Global')
         @($created | Where-Object Path -eq '/savedqueries').Body.layoutxml |
             Should -Match 'object="10427"'
+        $tableMetadataReads = @($script:calls | Where-Object {
+            $_.Method -eq 'GET' -and
+            $_.Path -like '/EntityDefinitions?*' -and
+            $_.Path -match '\$expand=Attributes'
+        })
+        $tableMetadataReads.Count | Should -Be 3
+        $tableMetadataReads.Path |
+            Should -Not -Match 'Targets|MaxLength|DateTimeBehavior|Format'
         $choiceBindings = @(
             $created |
                 Where-Object Path -match '/Attributes$' |
