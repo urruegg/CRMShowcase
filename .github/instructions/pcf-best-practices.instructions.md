@@ -1,6 +1,6 @@
 ---
 description: 'Best practices and guidance for developing PCF code components'
-applyTo: 'solution/**/*.{ts,tsx,js,json,xml,pcfproj,csproj,css,html}'
+applyTo: 'solution/**/Controls/**/*.{ts,tsx,js,json,xml,pcfproj,csproj,css,html}'
 ---
 
 # Best Practices and Guidance for Code Components
@@ -66,7 +66,13 @@ When using the `context.webAPI` methods, limit both the number of calls and the 
 
 Each time you add a component to your canvas app, it takes a finite amount of time to render. Render time increases with each component you add. Carefully measure the performance of your code components as you add more to a screen using the Developer Performance tools.
 
-Currently, each code component bundles their own library of shared libraries such as Fluent UI and React. Loading multiple instances of the same library won't load these libraries multiple times. However, loading multiple different code components results in the browser loading multiple bundled versions of these libraries. In the future, these libraries will be able to be loaded and shared with code components.
+For React controls, prefer the GA platform-library capability so controls use
+the React and Fluent libraries supplied by Power Apps instead of packaging
+separate copies. This reduces bundle size, improves rendering performance and
+aligns controls with the platform design system. Create new React controls
+with `pac pcf init --framework react` and a current Power Platform CLI
+(`>=1.37`); declare supported React and either Fluent 8 or Fluent 9
+`platform-library` entries in `ControlManifest.Input.xml`.
 
 ### Allow Makers to Style Your Code Component
 
@@ -87,9 +93,12 @@ By default, code components target ES5 to support older browsers. If you don't w
 
 ### Module Imports
 
-Always bundle the modules that are required as part of your code component instead of using scripts that are required to be loading using the `SCRIPT` tag. For example, if you wanted to use a non-Microsoft charting API where the sample shows adding `<script type="text/javascript" src="somechartlibrary.js></script>` to the page, this isn't supported inside a code component. Bundling all of the required modules isolates the code component from other libraries and also supports running in offline mode.
-
-> **Note**: Support for shared libraries across components using library nodes in the component manifest is not yet supported.
+Bundle third-party modules required by the component instead of loading them
+through `SCRIPT` tags. For React controls, do not bundle React or Fluent when
+they are declared as supported platform libraries in the component manifest.
+The platform supplies a shared compatible instance; verify allowed versions
+against the current
+[platform-library guidance](https://learn.microsoft.com/power-apps/developer/component-framework/react-controls-platform-libraries).
 
 ### Linting
 

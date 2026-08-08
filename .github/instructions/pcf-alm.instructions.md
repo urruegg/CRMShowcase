@@ -1,6 +1,6 @@
 ---
 description: 'Application lifecycle management (ALM) for PCF code components'
-applyTo: 'solution/**/*.{ts,tsx,js,json,xml,pcfproj,csproj,sln}'
+applyTo: 'solution/**/Controls/**/*.{ts,tsx,js,json,xml,pcfproj,csproj,sln}'
 ---
 
 # Code Components Application Lifecycle Management (ALM)
