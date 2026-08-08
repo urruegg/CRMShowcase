@@ -112,10 +112,10 @@ function New-CompleteLocalizedMetadataUpdateBody {
         [ValidateSet('Entity', 'Attribute', 'OptionSet')] [string]$Kind
     )
     $required = @{
-        Entity = @('@odata.type', 'LogicalName', 'SchemaName', 'OwnershipType',
+        Entity = @('LogicalName', 'SchemaName', 'OwnershipType',
             'PrimaryNameAttribute')
-        Attribute = @('@odata.type', 'LogicalName', 'SchemaName', 'AttributeType')
-        OptionSet = @('@odata.type', 'Name', 'IsGlobal', 'OptionSetType')
+        Attribute = @('LogicalName', 'SchemaName', 'AttributeType')
+        OptionSet = @('Name', 'IsGlobal', 'OptionSetType')
     }[$Kind]
     foreach ($property in $required) {
         if ($Existing.PSObject.Properties.Name -notcontains $property -or
@@ -1131,18 +1131,28 @@ function Invoke-TableReconciliation {
     Invoke-TableChildren $Table $objectTypeCode
 }
 
-function Get-PrivilegeName {
-    param([string]$Verb, [string]$Table)
-    $privilegeTableName = switch ($Table) {
-        'account' { 'Account' }
-        'contact' { 'Contact' }
-        default { $Table }
+function Get-ContractTableSchemaName {
+    param(
+        [Parameter(Mandatory)] [string]$LogicalName,
+        [Parameter(Mandatory)] $Contract
+    )
+    switch ($LogicalName) {
+        'account' { return 'Account' }
+        'contact' { return 'Contact' }
     }
-    return "prv$Verb$privilegeTableName"
+    $tables = @($Contract.tables | Where-Object logicalName -eq $LogicalName)
+    if ($tables.Count -ne 1 -or
+        [string]::IsNullOrWhiteSpace([string]$tables[0].schemaName)) {
+        throw "Cannot resolve the contract schema name for table '$LogicalName'."
+    }
+    return [string]$tables[0].schemaName
 }
 
 function Invoke-RoleReconciliation {
-    param($Role)
+    param(
+        [Parameter(Mandatory)] $Role,
+        [Parameter(Mandatory)] $Contract
+    )
     foreach ($forbidden in $Role.deniedPrivileges) {
         if (@($Role.tablePrivileges.privileges) -contains $forbidden) {
             throw "Role '$($Role.name)' attempts forbidden privilege '$forbidden'."
@@ -1195,9 +1205,27 @@ function Invoke-RoleReconciliation {
     }
 
     $wanted = foreach ($tablePrivilege in $Role.tablePrivileges) {
+        $logicalName = [string]$tablePrivilege.table
+        $escapedLogicalName = ConvertTo-ODataKeyString $logicalName
+        $schemaName = Get-ContractTableSchemaName $logicalName $Contract
+        $entityMetadata = Invoke-DataverseRequest -Method GET -Path (
+            "/EntityDefinitions(LogicalName='$escapedLogicalName')?`$select=LogicalName,SchemaName,Privileges"
+        )
+        if ($null -eq $entityMetadata -or
+            [string]$entityMetadata.SchemaName -cne $schemaName) {
+            throw "Dataverse metadata for table '$logicalName' did not return contract schema name '$schemaName'."
+        }
         foreach ($verb in $tablePrivilege.privileges) {
+            $exactName = "prv$verb$schemaName"
+            $matches = @($entityMetadata.Privileges | Where-Object {
+                [string]$_.Name -ceq $exactName
+            })
+            if ($matches.Count -ne 1 -or -not $matches[0].PrivilegeId) {
+                throw "Required Dataverse privilege '$exactName' was not found in metadata for '$logicalName'."
+            }
             [pscustomobject]@{
-                Name = Get-PrivilegeName $verb $tablePrivilege.table
+                Name = [string]$matches[0].Name
+                PrivilegeId = [string]$matches[0].PrivilegeId
                 Depth = 'Global'
             }
         }
@@ -1232,11 +1260,7 @@ function Invoke-RoleReconciliation {
     }
     if ($toResolve.Count -gt 0) {
         $resolved = foreach ($item in $toResolve) {
-            $privilege = Get-One "/privileges?`$select=privilegeid,name&`$filter=name eq '$($item.Name)'"
-            if ($null -eq $privilege) {
-                throw "Required Dataverse privilege '$($item.Name)' was not found."
-            }
-            @{ PrivilegeId = $privilege.privilegeid; Depth = $item.Depth }
+            @{ PrivilegeId = $item.PrivilegeId; Depth = $item.Depth }
         }
         $request = [pscustomobject]@{
             Method = 'POST'
@@ -1285,7 +1309,7 @@ function Invoke-InsuranceFoundationReconciliation {
     if ($Scope -in @('Foundation', 'All')) {
         foreach ($role in $Contract.roles) {
             if ($PSCmdlet.ShouldProcess($role.name, 'Reconcile security role')) {
-                Invoke-RoleReconciliation $role
+                Invoke-RoleReconciliation $role $Contract
             }
         }
     }

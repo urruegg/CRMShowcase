@@ -29,12 +29,13 @@ Describe 'Insurance Foundation request builders' {
         }
     }
 
-    It 'preserves the complete typed metadata representation in label updates' {
+    It 'accepts a complete typed-endpoint response without an odata type annotation' {
         $existing = [pscustomobject][ordered]@{
-            '@odata.type' = 'Microsoft.Dynamics.CRM.StringAttributeMetadata'
             MetadataId = 'attribute-id'; LogicalName = 'crmshow_name'
             SchemaName = 'crmshow_Name'; AttributeType = 'String'
             MaxLength = 200; IsPrimaryName = $true
+            RequiredLevel = @{ Value = 'ApplicationRequired' }
+            IsAuditEnabled = @{ Value = $true }; FormatName = @{ Value = 'Text' }
             DisplayName = @{ marker = 'old' }; Description = @{ marker = 'old' }
         }
         $body = New-CompleteLocalizedMetadataUpdateBody $existing `
@@ -44,8 +45,18 @@ Describe 'Insurance Foundation request builders' {
         $body.AttributeType | Should -Be 'String'
         $body.MaxLength | Should -Be 200
         $body.IsPrimaryName | Should -BeTrue
+        $body.Contains('@odata.type') | Should -BeFalse
         @($body.DisplayName.LocalizedLabels.LanguageCode) |
             Should -Be @(1033, 1031, 1036, 1040)
+
+        $annotated = $existing | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+        $annotated | Add-Member NoteProperty '@odata.type' `
+            'Microsoft.Dynamics.CRM.StringAttributeMetadata'
+        $annotatedBody = New-CompleteLocalizedMetadataUpdateBody $annotated `
+            $script:contract.tables[0].columns[0].metadata Attribute
+        $annotatedBody.'@odata.type' |
+            Should -Be 'Microsoft.Dynamics.CRM.StringAttributeMetadata'
+
         {
             New-CompleteLocalizedMetadataUpdateBody ([pscustomobject]@{
                 '@odata.type'='Microsoft.Dynamics.CRM.StringAttributeMetadata'
@@ -238,10 +249,29 @@ Describe 'Insurance Foundation reconciliation' {
                     businessunitid = 'root-business-unit'
                 }) }
             }
-            if ($Method -eq 'GET' -and $Path -like '/privileges*') {
-                return [pscustomobject]@{ value = @([pscustomobject]@{
-                    privilegeid = 'resolved-privilege'
-                }) }
+            if ($Method -eq 'GET' -and
+                $Path -match '^/EntityDefinitions\(LogicalName=''([^'']+)''\)\?\$select=LogicalName,SchemaName,Privileges') {
+                $logicalName = $Matches[1]
+                $schemaName = switch ($logicalName) {
+                    'account' { 'Account' }
+                    'contact' { 'Contact' }
+                    default {
+                        [string]($script:contract.tables |
+                            Where-Object logicalName -eq $logicalName).schemaName
+                    }
+                }
+                return [pscustomobject]@{
+                    LogicalName = $logicalName
+                    SchemaName = $schemaName
+                    Privileges = @('Create','Read','Write','Append','AppendTo' |
+                        ForEach-Object {
+                            [pscustomobject]@{
+                                Name = "prv$_$schemaName"
+                                PrivilegeId = "$logicalName-$_"
+                                PrivilegeType = $_
+                            }
+                        })
+                }
             }
             if ($Method -eq 'GET' -and
                 $Path -like "/GlobalOptionSetDefinitions(Name='*") {
@@ -689,11 +719,16 @@ Describe 'Insurance Foundation reconciliation' {
         $role = $script:contract.roles[0]
         $roleId = '11111111-1111-1111-1111-111111111111'
         $expectedPath = "/RetrieveRolePrivilegesRole(RoleId=$roleId)"
-        $wantedNames = foreach ($tablePrivilege in $role.tablePrivileges) {
-            foreach ($verb in $tablePrivilege.privileges) {
-                Get-PrivilegeName $verb $tablePrivilege.table
-            }
+        $schemaNames = @{
+            account = 'Account'
+            contact = 'Contact'
         }
+        foreach ($table in $script:contract.tables) {
+            $schemaNames[$table.logicalName] = $table.schemaName
+        }
+        $wantedNames = @($role.tablePrivileges | ForEach-Object {
+            "prvRead$($schemaNames[$_.table])"
+        })
         Mock Invoke-DataverseRequest {
             param($Method, $Path, $Body, $Headers)
             $script:calls.Add([pscustomobject]@{
@@ -704,6 +739,20 @@ Describe 'Insurance Foundation reconciliation' {
                     roleid=$roleId; name=$role.name
                     description=[string]$role.metadata.description.'1033'
                 }) }
+            }
+            if ($Method -eq 'GET' -and
+                $Path -match "^/EntityDefinitions\(LogicalName='([^']+)'\)") {
+                $logicalName = $Matches[1]
+                $schemaName = $schemaNames[$logicalName]
+                return [pscustomobject]@{
+                    LogicalName = $logicalName
+                    SchemaName = $schemaName
+                    Privileges = @([pscustomobject]@{
+                        Name = "prvRead$schemaName"
+                        PrivilegeId = [guid]::NewGuid().ToString()
+                        PrivilegeType = 'Read'
+                    })
+                }
             }
             if ($Method -eq 'GET' -and $Path -eq $expectedPath) {
                 return [pscustomobject]@{ RolePrivileges = @(
@@ -720,7 +769,7 @@ Describe 'Insurance Foundation reconciliation' {
             return [pscustomobject]@{}
         }
 
-        Invoke-RoleReconciliation $role | Out-Null
+        Invoke-RoleReconciliation $role $script:contract | Out-Null
 
         @($script:calls | Where-Object {
             $_.Method -eq 'GET' -and $_.Path -eq $expectedPath
@@ -729,6 +778,71 @@ Describe 'Insurance Foundation reconciliation' {
             $_.Path -match '(?:Add|Replace)PrivilegesRole$'
         }) | Should -BeNullOrEmpty
         @($script:calls | Where-Object Path -like '/roleprivileges*') |
+            Should -BeNullOrEmpty
+        $wantedNames | Should -Contain 'prvReadcrmshow_PolicyProjection'
+        ($wantedNames -ccontains 'prvReadcrmshow_policyprojection') |
+            Should -BeFalse
+    }
+
+    It 'uses exact schema-cased privilege metadata in role mutation requests' {
+        $role = $script:contract.roles[0] |
+            ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        $role.tablePrivileges = @($role.tablePrivileges |
+            Where-Object table -in @('account', 'crmshow_policyprojection'))
+        $roleId = '22222222-2222-2222-2222-222222222222'
+        $accountPrivilegeId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+        $policyPrivilegeId = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Method=$Method; Path=$Path; Body=$Body; Headers=$Headers
+            })
+            if ($Method -eq 'GET' -and $Path -like '/roles?*') {
+                return [pscustomobject]@{ value = @([pscustomobject]@{
+                    roleid=$roleId; name=$role.name
+                    description=[string]$role.metadata.description.'1033'
+                }) }
+            }
+            if ($Method -eq 'GET' -and
+                $Path -like "/EntityDefinitions(LogicalName='account')?*") {
+                return [pscustomobject]@{
+                    LogicalName='account'; SchemaName='Account'
+                    Privileges=@([pscustomobject]@{
+                        Name='prvReadAccount'; PrivilegeId=$accountPrivilegeId
+                        PrivilegeType='Read'
+                    })
+                }
+            }
+            if ($Method -eq 'GET' -and
+                $Path -like "/EntityDefinitions(LogicalName='crmshow_policyprojection')?*") {
+                return [pscustomobject]@{
+                    LogicalName='crmshow_policyprojection'
+                    SchemaName='crmshow_PolicyProjection'
+                    Privileges=@([pscustomobject]@{
+                        Name='prvReadcrmshow_PolicyProjection'
+                        PrivilegeId=$policyPrivilegeId; PrivilegeType='Read'
+                    })
+                }
+            }
+            if ($Method -eq 'GET' -and
+                $Path -eq "/RetrieveRolePrivilegesRole(RoleId=$roleId)") {
+                return [pscustomobject]@{ RolePrivileges=@() }
+            }
+            if ($Method -eq 'GET') { throw "Unsupported mocked endpoint: $Path" }
+            return [pscustomobject]@{}
+        }
+
+        Invoke-RoleReconciliation $role $script:contract | Out-Null
+
+        $request = @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and
+            $_.Path -like '*/Microsoft.Dynamics.CRM.AddPrivilegesRole'
+        })
+        $request.Count | Should -Be 1
+        @($request[0].Body.Privileges.PrivilegeId) |
+            Should -Be @($accountPrivilegeId, $policyPrivilegeId)
+        @($script:calls | Where-Object Path -like '/privileges?*') |
             Should -BeNullOrEmpty
     }
 
