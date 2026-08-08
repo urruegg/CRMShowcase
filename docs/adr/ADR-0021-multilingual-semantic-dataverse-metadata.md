@@ -63,6 +63,31 @@ English (`1033`) is the base metadata language for stable logical/schema names
 and canonical definitions. German (`1031`), French (`1036`) and Italian
 (`1040`) are supported translations.
 
+The environment configuration declares the required LCID set as IaC desired
+state. The `microsoft/power-platform` Terraform provider configures the base
+language when Dataverse is provisioned but does not currently expose a
+first-class resource for enabling additional languages. Until it does, a
+committed idempotent PowerShell control reconciles DE, FR and IT through the
+documented Dataverse
+[`LanguageLocale`](https://learn.microsoft.com/power-apps/developer/data-platform/reference/entities/languagelocale)
+Web API `SetState` operation. This follows the reviewed provider-gap pattern in
+[ADR-0005](./ADR-0005-power-platform-application-users-for-ci.md).
+
+The reconciliation control:
+
+- reads the required LCIDs from Terraform-owned configuration;
+- authenticates at runtime with the environment-scoped OIDC application user;
+- activates only required inactive languages and then re-reads their state;
+- fails on an unavailable LCID, authorization failure or incomplete result;
+- never stores a token, connection string or credential in Terraform state;
+- does not disable a language automatically when it is removed from desired
+  state, because language removal requires a separate impact decision.
+
+Multilingual solution import is blocked until DEV or TEST reports all four
+required languages active. Active LCIDs are retained as deployment evidence.
+The script is retired and state is migrated when the provider offers a
+first-class equivalent.
+
 Every table, column, relationship, choice, action and custom API has a precise
 English display name and business-semantic description. Every user-visible
 name, label, choice text, help text, form/view/command label and relevant
@@ -107,7 +132,8 @@ evaluations reject metadata-only factual claims.
 - **At the next release:** Sprint 3 Insurance Foundation includes all four
   languages and semantic descriptions from its first DEV deployment.
 - **Environment readiness:** DE, FR and IT language support is enabled in DEV
-  and TEST before importing multilingual components.
+  and TEST by the IaC reconciliation control before importing multilingual
+  components.
 - **Operationally:** metadata and translation changes follow the same PR,
   versioning, deployment and drift controls as schema changes.
 - **For implementation teams:** a Dataverse component is incomplete until its
