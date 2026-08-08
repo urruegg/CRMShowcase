@@ -37,7 +37,7 @@ free-form response quality.
 | Field | Value |
 | --- | --- |
 | **Date** | 2026-08-08 |
-| **Repository commit** | `3658630cf490fae76a2abd169ab6f5e104f89ffa` |
+| **Repository commit** | `2e1be208844905ec9128f9430470399d4a616e5b` |
 | **Upstream pin** | `ab7544d03d4c49fdd07f5958e1888ad39c4118e2` |
 | **Runner** | GitHub Copilot CLI 1.0.79-9, isolated read-only `explore` agent |
 | **Model** | Not surfaced by the isolated runner |
