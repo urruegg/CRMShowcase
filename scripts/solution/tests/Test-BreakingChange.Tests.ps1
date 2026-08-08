@@ -57,4 +57,8 @@ Describe "Test-BreakingChange" {
 '@
         Test-BreakingChange -Diff $diff | Should -Be 'patch'
     }
+
+    It "classifies an empty solution diff as patch" {
+        Test-BreakingChange -Diff '' | Should -Be 'patch'
+    }
 }

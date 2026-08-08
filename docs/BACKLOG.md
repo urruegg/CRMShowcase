@@ -74,6 +74,20 @@ Traces to spec [`docs/superpowers/specs/2026-08-06-solution-containers-design.md
 | US-513 | docs/runbooks/solution-rollback.md | `[TBD]` |
 | US-514 | End-to-end verification: fresh commit -> DEV -> TEST -> smoke green | `[TBD]` |
 
+## Epic 6 — Mobiliar prototype intake and data-model baseline (Sprint 2)
+
+Traces to
+[`docs/superpowers/specs/2026-08-08-mobiliar-prototype-intake-design.md`](./superpowers/specs/2026-08-08-mobiliar-prototype-intake-design.md).
+
+| ID | Story | Status |
+| --- | --- | --- |
+| US-601 | Export and unpack the Mobiliar prototype into a quarantined intake area | Done — [#6](https://github.com/urruegg/CRMShowcase/issues/6) |
+| US-602 | Scan and sanitize the snapshot for secrets, environment values, and customer content | Done — [#6](https://github.com/urruegg/CRMShowcase/issues/6) |
+| US-603 | Generate a deterministic machine-readable artefact BOM | Done — [#6](https://github.com/urruegg/CRMShowcase/issues/6) |
+| US-604 | Map BOM artefacts to domains, target solution containers, and review dispositions | Done — [#6](https://github.com/urruegg/CRMShowcase/issues/6) |
+| US-605 | Design the CRM Showcase target data-model extensions | Done — [#6](https://github.com/urruegg/CRMShowcase/issues/6) |
+| US-606 | Publish linked sprint evidence in a GitHub feature issue | Done — [#6](https://github.com/urruegg/CRMShowcase/issues/6) |
+
 ## Bootstrap stories already delivered
 
 | ID | Story | Commit |

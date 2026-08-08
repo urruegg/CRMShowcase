@@ -24,7 +24,7 @@
 function Test-BreakingChange {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)] [string]$Diff
+        [Parameter(Mandatory)] [AllowEmptyString()] [string]$Diff
     )
 
     # Structural component tokens we consider semantically significant.

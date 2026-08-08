@@ -475,3 +475,9 @@ solution/**/*.zip
 !solution/**/managed/*.zip
 solution/**/.build/
 solution/**/.export-tmp/
+
+# Prototype intake raw exports and scan logs
+intake/**/.raw/
+intake/**/*.zip
+intake/**/.scan/
+intake/**/source/

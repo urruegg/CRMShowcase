@@ -17,15 +17,11 @@ param(
     [ValidateSet('Unmanaged','Managed','Both')] [string]$PackageType = 'Unmanaged'
 )
 
-if (-not (Get-Command pac -ErrorAction SilentlyContinue)) {
-    $env:PATH = "$env:USERPROFILE\.dotnet\tools;$env:PATH"
-    if (-not (Get-Command pac -ErrorAction SilentlyContinue)) {
-        throw "pac CLI not found. Install: dotnet tool install --global Microsoft.PowerApps.CLI.Tool --version 1.43.6"
-    }
-}
+. "$PSScriptRoot/Resolve-PacCommand.ps1"
+$pacCommand = Resolve-PacCommand
 
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutFile) | Out-Null
 Write-Host "Packing $Folder -> $OutFile ($PackageType)"
-pac solution pack --folder $Folder --zipfile $OutFile --packagetype $PackageType
+& $pacCommand solution pack --folder $Folder --zipfile $OutFile --packagetype $PackageType
 if ($LASTEXITCODE -ne 0) { throw "pac solution pack failed" }
 Write-Host "Packed: $OutFile"

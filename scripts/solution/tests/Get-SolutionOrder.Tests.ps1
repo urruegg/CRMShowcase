@@ -38,6 +38,16 @@ Describe "Get-SolutionOrder" {
         $ordered | Should -HaveCount 6
     }
 
+    It "emits one solution object per pipeline iteration" {
+        $iterations = 0
+        foreach ($solution in Get-SolutionOrder -Manifest $script:m) {
+            $iterations++
+            $solution.uniqueName | Should -BeOfType [string]
+            $solution.path | Should -BeOfType [string]
+        }
+        $iterations | Should -Be 6
+    }
+
     It "throws on circular dependency" {
         $bad = $script:m | ConvertTo-Json -Depth 10 | ConvertFrom-Json
         $bad.solutions[0].dependsOn = @('crmshow_Sales')  # Foundation now depends on Sales (which depends on Foundation)
