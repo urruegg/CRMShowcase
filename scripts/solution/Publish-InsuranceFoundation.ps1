@@ -610,7 +610,10 @@ function Get-One {
 function Get-GlobalOptionSet {
     param([Parameter(Mandatory)] [string]$Name)
     $escaped = ConvertTo-ODataKeyString $Name
-    $path = "/GlobalOptionSetDefinitions(Name='$escaped')?`$expand=Options"
+    $path = (
+        "/GlobalOptionSetDefinitions(Name='$escaped')/" +
+        'Microsoft.Dynamics.CRM.OptionSetMetadata'
+    )
     try {
         $response = Invoke-DataverseRequest -Method GET -Path $path
     } catch {
@@ -732,7 +735,8 @@ function Invoke-ChoiceReconciliation {
         }
         if ($metadataChanged) {
             $complete = Get-CompleteMetadata `
-                "/GlobalOptionSetDefinitions($($existing.MetadataId))" OptionSet
+                ("/GlobalOptionSetDefinitions($($existing.MetadataId))/" +
+                    'Microsoft.Dynamics.CRM.OptionSetMetadata') OptionSet
             Invoke-DataverseRequest -Method PUT `
                 -Path "/GlobalOptionSetDefinitions($($existing.MetadataId))" `
                 -Body (New-CompleteLocalizedMetadataUpdateBody $complete $Choice.metadata OptionSet) `
@@ -785,7 +789,8 @@ function Invoke-ChoiceReconciliation {
             throw "Cannot update localized metadata for '$($Choice.logicalName)' without its metadata ID."
         }
         $complete = Get-CompleteMetadata `
-            "/GlobalOptionSetDefinitions($($existing.MetadataId))" OptionSet
+            ("/GlobalOptionSetDefinitions($($existing.MetadataId))/" +
+                'Microsoft.Dynamics.CRM.OptionSetMetadata') OptionSet
         Invoke-DataverseRequest -Method PUT `
             -Path "/GlobalOptionSetDefinitions($($existing.MetadataId))" `
             -Body (New-CompleteLocalizedMetadataUpdateBody $complete $Choice.metadata OptionSet) `

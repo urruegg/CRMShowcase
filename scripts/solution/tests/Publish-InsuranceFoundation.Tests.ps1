@@ -118,17 +118,34 @@ Describe 'Insurance Foundation request builders' {
         $dateTime.Format | Should -Be 'DateAndTime'
     }
 
-    It 'uses the escaped global-option-set alternate key without filter' {
+    It 'uses the typed global-option-set alternate key without expand or filter' {
         $script:choicePath = $null
         Mock Invoke-DataverseRequest {
             param($Method, $Path)
             $script:choicePath = $Path
+            return [pscustomobject]@{
+                Name = "crmshow_broker's_choice"
+                Options = @([pscustomobject]@{ Value = 100000000 })
+            }
+        }
+        $result = Get-GlobalOptionSet "crmshow_broker's_choice"
+        @($result.Options).Count | Should -Be 1
+        $script:choicePath | Should -BeExactly `
+            ("/GlobalOptionSetDefinitions(Name='crmshow_broker''s_choice')/" +
+                'Microsoft.Dynamics.CRM.OptionSetMetadata')
+        $script:choicePath | Should -Not -Match '\$(?:expand|filter)'
+
+        $source = Get-Content $script:publisherPath -Raw
+        $source | Should -Not -Match '\$expand=Options'
+    }
+
+    It 'returns null when the typed global-option-set lookup returns 404' {
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path)
             throw '404 Not Found'
         }
-        Get-GlobalOptionSet "crmshow_broker's_choice" | Should -BeNullOrEmpty
-        $script:choicePath | Should -BeExactly `
-            "/GlobalOptionSetDefinitions(Name='crmshow_broker''s_choice')?`$expand=Options"
-        $script:choicePath | Should -Not -Match '\$filter'
+
+        Get-GlobalOptionSet 'crmshow_missing' | Should -BeNullOrEmpty
     }
 
     It 'queries choice attributes only through typed metadata collections' {
@@ -708,6 +725,14 @@ Describe 'Insurance Foundation reconciliation' {
         $oneChoice.roles = @()
 
         Invoke-InsuranceFoundationReconciliation -Contract $oneChoice -Scope Foundation -Confirm:$false
+        $reads = @($script:calls | Where-Object {
+            $_.Method -eq 'GET' -and $_.Path -like '/GlobalOptionSetDefinitions*'
+        })
+        $reads.Count | Should -Be 1
+        $reads[0].Path | Should -Be (
+            "/GlobalOptionSetDefinitions(Name='crmshow_accounttype')/" +
+            'Microsoft.Dynamics.CRM.OptionSetMetadata'
+        )
         @($script:calls | Where-Object {
             $_.Method -ne 'GET' -and $_.Path -like '/GlobalOptionSetDefinitions*'
         }) | Should -BeNullOrEmpty
@@ -984,6 +1009,13 @@ Describe 'Insurance Foundation reconciliation' {
         $update = @($script:calls | Where-Object Method -eq 'PUT')
         $update.Count | Should -Be 1
         $update[0].Path | Should -Be '/GlobalOptionSetDefinitions(localized-choice)'
+        @($script:calls | Where-Object {
+            $_.Method -eq 'GET' -and
+            $_.Path -eq (
+                '/GlobalOptionSetDefinitions(localized-choice)/' +
+                'Microsoft.Dynamics.CRM.OptionSetMetadata'
+            )
+        }).Count | Should -Be 1
         $update[0].Headers.'MSCRM.MergeLabels' | Should -Be 'true'
         $update[0].Body.Name | Should -Be $choice.logicalName
         $update[0].Body.IsGlobal | Should -BeTrue
