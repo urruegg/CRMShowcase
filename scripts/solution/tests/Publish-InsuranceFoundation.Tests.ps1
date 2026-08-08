@@ -420,6 +420,11 @@ Describe 'Insurance Foundation reconciliation' {
         $created = @($script:calls | Where-Object Method -eq 'POST')
         @($created | Where-Object Path -eq '/GlobalOptionSetDefinitions').Count | Should -Be 5
         @($created | Where-Object Path -eq '/EntityDefinitions').Count | Should -Be 3
+        @($created | Where-Object Path -eq '/PublishXml').Count | Should -Be 3
+        foreach ($publish in @($created | Where-Object Path -eq '/PublishXml')) {
+            $publish.Body.ParameterXml |
+                Should -Match '^<importexportxml><entities><entity>crmshow_[a-z]+</entity></entities></importexportxml>$'
+        }
         @($created | Where-Object Path -match "EntityDefinitions\(LogicalName='(?:account|contact)'\)/Attributes").Count |
             Should -Be 2
         @($created | Where-Object Path -match '/Keys$').Count | Should -Be 3
@@ -486,7 +491,7 @@ Describe 'Insurance Foundation reconciliation' {
         }).Count | Should -Be 3
     }
 
-    It 'creates the Customer relationship immediately after its owning table and once' {
+    It 'creates the Customer relationship after publishing its owning table and once' {
         $script:choicesExist = $true
         Invoke-InsuranceFoundationReconciliation -Contract $script:contract -Scope DataModel -Confirm:$false
         $mutations = @($script:calls | Where-Object Method -ne 'GET')
@@ -500,7 +505,8 @@ Describe 'Insurance Foundation reconciliation' {
 
         }
         $tableIndex | Should -BeGreaterOrEqual 0
-        $mutations[$tableIndex + 1].Path | Should -Be '/CreateCustomerRelationships'
+        $mutations[$tableIndex + 1].Path | Should -Be '/PublishXml'
+        $mutations[$tableIndex + 2].Path | Should -Be '/CreateCustomerRelationships'
         @($mutations | Where-Object Path -eq '/CreateCustomerRelationships').Count | Should -Be 1
     }
 
@@ -616,8 +622,13 @@ Describe 'Insurance Foundation reconciliation' {
 
         { Invoke-TableReconciliation $table } |
             Should -Throw '*simulated interruption*'
+        $beforeRecovery = $script:calls.Count
         { Invoke-TableReconciliation $table } | Should -Not -Throw
 
+        $recoveryMutations = @($script:calls[$beforeRecovery..($script:calls.Count - 1)] |
+            Where-Object Method -ne 'GET')
+        $recoveryMutations[0].Path | Should -Be '/PublishXml'
+        $recoveryMutations[1].Path | Should -Be '/CreateCustomerRelationships'
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and $_.Path -eq '/EntityDefinitions'
         }).Count | Should -Be 1
@@ -722,18 +733,18 @@ Describe 'Insurance Foundation reconciliation' {
             '/GlobalOptionSetDefinitions',
             "/EntityDefinitions(LogicalName='account')/Attributes",
             "/EntityDefinitions(LogicalName='contact')/Attributes",
-            '/EntityDefinitions',
+            '/EntityDefinitions','/PublishXml',
             "/EntityDefinitions(LogicalName='crmshow_accountcontactrole')/Keys",
             '/savedqueries','/SetLocLabels','/SetLocLabels',
             '/savedqueries','/SetLocLabels','/SetLocLabels',
             '/savedqueries','/SetLocLabels','/SetLocLabels',
             '/systemforms','/SetLocLabels','/SetLocLabels',
-            '/EntityDefinitions',
+            '/EntityDefinitions','/PublishXml',
             "/EntityDefinitions(LogicalName='crmshow_policyprojection')/Keys",
             '/savedqueries','/SetLocLabels','/SetLocLabels',
             '/savedqueries','/SetLocLabels','/SetLocLabels',
             '/systemforms','/SetLocLabels','/SetLocLabels',
-            '/EntityDefinitions','/CreateCustomerRelationships',
+            '/EntityDefinitions','/PublishXml','/CreateCustomerRelationships',
             "/EntityDefinitions(LogicalName='crmshow_policypartyrole')/Keys",
             '/savedqueries','/SetLocLabels','/SetLocLabels',
             '/savedqueries','/SetLocLabels','/SetLocLabels',
@@ -803,6 +814,9 @@ Describe 'Insurance Foundation reconciliation' {
     It 'throws rather than replacing a structural conflict' {
         Mock Invoke-DataverseRequest {
             param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Method=$Method; Path=$Path; Body=$Body; Headers=$Headers
+            })
             if ($Method -eq 'GET' -and $Path -like "/EntityDefinitions*") {
                 return [pscustomobject]@{
                     value = @([pscustomobject]@{
@@ -822,6 +836,8 @@ Describe 'Insurance Foundation reconciliation' {
 
         { Invoke-InsuranceFoundationReconciliation -Contract $oneTable -Scope DataModel -Confirm:$false } |
             Should -Throw '*ownership*'
+        @($script:calls | Where-Object Method -ne 'GET') |
+            Should -BeNullOrEmpty
     }
 
     It 'does not recreate a compatible existing table or its lookups' {
@@ -936,6 +952,9 @@ Describe 'Insurance Foundation reconciliation' {
             $_.Method -eq 'GET' -and
             $_.Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.(?:String|DateTime|Lookup)AttributeMetadata\?'
         }).Count | Should -Be 7
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/PublishXml'
+        }).Count | Should -Be 2
     }
 
     It 'binds a missing choice column on an existing table by metadata ID' {
