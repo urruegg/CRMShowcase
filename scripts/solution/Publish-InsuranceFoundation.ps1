@@ -1252,6 +1252,9 @@ function Invoke-TableReconciliation {
                 $typedChoice = Get-PicklistAttributeMetadata $Table.logicalName `
                     $column.logicalName
                 $actual = @($typedChoice)
+                if ($actual.Count -eq 1 -and $null -eq $actual[0]) {
+                    $actual = @()
+                }
                 $baseChoice = @($existing.Attributes |
                     Where-Object LogicalName -eq $column.logicalName)
                 if ($baseChoice.Count -gt 1) {
@@ -1278,7 +1281,10 @@ function Invoke-TableReconciliation {
                     Method = 'POST'
                     Path = "/EntityDefinitions(LogicalName='$($Table.logicalName)')/Attributes"
                     Solution = $Table.solution
-                    Body = New-AttributeMetadata $column
+                    Body = New-AttributeMetadata $column `
+                        -GlobalChoiceMetadataIds (
+                            Get-GlobalChoiceMetadataIds @($column)
+                        )
                 }
                 Invoke-PlannedRequest $request | Out-Null
                 Write-Output "$($Table.logicalName)/$($column.logicalName): Created"

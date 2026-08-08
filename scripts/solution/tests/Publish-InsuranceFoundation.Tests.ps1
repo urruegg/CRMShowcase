@@ -905,6 +905,64 @@ Describe 'Insurance Foundation reconciliation' {
         }).Count | Should -Be 1
     }
 
+    It 'binds a missing choice column on an existing table by metadata ID' {
+        $table = $script:contract.tables[0] |
+            ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        $choiceColumn = $table.columns |
+            Where-Object type -eq 'GlobalChoice' | Select-Object -First 1
+        $table.columns = @($choiceColumn)
+        $table.relationships = @()
+        $table.alternateKeys = @()
+        $table.businessRules = @()
+        $table.views = @()
+        $table.forms = @()
+        $metadataId = '22222222-2222-2222-2222-222222222222'
+
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Method=$Method; Path=$Path; Body=$Body; Headers=$Headers
+            })
+            if ($Method -eq 'GET' -and $Path -match '^/EntityDefinitions\?') {
+                return [pscustomobject]@{ value=@([pscustomobject]@{
+                    MetadataId='existing-table'
+                    LogicalName=$table.logicalName
+                    OwnershipType=$table.ownership
+                    SolutionUniqueName=$table.solution
+                    DisplayName=ConvertTo-LocalizedLabel $table.metadata.label
+                    Description=ConvertTo-LocalizedLabel $table.metadata.description
+                    Attributes=@()
+                    OneToManyRelationships=@()
+                }) }
+            }
+            if ($Method -eq 'GET' -and
+                $Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.PicklistAttributeMetadata') {
+                return [pscustomobject]@{ value=@() }
+            }
+            if ($Method -eq 'GET' -and
+                $Path -like "/GlobalOptionSetDefinitions(Name='*") {
+                return [pscustomobject]@{ MetadataId=$metadataId }
+            }
+            if ($Method -eq 'GET' -and $Path -match 'ObjectTypeCode') {
+                return [pscustomobject]@{ ObjectTypeCode=10427 }
+            }
+            if ($Method -eq 'GET') { throw "Unsupported mocked endpoint: $Path" }
+            return [pscustomobject]@{}
+        }
+
+        Invoke-TableReconciliation $table | Out-Null
+
+        $create = @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and
+            $_.Path -eq (
+                "/EntityDefinitions(LogicalName='$($table.logicalName)')/Attributes"
+            )
+        })
+        $create.Count | Should -Be 1
+        $create[0].Body.'GlobalOptionSet@odata.bind' |
+            Should -Be "/GlobalOptionSetDefinitions($metadataId)"
+    }
+
     It 'throws on lookup target and alternate-key structural conflicts' {
         $column = $script:contract.tables[0].columns |
             Where-Object logicalName -eq 'crmshow_accountid'
