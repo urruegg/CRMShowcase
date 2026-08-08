@@ -236,7 +236,7 @@ argon2.hash(password)
 - Transitive dependencies pulling in known-bad packages
 - Pinned versions that are significantly behind current (possible unpatched vulns)
 
-### High-risk package watchlist: see `references/vulnerable-packages.md`
+### Dependency advisory method: see `references/vulnerable-packages.md`
 
 ---
 

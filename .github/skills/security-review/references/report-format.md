@@ -94,9 +94,9 @@ Confidence: HIGH / MEDIUM / LOW
   CVE-2023-45857: CSRF via withCredentials
   Fix: npm install axios@1.6.0
 
-🟠 HIGH — express@4.18.2
-  Version is below the bundled safe minimum of 4.19.2.
-  Verify against current lockfile-aware advisory data, then upgrade.
+🟠 HIGH — [package]@[resolved-version]
+  [ADVISORY-ID]: the resolved lockfile version is in the current affected range.
+  Fix: upgrade to the advisory's fixed version and regenerate the lockfile.
 ```
 
 ---

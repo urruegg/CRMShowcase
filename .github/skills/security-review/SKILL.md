@@ -61,7 +61,8 @@ Before scanning source code, audit dependencies first (fast wins):
 - **Rust**: Check `Cargo.toml`
 - **Go**: Check `go.sum`
 - Flag packages with known CVEs, deprecated crypto libs, or suspiciously old pinned versions
-- Read `references/vulnerable-packages.md` for a curated watchlist
+- Read `references/vulnerable-packages.md` for the lockfile-aware dependency
+  review method and current advisory sources
 
 ### Step 3 — Secrets & Exposure Scan
 Scan ALL files (including config, env, CI/CD, Dockerfiles, IaC) for:
@@ -171,7 +172,8 @@ For detailed detection guidance, load the following reference files as needed:
   - Search patterns: `API key`, `token`, `private key`, `connection string`, `entropy`, `.env`, `GitHub Actions`, `Docker`, `Terraform`
 - `references/language-patterns.md` — Framework-specific vulnerability patterns for JavaScript, Python, Java, PHP, Go, Ruby, and Rust
   - Search patterns: `Express`, `React`, `Next.js`, `Django`, `Flask`, `FastAPI`, `Spring Boot`, `PHP`, `Go`, `Rails`, `Rust`
-- `references/vulnerable-packages.md` — Curated CVE watchlist for npm, pip, Maven, Rubygems, Cargo, and Go modules
+- `references/vulnerable-packages.md` — Lockfile-aware dependency review method
+  and advisory sources
   - Search patterns: `lodash`, `axios`, `jsonwebtoken`, `Pillow`, `log4j`, `nokogiri`, `CVE`
 - `references/report-format.md` — Structured output template for security reports with finding cards, dependency audit, secrets scan, and patch proposal formatting
   - Search patterns: `report`, `format`, `template`, `finding`, `patch`, `summary`, `confidence`

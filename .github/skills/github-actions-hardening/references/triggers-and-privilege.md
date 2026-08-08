@@ -10,15 +10,18 @@ trigger.
 | --- | --- | --- | --- | --- |
 | `push` | Repo collaborators | read/write | yes | Low — trusted authors |
 | `pull_request` (same-repo branch) | Collaborators | read/write | yes | Low |
-| `pull_request` (from a fork) | **Anyone** | **read-only** | **no** | Low by design — even malicious code can't steal anything |
+| `pull_request` (from a fork) | **Anyone** | Usually read-only | Usually no | Settings-dependent — verify private-repository fork workflow settings |
 | `pull_request_target` | **Anyone with a fork** | **read/write** | **yes** | **High** — runs in base-repo context |
 | `workflow_run` | Fires after another workflow | **read/write** | **yes** | **High** |
 | `issue_comment`, `issues` | **Anyone** | **read/write** | **yes** | **High** |
 
-The trap: `pull_request` from a fork is *safe* because GitHub deliberately strips the token down
-and withholds secrets. Maintainers who find that "the secrets don't work on fork PRs" often switch
-to `pull_request_target` to get them back — and in doing so hand a write token and every secret to
-arbitrary contributors.
+Public repositories normally strip the token down and withhold secrets for a
+fork `pull_request`. Private repositories can be configured to send write
+tokens or secrets to fork workflows, so inspect repository and organization
+fork-workflow settings before treating the run as low trust. Maintainers who
+find that "the secrets don't work on fork PRs" sometimes switch to
+`pull_request_target` to get them back — and can thereby hand a write token and
+secrets to arbitrary contributor code.
 
 ## Why `pull_request_target` Is Dangerous
 
