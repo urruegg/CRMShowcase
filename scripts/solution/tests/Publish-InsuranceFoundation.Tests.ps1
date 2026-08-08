@@ -1102,6 +1102,78 @@ Describe 'Insurance Foundation reconciliation' {
             Should -Throw '*cascade conflict*Delete*'
     }
 
+    It 'rejects incomplete ordinary relationship endpoint metadata' {
+        $table = $script:contract.tables[0] |
+            ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        $table.columns = @($table.columns | Where-Object type -eq 'Lookup')
+        $table.alternateKeys = @()
+        $table.businessRules = @()
+        $table.views = @()
+        $table.forms = @()
+
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            if ($Method -eq 'GET' -and $Path -match '^/EntityDefinitions\?') {
+                return [pscustomobject]@{ value=@([pscustomobject]@{
+                    MetadataId='existing-table'
+                    LogicalName=$table.logicalName
+                    OwnershipType=$table.ownership
+                    SolutionUniqueName=$table.solution
+                    DisplayName=ConvertTo-LocalizedLabel $table.metadata.label
+                    Description=ConvertTo-LocalizedLabel $table.metadata.description
+                    Attributes=@($table.columns | ForEach-Object {
+                        [pscustomobject]@{
+                            MetadataId="attribute-$($_.logicalName)"
+                            LogicalName=$_.logicalName
+                            SchemaName=$_.schemaName
+                            AttributeType='Lookup'
+                        }
+                    })
+                    ManyToOneRelationships=@($table.relationships | ForEach-Object {
+                        [pscustomobject]@{
+                            SchemaName=$_.schemaName
+                            ReferencedEntity=$null
+                            ReferencingEntity=$table.logicalName
+                            ReferencingAttribute=$_.lookupColumn
+                            CascadeConfiguration=[pscustomobject]@{
+                                Assign='NoCascade'; Delete='Restrict'
+                                Merge='NoCascade'; Reparent='NoCascade'
+                                Share='NoCascade'; Unshare='NoCascade'
+                            }
+                        }
+                    })
+                }) }
+            }
+            if ($Method -eq 'GET' -and
+                $Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.LookupAttributeMetadata') {
+                $logicalName = [regex]::Match(
+                    $Path, "LogicalName eq '([^']+)'"
+                ).Groups[1].Value
+                $column = $table.columns |
+                    Where-Object logicalName -eq $logicalName
+                return [pscustomobject]@{ value=@([pscustomobject]@{
+                    MetadataId="attribute-$($column.logicalName)"
+                    LogicalName=$column.logicalName
+                    SchemaName=$column.schemaName
+                    AttributeType='Lookup'
+                    Targets=@($column.lookup.targets)
+                }) }
+            }
+            if ($Method -eq 'GET' -and $Path -match 'ObjectTypeCode') {
+                return [pscustomobject]@{ ObjectTypeCode=10427 }
+            }
+            if ($Method -eq 'GET' -and
+                $Path -match '(?:/Keys\?|^/savedqueries\?|^/systemforms\?)') {
+                return [pscustomobject]@{ value=@() }
+            }
+            if ($Method -eq 'GET') { throw "Unsupported mocked endpoint: $Path" }
+            return [pscustomobject]@{}
+        }
+
+        { Invoke-TableReconciliation $table } |
+            Should -Throw '*target conflict*'
+    }
+
     It 'binds a missing choice column on an existing table by metadata ID' {
         $table = $script:contract.tables[0] |
             ConvertTo-Json -Depth 100 | ConvertFrom-Json

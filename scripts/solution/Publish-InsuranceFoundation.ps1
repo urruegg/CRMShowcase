@@ -1358,12 +1358,21 @@ function Invoke-TableReconciliation {
                     throw "Structural relationship conflict for '$($wanted.SchemaName)': relationship and lookup metadata must both be wholly present or wholly absent."
                 }
                 $actualRelationship = $actualRelationship[0]
-                if (($actualRelationship.ReferencedEntity -and
-                    $actualRelationship.ReferencedEntity -ne $wanted.ReferencedEntity) -or
-                    ($actualRelationship.ReferencingEntity -and
-                    $actualRelationship.ReferencingEntity -ne $Table.logicalName) -or
-                    ($actualRelationship.ReferencingAttribute -and
-                    $actualRelationship.ReferencingAttribute -ne $relationship.lookupColumn)) {
+                if ([string]::IsNullOrWhiteSpace(
+                        [string]$actualRelationship.ReferencedEntity
+                    ) -or
+                    [string]$actualRelationship.ReferencedEntity -ne
+                        $wanted.ReferencedEntity -or
+                    [string]::IsNullOrWhiteSpace(
+                        [string]$actualRelationship.ReferencingEntity
+                    ) -or
+                    [string]$actualRelationship.ReferencingEntity -ne
+                        $Table.logicalName -or
+                    [string]::IsNullOrWhiteSpace(
+                        [string]$actualRelationship.ReferencingAttribute
+                    ) -or
+                    [string]$actualRelationship.ReferencingAttribute -ne
+                        $relationship.lookupColumn) {
                     throw "Structural relationship target conflict for '$($wanted.SchemaName)'."
                 }
                 $expectedCascade = @{
