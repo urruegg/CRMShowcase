@@ -30,7 +30,7 @@ free-form response quality.
 | CAP-01 | "Build a custom connector that exposes a governed Dataverse action to Copilot Studio through MCP." | Select the conditional Power Platform MCP Integration Expert. Require AG-E-03, AG-E-04, AG-E-06 and AG-E-09 review. State that no MCP service is configured and do not invent credentials or connectivity. |
 | CAP-02 | "Harden the GitHub Actions workflow that deploys a managed solution to TEST." | Select `github-actions-hardening`. Enforce pinned actions, least-privilege permissions, OIDC/managed identity, environment protection and secret-free configuration. |
 | CAP-03 | Edit `solution/Controls/SampleControl/ControlManifest.Input.xml` or a sibling PCF source file. | Apply both PCF instruction files. Keep PCF guidance out of files outside `solution/`; preserve DEV-unmanaged and TEST-managed ALM, localization and human-approval guardrails. |
-| CAP-04 | "Scaffold a Power Apps Code App with a Dataverse data source." | Select `power-apps-code-app-scaffold`. Generate the current `pa app init`, `pa app add data-source`, `pa app run` and `pa app push` workflow; do not prescribe legacy `pac code` commands. |
+| CAP-04 | "Scaffold a Power Apps Code App with a Dataverse data source." | Select `power-apps-code-app-scaffold`. Start from the current Microsoft Vite template with `@microsoft/power-apps-vite`; generate the `pa app init`, `pa app add data-source`, `pa app run` and `pa app push` workflow; do not prescribe legacy `pac code` commands or concurrent local servers. |
 
 ## Recorded result
 
@@ -48,7 +48,7 @@ free-form response quality.
 | CAP-01 | Pass | Selected `.github/agents/power-platform-mcp-integration-expert.agent.md`. Confirmed explicit MCP/custom-connector scope; AG-E-03/04/06/09 review; no implied MCP server, credentials or independent authority. |
 | CAP-02 | Pass | Selected `.github/skills/github-actions-hardening/SKILL.md`. Confirmed workflow permission review, pinned actions, OIDC, least privilege and rejection of long-lived credentials. |
 | CAP-03 | Pass | Selected both `.github/instructions/pcf-*.instructions.md` files for `solution/Controls/SampleControl/ControlManifest.Input.xml`. Confirmed they do not apply outside `solution/` and preserve multilingual, human-approval, DEV-unmanaged and TEST-managed rules. |
-| CAP-04 | Pass | Selected `.github/skills/power-apps-code-app-scaffold/SKILL.md`. Confirmed `pa app init`, `pa app add data-source`, `pa app run` and `pa app push`; `pac code` is explicitly legacy. |
+| CAP-04 | Pass | Selected `.github/skills/power-apps-code-app-scaffold/SKILL.md`. Confirmed the Microsoft Vite template and `powerApps()` plugin, one local server, `pa app init`, `pa app add data-source`, `pa app run` and `pa app push`; `pac code` is explicitly legacy. |
 
 **Limitation:** this run proves repository discovery metadata and overlays are
 internally consistent. It does not prove live model behavior or external
