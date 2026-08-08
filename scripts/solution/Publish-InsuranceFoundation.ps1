@@ -1270,10 +1270,10 @@ function Invoke-TableReconciliation {
         }
     } else {
         Assert-SolutionOwnership $existing $Table.solution $Table.logicalName
-        Publish-TableMetadata $Table
         if ([string]$existing.OwnershipType -and [string]$existing.OwnershipType -ne $Table.ownership) {
             throw "Structural ownership conflict for '$($Table.logicalName)'."
         }
+        Publish-TableMetadata $Table
         foreach ($customer in @($Table.columns | Where-Object type -eq 'Customer')) {
             Invoke-ExistingCustomerRelationshipReconciliation $Table $customer `
                 -ExistingAttributes @($existing.Attributes)

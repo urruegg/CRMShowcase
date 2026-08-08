@@ -814,6 +814,9 @@ Describe 'Insurance Foundation reconciliation' {
     It 'throws rather than replacing a structural conflict' {
         Mock Invoke-DataverseRequest {
             param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Method=$Method; Path=$Path; Body=$Body; Headers=$Headers
+            })
             if ($Method -eq 'GET' -and $Path -like "/EntityDefinitions*") {
                 return [pscustomobject]@{
                     value = @([pscustomobject]@{
@@ -833,6 +836,8 @@ Describe 'Insurance Foundation reconciliation' {
 
         { Invoke-InsuranceFoundationReconciliation -Contract $oneTable -Scope DataModel -Confirm:$false } |
             Should -Throw '*ownership*'
+        @($script:calls | Where-Object Method -ne 'GET') |
+            Should -BeNullOrEmpty
     }
 
     It 'does not recreate a compatible existing table or its lookups' {
