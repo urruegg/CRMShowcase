@@ -854,9 +854,26 @@ function Test-AttributeCompatibility {
     }
 }
 
+function Get-PicklistAttributeMetadata {
+    param(
+        [Parameter(Mandatory)] [string]$TableLogicalName,
+        [Parameter(Mandatory)] [string]$AttributeLogicalName
+    )
+    $escapedTableName = ConvertTo-ODataKeyString $TableLogicalName
+    $escapedAttributeName = ConvertTo-ODataKeyString $AttributeLogicalName
+    return Get-One (
+        "/EntityDefinitions(LogicalName='$escapedTableName')/Attributes/" +
+        "Microsoft.Dynamics.CRM.PicklistAttributeMetadata?" +
+        "`$select=MetadataId,LogicalName,SchemaName,AttributeType,DisplayName,Description&" +
+        "`$expand=GlobalOptionSet(`$select=Name)&" +
+        "`$filter=LogicalName eq '$escapedAttributeName'"
+    )
+}
+
 function Invoke-NativeExtensionReconciliation {
     param($Extension)
-    $existing = Get-One "/EntityDefinitions(LogicalName='$($Extension.table)')/Attributes?`$select=MetadataId,LogicalName,AttributeType,DisplayName,Description&`$expand=GlobalOptionSet(`$select=Name)&`$filter=LogicalName eq '$($Extension.logicalName)'"
+    $existing = Get-PicklistAttributeMetadata $Extension.table `
+        $Extension.logicalName
     if ($null -eq $existing) {
         Invoke-PlannedRequest (New-NativeAttributeRequest $Extension) | Out-Null
         Write-Output "$($Extension.table)/$($Extension.logicalName): Created"
@@ -1116,7 +1133,7 @@ function Invoke-ExistingCustomerRelationshipReconciliation {
 
 function Invoke-TableReconciliation {
     param($Table)
-    $existing = Get-One "/EntityDefinitions?`$select=MetadataId,LogicalName,SchemaName,OwnershipType,PrimaryNameAttribute,IsAuditEnabled,DisplayName,Description&`$expand=Attributes(`$select=MetadataId,LogicalName,SchemaName,AttributeType,Targets,MaxLength,Format,DateTimeBehavior,DisplayName,Description;`$expand=GlobalOptionSet(`$select=Name)),OneToManyRelationships(`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute)&`$filter=LogicalName eq '$($Table.logicalName)'"
+    $existing = Get-One "/EntityDefinitions?`$select=MetadataId,LogicalName,SchemaName,OwnershipType,PrimaryNameAttribute,IsAuditEnabled,DisplayName,Description&`$expand=Attributes(`$select=MetadataId,LogicalName,SchemaName,AttributeType,Targets,MaxLength,Format,DateTimeBehavior,DisplayName,Description),OneToManyRelationships(`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute)&`$filter=LogicalName eq '$($Table.logicalName)'"
     if ($null -eq $existing) {
         Invoke-PlannedRequest (Get-TableCreateRequest $Table) | Out-Null
         Write-Output "$($Table.logicalName): Created"
@@ -1171,7 +1188,28 @@ function Invoke-TableReconciliation {
         }
         foreach ($column in $Table.columns) {
             if ($column.type -eq 'Customer') { continue }
-            $actual = @($existing.Attributes | Where-Object LogicalName -eq $column.logicalName)
+            if ($column.type -eq 'GlobalChoice') {
+                $typedChoice = Get-PicklistAttributeMetadata $Table.logicalName `
+                    $column.logicalName
+                $actual = @($typedChoice)
+                $baseChoice = @($existing.Attributes |
+                    Where-Object LogicalName -eq $column.logicalName)
+                if ($baseChoice.Count -gt 1) {
+                    throw "Duplicate physical attributes found for '$($Table.logicalName)/$($column.logicalName)'."
+                }
+                if ($baseChoice.Count -eq 1 -and $actual.Count -eq 0) {
+                    throw "Structural type conflict for '$($Table.logicalName)/$($column.logicalName)': base metadata exists but typed Picklist metadata is unavailable."
+                }
+                if ($baseChoice.Count -eq 1 -and $actual.Count -eq 1 -and
+                    $baseChoice[0].MetadataId -and $actual[0].MetadataId -and
+                    [string]$baseChoice[0].MetadataId -ne
+                    [string]$actual[0].MetadataId) {
+                    throw "Structural metadata conflict for '$($Table.logicalName)/$($column.logicalName)': base and typed metadata IDs differ."
+                }
+            } else {
+                $actual = @($existing.Attributes |
+                    Where-Object LogicalName -eq $column.logicalName)
+            }
             if ($actual.Count -eq 0) {
                 if ($column.type -in @('Lookup', 'Customer')) {
                     throw "Structural conflict: lookup '$($column.logicalName)' is missing from existing table '$($Table.logicalName)'; it will not be created or recreated."

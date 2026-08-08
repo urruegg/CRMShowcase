@@ -131,6 +131,29 @@ Describe 'Insurance Foundation request builders' {
         $script:choicePath | Should -Not -Match '\$filter'
     }
 
+    It 'queries choice attributes only through typed metadata collections' {
+        $script:picklistPath = $null
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path)
+            $script:picklistPath = $Path
+            return [pscustomobject]@{ value = @() }
+        }
+
+        Get-PicklistAttributeMetadata 'account' 'crmshow_accounttype' |
+            Should -BeNullOrEmpty
+        $script:picklistPath | Should -BeExactly (
+            "/EntityDefinitions(LogicalName='account')/Attributes/" +
+            "Microsoft.Dynamics.CRM.PicklistAttributeMetadata?" +
+            "`$select=MetadataId,LogicalName,SchemaName,AttributeType,DisplayName,Description&" +
+            "`$expand=GlobalOptionSet(`$select=Name)&" +
+            "`$filter=LogicalName eq 'crmshow_accounttype'"
+        )
+
+        $source = Get-Content $script:publisherPath -Raw
+        $source | Should -Not -Match '/Attributes\?[^\r\n]*\$expand=GlobalOptionSet'
+        $source | Should -Not -Match '\$expand=Attributes\([^\r\n]*\$expand=GlobalOptionSet'
+    }
+
     It 'builds the documented Customer relationship action' {
         $table = $script:contract.tables[2]
         $column = $table.columns | Where-Object logicalName -eq 'crmshow_partyid'
@@ -258,6 +281,7 @@ Describe 'az rest transport' {
 Describe 'Insurance Foundation reconciliation' {
     BeforeEach {
         $script:calls = [System.Collections.Generic.List[object]]::new()
+        $script:choicesExist = $false
         Mock Invoke-DataverseRequest {
             param($Method, $Path, $Body, $Headers)
             $script:calls.Add([pscustomobject]@{
@@ -297,6 +321,25 @@ Describe 'Insurance Foundation reconciliation' {
             }
             if ($Method -eq 'GET' -and
                 $Path -like "/GlobalOptionSetDefinitions(Name='*") {
+                if ($script:choicesExist) {
+                    $name = [regex]::Match(
+                        $Path, "Name='([^']+)'"
+                    ).Groups[1].Value
+                    $choice = $script:contract.choices |
+                        Where-Object logicalName -eq $name
+                    $desired = (New-ChoiceRequest $choice).Body
+                    return [pscustomobject]@{
+                        Name = $choice.logicalName
+                        '@odata.type' = 'Microsoft.Dynamics.CRM.OptionSetMetadata'
+                        MetadataId = "existing-$($choice.logicalName)"
+                        IsGlobal = $true
+                        OptionSetType = 'Picklist'
+                        SolutionUniqueName = $choice.solution
+                        DisplayName = $desired.DisplayName
+                        Description = $desired.Description
+                        Options = $desired.Options
+                    }
+                }
                 throw '404 Not Found'
             }
             if ($Method -eq 'GET' -and $Path -match '^/(?:EntityDefinitions|savedqueries|systemforms|roles|solutions|solutioncomponents)(?:\?|.*\?.*)$') {
@@ -347,6 +390,29 @@ Describe 'Insurance Foundation reconciliation' {
             Should -Be @('Global')
         @($created | Where-Object Path -eq '/savedqueries').Body.layoutxml |
             Should -Match 'object="10427"'
+    }
+
+    It 'continues after all five choices already exist and creates schema components' {
+        $script:choicesExist = $true
+
+        Invoke-InsuranceFoundationReconciliation -Contract $script:contract `
+            -Scope All -Confirm:$false | Out-Null
+
+        @($script:calls | Where-Object {
+            $_.Method -ne 'GET' -and
+            $_.Path -like '/GlobalOptionSetDefinitions*'
+        }) | Should -BeNullOrEmpty
+        @($script:calls | Where-Object {
+            $_.Method -eq 'GET' -and
+            $_.Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.PicklistAttributeMetadata\?'
+        }).Count | Should -Be 2
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and
+            $_.Path -match "EntityDefinitions\(LogicalName='(?:account|contact)'\)/Attributes$"
+        }).Count | Should -Be 2
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/EntityDefinitions'
+        }).Count | Should -Be 3
     }
 
     It 'creates the Customer relationship immediately after its owning table and once' {
@@ -434,6 +500,20 @@ Describe 'Insurance Foundation reconciliation' {
             if ($Method -eq 'GET' -and
                 $Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.LookupAttributeMetadata') {
                 return [pscustomobject]@{ value=@() }
+            }
+            if ($Method -eq 'GET' -and
+                $Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.PicklistAttributeMetadata') {
+                $column = $table.columns |
+                    Where-Object logicalName -eq 'crmshow_roletype'
+                return [pscustomobject]@{ value=@([pscustomobject]@{
+                    MetadataId="attribute-$($column.logicalName)"
+                    LogicalName=$column.logicalName
+                    SchemaName=$column.schemaName
+                    AttributeType='Picklist'
+                    GlobalOptionSet=[pscustomobject]@{ Name=$column.choice }
+                    DisplayName=ConvertTo-LocalizedLabel $column.metadata.label
+                    Description=ConvertTo-LocalizedLabel $column.metadata.description
+                }) }
             }
             if ($Method -eq 'GET' -and $Path -match '/OneToManyRelationships\?') {
                 return [pscustomobject]@{ value=@() }
@@ -710,6 +790,21 @@ Describe 'Insurance Foundation reconciliation' {
                 return [pscustomobject]@{ ObjectTypeCode = 10427 }
             }
             if ($Method -eq 'GET' -and
+                $Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.PicklistAttributeMetadata') {
+                $column = $table.columns |
+                    Where-Object logicalName -eq 'crmshow_roletype'
+                return [pscustomobject]@{ value = @([pscustomobject]@{
+                    MetadataId = "compatible-$($column.logicalName)"
+                    LogicalName = $column.logicalName
+                    SchemaName = $column.schemaName
+                    AttributeType = 'Picklist'
+                    GlobalOptionSet = [pscustomobject]@{ Name = $column.choice }
+                    DisplayName = ConvertTo-LocalizedLabel $column.metadata.label
+                    Description = ConvertTo-LocalizedLabel $column.metadata.description
+                    SolutionUniqueName = $table.solution
+                }) }
+            }
+            if ($Method -eq 'GET' -and
                 $Path -match '(?:/Keys\?|^/savedqueries\?|^/systemforms\?)') {
                 return [pscustomobject]@{ value = @() }
             }
@@ -725,6 +820,10 @@ Describe 'Insurance Foundation reconciliation' {
             $_.Method -eq 'POST' -and
             $_.Path -in @('/EntityDefinitions', '/CreateCustomerRelationships')
         }) | Should -BeNullOrEmpty
+        @($script:calls | Where-Object {
+            $_.Method -eq 'GET' -and
+            $_.Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.PicklistAttributeMetadata\?'
+        }).Count | Should -Be 1
     }
 
     It 'throws on lookup target and alternate-key structural conflicts' {
@@ -763,6 +862,33 @@ Describe 'Insurance Foundation reconciliation' {
                 GlobalOptionSet = [pscustomobject]@{ Name = 'crmshow_wrongchoice' }
             }) $script:contract.nativeExtensions[0] 'account'
         } | Should -Throw '*choice-binding conflict*'
+    }
+
+    It 'throws when typed native choice metadata has a conflicting binding' {
+        $extension = $script:contract.nativeExtensions[0]
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Method=$Method; Path=$Path; Body=$Body; Headers=$Headers
+            })
+            if ($Method -eq 'GET' -and
+                $Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.PicklistAttributeMetadata\?') {
+                return [pscustomobject]@{ value=@([pscustomobject]@{
+                    MetadataId='native-choice'
+                    LogicalName=$extension.logicalName
+                    AttributeType='Picklist'
+                    GlobalOptionSet=[pscustomobject]@{ Name='crmshow_wrongchoice' }
+                    SolutionUniqueName=$extension.solution
+                }) }
+            }
+            throw "Unsupported mocked endpoint: $Method $Path"
+        }
+
+        { Invoke-NativeExtensionReconciliation $extension } |
+            Should -Throw '*choice-binding conflict*'
+        $script:calls[0].Path | Should -Match (
+            '/Attributes/Microsoft\.Dynamics\.CRM\.PicklistAttributeMetadata\?'
+        )
     }
 
     It 'rejects UserLocal date metadata for the UTC contract' {
