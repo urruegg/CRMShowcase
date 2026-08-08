@@ -1,0 +1,110 @@
+name: Author insurance foundation in DEV
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  author:
+    runs-on: ubuntu-latest
+    environment: dev
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      POWER_PLATFORM_ENV_URL: ${{ vars.POWER_PLATFORM_ENV_URL }}
+    steps:
+      - name: Check out reviewed commit
+        uses: actions/checkout@v4
+
+      - name: Sign in with workload identity
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Install Power Platform CLI
+        uses: microsoft/powerplatform-actions/actions-install@v1
+
+      - name: Install Pester 6.0.1
+        shell: pwsh
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module Pester -RequiredVersion 6.0.1 -Scope CurrentUser -Force -SkipPublisherCheck
+
+      - name: Authenticate Power Platform CLI
+        shell: pwsh
+        run: |
+          pac auth create `
+            --name insurance-authoring `
+            --githubFederated `
+            --applicationId $env:AZURE_CLIENT_ID `
+            --tenant $env:AZURE_TENANT_ID `
+            --environment $env:POWER_PLATFORM_ENV_URL
+          if ($LASTEXITCODE -ne 0) { throw 'PAC federated authentication failed.' }
+
+      - name: Reconcile Dataverse languages
+        shell: pwsh
+        run: |
+          $root = $env:GITHUB_WORKSPACE
+          & (Join-Path $root 'infra/scripts/Set-DataverseLanguages.ps1') `
+            -EnvironmentUrl $env:POWER_PLATFORM_ENV_URL `
+            -LocaleId 1033,1031,1036,1040
+          if ($LASTEXITCODE -ne 0) { throw 'Language reconciliation failed.' }
+
+      - name: Run offline authoring contract tests
+        shell: pwsh
+        run: |
+          Import-Module Pester -RequiredVersion 6.0.1
+          $root = $env:GITHUB_WORKSPACE
+          $targeted = Invoke-Pester -Path @(
+            (Join-Path $root 'scripts/solution/tests/InsuranceFoundationContract.Tests.ps1'),
+            (Join-Path $root 'scripts/solution/tests/Publish-InsuranceFoundation.Tests.ps1')
+          ) -PassThru -Output Detailed
+          if ($targeted.FailedCount -gt 0) { throw 'Targeted authoring tests failed.' }
+          $full = Invoke-Pester -Path (Join-Path $root 'scripts/solution/tests') `
+            -PassThru -Output Detailed
+          if ($full.FailedCount -gt 0) { throw 'Full solution test suite failed.' }
+
+      - name: Reconcile insurance metadata
+        shell: pwsh
+        run: |
+          $root = $env:GITHUB_WORKSPACE
+          & (Join-Path $root 'scripts/solution/Publish-InsuranceFoundation.ps1') `
+            -EnvironmentUrl $env:POWER_PLATFORM_ENV_URL `
+            -ContractPath (Join-Path $root 'solution/schema/insurance-foundation.json') `
+            -Scope All `
+            -Confirm:$false
+          if ($LASTEXITCODE -ne 0) { throw 'Insurance metadata reconciliation failed.' }
+
+      - name: Export managed and unmanaged solutions
+        shell: pwsh
+        run: |
+          $artifact = Join-Path $env:RUNNER_TEMP 'insurance-foundation-authoring'
+          New-Item -ItemType Directory -Path $artifact -Force | Out-Null
+          $exports = @(
+            @{ Name = 'crmshow_Foundation'; Managed = 'false'; File = 'crmshow_Foundation.zip' },
+            @{ Name = 'crmshow_Foundation'; Managed = 'true'; File = 'crmshow_Foundation_managed.zip' },
+            @{ Name = 'crmshow_DataModel'; Managed = 'false'; File = 'crmshow_DataModel.zip' },
+            @{ Name = 'crmshow_DataModel'; Managed = 'true'; File = 'crmshow_DataModel_managed.zip' }
+          )
+          foreach ($export in $exports) {
+            pac solution export `
+              --environment $env:POWER_PLATFORM_ENV_URL `
+              --name $export.Name `
+              --path (Join-Path $artifact $export.File) `
+              --managed $export.Managed `
+              --overwrite
+            if ($LASTEXITCODE -ne 0) { throw "Export failed for $($export.File)." }
+          }
+
+      - name: Upload authored solution packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: insurance-foundation-authoring-${{ github.sha }}
+          path: ${{ runner.temp }}/insurance-foundation-authoring/*.zip
+          if-no-files-found: error
+          retention-days: 14
