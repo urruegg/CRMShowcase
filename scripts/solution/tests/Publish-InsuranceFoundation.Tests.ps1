@@ -29,6 +29,27 @@ Describe 'Insurance Foundation request builders' {
         }
     }
 
+    It 'binds choice columns by metadata ID when one is resolved' {
+        $metadataId = '11111111-1111-1111-1111-111111111111'
+        $extension = $script:contract.nativeExtensions[0]
+        $native = New-NativeAttributeRequest $extension @{
+            $extension.choice = $metadataId
+        }
+        $native.Body.'GlobalOptionSet@odata.bind' |
+            Should -Be "/GlobalOptionSetDefinitions($metadataId)"
+
+        $table = $script:contract.tables[0]
+        $choiceColumn = $table.columns | Where-Object type -eq 'GlobalChoice' |
+            Select-Object -First 1
+        $request = Get-TableCreateRequest $table @{
+            $choiceColumn.choice = $metadataId
+        }
+        ($request.Body.Attributes | Where-Object {
+            $_.LogicalName -eq $choiceColumn.logicalName
+        }).'GlobalOptionSet@odata.bind' |
+            Should -Be "/GlobalOptionSetDefinitions($metadataId)"
+    }
+
     It 'accepts a complete typed-endpoint response without an odata type annotation' {
         $existing = [pscustomobject][ordered]@{
             MetadataId = 'attribute-id'; LogicalName = 'crmshow_name'
@@ -299,6 +320,7 @@ Describe 'Insurance Foundation reconciliation' {
     BeforeEach {
         $script:calls = [System.Collections.Generic.List[object]]::new()
         $script:choicesExist = $false
+        $script:createdChoices = [System.Collections.Generic.HashSet[string]]::new()
         Mock Invoke-DataverseRequest {
             param($Method, $Path, $Body, $Headers)
             $script:calls.Add([pscustomobject]@{
@@ -338,17 +360,20 @@ Describe 'Insurance Foundation reconciliation' {
             }
             if ($Method -eq 'GET' -and
                 $Path -like "/GlobalOptionSetDefinitions(Name='*") {
-                if ($script:choicesExist) {
-                    $name = [regex]::Match(
-                        $Path, "Name='([^']+)'"
-                    ).Groups[1].Value
+                $name = [regex]::Match(
+                    $Path, "Name='([^']+)'"
+                ).Groups[1].Value
+                if ($script:choicesExist -or $script:createdChoices.Contains($name)) {
                     $choice = $script:contract.choices |
                         Where-Object logicalName -eq $name
                     $desired = (New-ChoiceRequest $choice).Body
+                    $choiceIndex = [array]::IndexOf(
+                        @($script:contract.choices.logicalName), $name
+                    ) + 1
                     return [pscustomobject]@{
                         Name = $choice.logicalName
                         '@odata.type' = 'Microsoft.Dynamics.CRM.OptionSetMetadata'
-                        MetadataId = "existing-$($choice.logicalName)"
+                        MetadataId = '00000000-0000-0000-0000-{0:D12}' -f $choiceIndex
                         IsGlobal = $true
                         OptionSetType = 'Picklist'
                         SolutionUniqueName = $choice.solution
@@ -366,6 +391,9 @@ Describe 'Insurance Foundation reconciliation' {
                 return [pscustomobject]@{ RolePrivileges = @() }
             }
             if ($Method -eq 'GET') { throw "Unsupported mocked endpoint: $Method $Path" }
+            if ($Method -eq 'POST' -and $Path -eq '/GlobalOptionSetDefinitions') {
+                $script:createdChoices.Add([string]$Body.Name) | Out-Null
+            }
             if ($Path -eq '/savedqueries') {
                 return [pscustomobject]@{ savedqueryid = 'new-view' }
             }
@@ -407,6 +435,24 @@ Describe 'Insurance Foundation reconciliation' {
             Should -Be @('Global')
         @($created | Where-Object Path -eq '/savedqueries').Body.layoutxml |
             Should -Match 'object="10427"'
+        $choiceBindings = @(
+            $created |
+                Where-Object Path -match '/Attributes$' |
+                ForEach-Object { $_.Body.'GlobalOptionSet@odata.bind' }
+            $created |
+                Where-Object Path -eq '/EntityDefinitions' |
+                ForEach-Object {
+                    $_.Body.Attributes |
+                        Where-Object { $_.'GlobalOptionSet@odata.bind' } |
+                        ForEach-Object { $_.'GlobalOptionSet@odata.bind' }
+                }
+        )
+        $choiceBindings.Count | Should -BeGreaterThan 0
+        $choiceBindings | Should -Not -Match 'Name='
+        $choiceBindings | Should -Match (
+            '^/GlobalOptionSetDefinitions\(' +
+            '[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\)$'
+        )
     }
 
     It 'continues after all five choices already exist and creates schema components' {
@@ -433,6 +479,7 @@ Describe 'Insurance Foundation reconciliation' {
     }
 
     It 'creates the Customer relationship immediately after its owning table and once' {
+        $script:choicesExist = $true
         Invoke-InsuranceFoundationReconciliation -Contract $script:contract -Scope DataModel -Confirm:$false
         $mutations = @($script:calls | Where-Object Method -ne 'GET')
         $tableIndex = -1
@@ -534,6 +581,12 @@ Describe 'Insurance Foundation reconciliation' {
             }
             if ($Method -eq 'GET' -and $Path -match '/OneToManyRelationships\?') {
                 return [pscustomobject]@{ value=@() }
+            }
+            if ($Method -eq 'GET' -and
+                $Path -like "/GlobalOptionSetDefinitions(Name='*") {
+                return [pscustomobject]@{
+                    MetadataId='11111111-1111-1111-1111-111111111111'
+                }
             }
             if ($Method -eq 'GET' -and $Path -match 'ObjectTypeCode') {
                 return [pscustomobject]@{ ObjectTypeCode=10427 }
@@ -688,6 +741,7 @@ Describe 'Insurance Foundation reconciliation' {
     }
 
     It 'reports deferred business rules and never schedules workflow mutation' {
+        $script:choicesExist = $true
         $messages = @(Invoke-InsuranceFoundationReconciliation -Contract $script:contract `
             -Scope DataModel -Confirm:$false)
         @($messages | Where-Object { $_ -like '*Deferred: OR-001/#9*' }).Count | Should -Be 3
