@@ -126,6 +126,21 @@ function New-CompleteLocalizedMetadataUpdateBody {
         }
     }
 
+    if ($Kind -eq 'OptionSet') {
+        $body = [ordered]@{
+            '@odata.type' = 'Microsoft.Dynamics.CRM.OptionSetMetadata'
+            Name = $Existing.Name
+            DisplayName = ConvertTo-LocalizedLabel $Metadata.label
+            Description = ConvertTo-LocalizedLabel $Metadata.description
+            IsGlobal = [bool]$Existing.IsGlobal
+            OptionSetType = $Existing.OptionSetType
+        }
+        if ($Existing.MetadataId) {
+            $body.MetadataId = $Existing.MetadataId
+        }
+        return $body
+    }
+
     $body = [ordered]@{}
     foreach ($property in $Existing.PSObject.Properties) {
         if ($property.Name -notmatch '^@odata\.(?:context|etag)$' -and
