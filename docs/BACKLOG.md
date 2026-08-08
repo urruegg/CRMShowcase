@@ -107,6 +107,12 @@ and the
 | US-709 | Load synthetic fixtures and publish smoke evidence | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
 | US-710 | Enforce effective-date integrity across every Dataverse write path | Deferred — [#9](https://github.com/urruegg/CRMShowcase/issues/9) · [OR-001](./requirements/OR-001-effective-date-integrity.md) |
 
+## Epic 8 — Engineering capability packs
+
+| ID | Story | Status |
+| --- | --- | --- |
+| US-801 | Curate and install Power Platform, ALM and security Copilot capabilities with provenance and CRMShowcase guardrails | Implemented — [#18](https://github.com/urruegg/CRMShowcase/issues/18) · [ADR-0022](./adr/ADR-0022-curated-external-copilot-capability-packs.md) |
+
 ## Bootstrap stories already delivered
 
 | ID | Story | Commit |
