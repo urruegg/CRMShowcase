@@ -162,6 +162,15 @@ Each has a matching chatmode in [.github/chatmodes/](./.github/chatmodes/).
 | **AG-E-09** Integration Engineer | API contracts, events, error handling, versioning | [integration-engineer.agent.md](./.github/agents/integration-engineer.agent.md) |
 | **AG-E-10** Insurance Domain Expert | Insurance-vertical challenger; complements AG-E-05 | [insurance-domain-expert.agent.md](./.github/agents/insurance-domain-expert.agent.md) |
 
+### Imported conditional specialists
+
+These specialists do not add decision authority and do not replace the
+`AG-E-##` owners. Invoke them only for the stated implementation surface.
+
+| Specialist | Use only when | Required owners |
+| --- | --- | --- |
+| [Power Platform MCP Integration Expert](./.github/agents/power-platform-mcp-integration-expert.agent.md) | A story introduces or changes a Power Platform custom connector, MCP server, or Copilot Studio MCP integration | AG-E-03 Enterprise Architect · AG-E-04 SecDevOps · AG-E-06 Responsible-AI Officer · AG-E-09 Integration Engineer |
+
 ### Authority
 
 Two decisions cannot be made by an agent alone:
