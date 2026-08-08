@@ -52,7 +52,9 @@ jobs:
       - name: Authenticate Power Platform CLI
         shell: pwsh
         run: |
-          pac auth create `
+          . ./scripts/solution/Resolve-PacCommand.ps1
+          $pac = Resolve-PacCommand
+          & $pac auth create `
             --name insurance-authoring `
             --githubFederated `
             --applicationId $env:AZURE_CLIENT_ID `
