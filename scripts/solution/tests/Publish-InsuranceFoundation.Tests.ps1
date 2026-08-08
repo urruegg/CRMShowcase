@@ -344,6 +344,194 @@ Describe 'Insurance Foundation reconciliation' {
         @($mutations | Where-Object Path -eq '/CreateCustomerRelationships').Count | Should -Be 1
     }
 
+    It 'recovers an interrupted Customer relationship create on rerun' {
+        $table = $script:contract.tables[2] |
+            ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        $table.alternateKeys = @()
+        $table.businessRules = @()
+        $table.views = @()
+        $table.forms = @()
+        $script:tableExists = $false
+        $script:customerCreateAttempts = 0
+
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Method=$Method; Path=$Path; Body=$Body; Headers=$Headers
+            })
+            if ($Method -eq 'GET' -and $Path -match '^/EntityDefinitions\?') {
+                if (-not $script:tableExists) {
+                    return [pscustomobject]@{ value=@() }
+                }
+                return [pscustomobject]@{ value=@([pscustomobject]@{
+                    MetadataId='policy-party-table'
+                    LogicalName=$table.logicalName
+                    OwnershipType=$table.ownership
+                    SolutionUniqueName=$table.solution
+                    DisplayName=ConvertTo-LocalizedLabel $table.metadata.label
+                    Description=ConvertTo-LocalizedLabel $table.metadata.description
+                    Attributes=@($table.columns | Where-Object type -ne 'Customer' |
+                        ForEach-Object {
+                            [pscustomobject]@{
+                                MetadataId="attribute-$($_.logicalName)"
+                                LogicalName=$_.logicalName
+                                SchemaName=$_.schemaName
+                                AttributeType=@{
+                                    Text='String'; Lookup='Lookup'
+                                    GlobalChoice='Picklist'; DateOnly='DateTime'
+                                    DateTime='DateTime'
+                                }[$_.type]
+                                Targets=@($_.lookup.targets)
+                                MaxLength=$_.maxLength
+                                DateTimeBehavior=$(if ($_.type -eq 'DateOnly') {
+                                    @{ Value='DateOnly' }
+                                } elseif ($_.type -eq 'DateTime') {
+                                    @{ Value='TimeZoneIndependent' }
+                                })
+                                Format=$(if ($_.type -eq 'DateOnly') {
+                                    'DateOnly'
+                                } elseif ($_.type -eq 'DateTime') {
+                                    'DateAndTime'
+                                })
+                                DisplayName=ConvertTo-LocalizedLabel $_.metadata.label
+                                Description=ConvertTo-LocalizedLabel $_.metadata.description
+                            }
+                        })
+                    OneToManyRelationships=@($table.relationships |
+                        Where-Object authoring -eq 'InitialTableCreate' |
+                        ForEach-Object {
+                            [pscustomobject]@{
+                                SchemaName=$_.schemaName
+                                ReferencedEntity=[string]$_.referencedTables[0]
+                                ReferencingEntity=$table.logicalName
+                                ReferencingAttribute=$_.lookupColumn
+                            }
+                        })
+                }) }
+            }
+            if ($Method -eq 'GET' -and
+                $Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.LookupAttributeMetadata') {
+                return [pscustomobject]@{ value=@() }
+            }
+            if ($Method -eq 'GET' -and $Path -match '/OneToManyRelationships\?') {
+                return [pscustomobject]@{ value=@() }
+            }
+            if ($Method -eq 'GET' -and $Path -match 'ObjectTypeCode') {
+                return [pscustomobject]@{ ObjectTypeCode=10427 }
+            }
+            if ($Method -eq 'POST' -and $Path -eq '/EntityDefinitions') {
+                $script:tableExists = $true
+                return [pscustomobject]@{}
+            }
+            if ($Method -eq 'POST' -and $Path -eq '/CreateCustomerRelationships') {
+                $script:customerCreateAttempts++
+                if ($script:customerCreateAttempts -eq 1) {
+                    throw 'simulated interruption'
+                }
+                return [pscustomobject]@{}
+            }
+            if ($Method -eq 'GET') { throw "Unsupported mocked endpoint: $Path" }
+            return [pscustomobject]@{}
+        }
+
+        { Invoke-TableReconciliation $table } |
+            Should -Throw '*simulated interruption*'
+        { Invoke-TableReconciliation $table } | Should -Not -Throw
+
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/EntityDefinitions'
+        }).Count | Should -Be 1
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and
+            $_.Path -eq '/CreateCustomerRelationships'
+        }).Count | Should -Be 2
+    }
+
+    It 'rejects conflicting partial Customer metadata instead of retrying' {
+        $table = $script:contract.tables[2]
+        $column = $table.columns | Where-Object logicalName -eq 'crmshow_partyid'
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Method=$Method; Path=$Path; Body=$Body; Headers=$Headers
+            })
+            if ($Method -eq 'GET' -and
+                $Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.LookupAttributeMetadata') {
+                return [pscustomobject]@{ value=@() }
+            }
+            if ($Method -eq 'GET' -and $Path -match '/OneToManyRelationships\?') {
+                return [pscustomobject]@{ value=@([pscustomobject]@{
+                    SchemaName='crmshow_PolicyPartyRole_Party_account'
+                    ReferencedEntity='account'
+                    ReferencingEntity=$table.logicalName
+                    ReferencingAttribute=$column.logicalName
+                }) }
+            }
+            throw "Unsupported mocked endpoint: $Method $Path"
+        }
+
+        { Invoke-ExistingCustomerRelationshipReconciliation $table $column } |
+            Should -Throw '*Customer lookup conflict*automatic recovery requires no partial metadata*'
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and
+            $_.Path -eq '/CreateCustomerRelationships'
+        }) | Should -BeNullOrEmpty
+    }
+
+    It 'reapplies all localized form and view fields on existing components' {
+        $table = $script:contract.tables[0]
+        $requests = @(
+            (New-ViewRequest $table $table.views[0] 10427),
+            (New-FormRequest $table $table.forms[0])
+        )
+        foreach ($request in $requests) {
+            $script:calls.Clear()
+            $id = if ($request.EntityLogicalName -eq 'savedquery') {
+                'existing-view'
+            } else { 'existing-form' }
+            $existing = [pscustomobject]@{
+                name=[string]$request.LocalizedFields.name.'1033'
+                description=[string]$request.LocalizedFields.description.'1033'
+            }
+            $existing | Add-Member NoteProperty $request.IdProperty $id
+            foreach ($xmlProperty in 'fetchxml', 'layoutxml', 'formxml') {
+                if ($request.Body.ContainsKey($xmlProperty)) {
+                    $existing | Add-Member NoteProperty $xmlProperty `
+                        $request.Body[$xmlProperty]
+                }
+            }
+            Mock Invoke-DataverseRequest {
+                param($Method, $Path, $Body, $Headers)
+                $script:calls.Add([pscustomobject]@{
+                    Method=$Method; Path=$Path; Body=$Body; Headers=$Headers
+                })
+                if ($Method -eq 'GET') {
+                    return [pscustomobject]@{ value=@($existing) }
+                }
+                return [pscustomobject]@{}
+            }
+
+            Invoke-ChildRequestIfMissing -QueryPath '/component-query' `
+                -Request $request -Component 'localized component' `
+                -AssertCompatible {
+                    param($actual)
+                    foreach ($xmlProperty in 'fetchxml', 'layoutxml', 'formxml') {
+                        if ($request.Body.ContainsKey($xmlProperty)) {
+                            Assert-XmlCompatible $actual $request $xmlProperty `
+                                'localized component'
+                        }
+                    }
+                } | Out-Null
+
+            $repairs = @($script:calls | Where-Object Path -eq '/SetLocLabels')
+            $repairs.Count | Should -Be 2
+            foreach ($repair in $repairs) {
+                @($repair.Body.Labels.LanguageCode) |
+                    Should -Be @(1033, 1031, 1036, 1040)
+            }
+        }
+    }
+
     It 'uses the complete deterministic mutation order' {
         Invoke-InsuranceFoundationReconciliation -Contract $script:contract -Scope All -Confirm:$false |
             Out-Null
@@ -779,6 +967,13 @@ Describe 'Insurance Foundation reconciliation' {
         }) | Should -BeNullOrEmpty
         @($script:calls | Where-Object Path -like '/roleprivileges*') |
             Should -BeNullOrEmpty
+        $localizationRepairs = @($script:calls |
+            Where-Object Path -eq '/SetLocLabels')
+        $localizationRepairs.Count | Should -Be 2
+        foreach ($repair in $localizationRepairs) {
+            @($repair.Body.Labels.LanguageCode) |
+                Should -Be @(1033, 1031, 1036, 1040)
+        }
         $wantedNames | Should -Contain 'prvReadcrmshow_PolicyProjection'
         ($wantedNames -ccontains 'prvReadcrmshow_policyprojection') |
             Should -BeFalse

@@ -899,17 +899,10 @@ function Invoke-ChildRequestIfMissing {
     } else {
         Assert-SolutionOwnership $existing $Request.Solution $Component
         if ($AssertCompatible) { & $AssertCompatible $existing }
-        $localizedChanged = $false
         if ($Request.LocalizedFields) {
-            foreach ($field in $Request.LocalizedFields.Keys) {
-                if ($existing.PSObject.Properties.Name -contains $field -and
-                    [string]$existing.$field -ne
-                    [string]$Request.LocalizedFields[$field].'1033') {
-                    $localizedChanged = $true
-                }
-            }
-        }
-        if ($localizedChanged) {
+            # savedquery/systemform localization cannot be expanded reliably
+            # through the Web API. SetLocLabels is idempotent, so converge all
+            # four required languages on every reconciliation.
             Set-RecordLocalizedFields -Request $Request -CreatedRecord $existing
             Write-Output "$Component`: Updated"
         } else {
@@ -1031,6 +1024,95 @@ function Resolve-TableObjectTypeCode {
     return [int]$metadata.ObjectTypeCode
 }
 
+function Invoke-ExistingCustomerRelationshipReconciliation {
+    param(
+        [Parameter(Mandatory)] $Table,
+        [Parameter(Mandatory)] $Column,
+        [object[]]$ExistingAttributes = @()
+    )
+
+    $escapedLogicalName = ConvertTo-ODataKeyString $Table.logicalName
+    $attributeResponse = Invoke-DataverseRequest -Method GET -Path (
+        "/EntityDefinitions(LogicalName='$escapedLogicalName')/Attributes/" +
+        "Microsoft.Dynamics.CRM.LookupAttributeMetadata?" +
+        "`$select=MetadataId,LogicalName,SchemaName,AttributeType,Targets"
+    )
+    $relationshipResponse = Invoke-DataverseRequest -Method GET -Path (
+        "/EntityDefinitions(LogicalName='$escapedLogicalName')/OneToManyRelationships?" +
+        "`$select=MetadataId,SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute"
+    )
+
+    $relationshipContract = @($Table.relationships | Where-Object {
+        $_.lookupColumn -eq $Column.logicalName -and
+        $_.authoring -eq 'CreateCustomerRelationships'
+    })
+    if ($relationshipContract.Count -ne 1) {
+        throw "Customer column '$($Column.logicalName)' must have one relationship contract."
+    }
+    $relationshipContract = $relationshipContract[0]
+    $expectedRelationships = @(
+        foreach ($target in $Column.lookup.targets) {
+            [pscustomobject]@{
+                SchemaName = "$($relationshipContract.schemaName)_$target"
+                ReferencedEntity = [string]$target
+            }
+        }
+    )
+
+    $attributeCandidates = @($attributeResponse.value | Where-Object {
+        $_.LogicalName -eq $Column.logicalName -or
+        $_.SchemaName -eq $Column.schemaName
+    })
+    $untypedCandidates = @($ExistingAttributes | Where-Object {
+        $_.LogicalName -eq $Column.logicalName -or
+        $_.SchemaName -eq $Column.schemaName
+    })
+    if ($untypedCandidates.Count -gt 0 -and $attributeCandidates.Count -eq 0) {
+        throw "Structural Customer lookup conflict for '$($Table.logicalName)/$($Column.logicalName)': a conflicting non-lookup or partial attribute exists; automatic recovery requires the column to be wholly absent."
+    }
+    $relationshipCandidates = @($relationshipResponse.value | Where-Object {
+        $_.ReferencingAttribute -eq $Column.logicalName -or
+        $_.SchemaName -eq $relationshipContract.schemaName -or
+        $_.SchemaName -in @($expectedRelationships.SchemaName)
+    })
+
+    if ($attributeCandidates.Count -eq 0 -and
+        $relationshipCandidates.Count -eq 0) {
+        Invoke-PlannedRequest (Get-CustomerRelationshipRequest $Table $Column) |
+            Out-Null
+        Write-Output "$($Table.logicalName)/$($Column.logicalName): Created"
+        return
+    }
+
+    if ($attributeCandidates.Count -ne 1) {
+        throw "Structural Customer lookup conflict for '$($Table.logicalName)/$($Column.logicalName)': expected one typed lookup attribute, found $($attributeCandidates.Count); automatic recovery requires no partial metadata."
+    }
+    $attribute = $attributeCandidates[0]
+    if ($attribute.LogicalName -ne $Column.logicalName -or
+        $attribute.SchemaName -ne $Column.schemaName) {
+        throw "Structural Customer lookup conflict for '$($Table.logicalName)/$($Column.logicalName)': expected logical/schema names '$($Column.logicalName)'/'$($Column.schemaName)', found '$($attribute.LogicalName)'/'$($attribute.SchemaName)'."
+    }
+    Test-AttributeCompatibility $attribute $Column $Table.logicalName
+
+    if ($relationshipCandidates.Count -ne $expectedRelationships.Count) {
+        throw "Structural Customer relationship conflict for '$($Table.logicalName)/$($Column.logicalName)': expected $($expectedRelationships.Count) complete relationships, found $($relationshipCandidates.Count); automatic recovery cannot continue from partial metadata."
+    }
+    foreach ($expected in $expectedRelationships) {
+        $matches = @($relationshipCandidates | Where-Object {
+            $_.SchemaName -eq $expected.SchemaName
+        })
+        if ($matches.Count -ne 1) {
+            throw "Structural Customer relationship conflict for '$($Table.logicalName)/$($Column.logicalName)': relationship '$($expected.SchemaName)' is missing or ambiguous."
+        }
+        $actual = $matches[0]
+        if ($actual.ReferencedEntity -ne $expected.ReferencedEntity -or
+            $actual.ReferencingEntity -ne $Table.logicalName -or
+            $actual.ReferencingAttribute -ne $Column.logicalName) {
+            throw "Structural Customer relationship conflict for '$($Table.logicalName)/$($Column.logicalName)': relationship '$($expected.SchemaName)' has conflicting target or schema metadata."
+        }
+    }
+}
+
 function Invoke-TableReconciliation {
     param($Table)
     $existing = Get-One "/EntityDefinitions?`$select=MetadataId,LogicalName,SchemaName,OwnershipType,PrimaryNameAttribute,IsAuditEnabled,DisplayName,Description&`$expand=Attributes(`$select=MetadataId,LogicalName,SchemaName,AttributeType,Targets,MaxLength,Format,DateTimeBehavior,DisplayName,Description;`$expand=GlobalOptionSet(`$select=Name)),OneToManyRelationships(`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute)&`$filter=LogicalName eq '$($Table.logicalName)'"
@@ -1048,19 +1130,16 @@ function Invoke-TableReconciliation {
         if ([string]$existing.OwnershipType -and [string]$existing.OwnershipType -ne $Table.ownership) {
             throw "Structural ownership conflict for '$($Table.logicalName)'."
         }
-        foreach ($relationship in $Table.relationships) {
-            $expected = if ($relationship.authoring -eq 'CreateCustomerRelationships') {
-                foreach ($target in $relationship.referencedTables) {
-                    [pscustomobject]@{
-                        SchemaName = "$($relationship.schemaName)_$target"
-                        ReferencedEntity = $target
-                    }
-                }
-            } else {
-                [pscustomobject]@{
-                    SchemaName = $relationship.schemaName
-                    ReferencedEntity = [string]$relationship.referencedTables[0]
-                }
+        foreach ($customer in @($Table.columns | Where-Object type -eq 'Customer')) {
+            Invoke-ExistingCustomerRelationshipReconciliation $Table $customer `
+                -ExistingAttributes @($existing.Attributes)
+        }
+        foreach ($relationship in @($Table.relationships | Where-Object {
+            $_.authoring -ne 'CreateCustomerRelationships'
+        })) {
+            $expected = [pscustomobject]@{
+                SchemaName = $relationship.schemaName
+                ReferencedEntity = [string]$relationship.referencedTables[0]
             }
             foreach ($wanted in @($expected)) {
                 $actualRelationship = @($existing.OneToManyRelationships |
@@ -1090,6 +1169,7 @@ function Invoke-TableReconciliation {
                 -Headers (Get-MergeLabelHeaders $Table.solution) | Out-Null
         }
         foreach ($column in $Table.columns) {
+            if ($column.type -eq 'Customer') { continue }
             $actual = @($existing.Attributes | Where-Object LogicalName -eq $column.logicalName)
             if ($actual.Count -eq 0) {
                 if ($column.type -in @('Lookup', 'Customer')) {
@@ -1187,21 +1267,19 @@ function Invoke-RoleReconciliation {
         Write-Output "$($Role.name): Created"
     } else {
         Assert-SolutionOwnership $existing $Role.solution $Role.name
-        if ([string]$existing.description -ne [string]$Role.metadata.description.'1033') {
-            $request = [pscustomobject]@{
-                Solution = $Role.solution
-                EntityLogicalName = 'role'
-                IdProperty = 'roleid'
-                LocalizedFields = @{
-                    name = $Role.metadata.label
-                    description = $Role.metadata.description
-                }
+        $request = [pscustomobject]@{
+            Solution = $Role.solution
+            EntityLogicalName = 'role'
+            IdProperty = 'roleid'
+            LocalizedFields = @{
+                name = $Role.metadata.label
+                description = $Role.metadata.description
             }
-            Set-RecordLocalizedFields -Request $request -CreatedRecord $existing
-            Write-Output "$($Role.name): Updated"
-        } else {
-            Write-Output "$($Role.name): Unchanged"
         }
+        # Role localized labels are not exposed as a complete language set by
+        # the record query. Idempotently repair every language on each run.
+        Set-RecordLocalizedFields -Request $request -CreatedRecord $existing
+        Write-Output "$($Role.name): Updated"
     }
 
     $wanted = foreach ($tablePrivilege in $Role.tablePrivileges) {
