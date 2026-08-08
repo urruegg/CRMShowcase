@@ -8,6 +8,11 @@ output "environment_ids" {
   value       = module.powerplatform.environment_ids
 }
 
+output "required_languages" {
+  description = "Required Dataverse LCIDs keyed by environment slot."
+  value       = module.powerplatform.required_languages
+}
+
 output "ci_client_ids" {
   description = "Entra client IDs of the CI apps, keyed by slot."
   value       = module.entra.client_ids

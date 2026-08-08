@@ -476,6 +476,9 @@ solution/**/*.zip
 solution/**/.build/
 solution/**/.export-tmp/
 
+# Isolated implementation worktrees
+.worktrees/
+
 # Prototype intake raw exports and scan logs
 intake/**/.raw/
 intake/**/*.zip

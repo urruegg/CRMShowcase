@@ -42,6 +42,18 @@ Traceability
 - Design principle: DP-03 (Human accountability for customer-visible output)
 ```
 
+For every story that adds or changes Dataverse metadata, acceptance criteria
+also require:
+
+- English (`1033`) as the base language and native Dataverse translations for
+  German (`1031`), French (`1036`), and Italian (`1040`);
+- meaningful descriptions for every changed table, column, relationship,
+  choice and action;
+- translated user-visible labels, choice text, help text and relevant
+  descriptions in all four supported languages;
+- a metadata test that fails on missing or placeholder descriptions and
+  translations.
+
 ## When to stop and escalate
 - The request assumes real customer data.
 - The request assumes autonomy without human review.

@@ -70,6 +70,25 @@ and [AG-E-07 Data Engineer & Scientist](../.github/agents/data-engineer-scientis
   and where real values live: [ENVIRONMENTS.md](./ENVIRONMENTS.md).
 - **Audit every mutation** initiated by an agent (who / what / when / why).
 
+## Dataverse metadata and language contract
+
+- English (`1033`) is the Dataverse base language.
+- German (`1031`), French (`1036`), and Italian (`1040`) are supported through
+  native Dataverse localization and must be enabled in DEV and TEST.
+- Logical and schema names are stable English machine identifiers.
+- Every table, column, relationship, choice, action and custom API has a precise
+  English business-semantic description.
+- User-visible names, labels, choice text, help text, form/view/command labels
+  and relevant descriptions are translated into DE, FR and IT in the owning
+  solution.
+- Descriptions identify meaning and scope and, where relevant, source/mastership,
+  units, canonical values, sensitivity, effective dating, lifecycle and
+  projection status.
+- Metadata descriptions support schema discovery by Copilot and agents, but do
+  not replace record-level grounding or access control.
+- CI rejects missing, placeholder, tautological or incomplete localized
+  metadata. Environment-only translations are prohibited drift.
+
 ## Core model
 
 ```

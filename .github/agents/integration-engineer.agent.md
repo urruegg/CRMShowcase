@@ -33,6 +33,15 @@ lifecycle.**
   ([ADR-0011](../../docs/adr/ADR-0011-event-driven-cascade.md)).
 - **State plainly** which connectors are standard, which need configuration,
   and which are own build. Never let a custom build be discovered later.
+- Contract schemas use stable English machine identifiers and carry precise
+  English semantic descriptions aligned with Dataverse metadata. User-visible
+  labels and enumerations map to native Dataverse translations for English
+  (`1033`), German (`1031`), French (`1036`), and Italian (`1040`).
+- Versioned mappings must not lose business meaning, source/mastership,
+  effective-dating, units, sensitivity, canonical values, or projection status
+  between core-system contracts, Dataverse and the data platform.
+- Reject an integration contract whose fields can be understood only by reading
+  source code or relying on undocumented abbreviations.
 
 ## The golden thread you must make work
 

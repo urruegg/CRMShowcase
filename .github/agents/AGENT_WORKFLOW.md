@@ -44,3 +44,13 @@ Merge  ─────►  Developer or CRM Domain Expert verifies demo behaviou
 - Escalate rather than work around a guardrail.
 - Prefer small, reviewable slices.
 - If you touch models, prompts, or tool schemas, add or update an ADR.
+- Treat Dataverse metadata as a governed semantic contract. English (`1033`) is
+  the base language; German (`1031`), French (`1036`), and Italian (`1040`) are
+  supported translations using native Dataverse localized labels.
+- Every table, column, relationship, choice and action must have a precise
+  English description; user-visible names, labels, choice text, help text, form
+  labels and relevant descriptions must be translated into DE, FR and IT.
+- Reject placeholder, tautological or implementation-only descriptions.
+  Metadata must explain business meaning, scope, source/mastership, units or
+  canonical values, sensitivity, and lifecycle where relevant so humans,
+  Copilot and other agents can discover the model semantically.

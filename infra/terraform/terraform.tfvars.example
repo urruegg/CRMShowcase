@@ -6,36 +6,38 @@
 # Real tenant identifiers, environment IDs, and account UPNs never live in a committed file.
 
 # --- Identifying values ---
-tenant_id              = "00000000-0000-0000-0000-000000000000"
-azure_subscription_id  = "" # empty if no Azure subscription yet
-github_owner           = "your-github-user-or-org"
-github_repository      = "CRMShowcase"
+tenant_id             = "00000000-0000-0000-0000-000000000000"
+azure_subscription_id = "" # empty if no Azure subscription yet
+github_owner          = "your-github-user-or-org"
+github_repository     = "CRMShowcase"
 
 # --- Power Platform environments ---
 # Keys are stable slot names used throughout the codebase. Never rename the keys.
 # `id` is the existing environment GUID; leave "" on a fresh tenant to create instead.
 environments = {
   dev = {
-    id                = "00000000-0000-0000-0000-000000000000"
-    display_name      = "CRM Showcase - DEV"
-    domain            = "crmshowdev"
-    location          = "unitedstates"
-    env_type          = "Sandbox"
-    currency          = "USD"
-    language          = "1033"
-    cadence           = "Moderate"
-    security_group_id = ""
+    id                 = "00000000-0000-0000-0000-000000000000"
+    display_name       = "CRM Showcase - DEV"
+    domain             = "crmshowdev"
+    location           = "unitedstates"
+    env_type           = "Sandbox"
+    currency           = "USD"
+    language           = "1033"
+    required_languages = ["1033", "1031", "1036", "1040"]
+    cadence            = "Moderate"
+    security_group_id  = ""
   }
   test = {
-    id                = "00000000-0000-0000-0000-000000000000"
-    display_name      = "CRM Showcase - TEST"
-    domain            = "crmshowtest"
-    location          = "unitedstates"
-    env_type          = "Sandbox"
-    currency          = "USD"
-    language          = "1033"
-    cadence           = "Moderate"
-    security_group_id = ""
+    id                 = "00000000-0000-0000-0000-000000000000"
+    display_name       = "CRM Showcase - TEST"
+    domain             = "crmshowtest"
+    location           = "unitedstates"
+    env_type           = "Sandbox"
+    currency           = "USD"
+    language           = "1033"
+    required_languages = ["1033", "1031", "1036", "1040"]
+    cadence            = "Moderate"
+    security_group_id  = ""
   }
 }
 
@@ -50,4 +52,3 @@ tenant_settings = {
   storage_capacity_warning_threshold  = 85
   disable_new_env_creation_non_admins = false
 }
-

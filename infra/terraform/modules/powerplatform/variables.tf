@@ -1,14 +1,15 @@
 variable "environments" {
   type = map(object({
-    id                = string
-    display_name      = string
-    domain            = string
-    location          = string
-    env_type          = string
-    currency          = string
-    language          = string
-    cadence           = optional(string, "Moderate")
-    security_group_id = optional(string, "")
+    id                 = string
+    display_name       = string
+    domain             = string
+    location           = string
+    env_type           = string
+    currency           = string
+    language           = string
+    required_languages = optional(set(string), ["1033", "1031", "1036", "1040"])
+    cadence            = optional(string, "Moderate")
+    security_group_id  = optional(string, "")
   }))
   description = "Slot map of Power Platform environments."
 }
@@ -25,4 +26,3 @@ variable "tenant_settings" {
   })
   description = "Tenant-wide Power Platform settings."
 }
-
