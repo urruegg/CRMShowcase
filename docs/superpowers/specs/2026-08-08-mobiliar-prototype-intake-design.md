@@ -24,8 +24,9 @@ component is imported into CRM Showcase DEV during this sprint.
 ## Success criteria
 
 - The unmanaged source solution is exported and reproducibly unpacked.
-- The committed intake snapshot contains no records, credentials, tokens,
-  connection values, real customer content, or source-environment identifiers.
+- The local intake snapshot contains no exported records and is never
+  committed; committed derivatives contain no credentials, connection values,
+  customer content, or source-environment identifiers.
 - Every exported root component is represented in a machine-readable BOM.
 - Data-model artefacts include tables, columns, keys, relationships, choices,
   forms, views, and business processes where present.
@@ -73,7 +74,7 @@ The source snapshot is isolated from deployable solutions:
 intake/
   mobiliar/
     README.md
-    source/                  sanitized unpacked source snapshot
+    source/                  ignored local unpacked source snapshot
     bom/
       artefacts.json         canonical machine-readable inventory
       artefacts.csv          tabular review format
@@ -86,10 +87,12 @@ docs/
     mobiliar-data-model-extension.md
 ```
 
-The raw ZIP and temporary extraction remain outside Git. Only the sanitized,
-unpacked snapshot and derived review artefacts may be committed. The deploy
-workflows continue to read only `solution/manifest.json`; therefore nothing
-under `intake/` can be packed or deployed accidentally.
+The raw ZIP and unpacked source remain outside Git. The repository is public,
+and the prototype contains customer-branded web content, email-like values,
+and source-environment identifiers. Only sanitized structural derivatives may
+be committed. The deploy workflows continue to read only
+`solution/manifest.json`; therefore nothing under `intake/` can be packed or
+deployed accidentally.
 
 ## Intake flow
 
@@ -103,8 +106,8 @@ under `intake/` can be packed or deployed accidentally.
 6. Remove environment-variable current values and other environment-bound
    configuration from the commit candidate. If customer content is detected,
    exclude the affected artefact and record the exclusion in the BOM.
-7. Copy the sanitized snapshot into `intake/mobiliar/source/`.
-8. Parse solution metadata and unpacked component folders into the BOM.
+7. Keep the unpacked snapshot in ignored local storage.
+8. Parse solution metadata and unpacked component folders into a sanitized BOM.
 9. Map each BOM item to a domain, target container, and disposition.
 10. Produce the target data-model extension design and review backlog.
 
@@ -208,12 +211,12 @@ the prototype.
 ## Sprint deliverables
 
 1. Reproducible source export and sanitization procedure.
-2. Sanitized unpacked source snapshot.
+2. Local-only unpacked source snapshot with a committed safety summary.
 3. Machine-readable and reviewable BOM.
 4. Domain, target-container, and disposition mapping.
 5. CRM Showcase data-model extension design.
 6. Follow-up backlog grouped into reviewable delivery slices.
-7. GitHub feature issue linking all evidence.
+7. GitHub feature issue linking all publishable evidence.
 
 ## Framework alignment
 

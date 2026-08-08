@@ -4,7 +4,7 @@
 
 **Goal:** Export and sanitize the Mobiliar prototype solution, generate a reusable artefact BOM and domain map, and document the CRM Showcase target data-model delta without deploying prototype components or records.
 
-**Architecture:** The unmanaged source solution is exported to ignored temporary storage and unpacked into a quarantined `intake/mobiliar/source/` snapshot. Focused PowerShell scripts verify source-environment targeting, reject unsafe content, and derive deterministic JSON/CSV inventories from `Solution.xml`, `Customizations.xml`, and component folders. Review outputs map prototype evidence to the existing six target solution containers without changing those deployable solutions.
+**Architecture:** The unmanaged source solution is exported to ignored temporary storage and unpacked into an ignored local `intake/mobiliar/source/` snapshot. Focused PowerShell scripts verify source-environment targeting, identify unsafe content, and derive deterministic sanitized JSON/CSV inventories from `Solution.xml`, entity metadata, and component folders. Review outputs map prototype evidence to the existing six target solution containers without changing those deployable solutions.
 
 **Tech Stack:** Power Platform CLI 1.43.6, PowerShell 5.1+, Pester 5, XML/JSON/CSV, GitHub CLI.
 
@@ -38,8 +38,8 @@ docs/
   superpowers/plans/2026-08-08-mobiliar-prototype-intake.md
 ```
 
-`intake/mobiliar/source/` is evidence only. The deployment manifest does not
-reference it.
+`intake/mobiliar/source/` is local evidence only and is ignored because the
+repository is public. The deployment manifest does not reference it.
 
 ---
 
@@ -59,6 +59,7 @@ Append:
 intake/**/.raw/
 intake/**/*.zip
 intake/**/.scan/
+intake/**/source/
 ```
 
 - [ ] **Step 2: Document the evidence-only boundary**
@@ -118,7 +119,7 @@ Run with a deliberately incorrect expected organization:
 
 ```powershell
 ./scripts/solution/Export-Solution.ps1 `
-  -Environment https://orgd0d886ca.crm.dynamics.com `
+  -Environment $env:PROTOTYPE_SOURCE_ENV_URL `
   -ExpectedOrganization NotMobiliar `
   -SolutionName Mobiliar `
   -OutFile intake/mobiliar/.raw/rejected.zip
@@ -284,7 +285,7 @@ git commit -m "feat(intake): block unsafe prototype snapshot content"
 ### Task 5: Export, unpack, sanitize, and inventory Mobiliar
 
 **Files:**
-- Create/populate: `intake/mobiliar/source/`
+- Create locally: `intake/mobiliar/source/` (ignored)
 - Create: `intake/mobiliar/bom/artefacts.json`
 - Create: `intake/mobiliar/bom/artefacts.csv`
 - Create: `intake/mobiliar/bom/README.md`
@@ -292,8 +293,8 @@ git commit -m "feat(intake): block unsafe prototype snapshot content"
 - [ ] **Step 1: Verify source and solution**
 
 ```powershell
-pac org who --environment https://orgd0d886ca.crm.dynamics.com
-pac solution list --environment https://orgd0d886ca.crm.dynamics.com
+pac org who --environment $env:PROTOTYPE_SOURCE_ENV_URL
+pac solution list --environment $env:PROTOTYPE_SOURCE_ENV_URL
 ```
 
 Expected: organization `Mobiliar` and solution unique name `Mobiliar`.
@@ -302,8 +303,8 @@ Expected: organization `Mobiliar` and solution unique name `Mobiliar`.
 
 ```powershell
 ./scripts/solution/Export-Solution.ps1 `
-  -Environment https://orgd0d886ca.crm.dynamics.com `
-  -ExpectedOrganization Mobiliar `
+  -Environment $env:PROTOTYPE_SOURCE_ENV_URL `
+  -ExpectedOrganization $env:PROTOTYPE_SOURCE_ORG_NAME `
   -SolutionName Mobiliar `
   -OutFile intake/mobiliar/.raw/Mobiliar.zip
 ```
@@ -320,7 +321,7 @@ Remove-Item intake/mobiliar/source -Recurse -Force -ErrorAction SilentlyContinue
 . ./scripts/solution/Test-IntakeSnapshot.ps1
 Test-IntakeSnapshot `
   -Path intake/mobiliar/source `
-  -ForbiddenEnvironmentHost orgd0d886ca.crm.dynamics.com
+  -ForbiddenEnvironmentHost ([uri]$env:PROTOTYPE_SOURCE_ENV_URL).Host
 ```
 
 Expected: no unsafe matches. If matches are found, remove only environment-bound
@@ -346,7 +347,7 @@ records were exported.
 - [ ] **Step 6: Commit**
 
 ```powershell
-git add intake/mobiliar/source intake/mobiliar/bom
+git add intake/mobiliar/bom
 git commit -m "feat(intake): capture sanitized Mobiliar solution inventory"
 ```
 
