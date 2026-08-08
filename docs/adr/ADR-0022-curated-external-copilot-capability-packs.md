@@ -62,7 +62,8 @@ Adopt these pinned capability packs from
 
 The imported MCP specialist has no independent architecture or RAI authority.
 It is invoked only for a story that changes a custom connector, MCP server or
-Copilot Studio MCP integration, with AG-E-03, AG-E-06 and AG-E-09 review.
+Copilot Studio MCP integration, with AG-E-03, AG-E-04, AG-E-06 and AG-E-09
+review.
 
 Do not install FlowStudio skills until its paid MCP service is approved and
 configured. Do not install generic Power Platform architecture or Python
