@@ -1,0 +1,514 @@
+{
+  "$schema": "./insurance-foundation.schema.json",
+  "contractId": "crmshow.insurance-foundation",
+  "version": "1.0.0",
+  "languages": ["1033", "1031", "1036", "1040"],
+  "solutions": ["crmshow_Foundation", "crmshow_DataModel"],
+  "choices": [
+    {
+      "logicalName": "crmshow_accounttype",
+      "schemaName": "crmshow_AccountType",
+      "solution": "crmshow_Foundation",
+      "metadata": {
+        "label": {"1033":"Account Type","1031":"Kontotyp","1036":"Type de compte","1040":"Tipo di account"},
+        "description": {
+          "1033":"CRM-owned classification of the relationship container as a household, business or broker; it is not a source-system legal-entity type.",
+          "1031":"CRM-eigene Klassifikation des Beziehungscontainers als Haushalt, Unternehmen oder Makler; sie ist kein Rechtsträgertyp eines Quellsystems.",
+          "1036":"Classification gérée par le CRM du conteneur relationnel en ménage, entreprise ou courtier; ce n’est pas un type d’entité juridique source.",
+          "1040":"Classificazione gestita dal CRM del contenitore relazionale come nucleo familiare, impresa o intermediario; non è un tipo giuridico del sistema fonte."
+        },
+        "mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Relationship segmentation and navigation only.","lifecycle":"Stable while the Account represents the same relationship container."
+      },
+      "options": [
+        {
+          "code":"Household",
+          "metadata":{
+            "label":{"1033":"Household","1031":"Haushalt","1036":"Ménage","1040":"Nucleo familiare"},
+            "description":{
+              "1033":"A CRM relationship container for one or more people sharing a private-customer portfolio; it is not evidence of residence or kinship.",
+              "1031":"CRM-Beziehungscontainer für eine oder mehrere Personen mit gemeinsamem Privatkundenportfolio; kein Nachweis für Wohnsitz oder Verwandtschaft.",
+              "1036":"Conteneur relationnel CRM pour des personnes partageant un portefeuille privé; il ne prouve ni domicile ni lien familial.",
+              "1040":"Contenitore relazionale CRM per persone che condividono un portafoglio privato; non prova residenza né parentela."
+            }
+          }
+        },
+        {
+          "code":"Business",
+          "metadata":{
+            "label":{"1033":"Business","1031":"Unternehmen","1036":"Entreprise","1040":"Impresa"},
+            "description":{
+              "1033":"A CRM relationship container used for a commercial customer portfolio; source systems remain authoritative for legal-entity facts.",
+              "1031":"CRM-Beziehungscontainer für ein gewerbliches Kundenportfolio; für Rechtsträgerdaten bleiben die Quellsysteme massgebend.",
+              "1036":"Conteneur relationnel CRM d’un portefeuille professionnel; les systèmes sources restent maîtres des données d’entité juridique.",
+              "1040":"Contenitore relazionale CRM per un portafoglio aziendale; i sistemi fonte restano autorevoli per i dati dell’entità giuridica."
+            }
+          }
+        },
+        {
+          "code":"Broker",
+          "metadata":{
+            "label":{"1033":"Broker","1031":"Makler","1036":"Courtier","1040":"Intermediario"},
+            "description":{
+              "1033":"A CRM relationship container for an insurance intermediary organization; it does not establish authorization, appointment or licensing.",
+              "1031":"CRM-Beziehungscontainer für eine Versicherungsvermittlerorganisation; er begründet keine Vollmacht, Ernennung oder Zulassung.",
+              "1036":"Conteneur relationnel CRM d’une organisation intermédiaire d’assurance; il n’établit ni mandat, ni nomination, ni agrément.",
+              "1040":"Contenitore relazionale CRM per un’organizzazione di intermediazione assicurativa; non attesta mandato, nomina o abilitazione."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "logicalName":"crmshow_contactlifecyclestage",
+      "schemaName":"crmshow_ContactLifecycleStage",
+      "solution":"crmshow_Foundation",
+      "metadata":{
+        "label":{"1033":"Contact Lifecycle Stage","1031":"Kontakt-Lebenszyklusphase","1036":"Étape du cycle de vie du contact","1040":"Fase del ciclo di vita del contatto"},
+        "description":{
+          "1033":"CRM-owned relationship maturity for an existing person; it is not policy or risk status, marketing consent, or customer evidence.",
+          "1031":"CRM-eigene Reifephase der Beziehung zu einer bestehenden Person; weder Policen- oder Risikostatus noch Einwilligung oder Kundennachweis.",
+          "1036":"Maturité relationnelle gérée par le CRM pour une personne existante; ni statut de police ou de risque, ni consentement, ni preuve client.",
+          "1040":"Maturità della relazione gestita dal CRM per una persona esistente; non è stato di polizza o rischio, consenso o prova sul cliente."
+        },
+        "mastership":"CRMOwned","sensitivity":"Personal","permittedUse":"CRM relationship management, never authorization or consent.","lifecycle":"May progress or regress as the CRM relationship changes."
+      },
+      "options":[
+        {
+          "code":"Prospect",
+          "metadata":{
+            "label":{"1033":"Prospect","1031":"Potenzielle Kundschaft","1036":"Prospect","1040":"Potenziale cliente"},
+            "description":{
+              "1033":"An identified person with potential relevance but no established current interest; the classification is CRM-owned and reviewable.",
+              "1031":"Identifizierte Person mit möglicher Relevanz, jedoch ohne festgestelltes aktuelles Interesse; die CRM-eigene Einstufung ist überprüfbar.",
+              "1036":"Personne identifiée présentant un potentiel sans intérêt actuel établi; cette classification CRM peut être réexaminée.",
+              "1040":"Persona identificata potenzialmente rilevante ma senza interesse attuale accertato; la classificazione CRM è riesaminabile."
+            }
+          }
+        },
+        {
+          "code":"InterestedParty",
+          "metadata":{
+            "label":{"1033":"Interested Party","1031":"Interessierte Person","1036":"Personne intéressée","1040":"Persona interessata"},
+            "description":{
+              "1033":"An existing person with a recorded current interest in an offering; the stage does not imply eligibility, consent or a contract.",
+              "1031":"Bestehende Person mit erfasstem aktuellem Interesse an einem Angebot; die Phase bedeutet weder Eignung noch Einwilligung oder Vertrag.",
+              "1036":"Personne existante ayant manifesté un intérêt actuel pour une offre; l’étape n’implique ni éligibilité, ni consentement, ni contrat.",
+              "1040":"Persona esistente con un interesse attuale registrato per un’offerta; la fase non implica idoneità, consenso o contratto."
+            }
+          }
+        },
+        {
+          "code":"Customer",
+          "metadata":{
+            "label":{"1033":"Customer","1031":"Kundschaft","1036":"Client","1040":"Cliente"},
+            "description":{
+              "1033":"An existing person in an active or retained customer relationship; source records remain authoritative for policy and legal facts.",
+              "1031":"Bestehende Person in einer aktiven oder fortbestehenden Kundenbeziehung; für Policen- und Rechtsdaten bleiben Quellen massgebend.",
+              "1036":"Personne existante dans une relation client active ou conservée; les sources restent maîtres des faits contractuels et juridiques.",
+              "1040":"Persona esistente con una relazione cliente attiva o mantenuta; le fonti restano autorevoli per i dati contrattuali e giuridici."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "logicalName":"crmshow_accountcontactroletype",
+      "schemaName":"crmshow_AccountContactRoleType",
+      "solution":"crmshow_Foundation",
+      "metadata":{
+        "label":{"1033":"Account Contact Role Type","1031":"Rollenart Kontakt–Konto","1036":"Type de rôle contact–compte","1040":"Tipo di ruolo contatto–account"},
+        "description":{
+          "1033":"Canonical CRM classification of how a person participates in an Account relationship during an effective interval; it grants no access.",
+          "1031":"Kanonische CRM-Klassifikation der Rolle einer Person in einer Kontobeziehung während eines Gültigkeitsintervalls; sie gewährt keinen Zugriff.",
+          "1036":"Classification CRM canonique de la participation d’une personne à une relation de compte pendant une période; elle n’accorde aucun accès.",
+          "1040":"Classificazione CRM canonica della partecipazione di una persona alla relazione con un account durante un intervallo; non concede accesso."
+        },
+        "mastership":"Mixed","sensitivity":"Personal","permittedUse":"Relationship context subject to record security.","lifecycle":"Applied to effective-dated AccountContactRole records."
+      },
+      "options":[
+        {"code":"HouseholdMember","metadata":{"label":{"1033":"Household Member","1031":"Haushaltsmitglied","1036":"Membre du ménage","1040":"Componente del nucleo familiare"},"description":{"1033":"A person participating in the household relationship container; this role does not prove residence, dependency or kinship.","1031":"Person im Beziehungscontainer Haushalt; diese Rolle belegt weder Wohnsitz noch Abhängigkeit oder Verwandtschaft.","1036":"Personne participant au conteneur relationnel du ménage; ce rôle ne prouve ni domicile, ni dépendance, ni parenté.","1040":"Persona che partecipa al contenitore relazionale familiare; il ruolo non prova residenza, dipendenza o parentela."}}},
+        {"code":"BusinessContact","metadata":{"label":{"1033":"Business Contact","1031":"Unternehmenskontakt","1036":"Contact d’entreprise","1040":"Contatto aziendale"},"description":{"1033":"A person who is a relationship contact for a Business Account; the role does not establish representation authority.","1031":"Person als Beziehungskontakt eines Unternehmenskontos; die Rolle begründet keine Vertretungsbefugnis.","1036":"Personne servant de contact relationnel pour un compte Entreprise; ce rôle n’établit aucun pouvoir de représentation.","1040":"Persona che funge da contatto relazionale per un account Impresa; il ruolo non attribuisce poteri di rappresentanza."}}},
+        {"code":"BrokerContact","metadata":{"label":{"1033":"Broker Contact","1031":"Maklerkontakt","1036":"Contact courtier","1040":"Contatto intermediario"},"description":{"1033":"A person who is a relationship contact for a Broker Account; authorization and licensing require authoritative evidence elsewhere.","1031":"Person als Beziehungskontakt eines Maklerkontos; Vollmacht und Zulassung erfordern anderweitige massgebende Nachweise.","1036":"Personne servant de contact pour un compte Courtier; mandat et agrément exigent des preuves faisant autorité ailleurs.","1040":"Persona che funge da contatto per un account Intermediario; mandato e abilitazione richiedono prove autorevoli altrove."}}},
+        {"code":"DecisionMaker","metadata":{"label":{"1033":"Decision Maker","1031":"Entscheidungsperson","1036":"Décideur","1040":"Decisore"},"description":{"1033":"A person involved in relationship decisions for the Account; this CRM role neither grants signing authority nor proves consent.","1031":"Person, die an Beziehungsentscheidungen für das Konto beteiligt ist; die CRM-Rolle gewährt keine Zeichnungsbefugnis und belegt keine Einwilligung.","1036":"Personne participant aux décisions relationnelles du compte; ce rôle CRM n’accorde aucun pouvoir de signature et ne prouve aucun consentement.","1040":"Persona coinvolta nelle decisioni relazionali dell’account; il ruolo CRM non concede poteri di firma né prova il consenso."}}},
+        {"code":"AuthorizedRepresentative","metadata":{"label":{"1033":"Authorized Representative","1031":"Bevollmächtigte Vertretung","1036":"Représentant autorisé","1040":"Rappresentante autorizzato"},"description":{"1033":"A person recorded as an authorized relationship representative; operational authority must be verified against current authoritative evidence.","1031":"Als bevollmächtigte Beziehungsvertretung erfasste Person; die operative Befugnis ist anhand aktueller massgebender Nachweise zu prüfen.","1036":"Personne enregistrée comme représentant autorisé de la relation; le pouvoir opérationnel doit être vérifié à partir de preuves actuelles faisant autorité.","1040":"Persona registrata come rappresentante autorizzato nella relazione; i poteri operativi vanno verificati su prove autorevoli aggiornate."}}},
+        {"code":"BeneficialOwner","metadata":{"label":{"1033":"Beneficial Owner","1031":"Wirtschaftlich berechtigte Person","1036":"Bénéficiaire effectif","1040":"Titolare effettivo"},"description":{"1033":"A person recorded for relationship context as a beneficial owner; this sensitive CRM value is not legal or compliance evidence.","1031":"Für den Beziehungskontext als wirtschaftlich berechtigte Person erfasst; dieser sensible CRM-Wert ist kein Rechts- oder Compliance-Nachweis.","1036":"Personne enregistrée comme bénéficiaire effectif pour le contexte relationnel; cette donnée CRM sensible n’est pas une preuve juridique ou de conformité.","1040":"Persona registrata come titolare effettivo per il contesto relazionale; questo dato CRM sensibile non è prova legale o di conformità."}}}
+      ]
+    },
+    {
+      "logicalName":"crmshow_policypartyroletype",
+      "schemaName":"crmshow_PolicyPartyRoleType",
+      "solution":"crmshow_Foundation",
+      "metadata":{
+        "label":{"1033":"Policy Party Role Type","1031":"Policenparteien-Rollenart","1036":"Type de rôle de partie à la police","1040":"Tipo di ruolo della parte di polizza"},
+        "description":{
+          "1033":"Canonical mapped role of an Account or Contact around a projected policy for an effective interval; the source policy remains authoritative.",
+          "1031":"Kanonisch abgebildete Rolle eines Kontos oder Kontakts an einer Policenprojektion während eines Gültigkeitsintervalls; die Quellpolice bleibt massgebend.",
+          "1036":"Rôle canonique mappé d’un compte ou contact autour d’une police projetée pendant une période; la police source reste maîtresse.",
+          "1040":"Ruolo canonico mappato di un account o contatto rispetto a una polizza proiettata durante un intervallo; la polizza fonte resta autorevole."
+        },
+        "mastership":"SourceProjection","sensitivity":"Personal","permittedUse":"Policy relationship context, not authorization evidence.","lifecycle":"Effective-dated projection from the policy source."
+      },
+      "options":[
+        {"code":"Policyholder","metadata":{"label":{"1033":"Policyholder","1031":"Versicherungsnehmer","1036":"Preneur d’assurance","1040":"Contraente"},"description":{"1033":"Party mapped as the policyholder for the effective interval; the source contract remains authoritative for legal standing.","1031":"Für das Gültigkeitsintervall als Versicherungsnehmer abgebildete Partei; für die Rechtsstellung bleibt der Quellvertrag massgebend.","1036":"Partie mappée comme preneur d’assurance pendant la période; le contrat source reste maître de la qualité juridique.","1040":"Parte mappata come contraente per l’intervallo; il contratto fonte resta autorevole per la posizione giuridica."}}},
+        {"code":"Insured","metadata":{"label":{"1033":"Insured","1031":"Versicherte Partei","1036":"Assuré","1040":"Assicurato"},"description":{"1033":"Party mapped as insured for the effective interval; this projection does not determine coverage, eligibility or claim entitlement.","1031":"Für das Gültigkeitsintervall als versicherte Partei abgebildet; die Projektion bestimmt weder Deckung noch Eignung oder Leistungsanspruch.","1036":"Partie mappée comme assurée pendant la période; cette projection ne détermine ni couverture, ni éligibilité, ni droit à prestation.","1040":"Parte mappata come assicurata per l’intervallo; la proiezione non determina copertura, idoneità o diritto a prestazioni."}}},
+        {"code":"Payer","metadata":{"label":{"1033":"Payer","1031":"Zahlende Partei","1036":"Payeur","1040":"Pagatore"},"description":{"1033":"Party mapped as responsible for payment in the source context; no payment balance, mandate or collection authority is represented.","1031":"Im Quellkontext als zahlungsverantwortlich abgebildete Partei; weder Saldo noch Mandat oder Inkassobefugnis werden dargestellt.","1036":"Partie mappée comme responsable du paiement dans la source; aucun solde, mandat ou pouvoir de recouvrement n’est représenté.","1040":"Parte mappata come responsabile del pagamento nel contesto fonte; non rappresenta saldo, mandato o potere di incasso."}}},
+        {"code":"Owner","metadata":{"label":{"1033":"Owner","1031":"Eigentümer","1036":"Propriétaire","1040":"Proprietario"},"description":{"1033":"Party mapped as owner in the policy context for the interval; this CRM projection is not proof of legal title.","1031":"Für das Intervall im Policenkontext als Eigentümer abgebildete Partei; die CRM-Projektion ist kein Eigentumsnachweis.","1036":"Partie mappée comme propriétaire dans le contexte de la police pendant la période; cette projection CRM ne prouve pas le titre juridique.","1040":"Parte mappata come proprietario nel contesto di polizza per l’intervallo; la proiezione CRM non prova il titolo legale."}}},
+        {"code":"Driver","metadata":{"label":{"1033":"Driver","1031":"Lenkende Person","1036":"Conducteur","1040":"Conducente"},"description":{"1033":"Party mapped as a driver in the policy context for the interval; it does not prove a licence, permission or actual vehicle use.","1031":"Für das Intervall als lenkende Person im Policenkontext abgebildet; kein Nachweis für Führerausweis, Erlaubnis oder tatsächliche Nutzung.","1036":"Partie mappée comme conducteur dans le contexte de la police; ce rôle ne prouve ni permis, ni autorisation, ni usage réel du véhicule.","1040":"Parte mappata come conducente nel contesto di polizza; non prova patente, autorizzazione o uso effettivo del veicolo."}}},
+        {"code":"Beneficiary","metadata":{"label":{"1033":"Beneficiary","1031":"Begünstigte Partei","1036":"Bénéficiaire","1040":"Beneficiario"},"description":{"1033":"Party mapped as a beneficiary for the effective interval; entitlement must be established from the authoritative policy and applicable law.","1031":"Für das Gültigkeitsintervall als begünstigt abgebildete Partei; der Anspruch ist aus der massgebenden Police und dem anwendbaren Recht festzustellen.","1036":"Partie mappée comme bénéficiaire pendant la période; le droit doit être établi à partir de la police maîtresse et du droit applicable.","1040":"Parte mappata come beneficiario per l’intervallo; il diritto va accertato dalla polizza autorevole e dalla normativa applicabile."}}},
+        {"code":"AuthorizedRepresentative","metadata":{"label":{"1033":"Authorized Representative","1031":"Bevollmächtigte Vertretung","1036":"Représentant autorisé","1040":"Rappresentante autorizzato"},"description":{"1033":"Party mapped as an authorized representative in the policy context; current operational authority requires source verification.","1031":"Im Policenkontext als bevollmächtigte Vertretung abgebildete Partei; die aktuelle operative Befugnis muss an der Quelle geprüft werden.","1036":"Partie mappée comme représentant autorisé dans le contexte de la police; le pouvoir opérationnel actuel doit être vérifié à la source.","1040":"Parte mappata come rappresentante autorizzato nel contesto di polizza; i poteri operativi attuali vanno verificati alla fonte."}}}
+      ]
+    },
+    {
+      "logicalName":"crmshow_policystatus",
+      "schemaName":"crmshow_PolicyStatus",
+      "solution":"crmshow_Foundation",
+      "metadata":{
+        "label":{"1033":"Policy Status","1031":"Policenstatus","1036":"Statut de la police","1040":"Stato della polizza"},
+        "description":{
+          "1033":"Small canonical status mapped onto a policy projection for CRM context; it neither replaces source status nor performs policy administration.",
+          "1031":"Kleiner kanonischer Status für den CRM-Kontext einer Policenprojektion; er ersetzt den Quellstatus nicht und steuert keine Policenverwaltung.",
+          "1036":"Statut canonique réduit mappé sur une projection de police pour le contexte CRM; il ne remplace pas le statut source et n’administre pas la police.",
+          "1040":"Stato canonico ridotto mappato sulla proiezione di polizza per il contesto CRM; non sostituisce lo stato fonte né amministra la polizza."
+        },
+        "mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"CRM context and filtering, not source-system mutation.","lifecycle":"Updated when authoritative policy state changes."
+      },
+      "options":[
+        {"code":"Draft","metadata":{"label":{"1033":"Draft","1031":"In Vorbereitung","1036":"En préparation","1040":"In preparazione"},"description":{"1033":"Mapped state for a policy not yet active in its source lifecycle; it does not permit CRM users to bind coverage.","1031":"Abgebildeter Zustand einer im Quelllebenszyklus noch nicht aktiven Police; CRM-Benutzende können damit keine Deckung binden.","1036":"État mappé d’une police non encore active dans son cycle source; il ne permet pas aux utilisateurs CRM de lier une couverture.","1040":"Stato mappato di una polizza non ancora attiva nel ciclo fonte; non consente agli utenti CRM di vincolare coperture."}}},
+        {"code":"Active","metadata":{"label":{"1033":"Active","1031":"Aktiv","1036":"Active","1040":"Attiva"},"description":{"1033":"Mapped state indicating that the source policy is active for CRM context; coverage details and legal effect remain source-controlled.","1031":"Abgebildeter Zustand einer laut Quelle aktiven Police für den CRM-Kontext; Deckungsdetails und Rechtswirkung bleiben quellengeführt.","1036":"État mappé indiquant que la police source est active dans le contexte CRM; garanties et effets juridiques restent gérés à la source.","1040":"Stato mappato che indica la polizza fonte attiva nel contesto CRM; coperture ed effetti giuridici restano gestiti alla fonte."}}},
+        {"code":"Suspended","metadata":{"label":{"1033":"Suspended","1031":"Suspendiert","1036":"Suspendue","1040":"Sospesa"},"description":{"1033":"Mapped state indicating a temporary source-system suspension; CRM does not infer its reason, duration or coverage consequence.","1031":"Abgebildeter Zustand einer vorübergehenden Suspendierung im Quellsystem; das CRM leitet weder Grund noch Dauer oder Deckungsfolge ab.","1036":"État mappé signalant une suspension temporaire dans la source; le CRM n’en déduit ni motif, ni durée, ni conséquence de couverture.","1040":"Stato mappato che segnala una sospensione temporanea nella fonte; il CRM non ne deduce motivo, durata o conseguenze sulla copertura."}}},
+        {"code":"Expired","metadata":{"label":{"1033":"Expired","1031":"Abgelaufen","1036":"Expirée","1040":"Scaduta"},"description":{"1033":"Mapped state indicating that the source policy term has ended; historical CRM context is retained without extending coverage.","1031":"Abgebildeter Zustand eines beendeten Policenzeitraums laut Quelle; der historische CRM-Kontext bleibt ohne Deckungsverlängerung erhalten.","1036":"État mappé indiquant la fin de la période de la police source; le contexte CRM historique est conservé sans prolonger la couverture.","1040":"Stato mappato che indica la fine del periodo della polizza fonte; il contesto CRM storico è conservato senza estendere la copertura."}}},
+        {"code":"Cancelled","metadata":{"label":{"1033":"Cancelled","1031":"Storniert","1036":"Résiliée","1040":"Annullata"},"description":{"1033":"Mapped state indicating source-system cancellation; CRM records the context but cannot cancel, reinstate or determine coverage.","1031":"Abgebildeter Zustand einer Stornierung im Quellsystem; das CRM dokumentiert den Kontext, kann aber weder stornieren noch reaktivieren oder Deckung bestimmen.","1036":"État mappé indiquant une résiliation dans la source; le CRM conserve le contexte sans pouvoir résilier, rétablir ou déterminer la couverture.","1040":"Stato mappato che indica l’annullamento nel sistema fonte; il CRM conserva il contesto ma non può annullare, riattivare o determinare coperture."}}}
+      ]
+    }
+  ],
+  "nativeExtensions": [
+    {
+      "table":"account","logicalName":"crmshow_accounttype","schemaName":"crmshow_AccountType","type":"GlobalChoice","choice":"crmshow_accounttype","required":true,"auditing":true,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Account Type","1031":"Kontotyp","1036":"Type de compte","1040":"Tipo di account"},
+        "description":{
+          "1033":"Required CRM-owned classification of a showcase Account as the household, business or broker relationship container; not a source legal-entity type.",
+          "1031":"Erforderliche CRM-eigene Klassifikation eines Showcase-Kontos als Beziehungscontainer Haushalt, Unternehmen oder Makler; kein Quell-Rechtsträgertyp.",
+          "1036":"Classification CRM obligatoire d’un compte de démonstration comme conteneur ménage, entreprise ou courtier; pas un type juridique source.",
+          "1040":"Classificazione CRM obbligatoria di un account dimostrativo come contenitore familiare, aziendale o intermediario; non un tipo giuridico fonte."
+        },
+        "mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Relationship container classification only.","lifecycle":"Required while the showcase Account is in scope."
+      }
+    },
+    {
+      "table":"contact","logicalName":"crmshow_lifecyclestage","schemaName":"crmshow_LifecycleStage","type":"GlobalChoice","choice":"crmshow_contactlifecyclestage","required":false,"auditing":true,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Lifecycle Stage","1031":"Lebenszyklusphase","1036":"Étape du cycle de vie","1040":"Fase del ciclo di vita"},
+        "description":{
+          "1033":"Optional CRM-owned maturity of the relationship with an existing person; it is not policy or risk status and never records marketing consent.",
+          "1031":"Optionale CRM-eigene Reife der Beziehung zu einer bestehenden Person; weder Policen- oder Risikostatus noch Marketingeinwilligung.",
+          "1036":"Maturité relationnelle facultative gérée par le CRM pour une personne existante; ni statut de police ou de risque, ni consentement marketing.",
+          "1040":"Maturità facoltativa della relazione gestita dal CRM con una persona esistente; non è stato di polizza o rischio né consenso marketing."
+        },
+        "mastership":"CRMOwned","sensitivity":"Personal","permittedUse":"Relationship management, not consent or eligibility.","lifecycle":"May change with reviewed CRM relationship maturity."
+      }
+    }
+  ],
+  "tables": [
+    {
+      "logicalName":"crmshow_accountcontactrole","schemaName":"crmshow_AccountContactRole","ownership":"UserOwned","auditing":true,"isActivity":false,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Account Contact Role","1031":"Kontaktrolle am Konto","1036":"Rôle du contact auprès du compte","1040":"Ruolo del contatto nell’account"},
+        "description":{
+          "1033":"CRM-owned or source-attributed, effective-dated relationship between a person and a household, business or broker Account; it grants no authorization.",
+          "1031":"CRM-eigene oder quellenbezogene, zeitlich gültige Beziehung einer Person zu einem Haushalts-, Unternehmens- oder Maklerkonto; sie gewährt keine Berechtigung.",
+          "1036":"Relation datée, gérée par le CRM ou attribuée à une source, entre une personne et un compte ménage, entreprise ou courtier; elle n’accorde aucun droit.",
+          "1040":"Relazione con validità temporale, gestita dal CRM o attribuita a una fonte, tra una persona e un account familiare, aziendale o intermediario; non concede autorizzazioni."
+        },
+        "mastership":"Mixed","sensitivity":"Personal","permittedUse":"Authorized relationship work subject to Dataverse security.","lifecycle":"End a relationship with Valid To; ordinary processing does not delete it."
+      },
+      "columns":[
+        {
+          "logicalName":"crmshow_name","schemaName":"crmshow_Name","type":"Text","required":true,"auditing":true,"maxLength":200,"format":"Text",
+          "metadata":{"label":{"1033":"Role Name","1031":"Rollenname","1036":"Nom du rôle","1040":"Nome del ruolo"},"description":{"1033":"Human-readable record name derived from Account, Contact and role for navigation; it is not a source identifier or authorization.","1031":"Aus Konto, Kontakt und Rolle abgeleiteter lesbarer Datensatzname zur Navigation; weder Quellkennung noch Berechtigung.","1036":"Nom lisible dérivé du compte, du contact et du rôle pour la navigation; ce n’est ni un identifiant source ni une autorisation.","1040":"Nome leggibile derivato da account, contatto e ruolo per la navigazione; non è un identificativo fonte né un’autorizzazione."},"mastership":"CRMOwned","sensitivity":"Personal","permittedUse":"Display and record navigation only."}
+        },
+        {
+          "logicalName":"crmshow_accountid","schemaName":"crmshow_AccountId","type":"Lookup","required":true,"auditing":true,"lookup":{"targets":["account"],"authoring":"InitialTableCreate"},
+          "metadata":{"label":{"1033":"Account","1031":"Konto","1036":"Compte","1040":"Account"},"description":{"1033":"Household, Business or Broker Account in whose CRM relationship context the person holds this effective-dated role.","1031":"Haushalts-, Unternehmens- oder Maklerkonto, in dessen CRM-Beziehungskontext die Person diese zeitlich gültige Rolle innehat.","1036":"Compte Ménage, Entreprise ou Courtier dans le contexte relationnel CRM duquel la personne exerce ce rôle daté.","1040":"Account Nucleo familiare, Impresa o Intermediario nel cui contesto relazionale CRM la persona ricopre questo ruolo temporale."},"mastership":"CRMOwned","sensitivity":"Personal","permittedUse":"Relationship association subject to record access."}
+        },
+        {
+          "logicalName":"crmshow_contactid","schemaName":"crmshow_ContactId","type":"Lookup","required":true,"auditing":true,"lookup":{"targets":["contact"],"authoring":"InitialTableCreate"},
+          "metadata":{"label":{"1033":"Contact","1031":"Kontakt","1036":"Contact","1040":"Contatto"},"description":{"1033":"Existing person who holds the role in the Account relationship; the link must not be used to create a duplicate person.","1031":"Bestehende Person mit der Rolle in der Kontobeziehung; die Verknüpfung darf nicht zur Anlage einer Personendublette dienen.","1036":"Personne existante qui exerce le rôle dans la relation au compte; le lien ne doit pas servir à créer un doublon de personne.","1040":"Persona esistente che ricopre il ruolo nella relazione con l’account; il collegamento non va usato per creare duplicati."},"mastership":"CRMOwned","sensitivity":"Personal","permittedUse":"Relationship association subject to record access."}
+        },
+        {
+          "logicalName":"crmshow_roletype","schemaName":"crmshow_RoleType","type":"GlobalChoice","required":true,"auditing":true,"choice":"crmshow_accountcontactroletype",
+          "metadata":{"label":{"1033":"Role Type","1031":"Rollenart","1036":"Type de rôle","1040":"Tipo di ruolo"},"description":{"1033":"Canonical CRM meaning of the person’s Account relationship during this interval; it provides context but never grants platform access.","1031":"Kanonische CRM-Bedeutung der Kontobeziehung der Person während dieses Intervalls; sie liefert Kontext, gewährt aber keinen Plattformzugriff.","1036":"Signification CRM canonique de la relation de la personne au compte pendant la période; elle contextualise sans accorder d’accès.","1040":"Significato CRM canonico della relazione della persona con l’account durante l’intervallo; fornisce contesto senza concedere accesso."},"mastership":"Mixed","sensitivity":"Personal","permittedUse":"Relationship interpretation, not authorization."}
+        },
+        {
+          "logicalName":"crmshow_validfrom","schemaName":"crmshow_ValidFrom","type":"DateOnly","required":true,"auditing":true,"format":"DateOnly",
+          "metadata":{"label":{"1033":"Valid From","1031":"Gültig ab","1036":"Valide à partir du","1040":"Valido dal"},"description":{"1033":"First calendar date on which this Account relationship role applies; no time-zone conversion or earlier validity is implied.","1031":"Erster Kalendertag, an dem diese Kontobeziehungsrolle gilt; weder Zeitzonenumrechnung noch frühere Gültigkeit ist impliziert.","1036":"Première date civile d’application de ce rôle relationnel au compte; aucun fuseau horaire ni effet antérieur n’est implicite.","1040":"Prima data di calendario in cui si applica questo ruolo relazionale; non implica conversioni di fuso né validità precedente."},"mastership":"Mixed","sensitivity":"Personal","permittedUse":"Effective-date evaluation using an inclusive date.","lifecycle":"Inclusive start of the role interval."}
+        },
+        {
+          "logicalName":"crmshow_validto","schemaName":"crmshow_ValidTo","type":"DateOnly","required":false,"auditing":true,"format":"DateOnly",
+          "metadata":{"label":{"1033":"Valid To","1031":"Gültig bis","1036":"Valide jusqu’au","1040":"Valido fino al"},"description":{"1033":"Last inclusive calendar date on which the role applies; blank means open-ended and must not be interpreted as permanent.","1031":"Letzter einschliesslicher Kalendertag der Rolle; leer bedeutet unbefristet offen und darf nicht als dauerhaft verstanden werden.","1036":"Dernière date civile incluse d’application du rôle; vide signifie durée ouverte et ne doit pas être interprété comme permanent.","1040":"Ultima data di calendario inclusa in cui si applica il ruolo; vuoto significa durata aperta e non permanente."},"mastership":"Mixed","sensitivity":"Personal","permittedUse":"Effective-date evaluation using an inclusive date.","lifecycle":"Inclusive end; blank is open-ended."
+          }
+        },
+        {
+          "logicalName":"crmshow_sourcesystem","schemaName":"crmshow_SourceSystem","type":"Text","required":false,"auditing":true,"maxLength":100,"format":"Text",
+          "metadata":{"label":{"1033":"Source System","1031":"Quellsystem","1036":"Système source","1040":"Sistema fonte"},"description":{"1033":"Stable non-secret code naming the system that asserted a source-mastered relationship; blank identifies a CRM-authored role.","1031":"Stabiler, nicht geheimer Code des Systems, das eine quellengeführte Beziehung bestätigt; leer kennzeichnet eine CRM-erfasste Rolle.","1036":"Code stable et non secret du système ayant affirmé une relation gérée à la source; vide désigne un rôle créé dans le CRM.","1040":"Codice stabile e non segreto del sistema che ha attestato una relazione gestita alla fonte; vuoto indica un ruolo creato nel CRM."},"mastership":"Mixed","sensitivity":"Internal","permittedUse":"Integration namespace, never credentials."}
+        },
+        {
+          "logicalName":"crmshow_sourceid","schemaName":"crmshow_SourceId","type":"Text","required":false,"auditing":true,"maxLength":200,"format":"Text",
+          "metadata":{"label":{"1033":"Source ID","1031":"Quell-ID","1036":"Identifiant source","1040":"ID fonte"},"description":{"1033":"Opaque source record identifier within Source System for reconciliation; it is not a customer-facing number and may contain personal linkage data.","1031":"Opake Quell-Datensatzkennung innerhalb des Quellsystems für den Abgleich; keine kundenorientierte Nummer und möglicherweise personenbeziehbar.","1036":"Identifiant opaque de l’enregistrement dans le système source pour rapprochement; il n’est pas destiné au client et peut relier une personne.","1040":"Identificativo opaco del record nel sistema fonte per riconciliazione; non è un numero rivolto al cliente e può collegare dati personali."},"mastership":"SourceProjection","sensitivity":"Confidential","permittedUse":"Reconciliation and idempotent integration only."}
+        }
+      ],
+      "alternateKeys":[
+        {
+          "name":"crmshow_accountcontactroleintervalkey","schemaName":"crmshow_AccountContactRoleIntervalKey","columns":["crmshow_accountid","crmshow_contactid","crmshow_roletype","crmshow_validfrom"],
+          "metadata":{"label":{"1033":"Account Contact Role Interval Key","1031":"Intervallschlüssel Kontaktrolle am Konto","1036":"Clé de période du rôle contact–compte","1040":"Chiave intervallo ruolo contatto–account"},"description":{"1033":"Prevents duplicate starts for the same Account, Contact and role type; it does not detect or resolve overlapping effective intervals.","1031":"Verhindert doppelte Starts für dasselbe Konto, denselben Kontakt und dieselbe Rollenart; überlappende Intervalle werden weder erkannt noch gelöst.","1036":"Empêche des débuts en double pour le même compte, contact et type de rôle; elle ne détecte ni ne résout les périodes qui se chevauchent.","1040":"Impedisce inizi duplicati per lo stesso account, contatto e tipo di ruolo; non rileva né risolve intervalli sovrapposti."},"mastership":"Configuration","sensitivity":"Internal","permittedUse":"Dataverse uniqueness enforcement only."}
+        }
+      ],
+      "relationships":[
+        {
+          "name":"crmshow_account_accountcontactroles","schemaName":"crmshow_Account_AccountContactRoles","lookupColumn":"crmshow_accountid","referencingTable":"crmshow_accountcontactrole","referencedTables":["account"],"direction":"ManyToOne","role":"Account contains the relationship context; role records reference it.","authoring":"InitialTableCreate",
+          "metadata":{"label":{"1033":"Account Contact Roles","1031":"Kontaktrollen des Kontos","1036":"Rôles de contact du compte","1040":"Ruoli di contatto dell’account"},"description":{"1033":"Many AccountContactRole records reference one portfolio Account; direction expresses relationship context, not Contact ownership or access.","1031":"Viele Kontaktrollendatensätze verweisen auf ein Portfoliokonto; die Richtung beschreibt den Beziehungskontext, nicht Kontaktbesitz oder Zugriff.","1036":"Plusieurs rôles contact–compte référencent un compte de portefeuille; le sens exprime le contexte, non la propriété du contact ni l’accès.","1040":"Più ruoli contatto–account fanno riferimento a un account di portafoglio; la direzione esprime il contesto, non la proprietà del contatto o l’accesso."},"mastership":"CRMOwned","sensitivity":"Personal","permittedUse":"Navigate Account to effective-dated person roles."}
+        },
+        {
+          "name":"crmshow_contact_accountcontactroles","schemaName":"crmshow_Contact_AccountContactRoles","lookupColumn":"crmshow_contactid","referencingTable":"crmshow_accountcontactrole","referencedTables":["contact"],"direction":"ManyToOne","role":"Contact is the person holding the role; role records reference it.","authoring":"InitialTableCreate",
+          "metadata":{"label":{"1033":"Contact Account Roles","1031":"Kontorollen des Kontakts","1036":"Rôles de compte du contact","1040":"Ruoli account del contatto"},"description":{"1033":"Many AccountContactRole records reference one existing Contact as role holder; the direction does not make the Contact the portfolio owner.","1031":"Viele Kontaktrollendatensätze verweisen auf einen bestehenden Kontakt als Rolleninhaber; dadurch wird der Kontakt nicht zum Portfolioinhaber.","1036":"Plusieurs rôles contact–compte référencent un contact existant comme titulaire; ce sens ne fait pas du contact le propriétaire du portefeuille.","1040":"Più ruoli contatto–account fanno riferimento a un contatto esistente come titolare; la direzione non rende il contatto proprietario del portafoglio."},"mastership":"CRMOwned","sensitivity":"Personal","permittedUse":"Navigate Contact to effective-dated Account roles."}
+        }
+      ],
+      "businessRules":[
+        {
+          "name":"crmshow_accountcontactrolevaliddateorder","schemaName":"crmshow_AccountContactRoleValidDateOrder","scope":"Table","condition":"crmshow_validto is blank or crmshow_validto >= crmshow_validfrom",
+          "errorMessage":{"1033":"Valid To must be blank or on/after Valid From.","1031":"Gültig bis muss leer sein oder am/nach Gültig ab liegen.","1036":"Valide jusqu’au doit être vide ou postérieur/égal à Valide à partir du.","1040":"Valido fino al deve essere vuoto o uguale/successivo a Valido dal."},
+          "metadata":{"label":{"1033":"Account Contact Role Date Order","1031":"Datumsreihenfolge Kontaktrolle am Konto","1036":"Ordre des dates du rôle contact–compte","1040":"Ordine date ruolo contatto–account"},"description":{"1033":"Table-scoped validation rejects a closed role interval ending before its inclusive start; cross-record overlaps remain steward-reviewed.","1031":"Tabellenprüfung weist geschlossene Rollenintervalle zurück, die vor ihrem einschliesslichen Start enden; Überschneidungen prüft die Datenpflege.","1036":"La validation de table rejette une période fermée finissant avant son début inclus; les chevauchements restent soumis au gestionnaire de données.","1040":"La convalida di tabella rifiuta intervalli chiusi che terminano prima dell’inizio incluso; le sovrapposizioni restano da riesaminare."},"mastership":"Configuration","sensitivity":"Internal","permittedUse":"Same-record date-order validation only."}
+        }
+      ],
+      "views":[
+        {
+          "name":"crmshow_accountcontactroleadminview","purpose":"Administration","columns":["crmshow_name","crmshow_accountid","crmshow_contactid","crmshow_roletype","crmshow_validfrom","crmshow_validto"],
+          "metadata":{"label":{"1033":"Account Contact Roles","1031":"Kontaktrollen am Konto","1036":"Rôles contact–compte","1040":"Ruoli contatto–account"},"description":{"1033":"Minimal administration list for authorized stewards to review effective Account relationships; the view does not grant record access.","1031":"Minimale Verwaltungsliste für berechtigte Datenverantwortliche zur Prüfung gültiger Kontobeziehungen; die Ansicht gewährt keinen Datensatzzugriff.","1036":"Liste d’administration minimale permettant aux gestionnaires autorisés d’examiner les relations effectives; la vue n’accorde aucun accès.","1040":"Elenco amministrativo minimo per consentire ai responsabili autorizzati di esaminare le relazioni effettive; la vista non concede accesso."},"mastership":"Configuration","sensitivity":"Personal","permittedUse":"Authorized stewardship under role security."}
+        },
+        {
+          "name":"crmshow_accountcontactroleoverlapview","purpose":"OverlapReporting","columns":["crmshow_accountid","crmshow_contactid","crmshow_roletype","crmshow_validfrom","crmshow_validto"],
+          "metadata":{"label":{"1033":"Potentially Overlapping Account Contact Roles","1031":"Möglicherweise überlappende Kontaktrollen","1036":"Rôles contact–compte potentiellement chevauchants","1040":"Ruoli contatto–account potenzialmente sovrapposti"},"description":{"1033":"Steward reporting surface for role intervals that may overlap; findings require source-aware review and are never silently merged or deleted.","1031":"Auswertungsansicht für möglicherweise überlappende Rollenintervalle; Befunde erfordern quellenbewusste Prüfung und werden nie still zusammengeführt oder gelöscht.","1036":"Vue de contrôle des périodes de rôle susceptibles de se chevaucher; les constats exigent une revue tenant compte de la source, sans fusion ni suppression automatique.","1040":"Vista di controllo degli intervalli potenzialmente sovrapposti; i risultati richiedono una verifica consapevole della fonte e non sono uniti o eliminati automaticamente."},"mastership":"Configuration","sensitivity":"Personal","permittedUse":"Data-quality review, not automated correction."}
+        }
+      ],
+      "forms":[
+        {
+          "name":"crmshow_accountcontactroleadminform","purpose":"Administration","columns":["crmshow_name","crmshow_accountid","crmshow_contactid","crmshow_roletype","crmshow_validfrom","crmshow_validto","crmshow_sourcesystem","crmshow_sourceid"],
+          "metadata":{"label":{"1033":"Account Contact Role Administration","1031":"Verwaltung Kontaktrolle am Konto","1036":"Administration du rôle contact–compte","1040":"Amministrazione ruolo contatto–account"},"description":{"1033":"Minimal form for authorized stewardship of relationship roles and effective dates; source identifiers are for reconciliation, not customer display.","1031":"Minimales Formular für die berechtigte Pflege von Beziehungsrollen und Gültigkeitsdaten; Quellkennungen dienen dem Abgleich, nicht der Kundenanzeige.","1036":"Formulaire minimal pour la gestion autorisée des rôles et dates d’effet; les identifiants sources servent au rapprochement, pas à l’affichage client.","1040":"Modulo minimo per la gestione autorizzata di ruoli e date di validità; gli identificativi fonte servono alla riconciliazione, non alla visualizzazione al cliente."},"mastership":"Configuration","sensitivity":"Personal","permittedUse":"Authorized relationship data stewardship."}
+        }
+      ]
+    },
+    {
+      "logicalName":"crmshow_policyprojection","schemaName":"crmshow_PolicyProjection","ownership":"UserOwned","auditing":true,"isActivity":false,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Policy Projection","1031":"Policenprojektion","1036":"Projection de police","1040":"Proiezione di polizza"},
+        "description":{"1033":"Thin, source-mastered policy context projected into CRM for relationship work; rating, underwriting, coverage and financial administration remain outside CRM.","1031":"Schlanker, quellengeführter Policenkontext im CRM für die Beziehungsarbeit; Tarifierung, Underwriting, Deckung und Finanzverwaltung bleiben ausserhalb.","1036":"Contexte de police allégé, maîtrisé à la source et projeté dans le CRM pour le travail relationnel; tarification, souscription, garanties et finances restent hors CRM.","1040":"Contesto di polizza essenziale, gestito alla fonte e proiettato nel CRM per il lavoro relazionale; tariffazione, assunzione, coperture e finanze restano esterne."},
+        "mastership":"SourceProjection","sensitivity":"Confidential","permittedUse":"Authorized CRM context; never policy administration.","lifecycle":"Refreshed from its source and retained rather than hard-deleted."
+      },
+      "columns":[
+        {
+          "logicalName":"crmshow_name","schemaName":"crmshow_Name","type":"Text","required":true,"auditing":true,"maxLength":200,"format":"Text",
+          "metadata":{"label":{"1033":"Policy Display Name","1031":"Policen-Anzeigename","1036":"Nom d’affichage de la police","1040":"Nome visualizzato della polizza"},"description":{"1033":"Human-readable projection name, normally derived from the policy number, for CRM navigation; it is not an immutable source key.","1031":"Lesbarer Projektionsname, üblicherweise aus der Policennummer abgeleitet, zur CRM-Navigation; keine unveränderliche Quellkennung.","1036":"Nom lisible de la projection, généralement dérivé du numéro de police, pour la navigation CRM; ce n’est pas une clé source immuable.","1040":"Nome leggibile della proiezione, normalmente derivato dal numero di polizza, per la navigazione CRM; non è una chiave fonte immutabile."},"mastership":"SourceProjection","sensitivity":"Confidential","permittedUse":"Display and record navigation only."}
+        },
+        {
+          "logicalName":"crmshow_accountid","schemaName":"crmshow_AccountId","type":"Lookup","required":true,"auditing":true,"lookup":{"targets":["account"],"authoring":"InitialTableCreate"},
+          "metadata":{"label":{"1033":"Portfolio Account","1031":"Portfoliokonto","1036":"Compte de portefeuille","1040":"Account di portafoglio"},"description":{"1033":"Household, Business or Broker Account that owns the CRM portfolio context; Contacts participate only through roles and never own the policy projection.","1031":"Haushalts-, Unternehmens- oder Maklerkonto als Träger des CRM-Portfoliokontexts; Kontakte nehmen nur über Rollen teil und besitzen die Projektion nie.","1036":"Compte Ménage, Entreprise ou Courtier portant le contexte de portefeuille CRM; les contacts participent uniquement par des rôles et ne possèdent jamais la projection.","1040":"Account Nucleo familiare, Impresa o Intermediario che detiene il contesto di portafoglio CRM; i contatti partecipano solo tramite ruoli e non possiedono la proiezione."},"mastership":"CRMOwned","sensitivity":"Confidential","permittedUse":"Portfolio navigation under record security."}
+        },
+        {
+          "logicalName":"crmshow_policynumber","schemaName":"crmshow_PolicyNumber","type":"Text","required":true,"auditing":true,"maxLength":100,"format":"Text",
+          "metadata":{"label":{"1033":"Policy Number","1031":"Policennummer","1036":"Numéro de police","1040":"Numero di polizza"},"description":{"1033":"Business-facing policy identifier projected from the source; it may be sensitive and is not the immutable integration key.","1031":"Aus der Quelle projizierte, geschäftlich sichtbare Policennummer; sie kann sensibel sein und ist nicht der unveränderliche Integrationsschlüssel.","1036":"Identifiant de police visible par le métier et projeté depuis la source; il peut être sensible et n’est pas la clé d’intégration immuable.","1040":"Identificativo di polizza rivolto al business e proiettato dalla fonte; può essere sensibile e non è la chiave d’integrazione immutabile."},"mastership":"SourceProjection","sensitivity":"Confidential","permittedUse":"Authorized policy identification and search."}
+        },
+        {
+          "logicalName":"crmshow_externalsystem","schemaName":"crmshow_ExternalSystem","type":"Text","required":true,"auditing":true,"maxLength":100,"format":"Text",
+          "metadata":{"label":{"1033":"External System","1031":"Externes System","1036":"Système externe","1040":"Sistema esterno"},"description":{"1033":"Stable non-secret source-system code defining the namespace of External ID; it identifies no environment endpoint and contains no credential.","1031":"Stabiler, nicht geheimer Quellsystemcode als Namensraum der externen ID; weder Umgebungsendpunkt noch Zugangsdaten.","1036":"Code stable et non secret du système source définissant l’espace de noms de l’identifiant externe; ni point d’accès d’environnement ni secret.","1040":"Codice stabile e non segreto del sistema fonte che definisce lo spazio dei nomi dell’ID esterno; non contiene endpoint o credenziali."},"mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Integration namespace, never credentials."}
+        },
+        {
+          "logicalName":"crmshow_externalid","schemaName":"crmshow_ExternalId","type":"Text","required":true,"auditing":true,"maxLength":200,"format":"Text",
+          "metadata":{"label":{"1033":"External ID","1031":"Externe ID","1036":"Identifiant externe","1040":"ID esterno"},"description":{"1033":"Immutable opaque policy record identifier within External System, used for idempotent synchronization; it is not customer-facing evidence.","1031":"Unveränderliche opake Policen-Datensatzkennung im externen System für idempotente Synchronisation; kein kundenorientierter Nachweis.","1036":"Identifiant opaque immuable de la police dans le système externe, utilisé pour la synchronisation idempotente; ce n’est pas une preuve destinée au client.","1040":"Identificativo opaco immutabile del record di polizza nel sistema esterno, usato per sincronizzazione idempotente; non è prova per il cliente."},"mastership":"SourceProjection","sensitivity":"Confidential","permittedUse":"Reconciliation and idempotent integration only."}
+        },
+        {
+          "logicalName":"crmshow_lineofbusinesscode","schemaName":"crmshow_LineOfBusinessCode","type":"Text","required":true,"auditing":true,"maxLength":100,"format":"Text",
+          "metadata":{"label":{"1033":"Line of Business Code","1031":"Geschäftsbereichscode","1036":"Code de branche d’assurance","1040":"Codice ramo assicurativo"},"description":{"1033":"Canonical, language-neutral line-of-business code mapped from the source for filtering; localized display text is resolved outside this field.","1031":"Kanonischer, sprachneutraler Geschäftsbereichscode aus der Quelle für Filterung; lokalisierte Anzeigetexte werden ausserhalb dieses Felds aufgelöst.","1036":"Code canonique et neutre linguistiquement de la branche, mappé depuis la source pour le filtrage; le libellé localisé est résolu ailleurs.","1040":"Codice canonico e indipendente dalla lingua del ramo, mappato dalla fonte per i filtri; il testo localizzato è risolto altrove."},"mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Canonical filtering and integration mapping."}
+        },
+        {
+          "logicalName":"crmshow_status","schemaName":"crmshow_Status","type":"GlobalChoice","required":true,"auditing":true,"choice":"crmshow_policystatus",
+          "metadata":{"label":{"1033":"Mapped Policy Status","1031":"Abgebildeter Policenstatus","1036":"Statut de police mappé","1040":"Stato polizza mappato"},"description":{"1033":"Canonical CRM status mapped from the authoritative policy state; it does not replace source status or authorize policy mutation.","1031":"Kanonischer CRM-Status, aus dem massgebenden Policenzustand abgebildet; er ersetzt den Quellstatus nicht und erlaubt keine Policenänderung.","1036":"Statut CRM canonique mappé depuis l’état maître de la police; il ne remplace pas le statut source et n’autorise aucune modification.","1040":"Stato CRM canonico mappato dallo stato autorevole della polizza; non sostituisce lo stato fonte né autorizza modifiche."},"mastership":"SourceProjection","sensitivity":"Confidential","permittedUse":"CRM context and filtering only.","lifecycle":"Refreshed when the source policy status changes."}
+        },
+        {
+          "logicalName":"crmshow_effectivefrom","schemaName":"crmshow_EffectiveFrom","type":"DateOnly","required":true,"auditing":true,"format":"DateOnly",
+          "metadata":{"label":{"1033":"Effective From","1031":"Wirksam ab","1036":"Prend effet le","1040":"Efficace dal"},"description":{"1033":"First calendar date of the projected policy term as reported by the source; it is date-only and does not itself establish coverage.","1031":"Erster Kalendertag der projizierten Policenperiode laut Quelle; reines Datum, das für sich keine Deckung begründet.","1036":"Première date civile de la période de police projetée selon la source; cette date seule n’établit aucune couverture.","1040":"Prima data di calendario del periodo di polizza proiettato secondo la fonte; la sola data non stabilisce la copertura."},"mastership":"SourceProjection","sensitivity":"Confidential","permittedUse":"Policy-term context using an inclusive date.","lifecycle":"Inclusive start of the projected policy term."}
+        },
+        {
+          "logicalName":"crmshow_effectiveto","schemaName":"crmshow_EffectiveTo","type":"DateOnly","required":false,"auditing":true,"format":"DateOnly",
+          "metadata":{"label":{"1033":"Effective To","1031":"Wirksam bis","1036":"Prend fin le","1040":"Efficace fino al"},"description":{"1033":"Last inclusive calendar date of the projected policy term; blank means the source has supplied no end date, not perpetual coverage.","1031":"Letzter einschliesslicher Kalendertag der projizierten Policenperiode; leer bedeutet fehlendes Quell-Enddatum, nicht ewige Deckung.","1036":"Dernière date civile incluse de la période projetée; vide signifie qu’aucune fin n’a été fournie par la source, pas une couverture perpétuelle.","1040":"Ultima data di calendario inclusa del periodo proiettato; vuoto indica che la fonte non ha fornito una fine, non copertura perpetua."},"mastership":"SourceProjection","sensitivity":"Confidential","permittedUse":"Policy-term context using an inclusive date.","lifecycle":"Inclusive end; blank means no source end date."
+          }
+        },
+        {
+          "logicalName":"crmshow_sourcelastmodifiedon","schemaName":"crmshow_SourceLastModifiedOn","type":"DateTime","required":true,"auditing":true,"format":"UTC",
+          "metadata":{"label":{"1033":"Source Last Modified On","1031":"Zuletzt in Quelle geändert am","1036":"Dernière modification à la source","1040":"Ultima modifica nella fonte"},"description":{"1033":"UTC instant at which the source reports the policy record was last modified; it supports freshness checks and is not CRM edit time.","1031":"UTC-Zeitpunkt der laut Quelle letzten Änderung des Policendatensatzes; dient der Aktualitätsprüfung und ist nicht die CRM-Änderungszeit.","1036":"Instant UTC auquel la source déclare la dernière modification de la police; il sert au contrôle de fraîcheur et n’est pas l’heure de modification CRM.","1040":"Istante UTC in cui la fonte dichiara l’ultima modifica del record di polizza; serve a verificare l’attualità e non è l’ora di modifica CRM."},"mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Freshness and synchronization ordering.","lifecycle":"Replaced by each newer authoritative source timestamp."}
+        },
+        {
+          "logicalName":"crmshow_retrievedon","schemaName":"crmshow_RetrievedOn","type":"DateTime","required":true,"auditing":true,"format":"UTC",
+          "metadata":{"label":{"1033":"Retrieved On","1031":"Abgerufen am","1036":"Récupérée le","1040":"Recuperata il"},"description":{"1033":"UTC instant at which Dataverse received or retrieved this projection; it measures projection freshness, not source business effect.","1031":"UTC-Zeitpunkt, zu dem Dataverse diese Projektion empfangen oder abgerufen hat; misst Projektionsaktualität, nicht fachliche Wirksamkeit.","1036":"Instant UTC auquel Dataverse a reçu ou récupéré cette projection; il mesure sa fraîcheur, pas l’effet métier dans la source.","1040":"Istante UTC in cui Dataverse ha ricevuto o recuperato la proiezione; misura l’attualità, non l’effetto di business nella fonte."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Projection freshness and operational diagnostics.","lifecycle":"Updated whenever the projection is refreshed."}
+        }
+      ],
+      "alternateKeys":[
+        {
+          "name":"crmshow_policyprojectionexternalkey","schemaName":"crmshow_PolicyProjectionExternalKey","columns":["crmshow_externalsystem","crmshow_externalid"],
+          "metadata":{"label":{"1033":"Policy Projection External Key","1031":"Externer Schlüssel der Policenprojektion","1036":"Clé externe de la projection de police","1040":"Chiave esterna della proiezione di polizza"},"description":{"1033":"Uniquely identifies one projected policy by source namespace and immutable source identifier for idempotent synchronization.","1031":"Identifiziert eine Policenprojektion eindeutig durch Quellnamensraum und unveränderliche Quellkennung für idempotente Synchronisation.","1036":"Identifie de façon unique une police projetée par son espace de noms source et son identifiant immuable pour une synchronisation idempotente.","1040":"Identifica univocamente una polizza proiettata tramite spazio dei nomi e identificativo immutabile della fonte per sincronizzazione idempotente."},"mastership":"Configuration","sensitivity":"Confidential","permittedUse":"Dataverse uniqueness and integration upsert."}
+        }
+      ],
+      "relationships":[
+        {
+          "name":"crmshow_account_policyprojections","schemaName":"crmshow_Account_PolicyProjections","lookupColumn":"crmshow_accountid","referencingTable":"crmshow_policyprojection","referencedTables":["account"],"direction":"ManyToOne","role":"Account owns portfolio context; PolicyProjection references that Account.","authoring":"InitialTableCreate",
+          "metadata":{"label":{"1033":"Account Policy Projections","1031":"Policenprojektionen des Kontos","1036":"Projections de police du compte","1040":"Proiezioni di polizza dell’account"},"description":{"1033":"Many policy projections reference one portfolio Account; the direction keeps the portfolio at Account and does not make any Contact its owner.","1031":"Viele Policenprojektionen verweisen auf ein Portfoliokonto; die Richtung hält das Portfolio am Konto und macht keinen Kontakt zum Eigentümer.","1036":"Plusieurs projections de police référencent un compte de portefeuille; le sens maintient le portefeuille au compte sans rendre un contact propriétaire.","1040":"Più proiezioni di polizza fanno riferimento a un account di portafoglio; la direzione mantiene il portafoglio sull’account senza renderne proprietario un contatto."},"mastership":"CRMOwned","sensitivity":"Confidential","permittedUse":"Navigate Account portfolio context."}
+        }
+      ],
+      "businessRules":[
+        {
+          "name":"crmshow_policyprojectioneffectivedateorder","schemaName":"crmshow_PolicyProjectionEffectiveDateOrder","scope":"Table","condition":"crmshow_effectiveto is blank or crmshow_effectiveto >= crmshow_effectivefrom",
+          "errorMessage":{"1033":"Effective To must be blank or on/after Effective From.","1031":"Wirksam bis muss leer sein oder am/nach Wirksam ab liegen.","1036":"Prend fin le doit être vide ou postérieur/égal à Prend effet le.","1040":"Efficace fino al deve essere vuoto o uguale/successivo a Efficace dal."},
+          "metadata":{"label":{"1033":"Policy Projection Date Order","1031":"Datumsreihenfolge Policenprojektion","1036":"Ordre des dates de la projection de police","1040":"Ordine date proiezione di polizza"},"description":{"1033":"Table-scoped validation rejects a projected policy term ending before its inclusive start; it does not validate source coverage logic.","1031":"Tabellenprüfung weist eine projizierte Policenperiode zurück, die vor ihrem einschliesslichen Start endet; Quell-Deckungslogik wird nicht geprüft.","1036":"La validation de table rejette une période projetée finissant avant son début inclus; elle ne valide pas la logique de couverture source.","1040":"La convalida di tabella rifiuta un periodo proiettato che termina prima dell’inizio incluso; non convalida la logica di copertura fonte."},"mastership":"Configuration","sensitivity":"Internal","permittedUse":"Same-record date-order validation only."}
+        }
+      ],
+      "views":[
+        {
+          "name":"crmshow_policyprojectionadminview","purpose":"Administration","columns":["crmshow_name","crmshow_accountid","crmshow_policynumber","crmshow_lineofbusinesscode","crmshow_status","crmshow_effectivefrom","crmshow_effectiveto","crmshow_retrievedon"],
+          "metadata":{"label":{"1033":"Policy Projections","1031":"Policenprojektionen","1036":"Projections de police","1040":"Proiezioni di polizza"},"description":{"1033":"Minimal administration list for authorized review of policy context and projection freshness; it exposes no premium, rating or payment balance.","1031":"Minimale Verwaltungsliste zur berechtigten Prüfung von Policenkontext und Projektionsaktualität; ohne Prämie, Tarifierung oder Zahlungssaldo.","1036":"Liste d’administration minimale pour examiner le contexte de police et la fraîcheur de projection; aucun montant de prime, tarif ou solde de paiement.","1040":"Elenco amministrativo minimo per esaminare contesto di polizza e attualità della proiezione; non espone premio, tariffa o saldo pagamenti."},"mastership":"Configuration","sensitivity":"Confidential","permittedUse":"Authorized source-projection stewardship."}
+        }
+      ],
+      "forms":[
+        {
+          "name":"crmshow_policyprojectionadminform","purpose":"Administration","columns":["crmshow_name","crmshow_accountid","crmshow_policynumber","crmshow_externalsystem","crmshow_externalid","crmshow_lineofbusinesscode","crmshow_status","crmshow_effectivefrom","crmshow_effectiveto","crmshow_sourcelastmodifiedon","crmshow_retrievedon"],
+          "metadata":{"label":{"1033":"Policy Projection Administration","1031":"Verwaltung Policenprojektion","1036":"Administration de la projection de police","1040":"Amministrazione proiezione di polizza"},"description":{"1033":"Minimal form for authorized inspection and correction of mapped policy context; it cannot rate, underwrite, bind, cancel or settle a policy.","1031":"Minimales Formular zur berechtigten Prüfung und Korrektur des abgebildeten Policenkontexts; keine Tarifierung, Annahme, Bindung, Stornierung oder Abrechnung.","1036":"Formulaire minimal pour contrôler et corriger le contexte mappé; il ne peut ni tarifer, souscrire, lier, résilier ou régler une police.","1040":"Modulo minimo per controllare e correggere il contesto mappato; non può tariffare, assumere, vincolare, annullare o liquidare una polizza."},"mastership":"Configuration","sensitivity":"Confidential","permittedUse":"Authorized source-projection stewardship."}
+        }
+      ],
+      "excludedConcepts":["premium","tariff","underwriting","coverageLimit","paymentBalance"]
+    },
+    {
+      "logicalName":"crmshow_policypartyrole","schemaName":"crmshow_PolicyPartyRole","ownership":"UserOwned","auditing":true,"isActivity":false,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Policy Party Role","1031":"Policenparteienrolle","1036":"Rôle de partie à la police","1040":"Ruolo della parte di polizza"},
+        "description":{"1033":"Effective-dated source projection of an Account or Contact role around a policy; the party may differ from the portfolio Account and source evidence remains authoritative.","1031":"Zeitlich gültige Quellprojektion der Rolle eines Kontos oder Kontakts an einer Police; die Partei kann vom Portfoliokonto abweichen, und Quellnachweise bleiben massgebend.","1036":"Projection source datée du rôle d’un compte ou contact autour d’une police; la partie peut différer du compte de portefeuille et les preuves sources restent maîtres.","1040":"Proiezione temporale dalla fonte del ruolo di un account o contatto rispetto a una polizza; la parte può differire dall’account di portafoglio e le prove fonte restano autorevoli."},
+        "mastership":"SourceProjection","sensitivity":"Personal","permittedUse":"Authorized policy relationship context, not legal evidence.","lifecycle":"End-date or deactivate rather than delete source-projected history."
+      },
+      "columns":[
+        {
+          "logicalName":"crmshow_name","schemaName":"crmshow_Name","type":"Text","required":true,"auditing":true,"maxLength":200,"format":"Text",
+          "metadata":{"label":{"1033":"Policy Party Role Name","1031":"Name der Policenparteienrolle","1036":"Nom du rôle de partie à la police","1040":"Nome del ruolo della parte di polizza"},"description":{"1033":"Human-readable record name derived from policy, party and role for CRM navigation; it is not an immutable source identifier.","1031":"Aus Police, Partei und Rolle abgeleiteter lesbarer Datensatzname zur CRM-Navigation; keine unveränderliche Quellkennung.","1036":"Nom lisible dérivé de la police, de la partie et du rôle pour la navigation CRM; ce n’est pas un identifiant source immuable.","1040":"Nome leggibile derivato da polizza, parte e ruolo per la navigazione CRM; non è un identificativo fonte immutabile."},"mastership":"SourceProjection","sensitivity":"Personal","permittedUse":"Display and record navigation only."}
+        },
+        {
+          "logicalName":"crmshow_policyid","schemaName":"crmshow_PolicyId","type":"Lookup","required":true,"auditing":true,"lookup":{"targets":["crmshow_policyprojection"],"authoring":"InitialTableCreate"},
+          "metadata":{"label":{"1033":"Policy Projection","1031":"Policenprojektion","1036":"Projection de police","1040":"Proiezione di polizza"},"description":{"1033":"Projected policy to which this effective-dated party role applies; the projection is context and not the authoritative policy record.","1031":"Policenprojektion, für die diese zeitlich gültige Parteienrolle gilt; die Projektion ist Kontext und nicht der massgebende Policendatensatz.","1036":"Police projetée à laquelle s’applique ce rôle de partie daté; la projection fournit le contexte sans être l’enregistrement maître.","1040":"Polizza proiettata a cui si applica il ruolo temporale della parte; la proiezione fornisce contesto ma non è il record autorevole."},"mastership":"SourceProjection","sensitivity":"Confidential","permittedUse":"Navigate projected policy relationships."}
+        },
+        {
+          "logicalName":"crmshow_partyid","schemaName":"crmshow_PartyId","type":"Customer","required":true,"auditing":true,"lookup":{"targets":["account","contact"],"authoring":"CreateCustomerRelationships"},
+          "metadata":{"label":{"1033":"Policy Party","1031":"Policenpartei","1036":"Partie à la police","1040":"Parte di polizza"},"description":{"1033":"Account or Contact holding the projected policy role; it need not equal the portfolio Account and the link alone proves no authority or entitlement.","1031":"Konto oder Kontakt mit der projizierten Policenrolle; muss nicht dem Portfoliokonto entsprechen, und die Verknüpfung allein belegt weder Befugnis noch Anspruch.","1036":"Compte ou contact exerçant le rôle projeté; il peut différer du compte de portefeuille et le lien seul ne prouve ni pouvoir ni droit.","1040":"Account o contatto che ricopre il ruolo proiettato; può differire dall’account di portafoglio e il collegamento da solo non prova poteri o diritti."},"mastership":"SourceProjection","sensitivity":"Personal","permittedUse":"Policy relationship context subject to record security."}
+        },
+        {
+          "logicalName":"crmshow_roletype","schemaName":"crmshow_RoleType","type":"GlobalChoice","required":true,"auditing":true,"choice":"crmshow_policypartyroletype",
+          "metadata":{"label":{"1033":"Policy Role Type","1031":"Policenrollenart","1036":"Type de rôle de police","1040":"Tipo di ruolo di polizza"},"description":{"1033":"Canonical role mapped from the source for this party and interval; source policy evidence determines legal effect and current authority.","1031":"Für diese Partei und dieses Intervall aus der Quelle abgebildete kanonische Rolle; Quell-Policennachweise bestimmen Rechtswirkung und aktuelle Befugnis.","1036":"Rôle canonique mappé depuis la source pour cette partie et cette période; la police source détermine l’effet juridique et le pouvoir actuel.","1040":"Ruolo canonico mappato dalla fonte per questa parte e intervallo; le prove della polizza fonte determinano effetto giuridico e poteri attuali."},"mastership":"SourceProjection","sensitivity":"Personal","permittedUse":"Policy relationship interpretation, not authorization."}
+        },
+        {
+          "logicalName":"crmshow_validfrom","schemaName":"crmshow_ValidFrom","type":"DateOnly","required":true,"auditing":true,"format":"DateOnly",
+          "metadata":{"label":{"1033":"Valid From","1031":"Gültig ab","1036":"Valide à partir du","1040":"Valido dal"},"description":{"1033":"First calendar date on which the projected party role applies according to the source; no earlier authority is implied.","1031":"Erster Kalendertag, an dem die projizierte Parteienrolle laut Quelle gilt; eine frühere Befugnis ist nicht impliziert.","1036":"Première date civile d’application du rôle projeté selon la source; aucun pouvoir antérieur n’est implicite.","1040":"Prima data di calendario in cui il ruolo proiettato si applica secondo la fonte; non implica poteri precedenti."},"mastership":"SourceProjection","sensitivity":"Personal","permittedUse":"Effective-date evaluation using an inclusive date.","lifecycle":"Inclusive start of the projected role interval."}
+        },
+        {
+          "logicalName":"crmshow_validto","schemaName":"crmshow_ValidTo","type":"DateOnly","required":false,"auditing":true,"format":"DateOnly",
+          "metadata":{"label":{"1033":"Valid To","1031":"Gültig bis","1036":"Valide jusqu’au","1040":"Valido fino al"},"description":{"1033":"Last inclusive calendar date on which the projected party role applies; blank means no source end date and not permanent authority.","1031":"Letzter einschliesslicher Kalendertag der projizierten Parteienrolle; leer bedeutet kein Quell-Enddatum und keine dauerhafte Befugnis.","1036":"Dernière date civile incluse du rôle projeté; vide signifie aucune date de fin source et non un pouvoir permanent.","1040":"Ultima data di calendario inclusa del ruolo proiettato; vuoto significa nessuna fine nella fonte e non poteri permanenti."},"mastership":"SourceProjection","sensitivity":"Personal","permittedUse":"Effective-date evaluation using an inclusive date.","lifecycle":"Inclusive end; blank means no source end date."
+          }
+        },
+        {
+          "logicalName":"crmshow_sourcesystem","schemaName":"crmshow_SourceSystem","type":"Text","required":true,"auditing":true,"maxLength":100,"format":"Text",
+          "metadata":{"label":{"1033":"Source System","1031":"Quellsystem","1036":"Système source","1040":"Sistema fonte"},"description":{"1033":"Stable non-secret code naming the authoritative system for this role assertion and defining the namespace of Source ID.","1031":"Stabiler, nicht geheimer Code des für diese Rollenbestätigung massgebenden Systems und Namensraum der Quell-ID.","1036":"Code stable et non secret du système maître de cette assertion de rôle, définissant l’espace de noms de l’identifiant source.","1040":"Codice stabile e non segreto del sistema autorevole per questa attestazione di ruolo, che definisce lo spazio dei nomi dell’ID fonte."},"mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Integration namespace, never credentials."}
+        },
+        {
+          "logicalName":"crmshow_sourceid","schemaName":"crmshow_SourceId","type":"Text","required":true,"auditing":true,"maxLength":200,"format":"Text",
+          "metadata":{"label":{"1033":"Source ID","1031":"Quell-ID","1036":"Identifiant source","1040":"ID fonte"},"description":{"1033":"Immutable opaque identifier of the role assertion within Source System, used for idempotent synchronization and not customer display.","1031":"Unveränderliche opake Kennung der Rollenbestätigung im Quellsystem für idempotente Synchronisation, nicht zur Kundenanzeige.","1036":"Identifiant opaque immuable de l’assertion de rôle dans le système source, utilisé pour la synchronisation idempotente et non l’affichage client.","1040":"Identificativo opaco immutabile dell’attestazione di ruolo nel sistema fonte, usato per sincronizzazione idempotente e non per il cliente."},"mastership":"SourceProjection","sensitivity":"Confidential","permittedUse":"Reconciliation and idempotent integration only."}
+        }
+      ],
+      "alternateKeys":[
+        {
+          "name":"crmshow_policypartyrolesourcekey","schemaName":"crmshow_PolicyPartyRoleSourceKey","columns":["crmshow_sourcesystem","crmshow_sourceid"],
+          "metadata":{"label":{"1033":"Policy Party Role Source Key","1031":"Quellschlüssel der Policenparteienrolle","1036":"Clé source du rôle de partie à la police","1040":"Chiave fonte del ruolo della parte di polizza"},"description":{"1033":"Uniquely identifies a source role assertion by source namespace and immutable identifier for idempotent projection updates.","1031":"Identifiziert eine Quell-Rollenbestätigung eindeutig durch Quellnamensraum und unveränderliche Kennung für idempotente Projektionsaktualisierungen.","1036":"Identifie de façon unique une assertion de rôle par l’espace de noms source et l’identifiant immuable pour des mises à jour idempotentes.","1040":"Identifica univocamente un’attestazione di ruolo tramite spazio dei nomi e identificativo immutabile della fonte per aggiornamenti idempotenti."},"mastership":"Configuration","sensitivity":"Confidential","permittedUse":"Dataverse uniqueness and integration upsert."}
+        }
+      ],
+      "relationships":[
+        {
+          "name":"crmshow_policyprojection_partyroles","schemaName":"crmshow_PolicyProjection_PartyRoles","lookupColumn":"crmshow_policyid","referencingTable":"crmshow_policypartyrole","referencedTables":["crmshow_policyprojection"],"direction":"ManyToOne","role":"PolicyProjection provides policy context; party-role records reference it.","authoring":"InitialTableCreate",
+          "metadata":{"label":{"1033":"Policy Projection Party Roles","1031":"Parteienrollen der Policenprojektion","1036":"Rôles de partie de la projection de police","1040":"Ruoli delle parti della proiezione di polizza"},"description":{"1033":"Many effective-dated party-role projections reference one PolicyProjection; the direction expresses policy context, not source ownership.","1031":"Viele zeitlich gültige Parteienrollen verweisen auf eine Policenprojektion; die Richtung beschreibt Policenkontext, nicht Quelleigentum.","1036":"Plusieurs rôles de partie datés référencent une projection de police; le sens exprime le contexte de police, pas la propriété source.","1040":"Più ruoli temporali delle parti fanno riferimento a una proiezione di polizza; la direzione esprime il contesto, non la proprietà nella fonte."},"mastership":"SourceProjection","sensitivity":"Personal","permittedUse":"Navigate projected policy to effective-dated parties."}
+        },
+        {
+          "name":"crmshow_customer_policypartyroles","schemaName":"crmshow_Customer_PolicyPartyRoles","lookupColumn":"crmshow_partyid","referencingTable":"crmshow_policypartyrole","referencedTables":["account","contact"],"direction":"ManyToOne","role":"Customer party is an Account or Contact holding the policy role.","authoring":"CreateCustomerRelationships",
+          "metadata":{"label":{"1033":"Customer Policy Party Roles","1031":"Policenparteienrollen des Kunden","1036":"Rôles de partie aux polices du client","1040":"Ruoli di parte nelle polizze del cliente"},"description":{"1033":"Many PolicyPartyRole records reference one Account or Contact through a Customer lookup; the party may differ from the portfolio Account.","1031":"Viele Policenparteienrollen verweisen über ein Kundenlookup auf ein Konto oder einen Kontakt; die Partei kann vom Portfoliokonto abweichen.","1036":"Plusieurs rôles de partie référencent un compte ou contact via une recherche Client; la partie peut différer du compte de portefeuille.","1040":"Più ruoli di parte fanno riferimento a un account o contatto tramite ricerca Cliente; la parte può differire dall’account di portafoglio."},"mastership":"SourceProjection","sensitivity":"Personal","permittedUse":"Navigate party to projected policy relationships."}
+        }
+      ],
+      "businessRules":[
+        {
+          "name":"crmshow_policypartyrolevaliddateorder","schemaName":"crmshow_PolicyPartyRoleValidDateOrder","scope":"Table","condition":"crmshow_validto is blank or crmshow_validto >= crmshow_validfrom",
+          "errorMessage":{"1033":"Valid To must be blank or on/after Valid From.","1031":"Gültig bis muss leer sein oder am/nach Gültig ab liegen.","1036":"Valide jusqu’au doit être vide ou postérieur/égal à Valide à partir du.","1040":"Valido fino al deve essere vuoto o uguale/successivo a Valido dal."},
+          "metadata":{"label":{"1033":"Policy Party Role Date Order","1031":"Datumsreihenfolge Policenparteienrolle","1036":"Ordre des dates du rôle de partie à la police","1040":"Ordine date ruolo della parte di polizza"},"description":{"1033":"Table-scoped validation rejects a projected role interval ending before its inclusive start; cross-record overlaps require steward review.","1031":"Tabellenprüfung weist ein projiziertes Rollenintervall zurück, das vor seinem einschliesslichen Start endet; Überschneidungen erfordern Datenpflegeprüfung.","1036":"La validation de table rejette une période de rôle finissant avant son début inclus; les chevauchements entre enregistrements exigent une revue.","1040":"La convalida di tabella rifiuta un intervallo di ruolo che termina prima dell’inizio incluso; le sovrapposizioni tra record richiedono verifica."},"mastership":"Configuration","sensitivity":"Internal","permittedUse":"Same-record date-order validation only."}
+        }
+      ],
+      "views":[
+        {
+          "name":"crmshow_policypartyroleadminview","purpose":"Administration","columns":["crmshow_name","crmshow_policyid","crmshow_partyid","crmshow_roletype","crmshow_validfrom","crmshow_validto"],
+          "metadata":{"label":{"1033":"Policy Party Roles","1031":"Policenparteienrollen","1036":"Rôles de partie à la police","1040":"Ruoli delle parti di polizza"},"description":{"1033":"Minimal administration list for authorized review of effective policy-party projections; displayed roles are context, not authority evidence.","1031":"Minimale Verwaltungsliste zur berechtigten Prüfung gültiger Policenparteienprojektionen; angezeigte Rollen sind Kontext, kein Befugnisnachweis.","1036":"Liste d’administration minimale pour examiner les projections de parties effectives; les rôles affichés sont un contexte, pas une preuve de pouvoir.","1040":"Elenco amministrativo minimo per esaminare le proiezioni effettive delle parti; i ruoli mostrati sono contesto, non prova di poteri."},"mastership":"Configuration","sensitivity":"Personal","permittedUse":"Authorized source-projection stewardship."}
+        },
+        {
+          "name":"crmshow_policypartyroleoverlapview","purpose":"OverlapReporting","columns":["crmshow_policyid","crmshow_partyid","crmshow_roletype","crmshow_validfrom","crmshow_validto"],
+          "metadata":{"label":{"1033":"Potentially Overlapping Policy Party Roles","1031":"Möglicherweise überlappende Policenparteienrollen","1036":"Rôles de partie à la police potentiellement chevauchants","1040":"Ruoli delle parti di polizza potenzialmente sovrapposti"},"description":{"1033":"Steward reporting surface for projected role intervals that may overlap; findings require source-aware review and no automatic merge or deletion.","1031":"Auswertungsansicht für möglicherweise überlappende projizierte Rollenintervalle; Befunde erfordern quellenbewusste Prüfung ohne automatische Zusammenführung oder Löschung.","1036":"Vue de contrôle des périodes projetées susceptibles de se chevaucher; les constats exigent une revue tenant compte de la source, sans fusion ni suppression automatique.","1040":"Vista di controllo degli intervalli proiettati potenzialmente sovrapposti; i risultati richiedono verifica della fonte, senza unione o eliminazione automatica."},"mastership":"Configuration","sensitivity":"Personal","permittedUse":"Data-quality review, not automated correction."}
+        }
+      ],
+      "forms":[
+        {
+          "name":"crmshow_policypartyroleadminform","purpose":"Administration","columns":["crmshow_name","crmshow_policyid","crmshow_partyid","crmshow_roletype","crmshow_validfrom","crmshow_validto","crmshow_sourcesystem","crmshow_sourceid"],
+          "metadata":{"label":{"1033":"Policy Party Role Administration","1031":"Verwaltung Policenparteienrolle","1036":"Administration du rôle de partie à la police","1040":"Amministrazione ruolo della parte di polizza"},"description":{"1033":"Minimal form for authorized inspection and correction of projected party roles; current authority and entitlement must be verified at the source.","1031":"Minimales Formular zur berechtigten Prüfung und Korrektur projizierter Parteienrollen; aktuelle Befugnis und Anspruch sind an der Quelle zu prüfen.","1036":"Formulaire minimal pour contrôler et corriger les rôles projetés; le pouvoir et le droit actuels doivent être vérifiés à la source.","1040":"Modulo minimo per controllare e correggere i ruoli proiettati; poteri e diritti attuali devono essere verificati alla fonte."},"mastership":"Configuration","sensitivity":"Personal","permittedUse":"Authorized source-projection stewardship."}
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "name":"CRM Showcase Insurance Reader","solution":"crmshow_Foundation",
+      "metadata":{
+        "label":{"1033":"CRM Showcase Insurance Reader","1031":"CRM-Showcase Versicherungsleser","1036":"Lecteur Assurance CRM Showcase","1040":"Lettore Assicurazioni CRM Showcase"},
+        "description":{
+          "1033":"Read-only organization-wide access to Account, Contact and the three Insurance Foundation tables; it grants no mutation, sharing, administration or customization.",
+          "1031":"Organisationsweiter Lesezugriff auf Konto, Kontakt und die drei Insurance-Foundation-Tabellen; keine Änderung, Freigabe, Administration oder Anpassung.",
+          "1036":"Lecture seule à l’échelle de l’organisation sur Compte, Contact et les trois tables Insurance Foundation; aucune modification, partage, administration ou personnalisation.",
+          "1040":"Accesso in sola lettura a livello di organizzazione ad Account, Contatto e alle tre tabelle Insurance Foundation; nessuna modifica, condivisione, amministrazione o personalizzazione."
+        },
+        "mastership":"Configuration","sensitivity":"Internal","permittedUse":"Assign only to approved read-only showcase personas."
+      },
+      "tablePrivileges":[
+        {"table":"account","depth":"Organization","privileges":["Read"]},
+        {"table":"contact","depth":"Organization","privileges":["Read"]},
+        {"table":"crmshow_accountcontactrole","depth":"Organization","privileges":["Read"]},
+        {"table":"crmshow_policyprojection","depth":"Organization","privileges":["Read"]},
+        {"table":"crmshow_policypartyrole","depth":"Organization","privileges":["Read"]}
+      ],
+      "deniedPrivileges":["Delete","Assign","Share","Customize","SecurityAdministration","BulkDelete","AuditAdministration"]
+    },
+    {
+      "name":"CRM Showcase Insurance Data Steward","solution":"crmshow_Foundation",
+      "metadata":{
+        "label":{"1033":"CRM Showcase Insurance Data Steward","1031":"CRM-Showcase Versicherungsdatenpflege","1036":"Gestionnaire des données Assurance CRM Showcase","1040":"Responsabile dati Assicurazioni CRM Showcase"},
+        "description":{
+          "1033":"Organization-wide read of Account and Contact plus create, read, write and association privileges on the three Foundation tables; destructive and administrative powers are excluded.",
+          "1031":"Organisationsweites Lesen von Konto und Kontakt sowie Erstellen, Lesen, Schreiben und Verknüpfen in den drei Foundation-Tabellen; destruktive und administrative Rechte sind ausgeschlossen.",
+          "1036":"Lecture organisationnelle de Compte et Contact, avec création, lecture, écriture et association sur les trois tables Foundation; pouvoirs destructifs et administratifs exclus.",
+          "1040":"Lettura a livello di organizzazione di Account e Contatto, con creazione, lettura, scrittura e associazione sulle tre tabelle Foundation; esclusi poteri distruttivi e amministrativi."
+        },
+        "mastership":"Configuration","sensitivity":"Internal","permittedUse":"Assign only to approved insurance data stewards."
+      },
+      "tablePrivileges":[
+        {"table":"account","depth":"Organization","privileges":["Read"]},
+        {"table":"contact","depth":"Organization","privileges":["Read"]},
+        {"table":"crmshow_accountcontactrole","depth":"Organization","privileges":["Create","Read","Write","Append","AppendTo"]},
+        {"table":"crmshow_policyprojection","depth":"Organization","privileges":["Create","Read","Write","Append","AppendTo"]},
+        {"table":"crmshow_policypartyrole","depth":"Organization","privileges":["Create","Read","Write","Append","AppendTo"]}
+      ],
+      "deniedPrivileges":["Delete","Assign","Share","Customize","SecurityAdministration","BulkDelete","AuditAdministration"]
+    }
+  ]
+}

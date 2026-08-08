@@ -1,0 +1,370 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/urruegg/CRMShowcase/main/solution/schema/insurance-foundation.schema.json",
+  "title": "CRM Showcase Insurance Foundation metadata contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "contractId", "version", "languages", "solutions", "choices", "nativeExtensions", "tables", "roles"],
+  "properties": {
+    "$schema": {
+      "const": "./insurance-foundation.schema.json"
+    },
+    "contractId": {
+      "const": "crmshow.insurance-foundation"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*\\.[0-9]+\\.[0-9]+$"
+    },
+    "languages": {
+      "type": "array",
+      "const": ["1033", "1031", "1036", "1040"]
+    },
+    "solutions": {
+      "type": "array",
+      "const": ["crmshow_Foundation", "crmshow_DataModel"]
+    },
+    "choices": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/choice" }
+    },
+    "nativeExtensions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/nativeExtension" }
+    },
+    "tables": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/table" }
+    },
+    "roles": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/role" }
+    }
+  },
+  "$defs": {
+    "localizedText": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["1033", "1031", "1036", "1040"],
+      "properties": {
+        "1033": { "type": "string", "minLength": 2, "pattern": "\\S" },
+        "1031": { "type": "string", "minLength": 2, "pattern": "\\S" },
+        "1036": { "type": "string", "minLength": 2, "pattern": "\\S" },
+        "1040": { "type": "string", "minLength": 2, "pattern": "\\S" }
+      }
+    },
+    "localizedDescription": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["1033", "1031", "1036", "1040"],
+      "properties": {
+        "1033": { "$ref": "#/$defs/semanticDescription" },
+        "1031": { "$ref": "#/$defs/semanticDescription" },
+        "1036": { "$ref": "#/$defs/semanticDescription" },
+        "1040": { "$ref": "#/$defs/semanticDescription" }
+      }
+    },
+    "semanticDescription": {
+      "type": "string",
+      "minLength": 24,
+      "pattern": "^(?!.*\\b(?:TBD|TODO|placeholder)\\b).*\\S.*$"
+    },
+    "semanticMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "description"],
+      "properties": {
+        "label": { "$ref": "#/$defs/localizedText" },
+        "description": { "$ref": "#/$defs/localizedDescription" },
+        "mastership": {
+          "enum": ["CRMOwned", "SourceProjection", "Mixed", "Configuration"]
+        },
+        "sensitivity": {
+          "enum": ["PublicMetadata", "Internal", "Personal", "Confidential"]
+        },
+        "permittedUse": {
+          "type": "string",
+          "minLength": 12
+        },
+        "lifecycle": {
+          "type": "string",
+          "minLength": 12
+        }
+      }
+    },
+    "customLogicalName": {
+      "type": "string",
+      "pattern": "^crmshow_[a-z][a-z0-9]*$"
+    },
+    "schemaName": {
+      "type": "string",
+      "pattern": "^crmshow_[A-Z][A-Za-z0-9]*$"
+    },
+    "choiceOption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "metadata"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Za-z0-9]*$"
+        },
+        "metadata": { "$ref": "#/$defs/semanticMetadata" }
+      }
+    },
+    "choice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["logicalName", "schemaName", "solution", "metadata", "options"],
+      "properties": {
+        "logicalName": { "$ref": "#/$defs/customLogicalName" },
+        "schemaName": { "$ref": "#/$defs/schemaName" },
+        "solution": { "const": "crmshow_Foundation" },
+        "metadata": { "$ref": "#/$defs/semanticMetadata" },
+        "options": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/choiceOption" }
+        }
+      }
+    },
+    "nativeExtension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["table", "logicalName", "schemaName", "type", "choice", "required", "auditing", "solution", "metadata"],
+      "properties": {
+        "table": { "enum": ["account", "contact"] },
+        "logicalName": { "$ref": "#/$defs/customLogicalName" },
+        "schemaName": { "$ref": "#/$defs/schemaName" },
+        "type": { "const": "GlobalChoice" },
+        "choice": { "$ref": "#/$defs/customLogicalName" },
+        "required": { "type": "boolean" },
+        "auditing": { "type": "boolean" },
+        "solution": { "const": "crmshow_DataModel" },
+        "metadata": { "$ref": "#/$defs/semanticMetadata" }
+      }
+    },
+    "lookup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["targets", "authoring"],
+      "properties": {
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(?:account|contact|crmshow_[a-z][a-z0-9]*)$"
+          }
+        },
+        "authoring": {
+          "enum": ["InitialTableCreate", "CreateCustomerRelationships"]
+        }
+      }
+    },
+    "column": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["logicalName", "schemaName", "type", "required", "auditing", "metadata"],
+      "properties": {
+        "logicalName": { "$ref": "#/$defs/customLogicalName" },
+        "schemaName": { "$ref": "#/$defs/schemaName" },
+        "type": {
+          "enum": ["Text", "DateOnly", "DateTime", "GlobalChoice", "Lookup", "Customer"]
+        },
+        "required": { "type": "boolean" },
+        "auditing": { "type": "boolean" },
+        "maxLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4000
+        },
+        "format": {
+          "enum": ["Text", "DateOnly", "UTC"]
+        },
+        "choice": { "$ref": "#/$defs/customLogicalName" },
+        "lookup": { "$ref": "#/$defs/lookup" },
+        "metadata": { "$ref": "#/$defs/semanticMetadata" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "enum": ["Lookup", "Customer"] } }, "required": ["type"] },
+          "then": { "required": ["lookup"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "GlobalChoice" } }, "required": ["type"] },
+          "then": { "required": ["choice"] }
+        }
+      ]
+    },
+    "alternateKey": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "schemaName", "columns", "metadata"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^crmshow_[a-z][a-z0-9_]*$" },
+        "schemaName": { "type": "string", "pattern": "^crmshow_[A-Z][A-Za-z0-9_]*$" },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/customLogicalName" }
+        },
+        "metadata": { "$ref": "#/$defs/semanticMetadata" }
+      }
+    },
+    "relationship": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "schemaName", "lookupColumn", "referencingTable", "referencedTables", "direction", "role", "authoring", "metadata"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^crmshow_[a-z][a-z0-9_]*$" },
+        "schemaName": { "type": "string", "pattern": "^crmshow_[A-Z][A-Za-z0-9_]*$" },
+        "lookupColumn": { "$ref": "#/$defs/customLogicalName" },
+        "referencingTable": { "$ref": "#/$defs/customLogicalName" },
+        "referencedTables": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(?:account|contact|crmshow_[a-z][a-z0-9]*)$"
+          }
+        },
+        "direction": { "const": "ManyToOne" },
+        "role": { "type": "string", "minLength": 12 },
+        "authoring": { "enum": ["InitialTableCreate", "CreateCustomerRelationships"] },
+        "metadata": { "$ref": "#/$defs/semanticMetadata" }
+      }
+    },
+    "businessRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "schemaName", "scope", "condition", "errorMessage", "metadata"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^crmshow_[a-z][a-z0-9]*$" },
+        "schemaName": { "$ref": "#/$defs/schemaName" },
+        "scope": { "const": "Table" },
+        "condition": { "type": "string", "minLength": 10 },
+        "errorMessage": { "$ref": "#/$defs/localizedText" },
+        "metadata": { "$ref": "#/$defs/semanticMetadata" }
+      }
+    },
+    "surfaceComponent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "purpose", "columns", "metadata"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^crmshow_[a-z][a-z0-9]*$" },
+        "purpose": { "enum": ["Administration", "OverlapReporting"] },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/customLogicalName" }
+        },
+        "metadata": { "$ref": "#/$defs/semanticMetadata" }
+      }
+    },
+    "view": {
+      "$ref": "#/$defs/surfaceComponent"
+    },
+    "form": {
+      "$ref": "#/$defs/surfaceComponent"
+    },
+    "table": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["logicalName", "schemaName", "ownership", "auditing", "isActivity", "solution", "metadata", "columns", "alternateKeys", "relationships", "businessRules", "views", "forms"],
+      "properties": {
+        "logicalName": { "$ref": "#/$defs/customLogicalName" },
+        "schemaName": { "$ref": "#/$defs/schemaName" },
+        "ownership": { "const": "UserOwned" },
+        "auditing": { "const": true },
+        "isActivity": { "const": false },
+        "solution": { "const": "crmshow_DataModel" },
+        "metadata": { "$ref": "#/$defs/semanticMetadata" },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/column" }
+        },
+        "alternateKeys": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/alternateKey" }
+        },
+        "relationships": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/relationship" }
+        },
+        "businessRules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/businessRule" }
+        },
+        "views": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/view" }
+        },
+        "forms": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/form" }
+        },
+        "excludedConcepts": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": ["premium", "tariff", "underwriting", "coverageLimit", "paymentBalance"]
+          }
+        }
+      }
+    },
+    "tablePrivilege": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["table", "depth", "privileges"],
+      "properties": {
+        "table": {
+          "type": "string",
+          "pattern": "^(?:account|contact|crmshow_[a-z][a-z0-9]*)$"
+        },
+        "depth": { "const": "Organization" },
+        "privileges": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": ["Create", "Read", "Write", "Append", "AppendTo"]
+          }
+        }
+      }
+    },
+    "role": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "solution", "metadata", "tablePrivileges", "deniedPrivileges"],
+      "properties": {
+        "name": {
+          "enum": ["CRM Showcase Insurance Reader", "CRM Showcase Insurance Data Steward"]
+        },
+        "solution": { "const": "crmshow_Foundation" },
+        "metadata": { "$ref": "#/$defs/semanticMetadata" },
+        "tablePrivileges": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": { "$ref": "#/$defs/tablePrivilege" }
+        },
+        "deniedPrivileges": {
+          "type": "array",
+          "const": ["Delete", "Assign", "Share", "Customize", "SecurityAdministration", "BulkDelete", "AuditAdministration"]
+        }
+      }
+    }
+  }
+}
