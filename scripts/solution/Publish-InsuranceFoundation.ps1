@@ -157,7 +157,10 @@ function New-CompleteLocalizedMetadataUpdateBody {
 }
 
 function New-AttributeMetadata {
-    param([Parameter(Mandatory)] $Column)
+    param(
+        [Parameter(Mandatory)] $Column,
+        [System.Collections.IDictionary] $GlobalChoiceMetadataIds
+    )
 
     $common = [ordered]@{
         LogicalName = $Column.logicalName
@@ -186,8 +189,13 @@ function New-AttributeMetadata {
         }
         'GlobalChoice' {
             $common['@odata.type'] = 'Microsoft.Dynamics.CRM.PicklistAttributeMetadata'
-            $common['GlobalOptionSet@odata.bind'] =
+            $binding = if ($GlobalChoiceMetadataIds -and
+                $GlobalChoiceMetadataIds.Contains($Column.choice)) {
+                "/GlobalOptionSetDefinitions($($GlobalChoiceMetadataIds[$Column.choice]))"
+            } else {
                 "/GlobalOptionSetDefinitions(Name='$($Column.choice)')"
+            }
+            $common['GlobalOptionSet@odata.bind'] = $binding
         }
         'Lookup' {
             $common['@odata.type'] = 'Microsoft.Dynamics.CRM.LookupAttributeMetadata'
@@ -204,10 +212,16 @@ function New-AttributeMetadata {
 
 function Get-TableCreateRequest {
     [CmdletBinding()]
-    param([Parameter(Mandatory)] $Table)
+    param(
+        [Parameter(Mandatory)] $Table,
+        [System.Collections.IDictionary] $GlobalChoiceMetadataIds
+    )
 
     $attributes = foreach ($column in $Table.columns) {
-        if ($column.type -ne 'Customer') { New-AttributeMetadata -Column $column }
+        if ($column.type -ne 'Customer') {
+            New-AttributeMetadata -Column $column `
+                -GlobalChoiceMetadataIds $GlobalChoiceMetadataIds
+        }
     }
     $relationships = foreach ($relationship in @($Table.relationships | Where-Object {
         $_.authoring -eq 'InitialTableCreate'
@@ -359,12 +373,16 @@ function New-ChoiceRequest {
 }
 
 function New-NativeAttributeRequest {
-    param([Parameter(Mandatory)] $Extension)
+    param(
+        [Parameter(Mandatory)] $Extension,
+        [System.Collections.IDictionary] $GlobalChoiceMetadataIds
+    )
     return [pscustomobject]@{
         Method = 'POST'
         Path = "/EntityDefinitions(LogicalName='$($Extension.table)')/Attributes"
         Solution = $Extension.solution
-        Body = New-AttributeMetadata -Column $Extension
+        Body = New-AttributeMetadata -Column $Extension `
+            -GlobalChoiceMetadataIds $GlobalChoiceMetadataIds
     }
 }
 
@@ -642,6 +660,22 @@ function Get-GlobalOptionSet {
     return $response
 }
 
+function Get-GlobalChoiceMetadataIds {
+    param([Parameter(Mandatory)] [object[]]$Columns)
+    $metadataIds = @{}
+    foreach ($column in @($Columns | Where-Object type -eq 'GlobalChoice')) {
+        if ($metadataIds.Contains($column.choice)) { continue }
+        $choice = Get-GlobalOptionSet $column.choice
+        $metadataId = [guid]::Empty
+        if ($null -eq $choice -or
+            -not [guid]::TryParse([string]$choice.MetadataId, [ref]$metadataId)) {
+            throw "Cannot bind '$($column.logicalName)' to global choice '$($column.choice)': a valid metadata ID was not returned."
+        }
+        $metadataIds[$column.choice] = $metadataId.ToString()
+    }
+    return $metadataIds
+}
+
 function Get-CompleteMetadata {
     param(
         [Parameter(Mandatory)] [string]$Path,
@@ -895,7 +929,10 @@ function Invoke-NativeExtensionReconciliation {
     $existing = Get-PicklistAttributeMetadata $Extension.table `
         $Extension.logicalName
     if ($null -eq $existing) {
-        Invoke-PlannedRequest (New-NativeAttributeRequest $Extension) | Out-Null
+        $choiceMetadataIds = Get-GlobalChoiceMetadataIds @($Extension)
+        Invoke-PlannedRequest (
+            New-NativeAttributeRequest $Extension $choiceMetadataIds
+        ) | Out-Null
         Write-Output "$($Extension.table)/$($Extension.logicalName): Created"
         return
     }
@@ -1155,7 +1192,10 @@ function Invoke-TableReconciliation {
     param($Table)
     $existing = Get-One "/EntityDefinitions?`$select=MetadataId,LogicalName,SchemaName,OwnershipType,PrimaryNameAttribute,IsAuditEnabled,DisplayName,Description&`$expand=Attributes(`$select=MetadataId,LogicalName,SchemaName,AttributeType,Targets,MaxLength,Format,DateTimeBehavior,DisplayName,Description),OneToManyRelationships(`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute)&`$filter=LogicalName eq '$($Table.logicalName)'"
     if ($null -eq $existing) {
-        Invoke-PlannedRequest (Get-TableCreateRequest $Table) | Out-Null
+        $choiceMetadataIds = Get-GlobalChoiceMetadataIds @($Table.columns)
+        Invoke-PlannedRequest (
+            Get-TableCreateRequest $Table $choiceMetadataIds
+        ) | Out-Null
         Write-Output "$($Table.logicalName): Created"
 
         # Dataverse requires the global action for a polymorphic Customer lookup.
@@ -1212,6 +1252,9 @@ function Invoke-TableReconciliation {
                 $typedChoice = Get-PicklistAttributeMetadata $Table.logicalName `
                     $column.logicalName
                 $actual = @($typedChoice)
+                if ($actual.Count -eq 1 -and $null -eq $actual[0]) {
+                    $actual = @()
+                }
                 $baseChoice = @($existing.Attributes |
                     Where-Object LogicalName -eq $column.logicalName)
                 if ($baseChoice.Count -gt 1) {
@@ -1238,7 +1281,10 @@ function Invoke-TableReconciliation {
                     Method = 'POST'
                     Path = "/EntityDefinitions(LogicalName='$($Table.logicalName)')/Attributes"
                     Solution = $Table.solution
-                    Body = New-AttributeMetadata $column
+                    Body = New-AttributeMetadata $column `
+                        -GlobalChoiceMetadataIds (
+                            Get-GlobalChoiceMetadataIds @($column)
+                        )
                 }
                 Invoke-PlannedRequest $request | Out-Null
                 Write-Output "$($Table.logicalName)/$($column.logicalName): Created"
