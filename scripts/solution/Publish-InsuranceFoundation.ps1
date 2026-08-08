@@ -876,20 +876,31 @@ function Test-AttributeCompatibility {
     if ($actualType -and $actualType -ne $expectedType) {
         throw "Structural type conflict for '$Owner/$($Column.logicalName)': expected $expectedType, found $actualType."
     }
-    if ($Column.type -in @('Lookup', 'Customer') -and
-        $Existing.Targets -and
-        (@($Existing.Targets | Sort-Object) -join ',') -ne
-        (@($Column.lookup.targets | Sort-Object) -join ',')) {
-        throw "Structural target conflict for '$Owner/$($Column.logicalName)'."
+    if ($Column.type -in @('Lookup', 'Customer')) {
+        if ($null -eq $Existing.Targets) {
+            throw "Incomplete typed lookup metadata for '$Owner/$($Column.logicalName)'."
+        }
+        if ((@($Existing.Targets | Sort-Object) -join ',') -ne
+            (@($Column.lookup.targets | Sort-Object) -join ',')) {
+            throw "Structural target conflict for '$Owner/$($Column.logicalName)'."
+        }
     }
-    if ($Column.type -eq 'Text' -and $Existing.MaxLength -and
-        [int]$Existing.MaxLength -lt [int]$Column.maxLength) {
-        throw "Structural length conflict for '$Owner/$($Column.logicalName)'."
+    if ($Column.type -eq 'Text') {
+        if ($null -eq $Existing.MaxLength) {
+            throw "Incomplete typed string metadata for '$Owner/$($Column.logicalName)'."
+        }
+        if ([int]$Existing.MaxLength -lt [int]$Column.maxLength) {
+            throw "Structural length conflict for '$Owner/$($Column.logicalName)'."
+        }
     }
-    if ($Column.type -eq 'GlobalChoice' -and $Existing.GlobalOptionSet -and
-        $Existing.GlobalOptionSet.Name -and
-        $Existing.GlobalOptionSet.Name -ne $Column.choice) {
-        throw "Structural choice-binding conflict for '$Owner/$($Column.logicalName)'."
+    if ($Column.type -eq 'GlobalChoice') {
+        if (-not $Existing.GlobalOptionSet -or
+            [string]::IsNullOrWhiteSpace([string]$Existing.GlobalOptionSet.Name)) {
+            throw "Incomplete typed choice metadata for '$Owner/$($Column.logicalName)'."
+        }
+        if ($Existing.GlobalOptionSet.Name -ne $Column.choice) {
+            throw "Structural choice-binding conflict for '$Owner/$($Column.logicalName)'."
+        }
     }
     if ($Column.type -in @('DateOnly', 'DateTime')) {
         $expectedBehavior = if ($Column.type -eq 'DateOnly') {
@@ -951,7 +962,7 @@ function Get-TypedAttributeMetadata {
     $escapedAttributeName = ConvertTo-ODataKeyString $Column.logicalName
     return Get-One (
         "/EntityDefinitions(LogicalName='$escapedTableName')/Attributes/" +
-        "Microsoft.Dynamics.CRM.$type?" +
+        "Microsoft.Dynamics.CRM.${type}?" +
         "`$select=MetadataId,LogicalName,SchemaName,AttributeType," +
         "DisplayName,Description,$derivedProperties&" +
         "`$filter=LogicalName eq '$escapedAttributeName'"
@@ -1304,11 +1315,16 @@ function Invoke-TableReconciliation {
                 if ($base.Count -eq 1 -and $actual.Count -eq 0) {
                     throw "Structural type conflict for '$($Table.logicalName)/$($column.logicalName)': base metadata exists but typed metadata is unavailable."
                 }
-                if ($base.Count -eq 1 -and $actual.Count -eq 1 -and
-                    $base[0].MetadataId -and $actual[0].MetadataId -and
-                    [string]$base[0].MetadataId -ne
-                    [string]$actual[0].MetadataId) {
-                    throw "Structural metadata conflict for '$($Table.logicalName)/$($column.logicalName)': base and typed metadata IDs differ."
+                if ($base.Count -eq 1 -and $actual.Count -eq 1) {
+                    foreach ($property in 'MetadataId', 'LogicalName', 'SchemaName',
+                        'AttributeType') {
+                        if ($null -eq $base[0].$property -or
+                            $null -eq $actual[0].$property -or
+                            [string]$base[0].$property -ne
+                            [string]$actual[0].$property) {
+                            throw "Structural metadata conflict for '$($Table.logicalName)/$($column.logicalName)': base and typed '$property' values differ or are incomplete."
+                        }
+                    }
                 }
             } else {
                 $actual = $base

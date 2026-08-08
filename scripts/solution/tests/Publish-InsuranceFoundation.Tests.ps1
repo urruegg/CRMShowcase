@@ -851,22 +851,11 @@ Describe 'Insurance Foundation reconciliation' {
                         [pscustomobject]@{
                             MetadataId = "compatible-$($_.logicalName)"
                             LogicalName = $_.logicalName
+                            SchemaName = $_.schemaName
                             AttributeType = @{
                                 Text='String'; Lookup='Lookup'; GlobalChoice='Picklist'
                                 DateOnly='DateTime'; DateTime='DateTime'; Customer='Customer'
                             }[$_.type]
-                            Targets = @($_.lookup.targets)
-                            MaxLength = $_.maxLength
-                            DateTimeBehavior = $(if ($_.type -eq 'DateOnly') {
-                                @{ Value = 'DateOnly' }
-                            } elseif ($_.type -eq 'DateTime') {
-                                @{ Value = 'TimeZoneIndependent' }
-                            })
-                            Format = $(if ($_.type -eq 'DateOnly') {
-                                'DateOnly'
-                            } elseif ($_.type -eq 'DateTime') {
-                                'DateAndTime'
-                            })
                             DisplayName = ConvertTo-LocalizedLabel $_.metadata.label
                             Description = ConvertTo-LocalizedLabel $_.metadata.description
                         }
@@ -892,6 +881,38 @@ Describe 'Insurance Foundation reconciliation' {
                 }) }
             }
             if ($Method -eq 'GET' -and
+                $Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.(String|DateTime|Lookup)AttributeMetadata') {
+                $typeName = $Matches[1]
+                $logicalName = [regex]::Match(
+                    $Path, "LogicalName eq '([^']+)'"
+                ).Groups[1].Value
+                $column = $table.columns |
+                    Where-Object logicalName -eq $logicalName
+                $attributeType = @{
+                    String='String'; DateTime='DateTime'; Lookup='Lookup'
+                }[$typeName]
+                return [pscustomobject]@{ value=@([pscustomobject]@{
+                    MetadataId="compatible-$($column.logicalName)"
+                    LogicalName=$column.logicalName
+                    SchemaName=$column.schemaName
+                    AttributeType=$attributeType
+                    Targets=@($column.lookup.targets)
+                    MaxLength=$column.maxLength
+                    DateTimeBehavior=$(if ($column.type -eq 'DateOnly') {
+                        @{ Value='DateOnly' }
+                    } elseif ($column.type -eq 'DateTime') {
+                        @{ Value='TimeZoneIndependent' }
+                    })
+                    Format=$(if ($column.type -eq 'DateOnly') {
+                        'DateOnly'
+                    } elseif ($column.type -eq 'DateTime') {
+                        'DateAndTime'
+                    })
+                    DisplayName=ConvertTo-LocalizedLabel $column.metadata.label
+                    Description=ConvertTo-LocalizedLabel $column.metadata.description
+                }) }
+            }
+            if ($Method -eq 'GET' -and
                 $Path -match '(?:/Keys\?|^/savedqueries\?|^/systemforms\?)') {
                 return [pscustomobject]@{ value = @() }
             }
@@ -911,6 +932,10 @@ Describe 'Insurance Foundation reconciliation' {
             $_.Method -eq 'GET' -and
             $_.Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.PicklistAttributeMetadata\?'
         }).Count | Should -Be 1
+        @($script:calls | Where-Object {
+            $_.Method -eq 'GET' -and
+            $_.Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.(?:String|DateTime|Lookup)AttributeMetadata\?'
+        }).Count | Should -Be 7
     }
 
     It 'binds a missing choice column on an existing table by metadata ID' {
