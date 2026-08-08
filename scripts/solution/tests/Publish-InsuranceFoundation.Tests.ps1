@@ -110,15 +110,18 @@ Describe 'Insurance Foundation request builders' {
         }
     }
 
-    It 'puts every ordinary lookup in the initial table create' {
+    It 'deep inserts every ordinary lookup relationship in the initial table create' {
         $table = $script:contract.tables[0]
         $request = Get-TableCreateRequest -Table $table
         @($request.Body.Attributes |
-            Where-Object { $_.'@odata.type' -eq 'Microsoft.Dynamics.CRM.LookupAttributeMetadata' } |
-            ForEach-Object LogicalName) |
-            Should -Be @('crmshow_accountid', 'crmshow_contactid')
+            Where-Object { $_.'@odata.type' -eq 'Microsoft.Dynamics.CRM.LookupAttributeMetadata' }) |
+            Should -BeNullOrEmpty
         @($request.Body.OneToManyRelationships.ReferencingAttribute) |
+            Should -BeNullOrEmpty
+        @($request.Body.OneToManyRelationships.Lookup.LogicalName) |
             Should -Be @('crmshow_accountid', 'crmshow_contactid')
+        @($request.Body.OneToManyRelationships.Lookup.Targets) |
+            Should -BeNullOrEmpty
     }
 
     It 'marks only crmshow_name as primary name on every custom table create' {
@@ -959,6 +962,58 @@ Describe 'Insurance Foundation reconciliation' {
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and $_.Path -eq '/PublishXml'
         }).Count | Should -Be 2
+    }
+
+    It 'recovers wholly absent ordinary lookup relationships on an existing table' {
+        $table = $script:contract.tables[0] |
+            ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        $table.columns = @($table.columns | Where-Object type -eq 'Lookup')
+        $table.alternateKeys = @()
+        $table.businessRules = @()
+        $table.views = @()
+        $table.forms = @()
+
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Method=$Method; Path=$Path; Body=$Body; Headers=$Headers
+            })
+            if ($Method -eq 'GET' -and $Path -match '^/EntityDefinitions\?') {
+                return [pscustomobject]@{ value=@([pscustomobject]@{
+                    MetadataId='existing-table'
+                    LogicalName=$table.logicalName
+                    OwnershipType=$table.ownership
+                    SolutionUniqueName=$table.solution
+                    DisplayName=ConvertTo-LocalizedLabel $table.metadata.label
+                    Description=ConvertTo-LocalizedLabel $table.metadata.description
+                    Attributes=@()
+                    ManyToOneRelationships=@()
+                }) }
+            }
+            if ($Method -eq 'GET' -and
+                $Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.LookupAttributeMetadata') {
+                return [pscustomobject]@{ value=@() }
+            }
+            if ($Method -eq 'GET' -and $Path -match 'ObjectTypeCode') {
+                return [pscustomobject]@{ ObjectTypeCode=10427 }
+            }
+            if ($Method -eq 'GET') { throw "Unsupported mocked endpoint: $Path" }
+            return [pscustomobject]@{}
+        }
+
+        Invoke-TableReconciliation $table | Out-Null
+
+        $creates = @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/RelationshipDefinitions'
+        })
+        $creates.Count | Should -Be 2
+        @($creates.Body.Lookup.LogicalName) |
+            Should -Be @('crmshow_accountid', 'crmshow_contactid')
+        @($creates.Body.SchemaName) |
+            Should -Be @(
+                'crmshow_Account_AccountContactRoles',
+                'crmshow_Contact_AccountContactRoles'
+            )
     }
 
     It 'binds a missing choice column on an existing table by metadata ID' {

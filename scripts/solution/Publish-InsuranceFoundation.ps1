@@ -218,7 +218,7 @@ function Get-TableCreateRequest {
     )
 
     $attributes = foreach ($column in $Table.columns) {
-        if ($column.type -ne 'Customer') {
+        if ($column.type -notin @('Lookup', 'Customer')) {
             New-AttributeMetadata -Column $column `
                 -GlobalChoiceMetadataIds $GlobalChoiceMetadataIds
         }
@@ -226,18 +226,7 @@ function Get-TableCreateRequest {
     $relationships = foreach ($relationship in @($Table.relationships | Where-Object {
         $_.authoring -eq 'InitialTableCreate'
     })) {
-        @{
-            SchemaName = $relationship.schemaName
-            ReferencedEntity = [string]$relationship.referencedTables[0]
-            ReferencingEntity = $Table.logicalName
-            ReferencingAttribute = $relationship.lookupColumn
-            AssociatedMenuConfiguration = @{
-                Behavior = 'UseLabel'
-                Group = 'Details'
-                Label = ConvertTo-LocalizedLabel $relationship.metadata.label
-                Order = 10000
-            }
-        }
+        New-OrdinaryRelationshipMetadata -Table $Table -Relationship $relationship
     }
     return [pscustomobject]@{
         Method = 'POST'
@@ -259,6 +248,69 @@ function Get-TableCreateRequest {
             Attributes = @($attributes)
             OneToManyRelationships = @($relationships)
         }
+    }
+}
+
+function New-OrdinaryRelationshipMetadata {
+    param(
+        [Parameter(Mandatory)] $Table,
+        [Parameter(Mandatory)] $Relationship
+    )
+
+    $columns = @($Table.columns | Where-Object {
+        $_.logicalName -eq $Relationship.lookupColumn -and $_.type -eq 'Lookup'
+    })
+    if ($columns.Count -ne 1) {
+        throw "Relationship '$($Relationship.schemaName)' must resolve one ordinary lookup column."
+    }
+    $column = $columns[0]
+    $target = [string]$Relationship.referencedTables[0]
+    return [ordered]@{
+        '@odata.type' = 'Microsoft.Dynamics.CRM.OneToManyRelationshipMetadata'
+        SchemaName = $Relationship.schemaName
+        ReferencedAttribute = "${target}id"
+        ReferencedEntity = $target
+        ReferencingEntity = $Table.logicalName
+        AssociatedMenuConfiguration = @{
+            Behavior = 'UseLabel'
+            Group = 'Details'
+            Label = ConvertTo-LocalizedLabel $Relationship.metadata.label
+            Order = 10000
+        }
+        CascadeConfiguration = @{
+            Assign = 'NoCascade'
+            Delete = 'Restrict'
+            Merge = 'NoCascade'
+            Reparent = 'NoCascade'
+            Share = 'NoCascade'
+            Unshare = 'NoCascade'
+        }
+        Lookup = [ordered]@{
+            '@odata.type' = 'Microsoft.Dynamics.CRM.LookupAttributeMetadata'
+            LogicalName = $column.logicalName
+            SchemaName = $column.schemaName
+            AttributeType = 'Lookup'
+            AttributeTypeName = @{ Value = 'LookupType' }
+            DisplayName = ConvertTo-LocalizedLabel $column.metadata.label
+            Description = ConvertTo-LocalizedLabel $column.metadata.description
+            RequiredLevel = ConvertTo-RequiredLevel ([bool]$column.required)
+            IsAuditEnabled = @{ Value = [bool]$column.auditing }
+        }
+    }
+}
+
+function Get-OrdinaryRelationshipRequest {
+    param(
+        [Parameter(Mandatory)] $Table,
+        [Parameter(Mandatory)] $Relationship
+    )
+
+    return [pscustomobject]@{
+        Method = 'POST'
+        Path = '/RelationshipDefinitions'
+        Solution = $Table.solution
+        Body = New-OrdinaryRelationshipMetadata -Table $Table `
+            -Relationship $Relationship
     }
 }
 
@@ -1274,6 +1326,7 @@ function Invoke-TableReconciliation {
             throw "Structural ownership conflict for '$($Table.logicalName)'."
         }
         Publish-TableMetadata $Table
+        $createdOrdinaryLookups = @{}
         foreach ($customer in @($Table.columns | Where-Object type -eq 'Customer')) {
             Invoke-ExistingCustomerRelationshipReconciliation $Table $customer `
                 -ExistingAttributes @($existing.Attributes)
@@ -1285,11 +1338,24 @@ function Invoke-TableReconciliation {
                 SchemaName = $relationship.schemaName
                 ReferencedEntity = [string]$relationship.referencedTables[0]
             }
+            $attributeCandidates = @($existing.Attributes | Where-Object {
+                $_.LogicalName -eq $relationship.lookupColumn
+            })
             foreach ($wanted in @($expected)) {
                 $actualRelationship = @($existing.ManyToOneRelationships |
                     Where-Object SchemaName -eq $wanted.SchemaName)
-                if ($actualRelationship.Count -ne 1) {
-                    throw "Structural relationship conflict for '$($wanted.SchemaName)': the expected relationship is missing or ambiguous."
+                if ($actualRelationship.Count -eq 0 -and
+                    $attributeCandidates.Count -eq 0) {
+                    Invoke-PlannedRequest (
+                        Get-OrdinaryRelationshipRequest $Table $relationship
+                    ) | Out-Null
+                    $createdOrdinaryLookups[$relationship.lookupColumn] = $true
+                    Write-Output "$($Table.logicalName)/$($relationship.lookupColumn): Created"
+                    continue
+                }
+                if ($actualRelationship.Count -ne 1 -or
+                    $attributeCandidates.Count -ne 1) {
+                    throw "Structural relationship conflict for '$($wanted.SchemaName)': relationship and lookup metadata must both be wholly present or wholly absent."
                 }
                 $actualRelationship = $actualRelationship[0]
                 if (($actualRelationship.ReferencedEntity -and
@@ -1314,6 +1380,7 @@ function Invoke-TableReconciliation {
         }
         foreach ($column in $Table.columns) {
             if ($column.type -eq 'Customer') { continue }
+            if ($createdOrdinaryLookups.ContainsKey($column.logicalName)) { continue }
             $base = @($existing.Attributes |
                 Where-Object LogicalName -eq $column.logicalName)
             if ($base.Count -gt 1) {
