@@ -69,7 +69,8 @@ function Invoke-DataverseRequest {
 
         $output = & az @arguments
         if ($LASTEXITCODE -ne 0) {
-            throw "Dataverse request failed ($Method $Path); az rest exited with code $LASTEXITCODE."
+            $detail = ($output | Out-String).Trim()
+            throw "Dataverse request failed ($Method $Path); az rest exited with code $LASTEXITCODE. $detail"
         }
         if (-not [string]::IsNullOrWhiteSpace(($output | Out-String))) {
             return ($output | Out-String) | ConvertFrom-Json
@@ -80,6 +81,11 @@ function Invoke-DataverseRequest {
             Remove-Item -LiteralPath $tempFile.FullName -Force -ErrorAction SilentlyContinue
         }
     }
+}
+
+function ConvertTo-ODataKeyString {
+    param([Parameter(Mandatory)] [string]$Value)
+    return $Value.Replace("'", "''")
 }
 
 function ConvertTo-LocalizedLabel {
@@ -99,33 +105,38 @@ function ConvertTo-RequiredLevel {
     return @{ Value = $(if ($Required) { 'ApplicationRequired' } else { 'None' }) }
 }
 
-function New-LocalizedMetadataUpdateBody {
+function New-CompleteLocalizedMetadataUpdateBody {
     param(
+        [Parameter(Mandatory)] $Existing,
         [Parameter(Mandatory)] $Metadata,
-        [switch]$IncludeDisplayCollectionName
+        [ValidateSet('Entity', 'Attribute', 'OptionSet')] [string]$Kind
     )
-    $body = [ordered]@{
-        DisplayName = ConvertTo-LocalizedLabel $Metadata.label
-        Description = ConvertTo-LocalizedLabel $Metadata.description
+    $required = @{
+        Entity = @('@odata.type', 'LogicalName', 'SchemaName', 'OwnershipType',
+            'PrimaryNameAttribute')
+        Attribute = @('@odata.type', 'LogicalName', 'SchemaName', 'AttributeType')
+        OptionSet = @('@odata.type', 'Name', 'IsGlobal', 'OptionSetType')
+    }[$Kind]
+    foreach ($property in $required) {
+        if ($Existing.PSObject.Properties.Name -notcontains $property -or
+            $null -eq $Existing.$property -or
+            [string]::IsNullOrWhiteSpace([string]$Existing.$property)) {
+            throw "Cannot safely update $Kind metadata: the complete typed representation is missing '$property'."
+        }
     }
-    if ($IncludeDisplayCollectionName) {
+
+    $body = [ordered]@{}
+    foreach ($property in $Existing.PSObject.Properties) {
+        if ($property.Name -notmatch '^@odata\.(?:context|etag)$' -and
+            $property.Name -ne 'Options') {
+            $body[$property.Name] = $property.Value
+        }
+    }
+    $body.DisplayName = ConvertTo-LocalizedLabel $Metadata.label
+    $body.Description = ConvertTo-LocalizedLabel $Metadata.description
+    if ($Kind -eq 'Entity') {
         $body.DisplayCollectionName = ConvertTo-LocalizedLabel $Metadata.label
     }
-    return $body
-}
-
-function New-ChoiceLocalizationUpdateBody {
-    param([Parameter(Mandatory)] $Choice)
-    $body = New-LocalizedMetadataUpdateBody $Choice.metadata
-    $body.Options = @(
-        for ($index = 0; $index -lt @($Choice.options).Count; $index++) {
-            @{
-                Value = 100000000 + $index
-                Label = ConvertTo-LocalizedLabel $Choice.options[$index].metadata.label
-                Description = ConvertTo-LocalizedLabel $Choice.options[$index].metadata.description
-            }
-        }
-    )
     return $body
 }
 
@@ -139,6 +150,7 @@ function New-AttributeMetadata {
         Description = ConvertTo-LocalizedLabel $Column.metadata.description
         RequiredLevel = ConvertTo-RequiredLevel ([bool]$Column.required)
         IsAuditEnabled = @{ Value = [bool]$Column.auditing }
+        IsPrimaryName = ($Column.logicalName -eq 'crmshow_name')
     }
     switch ($Column.type) {
         'Text' {
@@ -154,7 +166,7 @@ function New-AttributeMetadata {
         'DateTime' {
             $common['@odata.type'] = 'Microsoft.Dynamics.CRM.DateTimeAttributeMetadata'
             $common.Format = 'DateAndTime'
-            $common.DateTimeBehavior = @{ Value = 'UserLocal' }
+            $common.DateTimeBehavior = @{ Value = 'TimeZoneIndependent' }
         }
         'GlobalChoice' {
             $common['@odata.type'] = 'Microsoft.Dynamics.CRM.PicklistAttributeMetadata'
@@ -594,6 +606,47 @@ function Get-One {
     return $null
 }
 
+function Get-GlobalOptionSet {
+    param([Parameter(Mandatory)] [string]$Name)
+    $escaped = ConvertTo-ODataKeyString $Name
+    $path = "/GlobalOptionSetDefinitions(Name='$escaped')?`$expand=Options"
+    try {
+        $response = Invoke-DataverseRequest -Method GET -Path $path
+    } catch {
+        if ($_.Exception.Message -match '(?i)(404|not found)') { return $null }
+        throw
+    }
+    if ($null -eq $response) { return $null }
+    if ($response.PSObject.Properties.Name -contains 'value') {
+        throw "Global option-set alternate-key lookup returned a collection for '$Name'."
+    }
+    return $response
+}
+
+function Get-CompleteMetadata {
+    param(
+        [Parameter(Mandatory)] [string]$Path,
+        [ValidateSet('Entity', 'Attribute', 'OptionSet')] [string]$Kind
+    )
+    $metadata = Invoke-DataverseRequest -Method GET -Path $Path
+    if ($null -eq $metadata -or $metadata.PSObject.Properties.Name -contains 'value') {
+        throw "Cannot safely update $Kind metadata: a complete typed representation was not returned by '$Path'."
+    }
+    # Validation is shared with the body builder and deliberately occurs before PUT.
+    New-CompleteLocalizedMetadataUpdateBody $metadata ([pscustomobject]@{
+        label = [pscustomobject]@{ '1033'='probe'; '1031'='probe'; '1036'='probe'; '1040'='probe' }
+        description = [pscustomobject]@{ '1033'='probe'; '1031'='probe'; '1036'='probe'; '1040'='probe' }
+    }) $Kind | Out-Null
+    return $metadata
+}
+
+function Get-MergeLabelHeaders {
+    param([Parameter(Mandatory)] [string]$Solution)
+    $headers = Get-DataverseHeaders $Solution
+    $headers['MSCRM.MergeLabels'] = 'true'
+    return $headers
+}
+
 function Assert-SolutionOwnership {
     param($Existing, [string]$Expected, [string]$Component)
     if ($Existing.PSObject.Properties.Name -contains 'SolutionUniqueName' -and
@@ -648,7 +701,7 @@ function Test-LocalizedMetadataChanged {
 
 function Invoke-ChoiceReconciliation {
     param($Choice)
-    $existing = Get-One "/GlobalOptionSetDefinitions?`$select=MetadataId,Name,IsGlobal,OptionSetType,DisplayName,Description&`$expand=Options&`$filter=Name eq '$($Choice.logicalName)'"
+    $existing = Get-GlobalOptionSet $Choice.logicalName
     if ($null -eq $existing) {
         Invoke-PlannedRequest (New-ChoiceRequest $Choice) | Out-Null
         Write-Output "$($Choice.logicalName): Created"
@@ -676,13 +729,14 @@ function Invoke-ChoiceReconciliation {
         if (-not $existing.MetadataId) {
             throw "Cannot reconcile missing options for '$($Choice.logicalName)' without its metadata ID."
         }
-        $update = [pscustomobject]@{
-            Method = 'PUT'
-            Path = "/GlobalOptionSetDefinitions($($existing.MetadataId))?MSCRM.MergeLabels=true"
-            Solution = $Choice.solution
-            Body = New-LocalizedMetadataUpdateBody $Choice.metadata
+        if ($metadataChanged) {
+            $complete = Get-CompleteMetadata `
+                "/GlobalOptionSetDefinitions($($existing.MetadataId))" OptionSet
+            Invoke-DataverseRequest -Method PUT `
+                -Path "/GlobalOptionSetDefinitions($($existing.MetadataId))" `
+                -Body (New-CompleteLocalizedMetadataUpdateBody $complete $Choice.metadata OptionSet) `
+                -Headers (Get-MergeLabelHeaders $Choice.solution) | Out-Null
         }
-        Invoke-PlannedRequest $update | Out-Null
         for ($index = $actualOptions.Count; $index -lt @($Choice.options).Count; $index++) {
             $option = $Choice.options[$index]
             Invoke-PlannedRequest ([pscustomobject]@{
@@ -701,6 +755,7 @@ function Invoke-ChoiceReconciliation {
         Write-Output "$($Choice.logicalName): Updated"
         return
     }
+    $changedOptions = [System.Collections.Generic.List[int]]::new()
     if ($actualOptions.Count -gt 0) {
         for ($index = 0; $index -lt $actualOptions.Count; $index++) {
             foreach ($property in 'Label', 'Description') {
@@ -715,7 +770,9 @@ function Invoke-ChoiceReconciliation {
                     ).$language
                     if ($actualLabel.Count -ne 1 -or
                         [string]$actualLabel[0].Label -ne $expectedLabel) {
-                        $metadataChanged = $true
+                        if (-not $changedOptions.Contains($index)) {
+                            $changedOptions.Add($index)
+                        }
                         break
                     }
                 }
@@ -726,12 +783,28 @@ function Invoke-ChoiceReconciliation {
         if (-not $existing.MetadataId) {
             throw "Cannot update localized metadata for '$($Choice.logicalName)' without its metadata ID."
         }
+        $complete = Get-CompleteMetadata `
+            "/GlobalOptionSetDefinitions($($existing.MetadataId))" OptionSet
+        Invoke-DataverseRequest -Method PUT `
+            -Path "/GlobalOptionSetDefinitions($($existing.MetadataId))" `
+            -Body (New-CompleteLocalizedMetadataUpdateBody $complete $Choice.metadata OptionSet) `
+            -Headers (Get-MergeLabelHeaders $Choice.solution) | Out-Null
+    }
+    foreach ($index in $changedOptions) {
+        $option = $Choice.options[$index]
         Invoke-PlannedRequest ([pscustomobject]@{
-            Method = 'PUT'
-            Path = "/GlobalOptionSetDefinitions($($existing.MetadataId))?MSCRM.MergeLabels=true"
-            Solution = $Choice.solution
-            Body = New-ChoiceLocalizationUpdateBody $Choice
+            Method = 'POST'; Path = '/UpdateOptionValue'; Solution = $Choice.solution
+            Body = @{
+                OptionSetName = $Choice.logicalName
+                Value = 100000000 + $index
+                Label = ConvertTo-LocalizedLabel $option.metadata.label
+                Description = ConvertTo-LocalizedLabel $option.metadata.description
+                MergeLabels = $true
+                SolutionUniqueName = $Choice.solution
+            }
         }) | Out-Null
+    }
+    if ($metadataChanged -or $changedOptions.Count -gt 0) {
         Write-Output "$($Choice.logicalName): Updated"
         return
     }
@@ -763,6 +836,21 @@ function Test-AttributeCompatibility {
         $Existing.GlobalOptionSet.Name -ne $Column.choice) {
         throw "Structural choice-binding conflict for '$Owner/$($Column.logicalName)'."
     }
+    if ($Column.type -in @('DateOnly', 'DateTime')) {
+        $expectedBehavior = if ($Column.type -eq 'DateOnly') {
+            'DateOnly'
+        } else { 'TimeZoneIndependent' }
+        $expectedFormat = if ($Column.type -eq 'DateOnly') {
+            'DateOnly'
+        } else { 'DateAndTime' }
+        $actualBehavior = if ($Existing.DateTimeBehavior.Value) {
+            [string]$Existing.DateTimeBehavior.Value
+        } else { [string]$Existing.DateTimeBehavior }
+        if ($actualBehavior -ne $expectedBehavior -or
+            [string]$Existing.Format -ne $expectedFormat) {
+            throw "Structural date metadata conflict for '$Owner/$($Column.logicalName)': expected $expectedBehavior/$expectedFormat, found $actualBehavior/$($Existing.Format)."
+        }
+    }
 }
 
 function Invoke-NativeExtensionReconciliation {
@@ -779,13 +867,17 @@ function Invoke-NativeExtensionReconciliation {
         if (-not $existing.MetadataId) {
             throw "Cannot update localized metadata for '$($Extension.logicalName)' without its metadata ID."
         }
-        $request = [pscustomobject]@{
-            Method = 'PUT'
-            Path = "/EntityDefinitions(LogicalName='$($Extension.table)')/Attributes($($existing.MetadataId))?MSCRM.MergeLabels=true"
-            Solution = $Extension.solution
-            Body = New-LocalizedMetadataUpdateBody $Extension.metadata
+        $typeName = switch ([string]$existing.AttributeType) {
+            'String' { 'StringAttributeMetadata' }
+            'DateTime' { 'DateTimeAttributeMetadata' }
+            'Picklist' { 'PicklistAttributeMetadata' }
+            default { throw "Cannot safely update attribute metadata for '$($Extension.logicalName)': unsupported typed endpoint." }
         }
-        Invoke-PlannedRequest $request | Out-Null
+        $path = "/EntityDefinitions(LogicalName='$($Extension.table)')/Attributes($($existing.MetadataId))/Microsoft.Dynamics.CRM.$typeName"
+        $complete = Get-CompleteMetadata $path Attribute
+        Invoke-DataverseRequest -Method PUT -Path $path `
+            -Body (New-CompleteLocalizedMetadataUpdateBody $complete $Extension.metadata Attribute) `
+            -Headers (Get-MergeLabelHeaders $Extension.solution) | Out-Null
         Write-Output "$($Extension.table)/$($Extension.logicalName): Updated"
     } else {
         Write-Output "$($Extension.table)/$($Extension.logicalName): Unchanged"
@@ -826,6 +918,43 @@ function Invoke-ChildRequestIfMissing {
     }
 }
 
+function Get-XmlStructuralSignature {
+    param([Parameter(Mandatory)] [string]$Xml, [Parameter(Mandatory)] [string]$Component)
+    try {
+        [xml]$document = $Xml
+    } catch {
+        throw "Structural XML conflict for '$Component': existing or desired XML is invalid."
+    }
+    function Get-NodeSignature($Node) {
+        if ($Node.NodeType -eq [System.Xml.XmlNodeType]::Text) {
+            if ([string]::IsNullOrWhiteSpace($Node.Value)) { return '' }
+            return '#text:' + $Node.Value
+        }
+        if ($Node.NodeType -ne [System.Xml.XmlNodeType]::Element) { return '' }
+        $attributes = @($Node.Attributes | Sort-Object Name | ForEach-Object {
+            "$($_.Name)=$($_.Value)"
+        }) -join ';'
+        $children = @($Node.ChildNodes | ForEach-Object {
+            Get-NodeSignature $_
+        } | Where-Object { $_ }) -join ''
+        return "<$($Node.Name)|$attributes>$children</$($Node.Name)>"
+    }
+    return Get-NodeSignature $document.DocumentElement
+}
+
+function Assert-XmlCompatible {
+    param($Existing, $Request, [string]$Property, [string]$Component)
+    if ($Existing.PSObject.Properties.Name -notcontains $Property -or
+        [string]::IsNullOrWhiteSpace([string]$Existing.$Property)) {
+        throw "Structural XML conflict for '$Component': '$Property' was not retrieved."
+    }
+    $actual = Get-XmlStructuralSignature ([string]$Existing.$Property) $Component
+    $wanted = Get-XmlStructuralSignature ([string]$Request.Body.$Property) $Component
+    if ($actual -ne $wanted) {
+        throw "Structural XML conflict for '$Component': existing $Property is stale."
+    }
+}
+
 function Invoke-TableChildren {
     param($Table, [Parameter(Mandatory)] [int]$ObjectTypeCode)
     foreach ($key in $Table.alternateKeys) {
@@ -846,34 +975,38 @@ function Invoke-TableChildren {
         Write-Output "$($Table.logicalName)/$($rule.name): Deferred: OR-001/#9"
         $ruleLabel = ([string]$rule.metadata.label.'1033').Replace("'", "''")
         Invoke-ChildRequestIfMissing `
-            -QueryPath "/savedqueries?`$select=savedqueryid,name,description,returnedtypecode,_solutionid_value&`$filter=name eq '$ruleLabel' and returnedtypecode eq '$($Table.logicalName)'" `
-            -Request (New-InvalidDateViewRequest $Table $rule $ObjectTypeCode) `
+            -QueryPath "/savedqueries?`$select=savedqueryid,name,description,returnedtypecode,fetchxml,layoutxml,_solutionid_value&`$filter=name eq '$ruleLabel' and returnedtypecode eq '$($Table.logicalName)'" `
+            -Request ($ruleRequest = New-InvalidDateViewRequest $Table $rule $ObjectTypeCode) `
             -Component "$($Table.logicalName)/$($rule.name)report" `
             -AssertCompatible {
                 param($actual)
                 if ($actual.returnedtypecode -and $actual.returnedtypecode -ne $Table.logicalName) {
                     throw "Structural view target conflict for '$($rule.name)report'."
                 }
+                Assert-XmlCompatible $actual $ruleRequest fetchxml "$($rule.name)report"
+                Assert-XmlCompatible $actual $ruleRequest layoutxml "$($rule.name)report"
             }
     }
     foreach ($view in $Table.views) {
         $viewLabel = ([string]$view.metadata.label.'1033').Replace("'", "''")
         Invoke-ChildRequestIfMissing `
-            -QueryPath "/savedqueries?`$select=savedqueryid,name,description,returnedtypecode,_solutionid_value&`$filter=name eq '$viewLabel' and returnedtypecode eq '$($Table.logicalName)'" `
-            -Request (New-ViewRequest $Table $view $ObjectTypeCode) `
+            -QueryPath "/savedqueries?`$select=savedqueryid,name,description,returnedtypecode,fetchxml,layoutxml,_solutionid_value&`$filter=name eq '$viewLabel' and returnedtypecode eq '$($Table.logicalName)'" `
+            -Request ($viewRequest = New-ViewRequest $Table $view $ObjectTypeCode) `
             -Component "$($Table.logicalName)/$($view.name)" `
             -AssertCompatible {
                 param($actual)
                 if ($actual.returnedtypecode -and $actual.returnedtypecode -ne $Table.logicalName) {
                     throw "Structural view target conflict for '$($view.name)'."
                 }
+                Assert-XmlCompatible $actual $viewRequest fetchxml $view.name
+                Assert-XmlCompatible $actual $viewRequest layoutxml $view.name
             }
     }
     foreach ($form in $Table.forms) {
         $formLabel = ([string]$form.metadata.label.'1033').Replace("'", "''")
         Invoke-ChildRequestIfMissing `
-            -QueryPath "/systemforms?`$select=formid,name,description,objecttypecode,type,_solutionid_value&`$filter=name eq '$formLabel' and objecttypecode eq '$($Table.logicalName)' and type eq 2" `
-            -Request (New-FormRequest $Table $form) `
+            -QueryPath "/systemforms?`$select=formid,name,description,objecttypecode,type,formxml,_solutionid_value&`$filter=name eq '$formLabel' and objecttypecode eq '$($Table.logicalName)' and type eq 2" `
+            -Request ($formRequest = New-FormRequest $Table $form) `
             -Component "$($Table.logicalName)/$($form.name)" `
             -AssertCompatible {
                 param($actual)
@@ -881,6 +1014,7 @@ function Invoke-TableChildren {
                     ($actual.type -ne $null -and [int]$actual.type -ne 2)) {
                     throw "Structural form target conflict for '$($form.name)'."
                 }
+                Assert-XmlCompatible $actual $formRequest formxml $form.name
             }
     }
 }
@@ -899,7 +1033,7 @@ function Resolve-TableObjectTypeCode {
 
 function Invoke-TableReconciliation {
     param($Table)
-    $existing = Get-One "/EntityDefinitions?`$select=MetadataId,LogicalName,OwnershipType,IsAuditEnabled,DisplayName,Description&`$expand=Attributes(`$select=MetadataId,LogicalName,AttributeType,Targets,MaxLength,DisplayName,Description;`$expand=GlobalOptionSet(`$select=Name)),OneToManyRelationships(`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute)&`$filter=LogicalName eq '$($Table.logicalName)'"
+    $existing = Get-One "/EntityDefinitions?`$select=MetadataId,LogicalName,SchemaName,OwnershipType,PrimaryNameAttribute,IsAuditEnabled,DisplayName,Description&`$expand=Attributes(`$select=MetadataId,LogicalName,SchemaName,AttributeType,Targets,MaxLength,Format,DateTimeBehavior,DisplayName,Description;`$expand=GlobalOptionSet(`$select=Name)),OneToManyRelationships(`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute)&`$filter=LogicalName eq '$($Table.logicalName)'"
     if ($null -eq $existing) {
         Invoke-PlannedRequest (Get-TableCreateRequest $Table) | Out-Null
         Write-Output "$($Table.logicalName): Created"
@@ -949,13 +1083,11 @@ function Invoke-TableReconciliation {
             if (-not $existing.MetadataId) {
                 throw "Cannot update localized metadata for '$($Table.logicalName)' without its metadata ID."
             }
-            Invoke-PlannedRequest ([pscustomobject]@{
-                Method = 'PUT'
-                Path = "/EntityDefinitions($($existing.MetadataId))?MSCRM.MergeLabels=true"
-                Solution = $Table.solution
-                Body = New-LocalizedMetadataUpdateBody $Table.metadata `
-                    -IncludeDisplayCollectionName
-            }) | Out-Null
+            $path = "/EntityDefinitions($($existing.MetadataId))"
+            $complete = Get-CompleteMetadata $path Entity
+            Invoke-DataverseRequest -Method PUT -Path $path `
+                -Body (New-CompleteLocalizedMetadataUpdateBody $complete $Table.metadata Entity) `
+                -Headers (Get-MergeLabelHeaders $Table.solution) | Out-Null
         }
         foreach ($column in $Table.columns) {
             $actual = @($existing.Attributes | Where-Object LogicalName -eq $column.logicalName)
@@ -977,12 +1109,17 @@ function Invoke-TableReconciliation {
                     if (-not $actual[0].MetadataId) {
                         throw "Cannot update localized metadata for '$($Table.logicalName)/$($column.logicalName)' without its metadata ID."
                     }
-                    Invoke-PlannedRequest ([pscustomobject]@{
-                        Method = 'PUT'
-                        Path = "/EntityDefinitions(LogicalName='$($Table.logicalName)')/Attributes($($actual[0].MetadataId))?MSCRM.MergeLabels=true"
-                        Solution = $Table.solution
-                        Body = New-LocalizedMetadataUpdateBody $column.metadata
-                    }) | Out-Null
+                    $typeName = switch ([string]$actual[0].AttributeType) {
+                        'String' { 'StringAttributeMetadata' }
+                        'DateTime' { 'DateTimeAttributeMetadata' }
+                        'Picklist' { 'PicklistAttributeMetadata' }
+                        default { throw "Cannot safely update attribute metadata for '$($column.logicalName)': unsupported typed endpoint." }
+                    }
+                    $path = "/EntityDefinitions(LogicalName='$($Table.logicalName)')/Attributes($($actual[0].MetadataId))/Microsoft.Dynamics.CRM.$typeName"
+                    $complete = Get-CompleteMetadata $path Attribute
+                    Invoke-DataverseRequest -Method PUT -Path $path `
+                        -Body (New-CompleteLocalizedMetadataUpdateBody $complete $column.metadata Attribute) `
+                        -Headers (Get-MergeLabelHeaders $Table.solution) | Out-Null
                 }
             } else {
                 throw "Duplicate physical attributes found for '$($Table.logicalName)/$($column.logicalName)'."

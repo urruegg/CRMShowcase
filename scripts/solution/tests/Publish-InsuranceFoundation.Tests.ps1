@@ -29,31 +29,28 @@ Describe 'Insurance Foundation request builders' {
         }
     }
 
-    It 'builds minimal localization-only metadata update payloads' {
-        $tableBody = New-LocalizedMetadataUpdateBody $script:contract.tables[0].metadata `
-            -IncludeDisplayCollectionName
-        @($tableBody.Keys) |
-            Should -Be @('DisplayName', 'Description', 'DisplayCollectionName')
-
-        $attributeBody = New-LocalizedMetadataUpdateBody `
-            $script:contract.tables[0].columns[0].metadata
-        @($attributeBody.Keys) | Should -Be @('DisplayName', 'Description')
-
-        $choiceBody = New-ChoiceLocalizationUpdateBody $script:contract.choices[0]
-        @($choiceBody.Keys) | Should -Be @('DisplayName', 'Description', 'Options')
-        foreach ($option in $choiceBody.Options) {
-            @($option.Keys | Sort-Object) | Should -Be @('Description', 'Label', 'Value')
+    It 'preserves the complete typed metadata representation in label updates' {
+        $existing = [pscustomobject][ordered]@{
+            '@odata.type' = 'Microsoft.Dynamics.CRM.StringAttributeMetadata'
+            MetadataId = 'attribute-id'; LogicalName = 'crmshow_name'
+            SchemaName = 'crmshow_Name'; AttributeType = 'String'
+            MaxLength = 200; IsPrimaryName = $true
+            DisplayName = @{ marker = 'old' }; Description = @{ marker = 'old' }
         }
-
-        $json = @($tableBody, $attributeBody, $choiceBody) |
-            ConvertTo-Json -Depth 100
-        foreach ($forbidden in @(
-            'AttributeType', 'Targets', 'RequiredLevel', 'OwnershipType',
-            'LogicalName', 'SchemaName', 'MetadataId', 'IsGlobal',
-            'OptionSetType', '@odata.type', 'MaxLength'
-        )) {
-            $json | Should -Not -Match ([regex]::Escape('"' + $forbidden + '"'))
-        }
+        $body = New-CompleteLocalizedMetadataUpdateBody $existing `
+            $script:contract.tables[0].columns[0].metadata Attribute
+        $body.LogicalName | Should -Be 'crmshow_name'
+        $body.SchemaName | Should -Be 'crmshow_Name'
+        $body.AttributeType | Should -Be 'String'
+        $body.MaxLength | Should -Be 200
+        $body.IsPrimaryName | Should -BeTrue
+        @($body.DisplayName.LocalizedLabels.LanguageCode) |
+            Should -Be @(1033, 1031, 1036, 1040)
+        {
+            New-CompleteLocalizedMetadataUpdateBody ([pscustomobject]@{
+                '@odata.type'='Microsoft.Dynamics.CRM.StringAttributeMetadata'
+            }) $script:contract.tables[0].columns[0].metadata Attribute
+        } | Should -Throw '*complete typed representation*LogicalName*'
     }
 
     It 'compares every required localized label and description' {
@@ -90,6 +87,37 @@ Describe 'Insurance Foundation request builders' {
             Should -Be @('crmshow_accountid', 'crmshow_contactid')
         @($request.Body.OneToManyRelationships.ReferencingAttribute) |
             Should -Be @('crmshow_accountid', 'crmshow_contactid')
+    }
+
+    It 'marks only crmshow_name as primary name on every custom table create' {
+        foreach ($table in $script:contract.tables) {
+            $attributes = @(Get-TableCreateRequest $table).Body.Attributes
+            @($attributes | Where-Object IsPrimaryName).LogicalName |
+                Should -Be @('crmshow_name')
+            @($attributes | Where-Object {
+                $_.LogicalName -ne 'crmshow_name' -and $_.IsPrimaryName
+            }) | Should -BeNullOrEmpty
+        }
+    }
+
+    It 'creates UTC contract dates as time-zone-independent metadata' {
+        $dateTime = New-AttributeMetadata ($script:contract.tables[1].columns |
+            Where-Object type -eq 'DateTime' | Select-Object -First 1)
+        $dateTime.DateTimeBehavior.Value | Should -Be 'TimeZoneIndependent'
+        $dateTime.Format | Should -Be 'DateAndTime'
+    }
+
+    It 'uses the escaped global-option-set alternate key without filter' {
+        $script:choicePath = $null
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path)
+            $script:choicePath = $Path
+            throw '404 Not Found'
+        }
+        Get-GlobalOptionSet "crmshow_broker's_choice" | Should -BeNullOrEmpty
+        $script:choicePath | Should -BeExactly `
+            "/GlobalOptionSetDefinitions(Name='crmshow_broker''s_choice')?`$expand=Options"
+        $script:choicePath | Should -Not -Match '\$filter'
     }
 
     It 'builds the documented Customer relationship action' {
@@ -215,7 +243,17 @@ Describe 'Insurance Foundation reconciliation' {
                     privilegeid = 'resolved-privilege'
                 }) }
             }
-            if ($Method -eq 'GET') { return [pscustomobject]@{ value = @() } }
+            if ($Method -eq 'GET' -and
+                $Path -like "/GlobalOptionSetDefinitions(Name='*") {
+                throw '404 Not Found'
+            }
+            if ($Method -eq 'GET' -and $Path -match '^/(?:EntityDefinitions|savedqueries|systemforms|roles|solutions|solutioncomponents)(?:\?|.*\?.*)$') {
+                return [pscustomobject]@{ value = @() }
+            }
+            if ($Method -eq 'GET' -and $Path -match '^/RetrieveRolePrivilegesRole') {
+                return [pscustomobject]@{ RolePrivileges = @() }
+            }
+            if ($Method -eq 'GET') { throw "Unsupported mocked endpoint: $Method $Path" }
             if ($Path -eq '/savedqueries') {
                 return [pscustomobject]@{ savedqueryid = 'new-view' }
             }
@@ -330,19 +368,17 @@ Describe 'Insurance Foundation reconciliation' {
             })
             if ($Method -eq 'GET' -and $Path -like "/GlobalOptionSetDefinitions*") {
                 return [pscustomobject]@{
-                    value = @([pscustomobject]@{
-                        Name = 'crmshow_accounttype'
-                        '@odata.type' = 'Microsoft.Dynamics.CRM.OptionSetMetadata'
-                        MetadataId = 'choice-metadata-id'
-                        IsGlobal = $true
-                        SolutionUniqueName = 'crmshow_Foundation'
-                        DisplayName = $desiredChoice.DisplayName
-                        Description = $desiredChoice.Description
-                        Options = $desiredChoice.Options
-                    })
+                    Name = 'crmshow_accounttype'
+                    '@odata.type' = 'Microsoft.Dynamics.CRM.OptionSetMetadata'
+                    MetadataId = 'choice-metadata-id'
+                    IsGlobal = $true; OptionSetType = 'Picklist'
+                    SolutionUniqueName = 'crmshow_Foundation'
+                    DisplayName = $desiredChoice.DisplayName
+                    Description = $desiredChoice.Description
+                    Options = $desiredChoice.Options
                 }
             }
-            if ($Method -eq 'GET') { return [pscustomobject]@{ value = @() } }
+            if ($Method -eq 'GET') { throw "Unsupported mocked endpoint: $Path" }
             return [pscustomobject]@{}
         }
         $oneChoice = $script:contract | ConvertTo-Json -Depth 100 | ConvertFrom-Json
@@ -414,6 +450,16 @@ Describe 'Insurance Foundation reconciliation' {
                             }[$_.type]
                             Targets = @($_.lookup.targets)
                             MaxLength = $_.maxLength
+                            DateTimeBehavior = $(if ($_.type -eq 'DateOnly') {
+                                @{ Value = 'DateOnly' }
+                            } elseif ($_.type -eq 'DateTime') {
+                                @{ Value = 'TimeZoneIndependent' }
+                            })
+                            Format = $(if ($_.type -eq 'DateOnly') {
+                                'DateOnly'
+                            } elseif ($_.type -eq 'DateTime') {
+                                'DateAndTime'
+                            })
                             DisplayName = ConvertTo-LocalizedLabel $_.metadata.label
                             Description = ConvertTo-LocalizedLabel $_.metadata.description
                         }
@@ -423,7 +469,11 @@ Describe 'Insurance Foundation reconciliation' {
             if ($Method -eq 'GET' -and $Path -match 'ObjectTypeCode') {
                 return [pscustomobject]@{ ObjectTypeCode = 10427 }
             }
-            if ($Method -eq 'GET') { return [pscustomobject]@{ value = @() } }
+            if ($Method -eq 'GET' -and
+                $Path -match '(?:/Keys\?|^/savedqueries\?|^/systemforms\?)') {
+                return [pscustomobject]@{ value = @() }
+            }
+            if ($Method -eq 'GET') { throw "Unsupported mocked endpoint: $Path" }
             return [pscustomobject]@{}
         }
         $oneTable = $script:contract | ConvertTo-Json -Depth 100 | ConvertFrom-Json
@@ -475,6 +525,36 @@ Describe 'Insurance Foundation reconciliation' {
         } | Should -Throw '*choice-binding conflict*'
     }
 
+    It 'rejects UserLocal date metadata for the UTC contract' {
+        $column = $script:contract.tables[1].columns |
+            Where-Object type -eq 'DateTime' | Select-Object -First 1
+        {
+            Test-AttributeCompatibility ([pscustomobject]@{
+                AttributeType = 'DateTime'
+                DateTimeBehavior = @{ Value = 'UserLocal' }
+                Format = 'DateAndTime'
+            }) $column 'crmshow_policyprojection'
+        } | Should -Throw '*date metadata conflict*TimeZoneIndependent*UserLocal*'
+    }
+
+    It 'rejects stale view and form XML rather than overwriting it' {
+        $table = $script:contract.tables[0]
+        $requests = @(
+            @{ Request = New-ViewRequest $table $table.views[0] 10427
+               Property = 'fetchxml' },
+            @{ Request = New-ViewRequest $table $table.views[0] 10427
+               Property = 'layoutxml' },
+            @{ Request = New-FormRequest $table $table.forms[0]
+               Property = 'formxml' }
+        )
+        foreach ($case in $requests) {
+            $existing = [pscustomobject]@{ $case.Property = '<stale />' }
+            {
+                Assert-XmlCompatible $existing $case.Request $case.Property 'component'
+            } | Should -Throw '*Structural XML conflict*stale*'
+        }
+    }
+
     It 'updates an empty existing choice rather than treating it as unchanged' {
         $choice = $script:contract.choices[0]
         Mock Invoke-DataverseRequest {
@@ -483,22 +563,24 @@ Describe 'Insurance Foundation reconciliation' {
                 Method=$Method; Path=$Path; Body=$Body; Headers=$Headers
             })
             if ($Method -eq 'GET' -and $Path -like '/GlobalOptionSetDefinitions*') {
-                return [pscustomobject]@{ value = @([pscustomobject]@{
+                return [pscustomobject]@{
+                    '@odata.type'='Microsoft.Dynamics.CRM.OptionSetMetadata'
                     Name=$choice.logicalName; IsGlobal=$true
+                    OptionSetType='Picklist'
                     MetadataId='empty-choice'; Options=@()
+                    DisplayName=(ConvertTo-LocalizedLabel $choice.metadata.label)
+                    Description=(ConvertTo-LocalizedLabel $choice.metadata.description)
                     SolutionUniqueName='crmshow_Foundation'
-                }) }
+                }
             }
-            if ($Method -eq 'GET') { return [pscustomobject]@{ value=@() } }
+            if ($Method -eq 'GET') { throw "Unsupported mocked endpoint: $Path" }
             return [pscustomobject]@{}
         }
         $contract = $script:contract | ConvertTo-Json -Depth 100 | ConvertFrom-Json
         $contract.choices = @($contract.choices[0]); $contract.nativeExtensions = @()
         $contract.tables = @(); $contract.roles = @()
         Invoke-InsuranceFoundationReconciliation $contract Foundation -Confirm:$false | Out-Null
-        @($script:calls | Where-Object {
-            $_.Method -eq 'PUT' -and $_.Path -like '/GlobalOptionSetDefinitions(empty-choice)*'
-        }).Count | Should -Be 1
+        @($script:calls | Where-Object Method -eq 'PUT') | Should -BeNullOrEmpty
         $insertions = @($script:calls | Where-Object Path -eq '/InsertOptionValue')
         @($insertions.Body.Value) | Should -Be @(100000000, 100000001, 100000002)
         foreach ($insertion in $insertions) {
@@ -518,13 +600,15 @@ Describe 'Insurance Foundation reconciliation' {
                 Method=$Method; Path=$Path; Body=$Body; Headers=$Headers
             })
             if ($Method -eq 'GET' -and $Path -like '/GlobalOptionSetDefinitions*') {
-                return [pscustomobject]@{ value = @([pscustomobject]@{
+                return [pscustomobject]@{
+                    '@odata.type'='Microsoft.Dynamics.CRM.OptionSetMetadata'
                     Name=$choice.logicalName; IsGlobal=$true; MetadataId='localized-choice'
+                    OptionSetType='Picklist'
                     Options=$desired.Options; DisplayName=$wrongDisplay
                     Description=$desired.Description; SolutionUniqueName='crmshow_Foundation'
-                }) }
+                }
             }
-            if ($Method -eq 'GET') { return [pscustomobject]@{ value=@() } }
+            if ($Method -eq 'GET') { throw "Unsupported mocked endpoint: $Path" }
             return [pscustomobject]@{}
         }
         $contract = $script:contract | ConvertTo-Json -Depth 100 | ConvertFrom-Json
@@ -533,7 +617,12 @@ Describe 'Insurance Foundation reconciliation' {
         Invoke-InsuranceFoundationReconciliation $contract Foundation -Confirm:$false | Out-Null
         $update = @($script:calls | Where-Object Method -eq 'PUT')
         $update.Count | Should -Be 1
-        @($update[0].Body.Keys) | Should -Be @('DisplayName', 'Description', 'Options')
+        $update[0].Path | Should -Be '/GlobalOptionSetDefinitions(localized-choice)'
+        $update[0].Headers.'MSCRM.MergeLabels' | Should -Be 'true'
+        $update[0].Body.Name | Should -Be $choice.logicalName
+        $update[0].Body.IsGlobal | Should -BeTrue
+        $update[0].Body.OptionSetType | Should -Be 'Picklist'
+        $update[0].Body.Contains('Options') | Should -BeFalse
     }
 
     It 'updates choice localization for missing or incorrect non-English option labels' {
@@ -559,15 +648,20 @@ Describe 'Insurance Foundation reconciliation' {
                     })
                     if ($Method -eq 'GET' -and
                         $Path -like '/GlobalOptionSetDefinitions*') {
-                        return [pscustomobject]@{ value = @([pscustomobject]@{
+                        return [pscustomobject]@{
+                            '@odata.type'='Microsoft.Dynamics.CRM.OptionSetMetadata'
                             Name=$choice.logicalName; IsGlobal=$true
+                            OptionSetType='Picklist'
                             MetadataId='option-localization'; Options=$actualOptions
                             DisplayName=$desired.DisplayName
                             Description=$desired.Description
                             SolutionUniqueName='crmshow_Foundation'
-                        }) }
+                        }
                     }
-                    return [pscustomobject]@{ value=@() }
+                    if ($Method -eq 'GET') {
+                        throw "Unsupported mocked endpoint: $Path"
+                    }
+                    return [pscustomobject]@{}
                 }
                 $contract = $script:contract |
                     ConvertTo-Json -Depth 100 | ConvertFrom-Json
@@ -577,8 +671,16 @@ Describe 'Insurance Foundation reconciliation' {
                 $contract.roles = @()
                 Invoke-InsuranceFoundationReconciliation $contract Foundation `
                     -Confirm:$false | Out-Null
-                @($script:calls | Where-Object Method -eq 'PUT').Count |
-                    Should -Be 1
+                @($script:calls | Where-Object Method -eq 'PUT') |
+                    Should -BeNullOrEmpty
+                $optionUpdate = @($script:calls | Where-Object {
+                    $_.Method -eq 'POST' -and $_.Path -eq '/UpdateOptionValue'
+                })
+                $optionUpdate.Count | Should -Be 1
+                $optionUpdate[0].Body.OptionSetName | Should -Be $choice.logicalName
+                $optionUpdate[0].Body.Value | Should -Be 100000000
+                @($optionUpdate[0].Body.Label.LocalizedLabels.LanguageCode) |
+                    Should -Be @(1033, 1031, 1036, 1040)
             }
         }
     }
@@ -614,7 +716,8 @@ Describe 'Insurance Foundation reconciliation' {
                     }
                 ) }
             }
-            return [pscustomobject]@{ value=@() }
+            if ($Method -eq 'GET') { throw "Unsupported mocked endpoint: $Path" }
+            return [pscustomobject]@{}
         }
 
         Invoke-RoleReconciliation $role | Out-Null
@@ -648,5 +751,16 @@ function pac { throw 'pac was called' }
 '@.Replace('__SCRIPT__', $script:publisherPath.Replace("'", "''")).
     Replace('__CONTRACT__', $script:contractPath.Replace("'", "''"))
         & ([scriptblock]::Create($text))
+    }
+
+    It 'runs all offline tests before authentication and language mutation' {
+        $workflow = Get-Content (Join-Path $script:repoRoot `
+            '.github/workflows/solution-author-dev.yml') -Raw
+        $tests = $workflow.IndexOf('- name: Run offline authoring contract tests')
+        $auth = $workflow.IndexOf('- name: Authenticate Power Platform CLI')
+        $languages = $workflow.IndexOf('- name: Reconcile Dataverse languages')
+        $tests | Should -BeGreaterOrEqual 0
+        $tests | Should -BeLessThan $auth
+        $tests | Should -BeLessThan $languages
     }
 }

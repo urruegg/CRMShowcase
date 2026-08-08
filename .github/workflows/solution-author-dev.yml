@@ -35,6 +35,20 @@ jobs:
           Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
           Install-Module Pester -RequiredVersion 6.0.1 -Scope CurrentUser -Force -SkipPublisherCheck
 
+      - name: Run offline authoring contract tests
+        shell: pwsh
+        run: |
+          Import-Module Pester -RequiredVersion 6.0.1
+          $root = $env:GITHUB_WORKSPACE
+          $targeted = Invoke-Pester -Path @(
+            (Join-Path $root 'scripts/solution/tests/InsuranceFoundationContract.Tests.ps1'),
+            (Join-Path $root 'scripts/solution/tests/Publish-InsuranceFoundation.Tests.ps1')
+          ) -PassThru -Output Detailed
+          if ($targeted.Result -ne 'Passed') { throw 'Targeted authoring tests failed.' }
+          $full = Invoke-Pester -Path (Join-Path $root 'scripts/solution/tests') `
+            -PassThru -Output Detailed
+          if ($full.Result -ne 'Passed') { throw 'Full solution test suite failed.' }
+
       - name: Authenticate Power Platform CLI
         shell: pwsh
         run: |
@@ -54,20 +68,6 @@ jobs:
             -EnvironmentUrl $env:POWER_PLATFORM_ENV_URL `
             -LocaleId 1033,1031,1036,1040
           if ($LASTEXITCODE -ne 0) { throw 'Language reconciliation failed.' }
-
-      - name: Run offline authoring contract tests
-        shell: pwsh
-        run: |
-          Import-Module Pester -RequiredVersion 6.0.1
-          $root = $env:GITHUB_WORKSPACE
-          $targeted = Invoke-Pester -Path @(
-            (Join-Path $root 'scripts/solution/tests/InsuranceFoundationContract.Tests.ps1'),
-            (Join-Path $root 'scripts/solution/tests/Publish-InsuranceFoundation.Tests.ps1')
-          ) -PassThru -Output Detailed
-          if ($targeted.FailedCount -gt 0) { throw 'Targeted authoring tests failed.' }
-          $full = Invoke-Pester -Path (Join-Path $root 'scripts/solution/tests') `
-            -PassThru -Output Detailed
-          if ($full.FailedCount -gt 0) { throw 'Full solution test suite failed.' }
 
       - name: Reconcile insurance metadata
         shell: pwsh
