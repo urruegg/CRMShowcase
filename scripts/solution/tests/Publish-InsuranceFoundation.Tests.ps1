@@ -995,6 +995,8 @@ Describe 'Insurance Foundation reconciliation' {
                     '@odata.type'='Microsoft.Dynamics.CRM.OptionSetMetadata'
                     Name=$choice.logicalName; IsGlobal=$true; MetadataId='localized-choice'
                     OptionSetType='Picklist'
+                    ParentOptionSetName='read-only-parent'
+                    IsCustomOptionSet=$true; IsManaged=$false; HasChanged=$false
                     Options=$desired.Options; DisplayName=$wrongDisplay
                     Description=$desired.Description; SolutionUniqueName='crmshow_Foundation'
                 }
@@ -1021,6 +1023,11 @@ Describe 'Insurance Foundation reconciliation' {
         $update[0].Body.IsGlobal | Should -BeTrue
         $update[0].Body.OptionSetType | Should -Be 'Picklist'
         $update[0].Body.Contains('Options') | Should -BeFalse
+        $update[0].Body.Contains('ParentOptionSetName') | Should -BeFalse
+        $update[0].Body.Contains('IsCustomOptionSet') | Should -BeFalse
+        $update[0].Body.Contains('IsManaged') | Should -BeFalse
+        $update[0].Body.Contains('HasChanged') | Should -BeFalse
+        $update[0].Body.Contains('SolutionUniqueName') | Should -BeFalse
     }
 
     It 'updates choice localization for missing or incorrect non-English option labels' {
