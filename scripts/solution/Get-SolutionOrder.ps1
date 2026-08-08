@@ -45,5 +45,5 @@ function Get-SolutionOrder {
         Invoke-Visit -name $s.uniqueName
     }
 
-    return ,$result.ToArray()
+    return $result.ToArray()
 }
