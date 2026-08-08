@@ -58,6 +58,50 @@ sys.exit(1 if errors else 0)
         & python -c $python $script:contractPath $script:schemaPath
         return $LASTEXITCODE -eq 0
     }
+
+    function Get-ProhibitedContractFindings {
+        param([Parameter(Mandatory)] [string] $Json)
+
+        $findings = [System.Collections.Generic.List[string]]::new()
+
+        # Absolute JSON Schema identifiers are metadata, not environment endpoints.
+        $withoutSchemaUrls = $Json -replace 'https?://json-schema\.org/draft/[0-9-]+/schema', ''
+        if ($withoutSchemaUrls -match '(?i)https?://[^"\\\s]*(?:\.crm\d*\.dynamics\.com|\.powerapps\.com|\.api\.powerplatform\.com)(?:[/:"\\\s]|$)') {
+            $findings.Add('environment URL')
+        }
+        if ($Json -match '(?i)(?<![0-9a-f])[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(?![0-9a-f])') {
+            $findings.Add('GUID')
+        }
+        if ($Json -match '(?i)(?<![a-z0-9._%+-])[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}(?![a-z0-9.-])') {
+            $findings.Add('email address')
+        }
+
+        $phoneCandidates = [regex]::Matches(
+            $Json,
+            '(?<![\w])(?:\+\d{1,3}[\s()./-]*)?(?:\d[\s()./-]*){7,15}(?![\w])'
+        )
+        foreach ($candidate in $phoneCandidates) {
+            $value = $candidate.Value.Trim()
+            $digitCount = ([regex]::Matches($value, '\d')).Count
+            $hasPhoneShape = $value.StartsWith('+') -or
+                $value -match '\(\d{2,4}\)' -or
+                $value -match '\d[\s./-]\d'
+            $isGuid = $value -match '(?i)^[0-9a-f]{8}-[0-9a-f-]{27}$'
+            if ($digitCount -ge 7 -and $hasPhoneShape -and -not $isGuid) {
+                $findings.Add('phone-like value')
+                break
+            }
+        }
+
+        if ($Json -match '(?i)\b(?:Mobiliar|Mobilière|Mobiliare|Mobi24)\b|(?i)\bMOBI(?:LIAR)?[-_:][A-Z0-9-]+\b') {
+            $findings.Add('Mobiliar identifier or customer data')
+        }
+        # "Draft" is a legitimate Policy Status. Only explicit work markers are banned.
+        if ($Json -match '(?i)\b(?:TBD|TODO|FIXME|XXX|placeholder|WIP)\b|\[(?:draft|work in progress)\]|"(?:_?draft|status)"\s*:\s*"draft"') {
+            $findings.Add('draft marker')
+        }
+        return @($findings)
+    }
 }
 
 Describe 'Insurance Foundation JSON contract' {
@@ -219,20 +263,13 @@ Describe 'Insurance Foundation JSON contract' {
             Should -Be @('crmshow_sourcesystem','crmshow_sourceid')
     }
 
-    It 'uses UserOwned audited non-activity tables with required rules and surfaces' {
+    It 'uses UserOwned audited non-activity tables' {
         $contract = Get-Contract
         foreach ($table in $contract.tables) {
             $table.ownership | Should -Be 'UserOwned'
             $table.auditing | Should -BeTrue
             $table.isActivity | Should -BeFalse
             $table.solution | Should -Be 'crmshow_DataModel'
-            @($table.businessRules) | Should -HaveCount 1
-            @($table.forms | Where-Object purpose -eq 'Administration') | Should -HaveCount 1
-            @($table.views | Where-Object purpose -eq 'Administration') | Should -HaveCount 1
-        }
-        foreach ($name in 'crmshow_accountcontactrole','crmshow_policypartyrole') {
-            $table = $contract.tables | Where-Object logicalName -eq $name
-            @($table.views | Where-Object purpose -eq 'OverlapReporting') | Should -HaveCount 1
         }
     }
 
@@ -243,14 +280,84 @@ Describe 'Insurance Foundation JSON contract' {
             Should -Be @('premium','tariff','underwriting','coverageLimit','paymentBalance')
     }
 
-    It 'defines every lookup relationship explicitly with direction semantics' {
+    It 'defines the exact lookup relationships and authoring modes' {
         $contract = Get-Contract
+        $expected = @{
+            crmshow_accountcontactrole = @(
+                'crmshow_account_accountcontactroles|crmshow_accountid|crmshow_accountcontactrole|account|ManyToOne|Account contains the relationship context; role records reference it.|InitialTableCreate',
+                'crmshow_contact_accountcontactroles|crmshow_contactid|crmshow_accountcontactrole|contact|ManyToOne|Contact is the person holding the role; role records reference it.|InitialTableCreate'
+            )
+            crmshow_policyprojection = @(
+                'crmshow_account_policyprojections|crmshow_accountid|crmshow_policyprojection|account|ManyToOne|Account owns portfolio context; PolicyProjection references that Account.|InitialTableCreate'
+            )
+            crmshow_policypartyrole = @(
+                'crmshow_policyprojection_partyroles|crmshow_policyid|crmshow_policypartyrole|crmshow_policyprojection|ManyToOne|PolicyProjection provides policy context; party-role records reference it.|InitialTableCreate',
+                'crmshow_customer_policypartyroles|crmshow_partyid|crmshow_policypartyrole|account,contact|ManyToOne|Customer party is an Account or Contact holding the policy role.|CreateCustomerRelationships'
+            )
+        }
         foreach ($table in $contract.tables) {
-            $lookupColumns = @($table.columns | Where-Object type -in @('Lookup','Customer'))
-            @($table.relationships) | Should -HaveCount $lookupColumns.Count
-            foreach ($column in $lookupColumns) {
-                @($table.relationships.lookupColumn) | Should -Contain $column.logicalName
+            $actual = @($table.relationships | ForEach-Object {
+                @($_.name, $_.lookupColumn, $_.referencingTable,
+                    ($_.referencedTables -join ','), $_.direction, $_.role, $_.authoring) -join '|'
+            })
+            $wanted = @($expected[$table.logicalName])
+            $actual | Should -Be $wanted
+
+            foreach ($relationship in $table.relationships) {
+                $column = $table.columns | Where-Object logicalName -eq $relationship.lookupColumn
+                @($column.lookup.targets) | Should -Be @($relationship.referencedTables)
+                $column.lookup.authoring | Should -Be $relationship.authoring
             }
+        }
+    }
+
+    It 'defines the exact table-scoped date-order business rules' {
+        $contract = Get-Contract
+        $expected = @{
+            crmshow_accountcontactrole = @('crmshow_accountcontactrolevaliddateorder','Table','crmshow_validto is blank or crmshow_validto >= crmshow_validfrom')
+            crmshow_policyprojection = @('crmshow_policyprojectioneffectivedateorder','Table','crmshow_effectiveto is blank or crmshow_effectiveto >= crmshow_effectivefrom')
+            crmshow_policypartyrole = @('crmshow_policypartyrolevaliddateorder','Table','crmshow_validto is blank or crmshow_validto >= crmshow_validfrom')
+        }
+        foreach ($table in $contract.tables) {
+            @($table.businessRules | ForEach-Object { @($_.name,$_.scope,$_.condition) -join '|' }) |
+                Should -Be @($expected[$table.logicalName] -join '|')
+        }
+    }
+
+    It 'defines the exact minimal administration forms' {
+        $contract = Get-Contract
+        $expected = @{
+            crmshow_accountcontactrole = @('crmshow_accountcontactroleadminform','Administration','crmshow_name,crmshow_accountid,crmshow_contactid,crmshow_roletype,crmshow_validfrom,crmshow_validto,crmshow_sourcesystem,crmshow_sourceid')
+            crmshow_policyprojection = @('crmshow_policyprojectionadminform','Administration','crmshow_name,crmshow_accountid,crmshow_policynumber,crmshow_externalsystem,crmshow_externalid,crmshow_lineofbusinesscode,crmshow_status,crmshow_effectivefrom,crmshow_effectiveto,crmshow_sourcelastmodifiedon,crmshow_retrievedon')
+            crmshow_policypartyrole = @('crmshow_policypartyroleadminform','Administration','crmshow_name,crmshow_policyid,crmshow_partyid,crmshow_roletype,crmshow_validfrom,crmshow_validto,crmshow_sourcesystem,crmshow_sourceid')
+        }
+        foreach ($table in $contract.tables) {
+            @($table.forms | ForEach-Object { @($_.name,$_.purpose,($_.columns -join ',')) -join '|' }) |
+                Should -Be @($expected[$table.logicalName] -join '|')
+        }
+    }
+
+    It 'defines exact administration and overlap-reporting views' {
+        $contract = Get-Contract
+        $expected = @{
+            crmshow_accountcontactrole = @(
+                'crmshow_accountcontactroleadminview|Administration|crmshow_name,crmshow_accountid,crmshow_contactid,crmshow_roletype,crmshow_validfrom,crmshow_validto|All AccountContactRole records; no additional record filter.',
+                'crmshow_accountcontactroleoverlapview|OverlapReporting|crmshow_accountid,crmshow_contactid,crmshow_roletype,crmshow_validfrom,crmshow_validto|Report distinct AccountContactRole pairs with the same Account, Contact and Role Type where A.Valid From <= coalesce(B.Valid To, open-ended) and B.Valid From <= coalesce(A.Valid To, open-ended).'
+            )
+            crmshow_policyprojection = @(
+                'crmshow_policyprojectionadminview|Administration|crmshow_name,crmshow_accountid,crmshow_policynumber,crmshow_lineofbusinesscode,crmshow_status,crmshow_effectivefrom,crmshow_effectiveto,crmshow_retrievedon|All PolicyProjection records; no additional record filter.'
+            )
+            crmshow_policypartyrole = @(
+                'crmshow_policypartyroleadminview|Administration|crmshow_name,crmshow_policyid,crmshow_partyid,crmshow_roletype,crmshow_validfrom,crmshow_validto|All PolicyPartyRole records; no additional record filter.',
+                'crmshow_policypartyroleoverlapview|OverlapReporting|crmshow_policyid,crmshow_partyid,crmshow_roletype,crmshow_validfrom,crmshow_validto|Report distinct PolicyPartyRole pairs with the same Policy Projection, Party and Role Type where A.Valid From <= coalesce(B.Valid To, open-ended) and B.Valid From <= coalesce(A.Valid To, open-ended).'
+            )
+        }
+        foreach ($table in $contract.tables) {
+            $actual = @($table.views | ForEach-Object {
+                @($_.name,$_.purpose,($_.columns -join ','),$_.filterIntent) -join '|'
+            })
+            $wanted = @($expected[$table.logicalName])
+            $actual | Should -Be $wanted
         }
     }
 
@@ -279,30 +386,25 @@ Describe 'Insurance Foundation JSON contract' {
         }
     }
 
-    It 'contains no forbidden draft markers in semantic descriptions' {
-        $contract = Get-Contract
-        $descriptions = @()
-        $json = $contract | ConvertTo-Json -Depth 100 | ConvertFrom-Json
-        function Add-Descriptions($node) {
-            if ($null -eq $node) { return }
-            if ($node -is [System.Collections.IEnumerable] -and $node -isnot [string]) {
-                foreach ($item in $node) { Add-Descriptions $item }
-                return
-            }
-            if ($node.PSObject) {
-                foreach ($property in $node.PSObject.Properties) {
-                    if ($property.Name -eq 'description') {
-                        foreach ($localized in $property.Value.PSObject.Properties) {
-                            $script:descriptions += [string]$localized.Value
-                        }
-                    } else {
-                        Add-Descriptions $property.Value
-                    }
-                }
-            }
+    It 'contains no environment or customer content anywhere in the serialized contract' {
+        $raw = Get-Content -LiteralPath $script:contractPath -Raw -Encoding UTF8
+        @(Get-ProhibitedContractFindings -Json $raw) | Should -BeNullOrEmpty
+    }
+
+    It 'targets prohibited content without rejecting schema URLs, versions, LCIDs, or Draft policy status' {
+        Get-ProhibitedContractFindings -Json '{"$schema":"https://json-schema.org/draft/2020-12/schema","version":"1.0.0","languages":["1033"],"code":"Draft"}' |
+            Should -BeNullOrEmpty
+        @(
+            'https://showcase.crm4.dynamics.com',
+            '8b4e705d-1f2a-4e93-8ad0-72901f1d671b',
+            'person@example.com',
+            '+41 79 123 45 67',
+            'MOBI-POLICY-4711',
+            '[DRAFT]'
+        ) | ForEach-Object {
+            @(Get-ProhibitedContractFindings -Json ('{"value":"' + $_ + '"}')) |
+                Should -Not -BeNullOrEmpty -Because "'$_' must be detected"
         }
-        Add-Descriptions $json
-        $script:descriptions -join "`n" | Should -Not -Match '(?i)\b(TBD|TODO|placeholder)\b'
     }
 
     It 'implements the exact least-privilege role matrix' {

@@ -267,11 +267,18 @@
           "uniqueItems": true,
           "items": { "$ref": "#/$defs/customLogicalName" }
         },
+        "filterIntent": {
+          "type": "string",
+          "minLength": 24
+        },
         "metadata": { "$ref": "#/$defs/semanticMetadata" }
       }
     },
     "view": {
-      "$ref": "#/$defs/surfaceComponent"
+      "allOf": [
+        { "$ref": "#/$defs/surfaceComponent" },
+        { "required": ["filterIntent"] }
+      ]
     },
     "form": {
       "$ref": "#/$defs/surfaceComponent"
