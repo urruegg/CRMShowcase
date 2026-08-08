@@ -37,17 +37,22 @@
         }
     }
 
-    function Test-ContractSchema {
+    function Test-JsonInstanceSchema {
+        param([Parameter(Mandatory)] [string] $Json)
+
         if (Get-Command Test-Json -ErrorAction SilentlyContinue) {
-            return Test-Json -Json (Get-Content $script:contractPath -Raw) -SchemaFile $script:schemaPath
+            try {
+                return Test-Json -Json $Json -SchemaFile $script:schemaPath -ErrorAction Stop
+            } catch {
+                return $false
+            }
         }
 
         $python = @'
 import json, sys
 from jsonschema import Draft202012Validator
+instance = json.load(sys.stdin)
 with open(sys.argv[1], encoding='utf-8-sig') as stream:
-    instance = json.load(stream)
-with open(sys.argv[2], encoding='utf-8-sig') as stream:
     schema = json.load(stream)
 Draft202012Validator.check_schema(schema)
 errors = sorted(Draft202012Validator(schema).iter_errors(instance), key=lambda e: list(e.path))
@@ -55,8 +60,38 @@ for error in errors:
     print('{}: {}'.format('/'.join(map(str, error.path)), error.message))
 sys.exit(1 if errors else 0)
 '@
-        & python -c $python $script:contractPath $script:schemaPath
+        $validationOutput = $Json | & python -c $python $script:schemaPath
         return $LASTEXITCODE -eq 0
+    }
+
+    function Test-ContractSchema {
+        Test-JsonInstanceSchema -Json (Get-Content $script:contractPath -Raw)
+    }
+
+    function Get-UndeclaredChoiceReferences {
+        param([Parameter(Mandatory)] $Contract)
+
+        $declared = @($Contract.choices.logicalName)
+        $findings = [System.Collections.Generic.List[string]]::new()
+        foreach ($extension in $Contract.nativeExtensions) {
+            if ($extension.choice -notin $declared) {
+                $findings.Add(
+                    "nativeExtensions/$($extension.table)/$($extension.logicalName): $($extension.choice)"
+                )
+            }
+        }
+        foreach ($table in $Contract.tables) {
+            foreach ($column in @($table.columns | Where-Object {
+                $_.PSObject.Properties.Name -contains 'choice'
+            })) {
+                if ($column.choice -notin $declared) {
+                    $findings.Add(
+                        "tables/$($table.logicalName)/$($column.logicalName): $($column.choice)"
+                    )
+                }
+            }
+        }
+        return @($findings)
     }
 
     function Get-ProhibitedContractFindings {
@@ -199,6 +234,68 @@ Describe 'Insurance Foundation JSON contract' {
         ($contract.nativeExtensions | Where-Object logicalName -eq 'crmshow_accounttype').required |
             Should -BeTrue
         ($contract.nativeExtensions | Where-Object logicalName -eq 'crmshow_lifecyclestage').required |
+            Should -BeFalse
+    }
+
+    It 'resolves every choice reference and locks the exact choice mappings' {
+        $contract = Get-Contract
+        @(Get-UndeclaredChoiceReferences -Contract $contract) |
+            Should -BeNullOrEmpty
+
+        $actual = [System.Collections.Generic.List[string]]::new()
+        foreach ($extension in $contract.nativeExtensions) {
+            $actual.Add(
+                "$($extension.table)|$($extension.logicalName)|$($extension.choice)"
+            )
+        }
+        foreach ($table in $contract.tables) {
+            $tableName = $table.logicalName -replace '^crmshow_', ''
+            foreach ($column in @($table.columns | Where-Object {
+                $_.PSObject.Properties.Name -contains 'choice'
+            })) {
+                $actual.Add("$tableName|$($column.logicalName)|$($column.choice)")
+            }
+        }
+        @($actual) | Should -Be @(
+            'account|crmshow_accounttype|crmshow_accounttype',
+            'contact|crmshow_lifecyclestage|crmshow_contactlifecyclestage',
+            'accountcontactrole|crmshow_roletype|crmshow_accountcontactroletype',
+            'policyprojection|crmshow_status|crmshow_policystatus',
+            'policypartyrole|crmshow_roletype|crmshow_policypartyroletype'
+        )
+    }
+
+    It 'detects an undeclared global choice reference through the referential check' {
+        $contract = Get-Contract | ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        $contract.nativeExtensions[0].choice = 'crmshow_nonexistentchoice'
+
+        @(Get-UndeclaredChoiceReferences -Contract $contract) |
+            Should -Be @(
+                'nativeExtensions/account/crmshow_accounttype: crmshow_nonexistentchoice'
+            )
+    }
+
+    It 'rejects Text columns carrying lookup metadata' {
+        $contract = Get-Contract
+        $column = $contract.tables[0].columns |
+            Where-Object logicalName -eq 'crmshow_name'
+        $column | Add-Member -NotePropertyName lookup -NotePropertyValue ([pscustomobject]@{
+            targets = @('account')
+            authoring = 'InitialTableCreate'
+        })
+
+        Test-JsonInstanceSchema -Json ($contract | ConvertTo-Json -Depth 100) |
+            Should -BeFalse
+    }
+
+    It 'rejects Lookup columns carrying maxLength and UTC format' {
+        $contract = Get-Contract
+        $column = $contract.tables[0].columns |
+            Where-Object logicalName -eq 'crmshow_accountid'
+        $column | Add-Member -NotePropertyName maxLength -NotePropertyValue 100
+        $column | Add-Member -NotePropertyName format -NotePropertyValue 'UTC'
+
+        Test-JsonInstanceSchema -Json ($contract | ConvertTo-Json -Depth 100) |
             Should -BeFalse
     }
 

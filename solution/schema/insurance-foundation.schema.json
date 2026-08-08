@@ -190,14 +190,95 @@
         "lookup": { "$ref": "#/$defs/lookup" },
         "metadata": { "$ref": "#/$defs/semanticMetadata" }
       },
-      "allOf": [
+      "oneOf": [
         {
-          "if": { "properties": { "type": { "enum": ["Lookup", "Customer"] } }, "required": ["type"] },
-          "then": { "required": ["lookup"] }
+          "required": ["maxLength", "format"],
+          "properties": {
+            "type": { "const": "Text" },
+            "format": { "const": "Text" }
+          },
+          "not": {
+            "anyOf": [
+              { "required": ["lookup"] },
+              { "required": ["choice"] }
+            ]
+          }
         },
         {
-          "if": { "properties": { "type": { "const": "GlobalChoice" } }, "required": ["type"] },
-          "then": { "required": ["choice"] }
+          "required": ["lookup"],
+          "properties": {
+            "type": { "const": "Lookup" }
+          },
+          "not": {
+            "anyOf": [
+              { "required": ["choice"] },
+              { "required": ["maxLength"] },
+              { "required": ["format"] }
+            ]
+          }
+        },
+        {
+          "required": ["lookup"],
+          "properties": {
+            "type": { "const": "Customer" },
+            "lookup": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["targets", "authoring"],
+              "properties": {
+                "targets": { "const": ["account", "contact"] },
+                "authoring": { "const": "CreateCustomerRelationships" }
+              }
+            }
+          },
+          "not": {
+            "anyOf": [
+              { "required": ["choice"] },
+              { "required": ["maxLength"] },
+              { "required": ["format"] }
+            ]
+          }
+        },
+        {
+          "required": ["choice"],
+          "properties": {
+            "type": { "const": "GlobalChoice" }
+          },
+          "not": {
+            "anyOf": [
+              { "required": ["lookup"] },
+              { "required": ["maxLength"] },
+              { "required": ["format"] }
+            ]
+          }
+        },
+        {
+          "required": ["format"],
+          "properties": {
+            "type": { "const": "DateOnly" },
+            "format": { "const": "DateOnly" }
+          },
+          "not": {
+            "anyOf": [
+              { "required": ["lookup"] },
+              { "required": ["choice"] },
+              { "required": ["maxLength"] }
+            ]
+          }
+        },
+        {
+          "required": ["format"],
+          "properties": {
+            "type": { "const": "DateTime" },
+            "format": { "const": "UTC" }
+          },
+          "not": {
+            "anyOf": [
+              { "required": ["lookup"] },
+              { "required": ["choice"] },
+              { "required": ["maxLength"] }
+            ]
+          }
         }
       ]
     },
