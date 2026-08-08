@@ -225,10 +225,17 @@ Rules:
 All lookups for a custom table are introduced in the table's initial solution
 definition. The implementation must not create, delete and recreate lookups.
 
-Table-scoped Dataverse business rules enforce date-order validation. Duplicate
-interval detection remains an explicit data-quality check in Sprint 3; a
-cross-record hard constraint is deferred until the synchronization contract is
-known, avoiding premature plug-in logic.
+Sprint 3 validates fixture and import payloads and reports invalid date order
+for Data Steward remediation. Universal server-side enforcement across every
+Dataverse write path is deferred to
+[OR-001](../../requirements/OR-001-effective-date-integrity.md) / issue #9
+because Dataverse does not publish a supported compiler contract for
+Web-API-authored business-rule XAML. Sprint 3 does not fabricate workflow
+payloads or introduce an unapproved plug-in boundary.
+
+Duplicate interval detection also remains an explicit data-quality check in
+Sprint 3. The follow-up feature decides whether overlaps remain warnings or
+become hard constraints once the synchronization contract is known.
 
 ## 6. Metadata and localization contract
 
@@ -409,8 +416,10 @@ would delete data requires explicit approval, backup evidence and an ADR.
 - Reader can read but cannot mutate;
 - Data Steward can create/update but cannot administer security;
 - fixture rerun creates no duplicates;
-- invalid effective-date cases are rejected and the Customer lookup accepts
-  exactly one Account or Contact reference;
+- fixture and import payloads with invalid effective-date order are rejected
+  before mutation; online data-quality checks report any invalid records
+  created through other write paths;
+- the Customer lookup accepts exactly one Account or Contact reference;
 - duplicate or overlapping role intervals are reported for Data Steward
   review;
 - source-removal simulation end-dates/deactivates rather than deletes;
@@ -418,6 +427,11 @@ would delete data requires explicit approval, backup evidence and an ADR.
 
 The PR and feature issue link the green workflow run, package versions and
 smoke-test evidence.
+
+Universal server-side effective-date enforcement is not a Sprint 3 completion
+criterion. It is tracked as
+[OR-001](../../requirements/OR-001-effective-date-integrity.md) and
+[feature #9](https://github.com/urruegg/CRMShowcase/issues/9).
 
 ## 13. Sprint 4 dependency
 

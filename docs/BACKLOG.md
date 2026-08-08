@@ -105,6 +105,7 @@ and the
 | US-707 | Validate schema and multilingual semantic metadata | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
 | US-708 | Deploy unmanaged to DEV and managed to TEST | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
 | US-709 | Load synthetic fixtures and publish smoke evidence | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
+| US-710 | Enforce effective-date integrity across every Dataverse write path | Deferred — [#9](https://github.com/urruegg/CRMShowcase/issues/9) · [OR-001](./requirements/OR-001-effective-date-integrity.md) |
 
 ## Bootstrap stories already delivered
 

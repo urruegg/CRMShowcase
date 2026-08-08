@@ -507,8 +507,15 @@ Require:
 ```
 
 Define reusable `$defs` for localized label/description pairs, columns,
-lookups, choices, alternate keys, relationships, business rules and roles.
+lookups, choices, alternate keys, relationships, validation requirements and
+roles.
 Set `additionalProperties: false` at every object boundary.
+
+The existing `businessRules` contract entries describe the deferred
+effective-date requirement and its localized semantics. Sprint 3 validators
+consume them for fixture/import checks and reporting; the authoring script does
+not create workflow/business-rule components. Universal write-path enforcement
+is tracked by OR-001 and issue #9.
 
 - [ ] **Step 4: Create the complete contract**
 
@@ -517,8 +524,8 @@ Set `additionalProperties: false` at every object boundary.
 - five global choices from the design;
 - Account `crmshow_accounttype`;
 - Contact `crmshow_lifecyclestage`;
-- all columns, lookups, alternate keys and date-order business rules for the
-  three tables;
+- all columns, lookups and alternate keys for the three tables;
+- fixture/import date-order validation and environment data-quality reporting;
 - Reader and Data Steward roles using this exact privilege matrix:
 
 | Table | Reader | Data Steward |
@@ -629,8 +636,8 @@ The script:
 6. includes every ordinary lookup in the initial table create request;
 7. creates the PolicyPartyRole Customer lookup with the documented
    `CreateCustomerRelationships` action immediately after its table exists;
-8. creates keys, a minimal administration form/view per custom table,
-   table-scoped date-order business rules and an overlap-reporting system view;
+8. creates keys, a minimal administration form/view per custom table and an
+   overlap/invalid-date reporting system view;
 9. creates/updates the two security roles from named privileges and depths;
 10. publishes all customizations;
 11. fails on any type/target mismatch instead of silently replacing metadata.
@@ -849,7 +856,8 @@ Throw if a referenced key cannot be resolved. Never catch and continue.
 - expected custom tables, columns, relationships and alternate keys exist;
 - required localized labels/descriptions are retrievable;
 - fixture counts remain stable after a second load;
-- invalid date-order creates fail;
+- fixture/import writes with invalid date order fail before mutation;
+- environment checks report invalid date order from other write paths;
 - Reader mutation is denied and Data Steward create/update succeeds when
   separate test identities are supplied.
 
