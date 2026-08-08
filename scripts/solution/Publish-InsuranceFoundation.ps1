@@ -1233,6 +1233,25 @@ function Invoke-ExistingCustomerRelationshipReconciliation {
     }
 }
 
+function Publish-TableMetadata {
+    param([Parameter(Mandatory)] $Table)
+    $escapedLogicalName = [System.Security.SecurityElement]::Escape(
+        [string]$Table.logicalName
+    )
+    Invoke-PlannedRequest ([pscustomobject]@{
+        Method = 'POST'
+        Path = '/PublishXml'
+        Solution = $Table.solution
+        Body = @{
+            ParameterXml = (
+                '<importexportxml><entities><entity>' +
+                $escapedLogicalName +
+                '</entity></entities></importexportxml>'
+            )
+        }
+    }) | Out-Null
+}
+
 function Invoke-TableReconciliation {
     param($Table)
     $existing = Get-One "/EntityDefinitions?`$select=MetadataId,LogicalName,SchemaName,OwnershipType,PrimaryNameAttribute,IsAuditEnabled,DisplayName,Description&`$expand=Attributes(`$select=MetadataId,LogicalName,SchemaName,AttributeType,DisplayName,Description),OneToManyRelationships(`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute)&`$filter=LogicalName eq '$($Table.logicalName)'"
@@ -1242,6 +1261,7 @@ function Invoke-TableReconciliation {
             Get-TableCreateRequest $Table $choiceMetadataIds
         ) | Out-Null
         Write-Output "$($Table.logicalName): Created"
+        Publish-TableMetadata $Table
 
         # Dataverse requires the global action for a polymorphic Customer lookup.
         foreach ($customer in @($Table.columns | Where-Object type -eq 'Customer')) {
@@ -1367,6 +1387,7 @@ function Invoke-TableReconciliation {
             }
         }
         Write-Output "$($Table.logicalName): Unchanged"
+        Publish-TableMetadata $Table
     }
     $objectTypeCode = Resolve-TableObjectTypeCode $Table.logicalName
     Invoke-TableChildren $Table $objectTypeCode
