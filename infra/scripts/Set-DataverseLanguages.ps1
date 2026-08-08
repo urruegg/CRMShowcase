@@ -3,9 +3,9 @@
     Reconcile the supported Dataverse languages for an environment.
 
 .DESCRIPTION
-    Reads LanguageLocale records and activates requested inactive languages.
-    Authentication is delegated to az rest, which acquires a runtime token for
-    the Dataverse environment. Languages are never deactivated.
+    Reads the provisioned-language list and provisions requested missing
+    languages through documented Dataverse Web API operations. Authentication
+    is delegated to az rest. Languages are never deprovisioned.
 #>
 
 [CmdletBinding(SupportsShouldProcess)]
@@ -36,24 +36,19 @@ function Get-NormalizedLocaleIds {
     return @($LocaleId | Sort-Object -Unique)
 }
 
-function Get-LanguageTransition {
+function Get-ProvisionedLocaleIds {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [int]$LocaleId,
-
-        [Parameter(Mandatory)]
-        [int]$StateCode
+        [string]$BaseUrl
     )
 
-    if ($StateCode -eq 0) {
-        return 'Unchanged'
+    $url = "$($BaseUrl.TrimEnd('/'))/api/data/v9.2/RetrieveProvisionedLanguages()"
+    $response = Invoke-DataverseRest -Method GET -Url $url
+    if ($null -eq $response.RetrieveProvisionedLanguages) {
+        throw 'RetrieveProvisionedLanguages returned no language collection.'
     }
-    if ($StateCode -eq 1) {
-        return 'Activate'
-    }
-
-    throw "Unexpected statecode '$StateCode' for locale '$LocaleId'."
+    return @($response.RetrieveProvisionedLanguages | ForEach-Object { [int]$_ })
 }
 
 function Wait-DataverseLanguage {
@@ -74,9 +69,7 @@ function Wait-DataverseLanguage {
 
     $deadline = [DateTimeOffset]::UtcNow.AddSeconds($TimeoutSeconds)
     while ($true) {
-        $url = "$($BaseUrl.TrimEnd('/'))/api/data/v9.2/languagelocale?`$select=localeid,statecode&`$filter=localeid eq $LocaleId"
-        $response = Invoke-DataverseRest -Method GET -Url $url
-        if ($response.value.Count -eq 1 -and [int]$response.value[0].statecode -eq 0) {
+        if ($LocaleId -in @(Get-ProvisionedLocaleIds -BaseUrl $BaseUrl)) {
             return
         }
 
@@ -94,7 +87,7 @@ function Invoke-DataverseRest {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [ValidateSet('GET', 'PATCH')]
+        [ValidateSet('GET', 'POST')]
         [string]$Method,
 
         [Parameter(Mandatory)]
@@ -151,43 +144,29 @@ function Invoke-DataverseLanguageReconciliation {
     )
 
     $baseUrl = $BaseUrl.TrimEnd('/')
-    $languages = foreach ($lcid in $RequiredLocaleId) {
-        $queryUrl = "$baseUrl/api/data/v9.2/languagelocale?`$select=languagelocaleid,localeid,statecode,statuscode&`$filter=localeid eq $lcid"
-        $response = Invoke-DataverseRest -Method GET -Url $queryUrl
-        if ($response.value.Count -ne 1) {
-            throw "Locale '$lcid' is unavailable in '$baseUrl'; expected exactly one LanguageLocale record."
-        }
-
-        $language = $response.value[0]
-        $transition = Get-LanguageTransition -LocaleId $lcid -StateCode ([int]$language.statecode)
-        [pscustomobject]@{
-            LocaleId         = $lcid
-            LanguageLocaleId = $language.languagelocaleid
-            Transition       = $transition
-            ShouldVerify     = $true
-        }
-    }
-
-    foreach ($language in $languages | Where-Object Transition -eq 'Activate') {
-        $target = "$baseUrl locale $($language.LocaleId)"
+    $provisioned = @(Get-ProvisionedLocaleIds -BaseUrl $baseUrl)
+    $missing = @($RequiredLocaleId | Where-Object { $_ -notin $provisioned })
+    $submitted = @()
+    foreach ($lcid in $missing) {
+        $target = "$baseUrl locale $lcid"
         if ($PSCmdlet.ShouldProcess($target, 'Activate Dataverse language')) {
-            $patchUrl = "$baseUrl/api/data/v9.2/languagelocale($($language.LanguageLocaleId))"
-            Invoke-DataverseRest -Method PATCH -Url $patchUrl -Body @{
-                statecode  = 0
-                statuscode = 1
-            } | Out-Null
-        }
-        else {
-            $language.ShouldVerify = $false
+            Invoke-DataverseRest -Method POST `
+                -Url "$baseUrl/api/data/v9.2/ProvisionLanguage" `
+                -Body @{ Language = [int]$lcid } | Out-Null
+            $submitted += $lcid
         }
     }
 
-    foreach ($language in $languages | Where-Object ShouldVerify) {
-        Wait-DataverseLanguage -BaseUrl $baseUrl -LocaleId $language.LocaleId
+    foreach ($lcid in $submitted) {
+        Wait-DataverseLanguage -BaseUrl $baseUrl -LocaleId $lcid
+    }
+
+    foreach ($lcid in $RequiredLocaleId) {
         Write-Output ([pscustomobject]@{
                 Environment = $baseUrl
-                LocaleId    = $language.LocaleId
-                State       = 'Active'
+                LocaleId    = $lcid
+                State       = if ($lcid -in $provisioned -or
+                    $lcid -in $submitted) { 'Active' } else { 'Planned' }
             })
     }
 }
