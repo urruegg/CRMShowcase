@@ -1517,6 +1517,61 @@ function Get-ConvergenceReviewedSolutionLookup {
     }
 }
 
+function Get-ConvergenceRoleExpectedReviewedMembership {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        $Role,
+
+        [Parameter(Mandatory)]
+        [object[]]$ReviewedSolutions
+    )
+
+    $declaredSolutions = @(Get-UniqueConvergenceStrings -Value @($Role.solution))
+    return @($declaredSolutions | Where-Object {
+            Test-ConvergenceContainsExactString `
+                -Value @($ReviewedSolutions) `
+                -Expected ([string]$_)
+        })
+}
+
+function Get-ConvergenceRoleActualReviewedMembership {
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        $Membership,
+
+        [Parameter(Mandatory)]
+        [object[]]$ReviewedSolutions
+    )
+
+    $solutionNames = @(Get-UniqueConvergenceStrings -Value @($Membership.value | ForEach-Object {
+                if ($_.solutionid) {
+                    [string]$_.solutionid.uniquename
+                }
+            }))
+    return @($ReviewedSolutions | Where-Object {
+            Test-ConvergenceContainsExactString `
+                -Value $solutionNames `
+                -Expected ([string]$_)
+        })
+}
+
+function Get-ConvergenceRoleReviewedMembershipDisplayText {
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [object[]]$SolutionUniqueNames
+    )
+
+    $resolved = @(Get-UniqueConvergenceStrings -Value $SolutionUniqueNames)
+    if ($resolved.Count -eq 0) {
+        return '<none>'
+    }
+
+    return ($resolved -join ', ')
+}
+
 function Test-InsuranceFoundationManifestAlignment {
     [CmdletBinding()]
     param(
@@ -3288,35 +3343,63 @@ function Test-InsuranceFoundationUnexpectedMetadata {
             continue
         }
 
-        $solutionNames = @(Get-UniqueConvergenceStrings -Value @($membership.value | ForEach-Object {
-                    if ($_.solutionid) {
-                        [string]$_.solutionid.uniquename
-                    }
-                }))
-        $reviewedMembership = @($Contract.solutions | Where-Object {
-                Test-ConvergenceContainsExactString `
-                    -Value $solutionNames `
-                    -Expected ([string]$_)
+        $reviewedMembership = @(Get-ConvergenceRoleActualReviewedMembership `
+                -Membership $membership `
+                -ReviewedSolutions @($Contract.solutions))
+        $declaredRoleMatches = @($Contract.roles | Where-Object {
+                [string]$_.name -ceq $roleName
             })
-        if ($reviewedMembership.Count -eq 0) {
+
+        if ($declaredRoleMatches.Count -eq 0) {
+            if ($reviewedMembership.Count -eq 0) {
+                continue
+            }
+
+            foreach ($reviewedSolutionUniqueName in @($reviewedMembership)) {
+                [void]$unexpected.Add("$reviewedSolutionUniqueName/role/$roleName")
+                [void]$details.Add(
+                    "Unexpected root role '$roleName' is owned by solution '$reviewedSolutionUniqueName' but is not listed in the contract."
+                )
+            }
+
             continue
         }
 
-        $declaredRoleSolutions = @($Contract.solutions | Where-Object {
-                Test-ConvergenceContainsExactString `
-                    -Value @($expectedInventory.RolesBySolution[[string]$_]) `
-                    -Expected $roleName
-            })
-        if ($declaredRoleSolutions.Count -gt 0) {
-            continue
+        $declaredRole = $declaredRoleMatches[0]
+        $expectedReviewedMembership = @(Get-ConvergenceRoleExpectedReviewedMembership `
+                -Role $declaredRole `
+                -ReviewedSolutions @($Contract.solutions))
+        $expectedReviewedMembershipDisplay = Get-ConvergenceRoleReviewedMembershipDisplayText `
+            -SolutionUniqueNames @($expectedReviewedMembership)
+        $actualReviewedMembershipDisplay = Get-ConvergenceRoleReviewedMembershipDisplayText `
+            -SolutionUniqueNames @($reviewedMembership)
+
+        foreach ($expectedSolutionUniqueName in @($expectedReviewedMembership)) {
+            if (Test-ConvergenceContainsExactString `
+                    -Value @($reviewedMembership) `
+                    -Expected $expectedSolutionUniqueName) {
+                continue
+            }
+
+            [void]$details.Add(
+                "Declared root role '$roleName' is missing reviewed solution membership '$expectedSolutionUniqueName'; expected reviewed solution membership: $expectedReviewedMembershipDisplay; actual reviewed solution membership: $actualReviewedMembershipDisplay."
+            )
         }
 
         foreach ($reviewedSolutionUniqueName in @($reviewedMembership)) {
+            if (Test-ConvergenceContainsExactString `
+                    -Value @($expectedReviewedMembership) `
+                    -Expected $reviewedSolutionUniqueName) {
+                continue
+            }
+
             [void]$unexpected.Add("$reviewedSolutionUniqueName/role/$roleName")
             [void]$details.Add(
-                "Unexpected root role '$roleName' is owned by solution '$reviewedSolutionUniqueName' but is not listed in the contract."
+                "Declared root role '$roleName' has unexpected reviewed solution membership '$reviewedSolutionUniqueName'; expected reviewed solution membership: $expectedReviewedMembershipDisplay; actual reviewed solution membership: $actualReviewedMembershipDisplay."
             )
         }
+
+        continue
     }
 
     foreach ($tableLogicalName in @($expectedInventory.ReviewedTables)) {

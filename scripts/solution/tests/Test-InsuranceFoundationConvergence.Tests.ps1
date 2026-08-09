@@ -506,15 +506,20 @@ BeforeAll {
         [CmdletBinding()]
         param(
             [Parameter(Mandatory)]
-            [string]$SolutionUniqueName
+            [string[]]$SolutionUniqueName
         )
 
         return [pscustomobject]@{
-            value = @([pscustomobject]@{
-                    solutionid = [pscustomobject]@{
-                        uniquename = $SolutionUniqueName
+            value = @(
+                @(Get-UniqueConvergenceStrings -Value $SolutionUniqueName) |
+                    ForEach-Object {
+                        [pscustomobject]@{
+                            solutionid = [pscustomobject]@{
+                                uniquename = [string]$_
+                            }
+                        }
                     }
-                })
+            )
         }
     }
 
@@ -2321,6 +2326,94 @@ Describe 'Unexpected metadata reverse inventory' {
         $result.State | Should -Be 'ContractConflict'
         @($result.Unexpected) | Should -Contain 'crmshow_DataModel/view/crmshow_policyprojection/Active Policy Projections'
         @($result.Unexpected) | Should -Contain 'crmshow_DataModel/form/crmshow_policyprojection/Information'
+    }
+
+    It 'accepts a declared CRM Showcase Insurance Reader root role when reviewed membership matches exactly' {
+        $fixture = script:New-ReadyConvergenceResponseMap `
+            -Contract $script:contract `
+            -Manifest $script:manifest `
+            -Scenario Ready
+        $readerRoleId = [string]$fixture.IdMap['role:CRM Showcase Insurance Reader']
+        $fixture.Responses[(Get-ConvergenceSolutionMembershipPath -ComponentId $readerRoleId)] =
+            script:New-SolutionMembershipResponse -SolutionUniqueName 'crmshow_Foundation'
+        script:Register-ConvergenceTransportMock -Responses $fixture.Responses
+
+        $result = Test-InsuranceFoundationUnexpectedMetadata `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Contract $script:contract `
+            -Manifest $script:manifest
+
+        $result.State | Should -Be 'Ready'
+        @($result.Unexpected) | Should -Be @()
+        @($result.Details | Where-Object {
+                $_ -match 'CRM Showcase Insurance Reader'
+            }) | Should -Be @()
+    }
+
+    It 'ignores declared CRM Showcase Insurance Reader memberships outside reviewed solutions' {
+        $fixture = script:New-ReadyConvergenceResponseMap `
+            -Contract $script:contract `
+            -Manifest $script:manifest `
+            -Scenario Ready
+        $readerRoleId = [string]$fixture.IdMap['role:CRM Showcase Insurance Reader']
+        $fixture.Responses[(Get-ConvergenceSolutionMembershipPath -ComponentId $readerRoleId)] =
+            script:New-SolutionMembershipResponse -SolutionUniqueName @(
+                'crmshow_Foundation',
+                'crmshow_Unreviewed'
+            )
+        script:Register-ConvergenceTransportMock -Responses $fixture.Responses
+
+        $result = Test-InsuranceFoundationUnexpectedMetadata `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Contract $script:contract `
+            -Manifest $script:manifest
+
+        $result.State | Should -Be 'Ready'
+        @($result.Unexpected) | Should -Be @()
+    }
+
+    It 'classifies a declared CRM Showcase Insurance Reader root role in Foundation and DataModel as ContractConflict' {
+        $fixture = script:New-ReadyConvergenceResponseMap `
+            -Contract $script:contract `
+            -Manifest $script:manifest `
+            -Scenario Ready
+        $readerRoleId = [string]$fixture.IdMap['role:CRM Showcase Insurance Reader']
+        $fixture.Responses[(Get-ConvergenceSolutionMembershipPath -ComponentId $readerRoleId)] =
+            script:New-SolutionMembershipResponse -SolutionUniqueName @(
+                'crmshow_Foundation',
+                'crmshow_DataModel'
+            )
+        script:Register-ConvergenceTransportMock -Responses $fixture.Responses
+
+        $result = Test-InsuranceFoundationUnexpectedMetadata `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Contract $script:contract `
+            -Manifest $script:manifest
+
+        $result.State | Should -Be 'ContractConflict'
+        @($result.Unexpected) | Should -Contain 'crmshow_DataModel/role/CRM Showcase Insurance Reader'
+        @($result.Details) -join ' ' | Should -Match 'unexpected reviewed solution membership ''crmshow_DataModel'''
+    }
+
+    It 'classifies a declared CRM Showcase Insurance Reader root role only in DataModel as ContractConflict' {
+        $fixture = script:New-ReadyConvergenceResponseMap `
+            -Contract $script:contract `
+            -Manifest $script:manifest `
+            -Scenario Ready
+        $readerRoleId = [string]$fixture.IdMap['role:CRM Showcase Insurance Reader']
+        $fixture.Responses[(Get-ConvergenceSolutionMembershipPath -ComponentId $readerRoleId)] =
+            script:New-SolutionMembershipResponse -SolutionUniqueName 'crmshow_DataModel'
+        script:Register-ConvergenceTransportMock -Responses $fixture.Responses
+
+        $result = Test-InsuranceFoundationUnexpectedMetadata `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Contract $script:contract `
+            -Manifest $script:manifest
+
+        $result.State | Should -Be 'ContractConflict'
+        @($result.Unexpected) | Should -Contain 'crmshow_DataModel/role/CRM Showcase Insurance Reader'
+        @($result.Details) -join ' ' | Should -Match 'missing reviewed solution membership ''crmshow_Foundation'''
+        @($result.Details) -join ' ' | Should -Match 'actual reviewed solution membership: crmshow_DataModel'
     }
 
     It 'classifies an additional CRM Showcase Insurance Foundation root role as ContractConflict' {
