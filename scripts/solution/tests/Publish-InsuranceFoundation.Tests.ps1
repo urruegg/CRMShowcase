@@ -253,7 +253,9 @@ Describe 'Insurance Foundation request builders' {
     It 'uses the resolved custom object type code in layout XML' {
         $request = New-ViewRequest $script:contract.tables[0] `
             $script:contract.tables[0].views[0] 10427
+
         $request.Body.layoutxml | Should -Match 'object="10427"'
+        $request.Body.layoutxml | Should -Match '<grid[^>]+icon="1"'
         $request.Body.layoutxml | Should -Not -Match 'object="1"'
     }
 }

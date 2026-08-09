@@ -483,7 +483,7 @@ function ConvertTo-LayoutXml {
     $cells = @($View.columns | ForEach-Object {
         "<cell name=`"$_`" width=`"150`" />"
     }) -join ''
-    return "<grid name=`"resultset`" object=`"$ObjectTypeCode`" jump=`"crmshow_name`" select=`"1`" preview=`"0`"><row name=`"$($Table.logicalName)`" id=`"$($Table.logicalName)id`">$cells</row></grid>"
+    return "<grid name=`"resultset`" object=`"$ObjectTypeCode`" jump=`"crmshow_name`" select=`"1`" preview=`"0`" icon=`"1`"><row name=`"$($Table.logicalName)`" id=`"$($Table.logicalName)id`">$cells</row></grid>"
 }
 
 function New-ViewRequest {
