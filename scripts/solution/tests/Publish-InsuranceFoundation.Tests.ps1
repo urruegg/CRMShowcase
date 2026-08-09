@@ -1344,6 +1344,24 @@ Describe 'Insurance Foundation reconciliation' {
         } | Should -Throw '*key conflict*Actual: crmshow_sourceid*Expected:*'
     }
 
+    It 'accepts alternate-key attributes returned in platform order' {
+        $table = $script:contract.tables[1] |
+            ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        $table.businessRules = @()
+        $table.views = @()
+        $table.forms = @()
+        Mock Invoke-DataverseRequest {
+            return [pscustomobject]@{ value = @([pscustomobject]@{
+                SchemaName = $table.alternateKeys[0].schemaName
+                KeyAttributes = @('crmshow_externalid', 'crmshow_externalsystem')
+            }) }
+        }
+
+        {
+            Invoke-TableChildren $table 10427
+        } | Should -Not -Throw
+    }
+
     It 'throws on type and global-choice binding conflicts' {
         {
             Test-AttributeCompatibility ([pscustomobject]@{ AttributeType = 'String' }) `
