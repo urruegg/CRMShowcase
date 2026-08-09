@@ -122,6 +122,12 @@ Describe 'Insurance Foundation request builders' {
             Should -Be @('crmshow_accountid', 'crmshow_contactid')
         @($request.Body.OneToManyRelationships.Lookup.Targets) |
             Should -BeNullOrEmpty
+        @($request.Body.OneToManyRelationships.CascadeConfiguration.Merge) |
+            Should -Be @('Cascade', 'Cascade')
+
+        $customTarget = New-OrdinaryRelationshipMetadata `
+            $script:contract.tables[2] $script:contract.tables[2].relationships[0]
+        $customTarget.CascadeConfiguration.Merge | Should -Be 'NoCascade'
     }
 
     It 'marks only crmshow_name as primary name on every custom table create' {
@@ -911,7 +917,7 @@ Describe 'Insurance Foundation reconciliation' {
                             ReferencingAttribute = $_.lookupColumn
                             CascadeConfiguration = [pscustomobject]@{
                                 Assign='NoCascade'; Delete='Restrict'
-                                Merge='NoCascade'; Reparent='NoCascade'
+                                Merge='Cascade'; Reparent='NoCascade'
                                 Share='NoCascade'; Unshare='NoCascade'
                             }
                         }
@@ -1103,7 +1109,7 @@ Describe 'Insurance Foundation reconciliation' {
                             ReferencingAttribute=$_.lookupColumn
                             CascadeConfiguration=[pscustomobject]@{
                                 Assign='NoCascade'; Delete='Cascade'
-                                Merge='NoCascade'; Reparent='NoCascade'
+                                Merge='Cascade'; Reparent='NoCascade'
                                 Share='NoCascade'; Unshare='NoCascade'
                             }
                         }
