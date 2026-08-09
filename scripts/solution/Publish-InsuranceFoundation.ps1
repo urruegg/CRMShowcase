@@ -758,9 +758,13 @@ function Assert-SolutionOwnership {
         $Existing.SolutionUniqueName -and $Existing.SolutionUniqueName -ne $Expected) {
         throw "Structural ownership conflict for '$Component': expected '$Expected', found '$($Existing.SolutionUniqueName)'."
     }
-    if ($Existing.MetadataId -and
+    $componentId = if ($Existing.MetadataId) {
+        ([string]$Existing.MetadataId).Trim('{}')
+    } elseif ($Existing.savedqueryid) {
+        ([string]$Existing.savedqueryid).Trim('{}')
+    }
+    if ($componentId -and
         $Existing.PSObject.Properties.Name -notcontains 'SolutionUniqueName') {
-        $componentId = ([string]$Existing.MetadataId).Trim('{}')
         $membership = Invoke-DataverseRequest -Method GET -Path (
             "/solutioncomponents?`$select=solutioncomponentid&" +
             "`$filter=objectid eq $componentId&" +
@@ -1140,7 +1144,7 @@ function Invoke-TableChildren {
         Write-Output "$($Table.logicalName)/$($rule.name): Deferred: OR-001/#9"
         $ruleLabel = ([string]$rule.metadata.label.'1033').Replace("'", "''")
         Invoke-ChildRequestIfMissing `
-            -QueryPath "/savedqueries?`$select=savedqueryid,name,description,returnedtypecode,fetchxml,layoutxml,_solutionid_value&`$filter=name eq '$ruleLabel' and returnedtypecode eq '$($Table.logicalName)'" `
+            -QueryPath "/savedqueries?`$select=savedqueryid,name,description,returnedtypecode,fetchxml,layoutxml&`$filter=name eq '$ruleLabel' and returnedtypecode eq '$($Table.logicalName)'" `
             -Request ($ruleRequest = New-InvalidDateViewRequest $Table $rule $ObjectTypeCode) `
             -Component "$($Table.logicalName)/$($rule.name)report" `
             -AssertCompatible {
@@ -1155,7 +1159,7 @@ function Invoke-TableChildren {
     foreach ($view in $Table.views) {
         $viewLabel = ([string]$view.metadata.label.'1033').Replace("'", "''")
         Invoke-ChildRequestIfMissing `
-            -QueryPath "/savedqueries?`$select=savedqueryid,name,description,returnedtypecode,fetchxml,layoutxml,_solutionid_value&`$filter=name eq '$viewLabel' and returnedtypecode eq '$($Table.logicalName)'" `
+            -QueryPath "/savedqueries?`$select=savedqueryid,name,description,returnedtypecode,fetchxml,layoutxml&`$filter=name eq '$viewLabel' and returnedtypecode eq '$($Table.logicalName)'" `
             -Request ($viewRequest = New-ViewRequest $Table $view $ObjectTypeCode) `
             -Component "$($Table.logicalName)/$($view.name)" `
             -AssertCompatible {
