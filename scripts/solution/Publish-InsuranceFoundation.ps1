@@ -90,6 +90,35 @@ function ConvertTo-ODataKeyString {
     return $Value.Replace("'", "''")
 }
 
+function Wait-DataverseCondition {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] [string]$Component,
+        [Parameter(Mandatory)] [scriptblock]$Condition,
+        [int]$TimeoutSeconds = 180,
+        [int]$PollIntervalSeconds = 5
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ($true) {
+        $result = & $Condition
+        if ($null -ne $result) {
+            return $result
+        }
+
+        $now = Get-Date
+        if ($now -ge $deadline) {
+            throw "EventualConsistencyTimeout: component '$Component' did not converge within $TimeoutSeconds seconds."
+        }
+
+        $remainingSeconds = [int][Math]::Ceiling(($deadline - $now).TotalSeconds)
+        $sleepSeconds = [Math]::Min($PollIntervalSeconds, $remainingSeconds)
+        if ($sleepSeconds -gt 0) {
+            Start-Sleep -Seconds $sleepSeconds
+        }
+    }
+}
+
 function ConvertTo-LocalizedLabel {
     param([Parameter(Mandatory)] $Text)
     $labels = foreach ($language in $script:RequiredLanguages) {
@@ -1018,12 +1047,14 @@ function Get-TypedAttributeMetadata {
         DateOnly = 'DateTimeAttributeMetadata'
         DateTime = 'DateTimeAttributeMetadata'
         Lookup = 'LookupAttributeMetadata'
+        Customer = 'LookupAttributeMetadata'
     }[$Column.type]
     $derivedProperties = @{
         Text = 'MaxLength'
         DateOnly = 'Format,DateTimeBehavior'
         DateTime = 'Format,DateTimeBehavior'
         Lookup = 'Targets'
+        Customer = 'Targets'
     }[$Column.type]
     if (-not $type) {
         throw "Unsupported typed metadata query for '$($Column.type)' column '$($Column.logicalName)'."
@@ -1037,6 +1068,111 @@ function Get-TypedAttributeMetadata {
         "DisplayName,Description,$derivedProperties&" +
         "`$filter=LogicalName eq '$escapedAttributeName'"
     )
+}
+
+function Get-TableMetadataSnapshot {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] [string]$LogicalName)
+
+    $escapedLogicalName = ConvertTo-ODataKeyString $LogicalName
+    $existing = Get-One (
+        "/EntityDefinitions?" +
+        "`$select=MetadataId,LogicalName,SchemaName,OwnershipType," +
+        "PrimaryNameAttribute,IsAuditEnabled,DisplayName,Description,ObjectTypeCode&" +
+        "`$expand=Attributes(`$select=MetadataId,LogicalName,SchemaName,AttributeType,DisplayName,Description)," +
+        "ManyToOneRelationships(`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute,CascadeConfiguration)&" +
+        "`$filter=LogicalName eq '$escapedLogicalName'"
+    )
+    if ($null -eq $existing) { return $null }
+
+    $normalizedAttributes = foreach ($attribute in @($existing.Attributes)) {
+        $columnType = switch ([string]$attribute.AttributeType) {
+            'String' { 'Text' }
+            'Picklist' { 'GlobalChoice' }
+            'DateTime' { 'DateTime' }
+            'Lookup' { 'Lookup' }
+            'Customer' { 'Customer' }
+            default { $null }
+        }
+        if (-not $columnType) {
+            $attribute
+            continue
+        }
+
+        $typed = Get-TypedAttributeMetadata $LogicalName ([pscustomobject]@{
+            logicalName = $attribute.LogicalName
+            type = $columnType
+        })
+        $actual = @($typed)
+        if ($actual.Count -eq 1 -and $null -eq $actual[0]) {
+            $actual = @()
+        }
+        if ($actual.Count -eq 0) {
+            throw "Structural type conflict for '$LogicalName/$($attribute.LogicalName)': base metadata exists but typed metadata is unavailable."
+        }
+        if ($actual.Count -ne 1) {
+            throw "Structural metadata conflict for '$LogicalName/$($attribute.LogicalName)': typed metadata was ambiguous."
+        }
+        foreach ($property in 'MetadataId', 'LogicalName', 'SchemaName',
+            'AttributeType') {
+            if ($null -eq $attribute.$property -or
+                $null -eq $actual[0].$property -or
+                [string]$attribute.$property -ne
+                [string]$actual[0].$property) {
+                throw "Structural metadata conflict for '$LogicalName/$($attribute.LogicalName)': base and typed '$property' values differ or are incomplete."
+            }
+        }
+
+        $merged = [ordered]@{}
+        foreach ($property in $attribute.PSObject.Properties) {
+            if ($property.Name -notmatch '^@odata\.') {
+                $merged[$property.Name] = $property.Value
+            }
+        }
+        foreach ($property in $actual[0].PSObject.Properties) {
+            if ($property.Name -notmatch '^@odata\.' -and
+                $property.Name -ne 'value') {
+                $merged[$property.Name] = $property.Value
+            }
+        }
+        [pscustomobject]$merged
+    }
+
+    $snapshot = [ordered]@{}
+    foreach ($property in $existing.PSObject.Properties) {
+        if ($property.Name -eq 'Attributes') {
+            $snapshot[$property.Name] = @($normalizedAttributes)
+        } else {
+            $snapshot[$property.Name] = $property.Value
+        }
+    }
+    if ($snapshot.Keys -notcontains 'Attributes') {
+        $snapshot['Attributes'] = @()
+    }
+    return [pscustomobject]$snapshot
+}
+
+function Wait-TableMetadataSnapshot {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] $Table,
+        [Parameter(Mandatory)] [string]$Component,
+        [scriptblock]$Ready
+    )
+
+    return Wait-DataverseCondition -Component $Component -Condition {
+        try {
+            $snapshot = Get-TableMetadataSnapshot $Table.logicalName
+        } catch {
+            if ($_.Exception.Message -like '*typed metadata is unavailable*') {
+                return $null
+            }
+            throw
+        }
+        if ($null -eq $snapshot) { return $null }
+        if ($Ready -and -not (& $Ready $snapshot)) { return $null }
+        return $snapshot
+    }
 }
 
 function Invoke-NativeExtensionReconciliation {
@@ -1227,8 +1363,9 @@ function Invoke-TableChildren {
 
 function Resolve-TableObjectTypeCode {
     param([Parameter(Mandatory)] [string]$TableLogicalName)
+    $escapedLogicalName = ConvertTo-ODataKeyString $TableLogicalName
     $response = Invoke-DataverseRequest -Method GET -Path (
-        "/EntityDefinitions(LogicalName='$TableLogicalName')?`$select=LogicalName,ObjectTypeCode"
+        "/EntityDefinitions(LogicalName='$escapedLogicalName')?`$select=LogicalName,ObjectTypeCode"
     )
     $metadata = if ($response.ObjectTypeCode) { $response } else { @($response.value)[0] }
     if ($null -eq $metadata -or $null -eq $metadata.ObjectTypeCode) {
@@ -1241,19 +1378,34 @@ function Invoke-ExistingCustomerRelationshipReconciliation {
     param(
         [Parameter(Mandatory)] $Table,
         [Parameter(Mandatory)] $Column,
-        [object[]]$ExistingAttributes = @()
+        [object[]]$ExistingAttributes = @(),
+        $Snapshot
     )
 
-    $escapedLogicalName = ConvertTo-ODataKeyString $Table.logicalName
-    $attributeResponse = Invoke-DataverseRequest -Method GET -Path (
-        "/EntityDefinitions(LogicalName='$escapedLogicalName')/Attributes/" +
-        "Microsoft.Dynamics.CRM.LookupAttributeMetadata?" +
-        "`$select=MetadataId,LogicalName,SchemaName,AttributeType,Targets"
-    )
-    $relationshipResponse = Invoke-DataverseRequest -Method GET -Path (
-        "/EntityDefinitions(LogicalName='$escapedLogicalName')/ManyToOneRelationships?" +
-        "`$select=MetadataId,SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute"
-    )
+    if ($Snapshot) {
+        if (@($ExistingAttributes).Count -eq 0) {
+            $ExistingAttributes = @($Snapshot.Attributes)
+        }
+        $attributeResponse = [pscustomobject]@{
+            value = @($Snapshot.Attributes | Where-Object {
+                $_.AttributeType -in @('Lookup', 'Customer')
+            })
+        }
+        $relationshipResponse = [pscustomobject]@{
+            value = @($Snapshot.ManyToOneRelationships)
+        }
+    } else {
+        $escapedLogicalName = ConvertTo-ODataKeyString $Table.logicalName
+        $attributeResponse = Invoke-DataverseRequest -Method GET -Path (
+            "/EntityDefinitions(LogicalName='$escapedLogicalName')/Attributes/" +
+            "Microsoft.Dynamics.CRM.LookupAttributeMetadata?" +
+            "`$select=MetadataId,LogicalName,SchemaName,AttributeType,Targets"
+        )
+        $relationshipResponse = Invoke-DataverseRequest -Method GET -Path (
+            "/EntityDefinitions(LogicalName='$escapedLogicalName')/ManyToOneRelationships?" +
+            "`$select=MetadataId,SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute"
+        )
+    }
 
     $relationshipContract = @($Table.relationships | Where-Object {
         $_.lookupColumn -eq $Column.logicalName -and
@@ -1294,7 +1446,7 @@ function Invoke-ExistingCustomerRelationshipReconciliation {
         Invoke-PlannedRequest (Get-CustomerRelationshipRequest $Table $Column) |
             Out-Null
         Write-Output "$($Table.logicalName)/$($Column.logicalName): Created"
-        return
+        return $true
     }
 
     if ($attributeCandidates.Count -ne 1) {
@@ -1324,6 +1476,75 @@ function Invoke-ExistingCustomerRelationshipReconciliation {
             throw "Structural Customer relationship conflict for '$($Table.logicalName)/$($Column.logicalName)': relationship '$($expected.SchemaName)' has conflicting target or schema metadata."
         }
     }
+    return $false
+}
+
+function Invoke-ExistingOrdinaryRelationshipReconciliation {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] $Table,
+        [Parameter(Mandatory)] $Relationship,
+        [Parameter(Mandatory)] $Snapshot
+    )
+
+    $expected = [pscustomobject]@{
+        SchemaName = $Relationship.schemaName
+        ReferencedEntity = [string]$Relationship.referencedTables[0]
+    }
+    $attributeCandidates = @($Snapshot.Attributes | Where-Object {
+        $_.LogicalName -eq $Relationship.lookupColumn
+    })
+    $actualRelationship = @($Snapshot.ManyToOneRelationships |
+        Where-Object SchemaName -eq $expected.SchemaName)
+    if ($actualRelationship.Count -eq 0 -and
+        $attributeCandidates.Count -eq 0) {
+        Invoke-PlannedRequest (
+            Get-OrdinaryRelationshipRequest $Table $Relationship
+        ) | Out-Null
+        Write-Output "$($Table.logicalName)/$($Relationship.lookupColumn): Created"
+        return $true
+    }
+    if ($actualRelationship.Count -ne 1 -or
+        $attributeCandidates.Count -ne 1) {
+        throw "Structural relationship conflict for '$($expected.SchemaName)': relationship and lookup metadata must both be wholly present or wholly absent."
+    }
+    $actualRelationship = $actualRelationship[0]
+    if ([string]::IsNullOrWhiteSpace(
+            [string]$actualRelationship.ReferencedEntity
+        ) -or
+        [string]$actualRelationship.ReferencedEntity -ne
+            $expected.ReferencedEntity -or
+        [string]::IsNullOrWhiteSpace(
+            [string]$actualRelationship.ReferencingEntity
+        ) -or
+        [string]$actualRelationship.ReferencingEntity -ne
+            $Table.logicalName -or
+        [string]::IsNullOrWhiteSpace(
+            [string]$actualRelationship.ReferencingAttribute
+        ) -or
+        [string]$actualRelationship.ReferencingAttribute -ne
+            $Relationship.lookupColumn) {
+        throw "Structural relationship target conflict for '$($expected.SchemaName)'."
+    }
+    $expectedCascade = @{
+        Assign = 'NoCascade'
+        Delete = 'Restrict'
+        Merge = if ($expected.ReferencedEntity -in @('account', 'contact')) {
+            'Cascade'
+        } else {
+            'NoCascade'
+        }
+        Reparent = 'NoCascade'
+        Share = 'NoCascade'
+        Unshare = 'NoCascade'
+    }
+    foreach ($action in @($expectedCascade.Keys | Sort-Object)) {
+        if ([string]$actualRelationship.CascadeConfiguration.$action -ne
+            [string]$expectedCascade[$action]) {
+            throw "Structural relationship cascade conflict for '$($expected.SchemaName)': '$action' must be '$($expectedCascade[$action])'."
+        }
+    }
+    return $false
 }
 
 function Publish-TableMetadata {
@@ -1347,182 +1568,159 @@ function Publish-TableMetadata {
 
 function Invoke-TableReconciliation {
     param($Table)
-    $existing = Get-One "/EntityDefinitions?`$select=MetadataId,LogicalName,SchemaName,OwnershipType,PrimaryNameAttribute,IsAuditEnabled,DisplayName,Description&`$expand=Attributes(`$select=MetadataId,LogicalName,SchemaName,AttributeType,DisplayName,Description),ManyToOneRelationships(`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute,CascadeConfiguration)&`$filter=LogicalName eq '$($Table.logicalName)'"
-    if ($null -eq $existing) {
+
+    $tableWasCreated = $false
+    $snapshot = Get-TableMetadataSnapshot $Table.logicalName
+    if ($null -eq $snapshot) {
         $choiceMetadataIds = Get-GlobalChoiceMetadataIds @($Table.columns)
         Invoke-PlannedRequest (
             Get-TableCreateRequest $Table $choiceMetadataIds
         ) | Out-Null
+        $tableWasCreated = $true
         Write-Output "$($Table.logicalName): Created"
         Publish-TableMetadata $Table
-
-        # Dataverse requires the global action for a polymorphic Customer lookup.
-        foreach ($customer in @($Table.columns | Where-Object type -eq 'Customer')) {
-            Invoke-PlannedRequest (Get-CustomerRelationshipRequest $Table $customer) | Out-Null
-            Write-Output "$($Table.logicalName)/$($customer.logicalName): Created"
-        }
-    } else {
-        Assert-SolutionOwnership $existing $Table.solution $Table.logicalName
-        if ([string]$existing.OwnershipType -and [string]$existing.OwnershipType -ne $Table.ownership) {
-            throw "Structural ownership conflict for '$($Table.logicalName)'."
-        }
-        Publish-TableMetadata $Table
-        $createdOrdinaryLookups = @{}
-        foreach ($customer in @($Table.columns | Where-Object type -eq 'Customer')) {
-            Invoke-ExistingCustomerRelationshipReconciliation $Table $customer `
-                -ExistingAttributes @($existing.Attributes)
-        }
-        foreach ($relationship in @($Table.relationships | Where-Object {
-            $_.authoring -ne 'CreateCustomerRelationships'
-        })) {
-            $expected = [pscustomobject]@{
-                SchemaName = $relationship.schemaName
-                ReferencedEntity = [string]$relationship.referencedTables[0]
-            }
-            $attributeCandidates = @($existing.Attributes | Where-Object {
-                $_.LogicalName -eq $relationship.lookupColumn
-            })
-            foreach ($wanted in @($expected)) {
-                $actualRelationship = @($existing.ManyToOneRelationships |
-                    Where-Object SchemaName -eq $wanted.SchemaName)
-                if ($actualRelationship.Count -eq 0 -and
-                    $attributeCandidates.Count -eq 0) {
-                    Invoke-PlannedRequest (
-                        Get-OrdinaryRelationshipRequest $Table $relationship
-                    ) | Out-Null
-                    $createdOrdinaryLookups[$relationship.lookupColumn] = $true
-                    Write-Output "$($Table.logicalName)/$($relationship.lookupColumn): Created"
-                    continue
-                }
-                if ($actualRelationship.Count -ne 1 -or
-                    $attributeCandidates.Count -ne 1) {
-                    throw "Structural relationship conflict for '$($wanted.SchemaName)': relationship and lookup metadata must both be wholly present or wholly absent."
-                }
-                $actualRelationship = $actualRelationship[0]
-                if ([string]::IsNullOrWhiteSpace(
-                        [string]$actualRelationship.ReferencedEntity
-                    ) -or
-                    [string]$actualRelationship.ReferencedEntity -ne
-                        $wanted.ReferencedEntity -or
-                    [string]::IsNullOrWhiteSpace(
-                        [string]$actualRelationship.ReferencingEntity
-                    ) -or
-                    [string]$actualRelationship.ReferencingEntity -ne
-                        $Table.logicalName -or
-                    [string]::IsNullOrWhiteSpace(
-                        [string]$actualRelationship.ReferencingAttribute
-                    ) -or
-                    [string]$actualRelationship.ReferencingAttribute -ne
-                        $relationship.lookupColumn) {
-                    throw "Structural relationship target conflict for '$($wanted.SchemaName)'."
-                }
-                $expectedCascade = @{
-                    Assign='NoCascade'; Delete='Restrict'
-                    Merge=$(if ($wanted.ReferencedEntity -in @('account', 'contact')) {
-                        'Cascade'
-                    } else {
-                        'NoCascade'
-                    })
-                    Reparent='NoCascade'; Share='NoCascade'; Unshare='NoCascade'
-                }
-                foreach ($action in @($expectedCascade.Keys | Sort-Object)) {
-                    if ([string]$actualRelationship.CascadeConfiguration.$action -ne
-                        [string]$expectedCascade[$action]) {
-                        throw "Structural relationship cascade conflict for '$($wanted.SchemaName)': '$action' must be '$($expectedCascade[$action])'."
-                    }
-                }
-            }
-        }
-        if (Test-LocalizedMetadataChanged $existing $Table.metadata) {
-            if (-not $existing.MetadataId) {
-                throw "Cannot update localized metadata for '$($Table.logicalName)' without its metadata ID."
-            }
-            $path = "/EntityDefinitions($($existing.MetadataId))"
-            $complete = Get-CompleteMetadata $path Entity
-            Invoke-DataverseRequest -Method PUT -Path $path `
-                -Body (New-CompleteLocalizedMetadataUpdateBody $complete $Table.metadata Entity) `
-                -Headers (Get-MergeLabelHeaders $Table.solution) | Out-Null
-        }
-        foreach ($column in $Table.columns) {
-            if ($column.type -eq 'Customer') { continue }
-            if ($createdOrdinaryLookups.ContainsKey($column.logicalName)) { continue }
-            $base = @($existing.Attributes |
-                Where-Object LogicalName -eq $column.logicalName)
-            if ($base.Count -gt 1) {
-                throw "Duplicate physical attributes found for '$($Table.logicalName)/$($column.logicalName)'."
-            }
-            $needsTypedMetadata = $column.type -eq 'GlobalChoice' -or
-                ($base.Count -eq 1 -and (
-                    ($column.type -eq 'Text' -and $null -eq $base[0].MaxLength) -or
-                    ($column.type -in @('DateOnly', 'DateTime') -and
-                        ($null -eq $base[0].Format -or
-                            $null -eq $base[0].DateTimeBehavior)) -or
-                    ($column.type -eq 'Lookup' -and $null -eq $base[0].Targets)
-                ))
-            if ($needsTypedMetadata) {
-                $typed = Get-TypedAttributeMetadata $Table.logicalName $column
-                $actual = @($typed)
-                if ($actual.Count -eq 1 -and $null -eq $actual[0]) {
-                    $actual = @()
-                }
-                if ($base.Count -eq 1 -and $actual.Count -eq 0) {
-                    throw "Structural type conflict for '$($Table.logicalName)/$($column.logicalName)': base metadata exists but typed metadata is unavailable."
-                }
-                if ($base.Count -eq 1 -and $actual.Count -eq 1) {
-                    foreach ($property in 'MetadataId', 'LogicalName', 'SchemaName',
-                        'AttributeType') {
-                        if ($null -eq $base[0].$property -or
-                            $null -eq $actual[0].$property -or
-                            [string]$base[0].$property -ne
-                            [string]$actual[0].$property) {
-                            throw "Structural metadata conflict for '$($Table.logicalName)/$($column.logicalName)': base and typed '$property' values differ or are incomplete."
-                        }
-                    }
-                }
-            } else {
-                $actual = $base
-            }
-            if ($actual.Count -eq 0) {
-                if ($column.type -in @('Lookup', 'Customer')) {
-                    throw "Structural conflict: lookup '$($column.logicalName)' is missing from existing table '$($Table.logicalName)'; it will not be created or recreated."
-                }
-                $request = [pscustomobject]@{
-                    Method = 'POST'
-                    Path = "/EntityDefinitions(LogicalName='$($Table.logicalName)')/Attributes"
-                    Solution = $Table.solution
-                    Body = New-AttributeMetadata $column `
-                        -GlobalChoiceMetadataIds (
-                            Get-GlobalChoiceMetadataIds @($column)
-                        )
-                }
-                Invoke-PlannedRequest $request | Out-Null
-                Write-Output "$($Table.logicalName)/$($column.logicalName): Created"
-            } elseif ($actual.Count -eq 1) {
-                Test-AttributeCompatibility $actual[0] $column $Table.logicalName
-                if (Test-LocalizedMetadataChanged $actual[0] $column.metadata) {
-                    if (-not $actual[0].MetadataId) {
-                        throw "Cannot update localized metadata for '$($Table.logicalName)/$($column.logicalName)' without its metadata ID."
-                    }
-                    $typeName = switch ([string]$actual[0].AttributeType) {
-                        'String' { 'StringAttributeMetadata' }
-                        'DateTime' { 'DateTimeAttributeMetadata' }
-                        'Picklist' { 'PicklistAttributeMetadata' }
-                        default { throw "Cannot safely update attribute metadata for '$($column.logicalName)': unsupported typed endpoint." }
-                    }
-                    $path = "/EntityDefinitions(LogicalName='$($Table.logicalName)')/Attributes($($actual[0].MetadataId))/Microsoft.Dynamics.CRM.$typeName"
-                    $complete = Get-CompleteMetadata $path Attribute
-                    Invoke-DataverseRequest -Method PUT -Path $path `
-                        -Body (New-CompleteLocalizedMetadataUpdateBody $complete $column.metadata Attribute) `
-                        -Headers (Get-MergeLabelHeaders $Table.solution) | Out-Null
-                }
-            } else {
-                throw "Duplicate physical attributes found for '$($Table.logicalName)/$($column.logicalName)'."
-            }
-        }
-        Write-Output "$($Table.logicalName): Unchanged"
-        Publish-TableMetadata $Table
+        $snapshot = Wait-TableMetadataSnapshot -Table $Table `
+            -Component $Table.logicalName
     }
-    $objectTypeCode = Resolve-TableObjectTypeCode $Table.logicalName
+
+    Assert-SolutionOwnership $snapshot $Table.solution $Table.logicalName
+    if ([string]$snapshot.OwnershipType -and
+        [string]$snapshot.OwnershipType -ne $Table.ownership) {
+        throw "Structural ownership conflict for '$($Table.logicalName)'."
+    }
+
+    foreach ($customer in @($Table.columns | Where-Object type -eq 'Customer')) {
+        $customerCreated = Invoke-ExistingCustomerRelationshipReconciliation `
+            -Table $Table -Column $customer `
+            -ExistingAttributes @($snapshot.Attributes) -Snapshot $snapshot
+        if ($customerCreated) {
+            $snapshot = Wait-TableMetadataSnapshot -Table $Table `
+                -Component "$($Table.logicalName)/$($customer.logicalName)" `
+                -Ready {
+                    param($candidate)
+                    $attributeMatches = @($candidate.Attributes | Where-Object {
+                        $_.LogicalName -eq $customer.logicalName -or
+                        $_.SchemaName -eq $customer.schemaName
+                    })
+                    if ($attributeMatches.Count -ne 1) {
+                        return $false
+                    }
+                    $relationshipContract = @($Table.relationships |
+                        Where-Object {
+                            $_.lookupColumn -eq $customer.logicalName -and
+                            $_.authoring -eq 'CreateCustomerRelationships'
+                        })
+                    if ($relationshipContract.Count -ne 1) {
+                        return $false
+                    }
+                    $expectedSchemas = @($customer.lookup.targets |
+                        ForEach-Object {
+                            "$($relationshipContract[0].schemaName)_$_"
+                        })
+                    $actualRelationships = @($candidate.ManyToOneRelationships |
+                        Where-Object SchemaName -in $expectedSchemas)
+                    return $actualRelationships.Count -eq
+                        $expectedSchemas.Count
+                }
+            Invoke-ExistingCustomerRelationshipReconciliation -Table $Table `
+                -Column $customer -ExistingAttributes @($snapshot.Attributes) `
+                -Snapshot $snapshot | Out-Null
+        }
+    }
+
+    foreach ($relationship in @($Table.relationships | Where-Object {
+        $_.authoring -ne 'CreateCustomerRelationships'
+    })) {
+        $lookupCreated = Invoke-ExistingOrdinaryRelationshipReconciliation `
+            -Table $Table -Relationship $relationship -Snapshot $snapshot
+        if ($lookupCreated) {
+            $snapshot = Wait-TableMetadataSnapshot -Table $Table `
+                -Component "$($Table.logicalName)/$($relationship.lookupColumn)" `
+                -Ready {
+                    param($candidate)
+                    $attributeMatches = @($candidate.Attributes | Where-Object {
+                        $_.LogicalName -eq $relationship.lookupColumn
+                    })
+                    $relationshipMatches = @(
+                        $candidate.ManyToOneRelationships | Where-Object {
+                            $_.SchemaName -eq $relationship.schemaName
+                        }
+                    )
+                    return $attributeMatches.Count -eq 1 -and
+                        $relationshipMatches.Count -eq 1
+                }
+            Invoke-ExistingOrdinaryRelationshipReconciliation -Table $Table `
+                -Relationship $relationship -Snapshot $snapshot | Out-Null
+        }
+    }
+
+    if (Test-LocalizedMetadataChanged $snapshot $Table.metadata) {
+        if (-not $snapshot.MetadataId) {
+            throw "Cannot update localized metadata for '$($Table.logicalName)' without its metadata ID."
+        }
+        $path = "/EntityDefinitions($($snapshot.MetadataId))"
+        $complete = Get-CompleteMetadata $path Entity
+        Invoke-DataverseRequest -Method PUT -Path $path `
+            -Body (New-CompleteLocalizedMetadataUpdateBody $complete $Table.metadata Entity) `
+            -Headers (Get-MergeLabelHeaders $Table.solution) | Out-Null
+    }
+
+    foreach ($column in $Table.columns) {
+        if ($column.type -eq 'Customer') { continue }
+        $actual = @($snapshot.Attributes | Where-Object {
+            $_.LogicalName -eq $column.logicalName
+        })
+        if ($actual.Count -gt 1) {
+            throw "Duplicate physical attributes found for '$($Table.logicalName)/$($column.logicalName)'."
+        }
+        if ($actual.Count -eq 0) {
+            if ($column.type -in @('Lookup', 'Customer')) {
+                throw "Structural conflict: lookup '$($column.logicalName)' is missing from existing table '$($Table.logicalName)'; it will not be created or recreated."
+            }
+            $request = [pscustomobject]@{
+                Method = 'POST'
+                Path = "/EntityDefinitions(LogicalName='$($Table.logicalName)')/Attributes"
+                Solution = $Table.solution
+                Body = New-AttributeMetadata $column `
+                    -GlobalChoiceMetadataIds (
+                        Get-GlobalChoiceMetadataIds @($column)
+                    )
+            }
+            Invoke-PlannedRequest $request | Out-Null
+            Write-Output "$($Table.logicalName)/$($column.logicalName): Created"
+        } elseif ($actual.Count -eq 1) {
+            Test-AttributeCompatibility $actual[0] $column $Table.logicalName
+            if (Test-LocalizedMetadataChanged $actual[0] $column.metadata) {
+                if (-not $actual[0].MetadataId) {
+                    throw "Cannot update localized metadata for '$($Table.logicalName)/$($column.logicalName)' without its metadata ID."
+                }
+                $typeName = switch ([string]$actual[0].AttributeType) {
+                    'String' { 'StringAttributeMetadata' }
+                    'DateTime' { 'DateTimeAttributeMetadata' }
+                    'Picklist' { 'PicklistAttributeMetadata' }
+                    default { throw "Cannot safely update attribute metadata for '$($column.logicalName)': unsupported typed endpoint." }
+                }
+                $path = "/EntityDefinitions(LogicalName='$($Table.logicalName)')/Attributes($($actual[0].MetadataId))/Microsoft.Dynamics.CRM.$typeName"
+                $complete = Get-CompleteMetadata $path Attribute
+                Invoke-DataverseRequest -Method PUT -Path $path `
+                    -Body (New-CompleteLocalizedMetadataUpdateBody $complete $column.metadata Attribute) `
+                    -Headers (Get-MergeLabelHeaders $Table.solution) | Out-Null
+            }
+        } else {
+            throw "Duplicate physical attributes found for '$($Table.logicalName)/$($column.logicalName)'."
+        }
+    }
+
+    if (-not $tableWasCreated) {
+        Write-Output "$($Table.logicalName): Unchanged"
+    }
+    Publish-TableMetadata $Table
+
+    $objectTypeCode = if ($snapshot.ObjectTypeCode) {
+        [int]$snapshot.ObjectTypeCode
+    } else {
+        Resolve-TableObjectTypeCode $Table.logicalName
+    }
     Invoke-TableChildren $Table $objectTypeCode
 }
 
