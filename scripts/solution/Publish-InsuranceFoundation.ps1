@@ -1524,6 +1524,43 @@ function Wait-OrdinaryRelationshipVisibility {
         }
 }
 
+function Wait-NonLookupAttributeVisibility {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] $Table,
+        [Parameter(Mandatory)] $Column,
+        [string[]]$RequestedAttributeLogicalNames
+    )
+
+    if ($Column.type -in @('Lookup', 'Customer')) {
+        throw (
+            "Wait-NonLookupAttributeVisibility only supports non-lookup " +
+            "columns; '$($Column.logicalName)' was '$($Column.type)'."
+        )
+    }
+
+    return Wait-TableMetadataSnapshot -Table $Table `
+        -Component "$($Table.logicalName)/$($Column.logicalName)" `
+        -RequestedAttributeLogicalNames $RequestedAttributeLogicalNames `
+        -Ready {
+            param($candidate)
+
+            $actual = @($candidate.Attributes | Where-Object {
+                $_.LogicalName -eq $Column.logicalName
+            })
+            if ($actual.Count -gt 1) {
+                throw "Duplicate physical attributes found for '$($Table.logicalName)/$($Column.logicalName)'."
+            }
+            if ($actual.Count -ne 1) {
+                return $false
+            }
+
+            Test-AttributeCompatibility $actual[0] $Column `
+                $Table.logicalName
+            return $true
+        }
+}
+
 function Invoke-NativeExtensionReconciliation {
     param($Extension)
     $existing = Get-PicklistAttributeMetadata $Extension.table `
@@ -2065,6 +2102,12 @@ function Invoke-TableReconciliation {
             }
             Invoke-PlannedRequest $request | Out-Null
             Write-Output "$($Table.logicalName)/$($column.logicalName): Created"
+            if (-not $tableWasCreated) {
+                $snapshot = Wait-NonLookupAttributeVisibility -Table $Table `
+                    -Column $column `
+                    -RequestedAttributeLogicalNames `
+                        $requestedAttributeLogicalNames
+            }
         } elseif ($actual.Count -eq 1) {
             Test-AttributeCompatibility $actual[0] $column $Table.logicalName
             if (Test-LocalizedMetadataChanged $actual[0] $column.metadata) {
