@@ -721,6 +721,59 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
         )
     }
 
+    It 'removes run-created empty ancestors on failure but retains the pre-existing ancestor' {
+        $context = script:New-ExportTestContext
+        $ancestor = Join-Path $context.RootPath 'pre-existing-ancestor'
+        $mid = Join-Path $ancestor 'created-mid'
+        $outputParent = Join-Path $mid 'created-parent'
+        $null = New-Item -ItemType Directory -Path $ancestor -Force
+        $context.OutputDirectory = Join-Path $outputParent 'out'
+        script:New-FakePacCommand -Path $context.PacPath | Out-Null
+
+        $invocation = script:Invoke-ExportEntryScript `
+            -Context $context `
+            -FailFile 'crmshow_DataModel_managed.zip'
+
+        $invocation.ExitCode | Should -Not -Be 0
+        @($invocation.Invocations).Count | Should -Be 4
+        Test-Path -LiteralPath $context.OutputDirectory | Should -BeFalse
+        Test-Path -LiteralPath $outputParent | Should -BeFalse
+        Test-Path -LiteralPath $mid | Should -BeFalse
+        Test-Path -LiteralPath $ancestor | Should -BeTrue
+        @(Get-ChildItem -LiteralPath $ancestor -Force).Count | Should -Be 0
+        @(script:Get-ContextDirectoryPaths -Context $context) | Should -Be @(
+            $ancestor
+        )
+    }
+
+    It 'stops cleanup when a created ancestor becomes nonempty' {
+        $context = script:New-ExportTestContext
+        $ancestor = Join-Path $context.RootPath 'interference-ancestor'
+        $mid = Join-Path $ancestor 'created-mid'
+        $outputParent = Join-Path $mid 'created-parent'
+        $null = New-Item -ItemType Directory -Path $ancestor -Force
+        $null = New-Item -ItemType Directory -Path $mid -Force
+        Set-Content -LiteralPath (Join-Path $mid 'block.txt') -Value 'x'
+        $context.OutputDirectory = Join-Path $outputParent 'out'
+        script:New-FakePacCommand -Path $context.PacPath | Out-Null
+
+        $invocation = script:Invoke-ExportEntryScript `
+            -Context $context `
+            -FailFile 'crmshow_DataModel_managed.zip'
+
+        $invocation.ExitCode | Should -Not -Be 0
+        @($invocation.Invocations).Count | Should -Be 4
+        Test-Path -LiteralPath $context.OutputDirectory | Should -BeFalse
+        Test-Path -LiteralPath $outputParent | Should -BeFalse
+        Test-Path -LiteralPath $mid | Should -BeTrue
+        Test-Path -LiteralPath $ancestor | Should -BeTrue
+        @(Get-ChildItem -LiteralPath $mid -Force).Count | Should -Be 1
+        @(script:Get-ContextDirectoryPaths -Context $context) | Should -Be @(
+            $ancestor
+            $mid
+        )
+    }
+
     It 'does not invoke pac or fail a final package assertion when run with WhatIf' {
         $context = script:New-ExportTestContext
         $outputParent = Join-Path $context.RootPath 'whatif-parent'

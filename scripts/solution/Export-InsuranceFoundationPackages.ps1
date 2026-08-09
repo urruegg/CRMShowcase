@@ -333,7 +333,10 @@ function Remove-InsuranceFoundationCreatedOutputDirectoryParent {
         [string]$Path,
 
         [AllowNull()]
-        [string]$ExpectedPath
+        [string]$ExpectedPath,
+
+        [AllowNull()]
+        [string[]]$CreatedPaths
     )
 
     if ([string]::IsNullOrWhiteSpace($Path)) {
@@ -353,12 +356,29 @@ function Remove-InsuranceFoundationCreatedOutputDirectoryParent {
         return
     }
 
-    $entries = @(Get-InsuranceFoundationDirectoryEntries -Path $resolvedPath)
-    if ($entries.Count -gt 0) {
-        return
+    $pathsToCheck = @()
+    if ($CreatedPaths) {
+        $pathsToCheck = @($CreatedPaths | ForEach-Object {
+            if (-not [string]::IsNullOrWhiteSpace($_)) {
+                [System.IO.Path]::GetFullPath($_)
+            }
+        })
     }
 
-    Remove-Item -LiteralPath $resolvedPath -Force
+    foreach ($candidatePath in @($pathsToCheck | Where-Object { $_ })) {
+        if (-not (Test-Path -LiteralPath $candidatePath -PathType Container)) {
+            continue
+        }
+        $entries = @(Get-InsuranceFoundationDirectoryEntries -Path $candidatePath)
+        if ($entries.Count -gt 0) {
+            break
+        }
+        Remove-Item -LiteralPath $candidatePath -Force
+        if ($candidatePath -cne $resolvedPath) {
+            continue
+        }
+        return
+    }
 }
 
 function New-InsuranceFoundationPackageStagingDirectory {
@@ -372,7 +392,7 @@ function New-InsuranceFoundationPackageStagingDirectory {
     )
 
     $parentPath = [System.IO.Path]::GetFullPath($OutputDirectoryParent)
-    $createdOutputDirectoryParent = $null
+    $createdPaths = @()
     $stagingDirectory = $null
 
     try {
@@ -383,7 +403,7 @@ function New-InsuranceFoundationPackageStagingDirectory {
         }
         else {
             New-Item -ItemType Directory -Path $parentPath -Force | Out-Null
-            $createdOutputDirectoryParent = $parentPath
+            $createdPaths += $parentPath
         }
 
         $leafName = Split-Path -Path $OutputDirectory -Leaf
@@ -398,18 +418,20 @@ function New-InsuranceFoundationPackageStagingDirectory {
         } while (Test-Path -LiteralPath $stagingDirectory)
 
         New-Item -ItemType Directory -Path $stagingDirectory -Force | Out-Null
+        $createdPaths += $stagingDirectory
 
         return [pscustomobject][ordered]@{
             StagingDirectory             = $stagingDirectory
             OutputDirectoryParent        = $parentPath
-            CreatedOutputDirectoryParent = $createdOutputDirectoryParent
+            CreatedPaths                 = @($createdPaths)
         }
     }
     catch {
         Remove-InsuranceFoundationStagingDirectory -Path $stagingDirectory
         Remove-InsuranceFoundationCreatedOutputDirectoryParent `
-            -Path $createdOutputDirectoryParent `
-            -ExpectedPath $parentPath
+            -Path $parentPath `
+            -ExpectedPath $parentPath `
+            -CreatedPaths $createdPaths
         throw
     }
 }
@@ -518,14 +540,12 @@ function Invoke-InsuranceFoundationPackageExport {
     $exports = @(Get-InsuranceFoundationExports)
     $pacCommand = $null
     $stagingDirectory = $null
-    $createdOutputDirectoryParent = $null
 
     try {
         $stagingDirectoryInfo = New-InsuranceFoundationPackageStagingDirectory `
             -OutputDirectory $resolvedOutputDirectory `
             -OutputDirectoryParent $outputDirectoryParent
         $stagingDirectory = [string]$stagingDirectoryInfo.StagingDirectory
-        $createdOutputDirectoryParent = [string]$stagingDirectoryInfo.CreatedOutputDirectoryParent
 
         foreach ($export in $exports) {
             $packagePath = Join-Path $stagingDirectory $export.File
@@ -571,8 +591,9 @@ function Invoke-InsuranceFoundationPackageExport {
     finally {
         Remove-InsuranceFoundationStagingDirectory -Path $stagingDirectory
         Remove-InsuranceFoundationCreatedOutputDirectoryParent `
-            -Path $createdOutputDirectoryParent `
-            -ExpectedPath $outputDirectoryParent
+            -Path $outputDirectoryParent `
+            -ExpectedPath $outputDirectoryParent `
+            -CreatedPaths $stagingDirectoryInfo.CreatedPaths
     }
 }
 
