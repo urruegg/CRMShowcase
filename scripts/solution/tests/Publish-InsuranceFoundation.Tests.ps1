@@ -508,61 +508,32 @@ Describe 'Insurance Foundation reconciliation' {
         }
     }
 
-    It 'repairs missing alternate-key solution membership without recreating the key' {
-        $script:membershipReads = 0
-        Mock Wait-SolutionComponentMembership
+    It 'inherits alternate-key ownership from the already-verified parent table' {
+        $keyRequest = Get-AlternateKeyRequest `
+            -TableLogicalName 'crmshow_accountcontactrole' `
+            -Columns @('crmshow_accountid') `
+            -SchemaName 'crmshow_testkey'
+        $keyRequest.InheritsSolutionOwnership | Should -BeTrue
+
         Mock Invoke-DataverseRequest {
-            param($Method, $Path, $Body)
-            if ($Method -eq 'GET') {
-                return [pscustomobject]@{ value = @() }
-            }
-            return [pscustomobject]@{}
-        }
-
-        Assert-SolutionOwnership `
-            ([pscustomobject]@{ MetadataId = '22222222-2222-2222-2222-222222222222' }) `
-            'crmshow_DataModel' 'existing key' -RepairComponentType 14
-
-        Should -Invoke Invoke-DataverseRequest -Times 1 -Exactly -ParameterFilter {
-            $Method -eq 'POST' -and $Path -eq '/AddSolutionComponent' -and
-            $Body.ComponentId -eq '22222222-2222-2222-2222-222222222222' -and
-            $Body.ComponentType -eq 14 -and
-            $Body.SolutionUniqueName -eq 'crmshow_DataModel' -and
-            $Body.AddRequiredComponents -eq $false -and
-            $Body.DoNotIncludeSubcomponents -eq $true
-        }
-        Should -Invoke Wait-SolutionComponentMembership -Times 1 -Exactly `
-            -ParameterFilter {
-                $ComponentId -eq '22222222-2222-2222-2222-222222222222' -and
-                $Expected -eq 'crmshow_DataModel'
-            }
-    }
-
-    It 'polls solution membership until an internal component import completes' {
-        $script:membershipReads = 0
-        Mock Start-Sleep
-        Mock Invoke-DataverseRequest {
-            $script:membershipReads++
             return [pscustomobject]@{
-                value = if ($script:membershipReads -lt 3) {
-                    @()
-                } else {
-                    @([pscustomobject]@{
-                        solutionid = [pscustomobject]@{
-                            uniquename = 'crmshow_DataModel'
-                        }
-                    })
-                }
+                value = @([pscustomobject]@{
+                    MetadataId = '22222222-2222-2222-2222-222222222222'
+                    SchemaName = 'crmshow_testkey'
+                    KeyAttributes = @('crmshow_accountid')
+                })
             }
         }
 
-        Wait-SolutionComponentMembership `
-            -ComponentId '33333333-3333-3333-3333-333333333333' `
-            -Expected 'crmshow_DataModel' -TimeoutSeconds 5 -PollSeconds 1
+        Invoke-ChildRequestIfMissing -QueryPath '/key-query' `
+            -Request $keyRequest -Component 'existing key' `
+            -AssertCompatible {
+                param($actual)
+                @($actual.KeyAttributes) | Should -Be @('crmshow_accountid')
+            }
 
-        Should -Invoke Invoke-DataverseRequest -Times 3 -Exactly
-        Should -Invoke Start-Sleep -Times 2 -Exactly -ParameterFilter {
-            $Seconds -eq 1
+        Should -Invoke Invoke-DataverseRequest -Times 0 -Exactly -ParameterFilter {
+            $Method -eq 'GET' -and $Path -match '^/solutioncomponents\?'
         }
     }
 
