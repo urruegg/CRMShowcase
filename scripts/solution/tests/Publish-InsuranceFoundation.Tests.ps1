@@ -487,6 +487,37 @@ Describe 'Insurance Foundation request builders' {
         })[0].GlobalOptionSet.Name) | Should -Be 'crmshow_policystatus'
     }
 
+    It 'queries table existence without expanding attributes or typed endpoints' {
+        $script:paths = [System.Collections.Generic.List[string]]::new()
+
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path)
+            if ($Method -ne 'GET') {
+                throw "Unsupported mocked endpoint: $Method $Path"
+            }
+            $script:paths.Add($Path) | Out-Null
+            return [pscustomobject]@{
+                value = @([pscustomobject]@{
+                    MetadataId = 'existing-table'
+                    LogicalName = 'crmshow_policyprojection'
+                    SchemaName = 'crmshow_PolicyProjection'
+                })
+            }
+        }
+
+        $result = Get-TableExistenceSnapshot -LogicalName 'crmshow_policyprojection'
+
+        $result.MetadataId | Should -Be 'existing-table'
+        @($script:paths) | Should -Be @(
+            "/EntityDefinitions?" +
+            "`$select=MetadataId,LogicalName,SchemaName&" +
+            "`$filter=LogicalName eq 'crmshow_policyprojection'"
+        )
+        $script:paths[0] | Should -Not -Match '\$expand=Attributes'
+        $script:paths[0] |
+            Should -Not -Match '/Attributes/Microsoft\.Dynamics\.CRM\.'
+    }
+
     It 'builds the documented Customer relationship action' {
         $table = $script:contract.tables[2]
         $column = $table.columns | Where-Object logicalName -eq 'crmshow_partyid'
@@ -760,6 +791,16 @@ Describe 'Insurance Foundation reconciliation' {
             [System.Collections.Generic.HashSet[string]]::new()
         Mock Wait-TableMetadataSnapshot {
             param($Table, $Component, $Ready, $RequestedAttributeLogicalNames)
+            if (-not $script:createdTables.Contains($Table.logicalName)) {
+                $snapshot = Get-TableMetadataSnapshot `
+                    -LogicalName $Table.logicalName `
+                    -RequestedAttributeLogicalNames `
+                        $RequestedAttributeLogicalNames
+                if ($Ready -and -not (& $Ready $snapshot)) {
+                    return $null
+                }
+                return $snapshot
+            }
             $includeCustomerRelationships = @(
                 $Table.columns | Where-Object type -eq 'Customer'
             ).Count -eq 0 -or
@@ -963,21 +1004,28 @@ Describe 'Insurance Foundation reconciliation' {
             Should -Be @('Global')
         @($created | Where-Object Path -eq '/savedqueries').Body.layoutxml |
             Should -Match 'object="10427"'
+        $tableExistenceReads = @($script:calls | Where-Object {
+            $_.Method -eq 'GET' -and
+            $_.Path -like '/EntityDefinitions?*' -and
+            $_.Path -match '\$select=MetadataId,LogicalName,SchemaName&' -and
+            $_.Path -notmatch '\$expand=Attributes'
+        })
+        $tableExistenceReads.Count | Should -Be 3
+        @($tableExistenceReads | Where-Object {
+            $_.Path -match "LogicalName eq 'crmshow_accountcontactrole'"
+        }).Count | Should -Be 1
+        @($tableExistenceReads | Where-Object {
+            $_.Path -match "LogicalName eq 'crmshow_policyprojection'"
+        }).Count | Should -Be 1
+        @($tableExistenceReads | Where-Object {
+            $_.Path -match "LogicalName eq 'crmshow_policypartyrole'"
+        }).Count | Should -Be 1
         $tableMetadataReads = @($script:calls | Where-Object {
             $_.Method -eq 'GET' -and
             $_.Path -like '/EntityDefinitions?*' -and
             $_.Path -match '\$expand=Attributes'
         })
-        $tableMetadataReads.Count | Should -Be 3
-        @($tableMetadataReads | Where-Object {
-            $_.Path -match "LogicalName eq 'crmshow_accountcontactrole'"
-        }).Count | Should -Be 1
-        @($tableMetadataReads | Where-Object {
-            $_.Path -match "LogicalName eq 'crmshow_policyprojection'"
-        }).Count | Should -Be 1
-        @($tableMetadataReads | Where-Object {
-            $_.Path -match "LogicalName eq 'crmshow_policypartyrole'"
-        }).Count | Should -Be 1
+        $tableMetadataReads.Count | Should -Be 0
         @($script:calls | Where-Object {
             $_.Method -eq 'GET' -and
             $_.Path -match (
@@ -1270,6 +1318,18 @@ Describe 'Insurance Foundation reconciliation' {
         $script:customerCreateAttempts = 0
 
         Mock Start-Sleep {}
+        Mock Get-TableExistenceSnapshot {
+            param($LogicalName)
+            if ($LogicalName -ne $table.logicalName -or
+                -not $script:tableExists) {
+                return $null
+            }
+            return [pscustomobject]@{
+                MetadataId = 'existing-table'
+                LogicalName = $LogicalName
+                SchemaName = $table.schemaName
+            }
+        }
         Mock Get-TableMetadataSnapshot {
             param($LogicalName, $RequestedAttributeLogicalNames)
             if ($LogicalName -ne $table.logicalName -or
@@ -2342,6 +2402,7 @@ Describe 'Insurance Foundation reconciliation' {
 Describe 'Insurance Foundation table metadata convergence' {
     BeforeEach {
         $script:calls = [System.Collections.Generic.List[object]]::new()
+        Mock Get-TableExistenceSnapshot { $null }
     }
 
     It 'waits for a newly created table snapshot before reconciling keys, views, and forms' {
@@ -2426,6 +2487,92 @@ Describe 'Insurance Foundation table metadata convergence' {
             Should -BeGreaterThan $script:visibleSnapshotSequence
         $formCreate.Sequence |
             Should -BeGreaterThan $script:visibleSnapshotSequence
+    }
+
+    It 'awaits typed metadata for an already existing table before reconciling it' {
+        $table = $script:contract.tables[0] |
+            ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        $table.columns = @($table.columns | Where-Object {
+            $_.logicalName -eq 'crmshow_name'
+        })
+        $table.relationships = @()
+        $table.alternateKeys = @()
+        $table.businessRules = @()
+        $table.views = @()
+        $table.forms = @()
+        $script:expandedReads = 0
+        $script:typedReads = 0
+
+        Mock Start-Sleep {}
+        Mock Get-TableExistenceSnapshot {
+            param($LogicalName)
+            $script:calls.Add([pscustomobject]@{
+                Sequence = $script:calls.Count + 1
+                Method = 'EXISTS'
+                Path = $LogicalName
+                Body = $null
+                Headers = $null
+            })
+            return [pscustomobject]@{
+                MetadataId = 'existing-table'
+                LogicalName = $LogicalName
+                SchemaName = $table.schemaName
+            }
+        }
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Sequence = $script:calls.Count + 1
+                Method = $Method
+                Path = $Path
+                Body = $Body
+                Headers = $Headers
+            })
+            if ($Method -eq 'GET' -and $Path -like '/EntityDefinitions?*' -and
+                $Path -match '\$expand=Attributes') {
+                $script:expandedReads++
+                return [pscustomobject]@{
+                    value = @(
+                        New-TableMetadataSnapshot -Table $table
+                    )
+                }
+            }
+            if ($Method -eq 'GET' -and
+                $Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.StringAttributeMetadata') {
+                $script:typedReads++
+                if ($script:typedReads -eq 1) {
+                    return [pscustomobject]@{ value = @() }
+                }
+                return New-TableTypedAttributeCollectionResponse `
+                    -Table $table -TypeName 'StringAttributeMetadata' `
+                    -AttributeLogicalName 'crmshow_name'
+            }
+            if ($Method -eq 'GET' -and
+                $Path -match '(?:/Keys\?|^/savedqueries\?|^/systemforms\?)') {
+                return [pscustomobject]@{ value = @() }
+            }
+            if ($Method -eq 'GET') {
+                throw "Unsupported mocked endpoint: $Method $Path"
+            }
+            return [pscustomobject]@{}
+        }
+
+        Invoke-TableReconciliation $table | Out-Null
+
+        @($script:calls | Where-Object Method -eq 'EXISTS').Count | Should -Be 1
+        $script:calls[0].Method | Should -Be 'EXISTS'
+        $script:expandedReads | Should -Be 2
+        $script:typedReads | Should -Be 2
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/EntityDefinitions'
+        }) | Should -BeNullOrEmpty
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and
+            $_.Path -eq "/EntityDefinitions(LogicalName='$($table.logicalName)')/Attributes"
+        }) | Should -BeNullOrEmpty
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/PublishXml'
+        }).Count | Should -Be 1
     }
 
     It 'waits for all deep-inserted initial lookups atomically on a newly created table before posting child keys, views, and forms' {
@@ -2877,6 +3024,8 @@ Describe 'Insurance Foundation table metadata convergence' {
         foreach ($value in @(
             $start,
             $start,
+            $start,
+            $start,
             $start.AddSeconds(180)
         )) {
             $script:clock.Enqueue($value)
@@ -2976,6 +3125,8 @@ Describe 'Insurance Foundation table metadata convergence' {
         foreach ($value in @(
             $start,
             $start,
+            $start,
+            $start,
             $start.AddSeconds(180)
         )) {
             $script:clock.Enqueue($value)
@@ -3044,6 +3195,85 @@ Describe 'Insurance Foundation table metadata convergence' {
         }) | Should -BeNullOrEmpty
     }
 
+    It 'times out existing typed metadata visibility without creating the table or duplicate attributes' {
+        $table = $script:contract.tables[0] |
+            ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        $table.columns = @($table.columns | Where-Object {
+            $_.logicalName -eq 'crmshow_name'
+        })
+        $table.relationships = @()
+        $table.alternateKeys = @()
+        $table.businessRules = @()
+        $table.views = @()
+        $table.forms = @()
+        $start = [datetime]'2026-08-09T12:00:00Z'
+        $script:clock = [System.Collections.Generic.Queue[datetime]]::new()
+        foreach ($value in @(
+            $start,
+            $start,
+            $start.AddSeconds(180)
+        )) {
+            $script:clock.Enqueue($value)
+        }
+
+        Mock Start-Sleep {}
+        Mock Get-Date { $script:clock.Dequeue() }
+        Mock Get-TableExistenceSnapshot {
+            param($LogicalName)
+            $script:calls.Add([pscustomobject]@{
+                Sequence = $script:calls.Count + 1
+                Method = 'EXISTS'
+                Path = $LogicalName
+                Body = $null
+                Headers = $null
+            })
+            return [pscustomobject]@{
+                MetadataId = 'existing-table'
+                LogicalName = $LogicalName
+                SchemaName = $table.schemaName
+            }
+        }
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Sequence = $script:calls.Count + 1
+                Method = $Method
+                Path = $Path
+                Body = $Body
+                Headers = $Headers
+            })
+            if ($Method -eq 'GET' -and $Path -like '/EntityDefinitions?*' -and
+                $Path -match '\$expand=Attributes') {
+                return [pscustomobject]@{
+                    value = @(
+                        New-TableMetadataSnapshot -Table $table
+                    )
+                }
+            }
+            if ($Method -eq 'GET' -and
+                $Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.StringAttributeMetadata') {
+                return [pscustomobject]@{ value = @() }
+            }
+            if ($Method -eq 'GET') {
+                throw "Unsupported mocked endpoint: $Method $Path"
+            }
+            return [pscustomobject]@{}
+        }
+
+        {
+            Invoke-TableReconciliation $table
+        } | Should -Throw "*EventualConsistencyTimeout*$($table.logicalName)*180*"
+        @($script:calls | Where-Object Method -eq 'EXISTS').Count | Should -Be 1
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and
+            $_.Path -in @(
+                '/EntityDefinitions',
+                "/EntityDefinitions(LogicalName='$($table.logicalName)')/Attributes",
+                '/PublishXml'
+            )
+        }) | Should -BeNullOrEmpty
+    }
+
     It 'waits for recovered ordinary lookups before posting child keys, views, and forms' {
         $table = $script:contract.tables[0] |
             ConvertTo-Json -Depth 100 | ConvertFrom-Json
@@ -3062,6 +3292,14 @@ Describe 'Insurance Foundation table metadata convergence' {
         $script:visibleLookupSequence = $null
 
         Mock Start-Sleep {}
+        Mock Get-TableExistenceSnapshot {
+            param($LogicalName)
+            return [pscustomobject]@{
+                MetadataId = 'existing-table'
+                LogicalName = $LogicalName
+                SchemaName = $table.schemaName
+            }
+        }
         Mock Get-TableMetadataSnapshot {
             param($LogicalName, $RequestedAttributeLogicalNames)
             if ($script:relationshipCreateSeen) {
@@ -3152,6 +3390,8 @@ Describe 'Insurance Foundation table metadata convergence' {
         foreach ($value in @(
             $start,
             $start,
+            $start,
+            $start,
             $start.AddSeconds(180)
         )) {
             $script:clock.Enqueue($value)
@@ -3159,6 +3399,14 @@ Describe 'Insurance Foundation table metadata convergence' {
 
         Mock Start-Sleep {}
         Mock Get-Date { $script:clock.Dequeue() }
+        Mock Get-TableExistenceSnapshot {
+            param($LogicalName)
+            return [pscustomobject]@{
+                MetadataId = 'existing-table'
+                LogicalName = $LogicalName
+                SchemaName = $table.schemaName
+            }
+        }
         Mock Get-TableMetadataSnapshot {
             param($LogicalName, $RequestedAttributeLogicalNames)
             $snapshot = New-TableMetadataSnapshot -Table $table `

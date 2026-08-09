@@ -1208,6 +1208,18 @@ function Get-TableContractAttributeLogicalNames {
     )
 }
 
+function Get-TableExistenceSnapshot {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] [string]$LogicalName)
+
+    $escapedLogicalName = ConvertTo-ODataKeyString $LogicalName
+    return Get-One (
+        "/EntityDefinitions?" +
+        "`$select=MetadataId,LogicalName,SchemaName&" +
+        "`$filter=LogicalName eq '$escapedLogicalName'"
+    )
+}
+
 function Get-TableMetadataSnapshot {
     [CmdletBinding()]
     param(
@@ -1910,10 +1922,10 @@ function Invoke-TableReconciliation {
         Get-TableContractAttributeLogicalNames -Table $Table
     )
     $initialTableCreateAttributeLogicalNames = @()
-    $snapshot = Get-TableMetadataSnapshot `
-        -LogicalName $Table.logicalName `
-        -RequestedAttributeLogicalNames $requestedAttributeLogicalNames
-    if ($null -eq $snapshot) {
+    $snapshot = $null
+    $existingTable = Get-TableExistenceSnapshot `
+        -LogicalName $Table.logicalName
+    if ($null -eq $existingTable) {
         $choiceMetadataIds = Get-GlobalChoiceMetadataIds @($Table.columns)
         $tableCreateRequest = Get-TableCreateRequest $Table $choiceMetadataIds
         $initialTableCreateAttributeLogicalNames = @(
@@ -1928,6 +1940,10 @@ function Invoke-TableReconciliation {
         Publish-TableMetadata $Table
         $snapshot = Wait-InitialTableCreateTableSnapshot -Table $Table `
             -TableCreateRequest $tableCreateRequest `
+            -RequestedAttributeLogicalNames $requestedAttributeLogicalNames
+    } else {
+        $snapshot = Wait-TableMetadataSnapshot -Table $Table `
+            -Component $Table.logicalName `
             -RequestedAttributeLogicalNames $requestedAttributeLogicalNames
     }
     $initialTableCreateAttributeLookup = @{}
