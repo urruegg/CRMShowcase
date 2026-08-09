@@ -2275,7 +2275,7 @@ Describe 'Insurance Foundation table metadata convergence' {
 
         Invoke-TableReconciliation $table | Out-Null
 
-        $script:tableSnapshotReads | Should -Be 3
+        $script:tableSnapshotReads | Should -BeGreaterThan 2
         $script:visibleSnapshotSequence | Should -Not -BeNullOrEmpty
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and $_.Path -eq '/PublishXml'
@@ -2298,6 +2298,190 @@ Describe 'Insurance Foundation table metadata convergence' {
             Should -BeGreaterThan $script:visibleSnapshotSequence
         $formCreate.Sequence |
             Should -BeGreaterThan $script:visibleSnapshotSequence
+    }
+
+    It 'waits for deep-inserted initial lookups on a newly created table before posting child keys, views, and forms' {
+        $table = $script:contract.tables[0] |
+            ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        $table.columns = @($table.columns | Where-Object {
+            $_.logicalName -in @('crmshow_name', 'crmshow_accountid')
+        })
+        $table.relationships = @($table.relationships | Where-Object {
+            $_.lookupColumn -eq 'crmshow_accountid'
+        })
+        $table.alternateKeys = @($table.alternateKeys[0])
+        $table.businessRules = @()
+        $table.views = @($table.views[0])
+        $table.forms = @($table.forms[0])
+        $script:tableSnapshotReads = 0
+        $script:firstVisibleTableSequence = $null
+        $script:initialLookupReadySequence = $null
+
+        Mock Start-Sleep {}
+        Mock Get-TableMetadataSnapshot {
+            param($LogicalName)
+            $script:tableSnapshotReads++
+            $snapshot = switch ($script:tableSnapshotReads) {
+                1 { $null }
+                2 {
+                    New-TableMetadataSnapshot -Table $table `
+                        -OmitColumns @('crmshow_accountid') `
+                        -OmitRelationshipSchemas @(
+                            'crmshow_Account_AccountContactRoles'
+                        )
+                }
+                default { New-TableMetadataSnapshot -Table $table }
+            }
+            $script:calls.Add([pscustomobject]@{
+                Sequence = $script:calls.Count + 1
+                Method = 'SNAPSHOT'
+                Path = $LogicalName
+                Body = $snapshot
+                Headers = $null
+            })
+            if ($null -ne $snapshot -and
+                $null -eq $script:firstVisibleTableSequence) {
+                $script:firstVisibleTableSequence = $script:calls[-1].Sequence
+            }
+            if ($null -ne $snapshot) {
+                $lookupMatches = @($snapshot.Attributes | Where-Object {
+                    $_.LogicalName -eq 'crmshow_accountid'
+                })
+                $relationshipMatches = @(
+                    $snapshot.ManyToOneRelationships | Where-Object {
+                        $_.SchemaName -eq 'crmshow_Account_AccountContactRoles'
+                    }
+                )
+                if ($lookupMatches.Count -eq 1 -and
+                    $relationshipMatches.Count -eq 1) {
+                    $script:initialLookupReadySequence = `
+                        $script:calls[-1].Sequence
+                }
+            }
+            return $snapshot
+        }
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Sequence = $script:calls.Count + 1
+                Method = $Method; Path = $Path; Body = $Body; Headers = $Headers
+            })
+            if ($Method -eq 'GET' -and
+                $Path -match '(?:/Keys\?|^/savedqueries\?|^/systemforms\?)') {
+                return [pscustomobject]@{ value = @() }
+            }
+            if ($Method -eq 'POST' -and $Path -eq '/savedqueries') {
+                return [pscustomobject]@{ savedqueryid = 'new-view' }
+            }
+            if ($Method -eq 'POST' -and $Path -eq '/systemforms') {
+                return [pscustomobject]@{ formid = 'new-form' }
+            }
+            if ($Method -eq 'GET') { throw "Unsupported mocked endpoint: $Method $Path" }
+            return [pscustomobject]@{}
+        }
+
+        Invoke-TableReconciliation $table | Out-Null
+
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/EntityDefinitions'
+        }).Count | Should -Be 1
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/RelationshipDefinitions'
+        }).Count | Should -Be 0
+        $script:firstVisibleTableSequence | Should -Not -BeNullOrEmpty
+        $script:initialLookupReadySequence | Should -Not -BeNullOrEmpty
+        $script:firstVisibleTableSequence |
+            Should -BeLessThan $script:initialLookupReadySequence
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and
+            $_.Path -eq "/EntityDefinitions(LogicalName='$($table.logicalName)')/Keys"
+        })[0].Sequence | Should -BeGreaterThan $script:initialLookupReadySequence
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/savedqueries'
+        })[0].Sequence | Should -BeGreaterThan $script:initialLookupReadySequence
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/systemforms'
+        })[0].Sequence | Should -BeGreaterThan $script:initialLookupReadySequence
+    }
+
+    It 'times out initial deep-insert lookup visibility without recreating the relationship or children' {
+        $table = $script:contract.tables[0] |
+            ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        $table.columns = @($table.columns | Where-Object {
+            $_.logicalName -in @('crmshow_name', 'crmshow_accountid')
+        })
+        $table.relationships = @($table.relationships | Where-Object {
+            $_.lookupColumn -eq 'crmshow_accountid'
+        })
+        $table.alternateKeys = @($table.alternateKeys[0])
+        $table.businessRules = @()
+        $table.views = @($table.views[0])
+        $table.forms = @($table.forms[0])
+
+        $start = [datetime]'2026-08-09T12:00:00Z'
+        $script:clock = [System.Collections.Generic.Queue[datetime]]::new()
+        foreach ($value in @(
+            $start,
+            $start,
+            $start.AddSeconds(180)
+        )) {
+            $script:clock.Enqueue($value)
+        }
+
+        Mock Start-Sleep {}
+        Mock Get-Date { $script:clock.Dequeue() }
+        Mock Get-TableMetadataSnapshot {
+            param($LogicalName)
+            $snapshot = if ($script:calls.Count -eq 0) {
+                $null
+            } else {
+                New-TableMetadataSnapshot -Table $table `
+                    -OmitColumns @('crmshow_accountid') `
+                    -OmitRelationshipSchemas @(
+                        'crmshow_Account_AccountContactRoles'
+                    )
+            }
+            $script:calls.Add([pscustomobject]@{
+                Sequence = $script:calls.Count + 1
+                Method = 'SNAPSHOT'
+                Path = $LogicalName
+                Body = $snapshot
+                Headers = $null
+            })
+            return $snapshot
+        }
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Sequence = $script:calls.Count + 1
+                Method = $Method; Path = $Path; Body = $Body; Headers = $Headers
+            })
+            if ($Method -eq 'GET' -and
+                $Path -match '(?:/Keys\?|^/savedqueries\?|^/systemforms\?)') {
+                return [pscustomobject]@{ value = @() }
+            }
+            if ($Method -eq 'GET') { throw "Unsupported mocked endpoint: $Path" }
+            return [pscustomobject]@{}
+        }
+
+        {
+            Invoke-TableReconciliation $table
+        } | Should -Throw (
+            '*EventualConsistencyTimeout*' +
+            "$($table.logicalName)/crmshow_accountid*180*"
+        )
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/EntityDefinitions'
+        }).Count | Should -Be 1
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and
+            $_.Path -in @(
+                '/RelationshipDefinitions',
+                "/EntityDefinitions(LogicalName='$($table.logicalName)')/Keys",
+                '/savedqueries',
+                '/systemforms'
+            )
+        }) | Should -BeNullOrEmpty
     }
 
     It 'waits for recovered ordinary lookups before posting child keys, views, and forms' {

@@ -281,7 +281,8 @@ function Get-TableCreateRequest {
     }
 }
 
-function New-OrdinaryRelationshipMetadata {
+function Get-OrdinaryRelationshipLookupColumn {
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory)] $Table,
         [Parameter(Mandatory)] $Relationship
@@ -293,7 +294,35 @@ function New-OrdinaryRelationshipMetadata {
     if ($columns.Count -ne 1) {
         throw "Relationship '$($Relationship.schemaName)' must resolve one ordinary lookup column."
     }
-    $column = $columns[0]
+    return $columns[0]
+}
+
+function Get-ExpectedOrdinaryRelationshipCascade {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] [string]$ReferencedEntity)
+
+    return @{
+        Assign = 'NoCascade'
+        Delete = 'Restrict'
+        Merge = if ($ReferencedEntity -in @('account', 'contact')) {
+            'Cascade'
+        } else {
+            'NoCascade'
+        }
+        Reparent = 'NoCascade'
+        Share = 'NoCascade'
+        Unshare = 'NoCascade'
+    }
+}
+
+function New-OrdinaryRelationshipMetadata {
+    param(
+        [Parameter(Mandatory)] $Table,
+        [Parameter(Mandatory)] $Relationship
+    )
+
+    $column = Get-OrdinaryRelationshipLookupColumn -Table $Table `
+        -Relationship $Relationship
     $target = [string]$Relationship.referencedTables[0]
     return [ordered]@{
         '@odata.type' = 'Microsoft.Dynamics.CRM.OneToManyRelationshipMetadata'
@@ -307,18 +336,8 @@ function New-OrdinaryRelationshipMetadata {
             Label = ConvertTo-LocalizedLabel $Relationship.metadata.label
             Order = 10000
         }
-        CascadeConfiguration = @{
-            Assign = 'NoCascade'
-            Delete = 'Restrict'
-            Merge = if ($target -in @('account', 'contact')) {
-                'Cascade'
-            } else {
-                'NoCascade'
-            }
-            Reparent = 'NoCascade'
-            Share = 'NoCascade'
-            Unshare = 'NoCascade'
-        }
+        CascadeConfiguration = Get-ExpectedOrdinaryRelationshipCascade `
+            -ReferencedEntity $target
         Lookup = [ordered]@{
             '@odata.type' = 'Microsoft.Dynamics.CRM.LookupAttributeMetadata'
             LogicalName = $column.logicalName
@@ -1175,6 +1194,99 @@ function Wait-TableMetadataSnapshot {
     }
 }
 
+function Test-OrdinaryRelationshipVisibility {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] $Table,
+        [Parameter(Mandatory)] $Relationship,
+        [Parameter(Mandatory)] $Snapshot
+    )
+
+    $component = "$($Table.logicalName)/$($Relationship.lookupColumn)"
+    $lookupMatches = @($Snapshot.Attributes | Where-Object {
+        $_.LogicalName -eq $Relationship.lookupColumn
+    })
+    if ($lookupMatches.Count -gt 1) {
+        throw "Duplicate physical attributes found for '$component'."
+    }
+
+    $relationshipMatches = @($Snapshot.ManyToOneRelationships | Where-Object {
+        $_.SchemaName -eq $Relationship.schemaName
+    })
+    if ($relationshipMatches.Count -gt 1) {
+        throw "Structural relationship conflict for '$($Relationship.schemaName)': expected one relationship metadata record, found $($relationshipMatches.Count)."
+    }
+
+    if ($lookupMatches.Count -ne 1 -or $relationshipMatches.Count -ne 1) {
+        return $false
+    }
+
+    $column = Get-OrdinaryRelationshipLookupColumn -Table $Table `
+        -Relationship $Relationship
+    $lookup = $lookupMatches[0]
+    $attributeType = [string]$lookup.AttributeType
+    if ([string]::IsNullOrWhiteSpace($attributeType)) {
+        return $false
+    }
+    if ($attributeType -ne 'Lookup') {
+        throw "Structural type conflict for '$component': expected Lookup, found $attributeType."
+    }
+    $actualTargets = @($lookup.Targets | Sort-Object)
+    if ($actualTargets.Count -eq 0) {
+        return $false
+    }
+    $expectedTargets = @($column.lookup.targets | Sort-Object)
+    if (($actualTargets -join ',') -ne ($expectedTargets -join ',')) {
+        throw "Structural target conflict for '$component'."
+    }
+
+    $expectedReferencedEntity = [string]$Relationship.referencedTables[0]
+    $actualRelationship = $relationshipMatches[0]
+    $referencedEntity = [string]$actualRelationship.ReferencedEntity
+    $referencingEntity = [string]$actualRelationship.ReferencingEntity
+    $referencingAttribute = [string]$actualRelationship.ReferencingAttribute
+    if ([string]::IsNullOrWhiteSpace($referencedEntity) -or
+        [string]::IsNullOrWhiteSpace($referencingEntity) -or
+        [string]::IsNullOrWhiteSpace($referencingAttribute)) {
+        return $false
+    }
+    if ($referencedEntity -ne $expectedReferencedEntity -or
+        $referencingEntity -ne $Table.logicalName -or
+        $referencingAttribute -ne $Relationship.lookupColumn) {
+        throw "Structural relationship target conflict for '$($Relationship.schemaName)'."
+    }
+
+    $expectedCascade = Get-ExpectedOrdinaryRelationshipCascade `
+        -ReferencedEntity $expectedReferencedEntity
+    foreach ($action in @($expectedCascade.Keys | Sort-Object)) {
+        $actualValue = [string]$actualRelationship.CascadeConfiguration.$action
+        if ([string]::IsNullOrWhiteSpace($actualValue)) {
+            return $false
+        }
+        if ($actualValue -ne [string]$expectedCascade[$action]) {
+            throw "Structural relationship cascade conflict for '$($Relationship.schemaName)': '$action' must be '$($expectedCascade[$action])'."
+        }
+    }
+
+    return $true
+}
+
+function Wait-OrdinaryRelationshipVisibility {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] $Table,
+        [Parameter(Mandatory)] $Relationship
+    )
+
+    return Wait-TableMetadataSnapshot -Table $Table `
+        -Component "$($Table.logicalName)/$($Relationship.lookupColumn)" `
+        -Ready {
+            param($candidate)
+            Test-OrdinaryRelationshipVisibility -Table $Table `
+                -Relationship $Relationship -Snapshot $candidate
+        }
+}
+
 function Invoke-NativeExtensionReconciliation {
     param($Extension)
     $existing = Get-PicklistAttributeMetadata $Extension.table `
@@ -1526,18 +1638,8 @@ function Invoke-ExistingOrdinaryRelationshipReconciliation {
             $Relationship.lookupColumn) {
         throw "Structural relationship target conflict for '$($expected.SchemaName)'."
     }
-    $expectedCascade = @{
-        Assign = 'NoCascade'
-        Delete = 'Restrict'
-        Merge = if ($expected.ReferencedEntity -in @('account', 'contact')) {
-            'Cascade'
-        } else {
-            'NoCascade'
-        }
-        Reparent = 'NoCascade'
-        Share = 'NoCascade'
-        Unshare = 'NoCascade'
-    }
+    $expectedCascade = Get-ExpectedOrdinaryRelationshipCascade `
+        -ReferencedEntity $expected.ReferencedEntity
     foreach ($action in @($expectedCascade.Keys | Sort-Object)) {
         if ([string]$actualRelationship.CascadeConfiguration.$action -ne
             [string]$expectedCascade[$action]) {
@@ -1581,6 +1683,12 @@ function Invoke-TableReconciliation {
         Publish-TableMetadata $Table
         $snapshot = Wait-TableMetadataSnapshot -Table $Table `
             -Component $Table.logicalName
+        foreach ($relationship in @($Table.relationships | Where-Object {
+            $_.authoring -eq 'InitialTableCreate'
+        })) {
+            $snapshot = Wait-OrdinaryRelationshipVisibility -Table $Table `
+                -Relationship $relationship
+        }
     }
 
     Assert-SolutionOwnership $snapshot $Table.solution $Table.logicalName
@@ -1634,21 +1742,8 @@ function Invoke-TableReconciliation {
         $lookupCreated = Invoke-ExistingOrdinaryRelationshipReconciliation `
             -Table $Table -Relationship $relationship -Snapshot $snapshot
         if ($lookupCreated) {
-            $snapshot = Wait-TableMetadataSnapshot -Table $Table `
-                -Component "$($Table.logicalName)/$($relationship.lookupColumn)" `
-                -Ready {
-                    param($candidate)
-                    $attributeMatches = @($candidate.Attributes | Where-Object {
-                        $_.LogicalName -eq $relationship.lookupColumn
-                    })
-                    $relationshipMatches = @(
-                        $candidate.ManyToOneRelationships | Where-Object {
-                            $_.SchemaName -eq $relationship.schemaName
-                        }
-                    )
-                    return $attributeMatches.Count -eq 1 -and
-                        $relationshipMatches.Count -eq 1
-                }
+            $snapshot = Wait-OrdinaryRelationshipVisibility -Table $Table `
+                -Relationship $relationship
             Invoke-ExistingOrdinaryRelationshipReconciliation -Table $Table `
                 -Relationship $relationship -Snapshot $snapshot | Out-Null
         }
