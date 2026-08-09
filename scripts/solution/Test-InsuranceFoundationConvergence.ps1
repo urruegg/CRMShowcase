@@ -15,6 +15,12 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$script:ConvergenceBlockingStatePriority = @(
+    'ContractConflict',
+    'UnsupportedInTenant',
+    'Precondition',
+    'ManualPrerequisite'
+)
 
 function Get-ConvergenceRepoRoot {
     [CmdletBinding()]
@@ -231,6 +237,15 @@ function Get-ConvergenceBlockingState {
             $null -ne $_ -and [string]$_.State -ne 'Ready'
         })
     if ($blocking.Count -gt 0) {
+        $blockingStates = @($blocking | ForEach-Object { [string]$_.State })
+        foreach ($state in @($script:ConvergenceBlockingStatePriority)) {
+            if (Test-ConvergenceContainsExactString `
+                    -Value $blockingStates `
+                    -Expected $state) {
+                return $state
+            }
+        }
+
         return [string]$blocking[0].State
     }
 
@@ -585,7 +600,7 @@ function Get-ConvergenceSolutionInventoryPath {
         }) -join ' or '
 
     return (
-        "/solutioncomponents?`$select=objectid,componenttype&" +
+        "/solutioncomponents?`$select=solutioncomponentid,objectid,componenttype,rootcomponentbehavior,_rootsolutioncomponentid_value&" +
         "`$filter=_solutionid_value eq $resolvedSolutionId and ($typeFilter)"
     )
 }
@@ -2826,6 +2841,110 @@ function Test-ConvergenceReviewedOrPrefixedTable {
     )
 }
 
+function Get-ConvergenceSolutionComponentInventoryId {
+    [CmdletBinding()]
+    param($SolutionComponent)
+
+    if ($null -eq $SolutionComponent) {
+        return $null
+    }
+
+    foreach ($propertyName in @('solutioncomponentid', 'SolutionComponentId', 'objectid')) {
+        if ($SolutionComponent.PSObject.Properties.Name -notcontains $propertyName) {
+            continue
+        }
+
+        $candidate = ([string]$SolutionComponent.$propertyName).Trim('{}')
+        if (-not [string]::IsNullOrWhiteSpace($candidate)) {
+            return $candidate
+        }
+    }
+
+    return $null
+}
+
+function Get-ConvergenceRootSolutionComponentInventoryId {
+    [CmdletBinding()]
+    param($SolutionComponent)
+
+    if ($null -eq $SolutionComponent) {
+        return $null
+    }
+
+    $candidateValues = [System.Collections.Generic.List[object]]::new()
+    if ($SolutionComponent.PSObject.Properties.Name -contains '_rootsolutioncomponentid_value') {
+        [void]$candidateValues.Add($SolutionComponent._rootsolutioncomponentid_value)
+    }
+    if ($SolutionComponent.PSObject.Properties.Name -contains 'rootsolutioncomponentid') {
+        [void]$candidateValues.Add($SolutionComponent.rootsolutioncomponentid)
+    }
+
+    foreach ($candidate in @($candidateValues)) {
+        if ($null -eq $candidate) {
+            continue
+        }
+
+        if ($candidate -is [string]) {
+            $resolved = ([string]$candidate).Trim('{}')
+            if (-not [string]::IsNullOrWhiteSpace($resolved)) {
+                return $resolved
+            }
+
+            continue
+        }
+
+        foreach ($propertyName in @('solutioncomponentid', 'SolutionComponentId')) {
+            if ($candidate.PSObject.Properties.Name -notcontains $propertyName) {
+                continue
+            }
+
+            $resolved = ([string]$candidate.$propertyName).Trim('{}')
+            if (-not [string]::IsNullOrWhiteSpace($resolved)) {
+                return $resolved
+            }
+        }
+    }
+
+    return $null
+}
+
+function Test-ConvergenceTransitiveTableRootChildSolutionComponent {
+    [CmdletBinding()]
+    param(
+        $SolutionComponent,
+
+        [Parameter(Mandatory)]
+        [hashtable]$SolutionComponentsById
+    )
+
+    if ($null -eq $SolutionComponent) {
+        return $false
+    }
+
+    $solutionComponentId = Get-ConvergenceSolutionComponentInventoryId `
+        -SolutionComponent $SolutionComponent
+    $rootSolutionComponentId = Get-ConvergenceRootSolutionComponentInventoryId `
+        -SolutionComponent $SolutionComponent
+    if ([string]::IsNullOrWhiteSpace($rootSolutionComponentId)) {
+        return $false
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($solutionComponentId) -and
+        $rootSolutionComponentId -ceq $solutionComponentId) {
+        return $false
+    }
+
+    if (-not $SolutionComponentsById.ContainsKey($rootSolutionComponentId)) {
+        return $false
+    }
+
+    $rootSolutionComponent = $SolutionComponentsById[$rootSolutionComponentId]
+    return (
+        $null -ne $rootSolutionComponent -and
+        [int]$rootSolutionComponent.componenttype -eq 1
+    )
+}
+
 function Test-InsuranceFoundationUnexpectedMetadata {
     [CmdletBinding()]
     param(
@@ -2905,12 +3024,32 @@ function Test-InsuranceFoundationUnexpectedMetadata {
                 -Details @($_.Exception.Message)
         }
 
-        foreach ($entry in @($inventory.value | Sort-Object componenttype, objectid)) {
+        $inventoryEntries = @($inventory.value)
+        $solutionComponentsById = @{}
+        foreach ($inventoryEntry in @($inventoryEntries)) {
+            $inventoryId = Get-ConvergenceSolutionComponentInventoryId `
+                -SolutionComponent $inventoryEntry
+            if ([string]::IsNullOrWhiteSpace($inventoryId) -or
+                $solutionComponentsById.ContainsKey($inventoryId)) {
+                continue
+            }
+
+            $solutionComponentsById[$inventoryId] = $inventoryEntry
+        }
+
+        foreach ($entry in @($inventoryEntries | Sort-Object componenttype, objectid)) {
             $objectId = [string]$entry.objectid
             if ([string]::IsNullOrWhiteSpace($objectId)) {
                 [void]$details.Add(
                     "Reverse inventory entry in solution '$solutionUniqueName' returned no object ID for component type '$($entry.componenttype)'."
                 )
+                continue
+            }
+
+            if (([int]$entry.componenttype -eq 26 -or [int]$entry.componenttype -eq 60) -and
+                (Test-ConvergenceTransitiveTableRootChildSolutionComponent `
+                    -SolutionComponent $entry `
+                    -SolutionComponentsById $solutionComponentsById)) {
                 continue
             }
 
@@ -3149,23 +3288,33 @@ function Test-InsuranceFoundationUnexpectedMetadata {
             continue
         }
 
-        $solutionNames = @($membership.value | ForEach-Object {
-                if ($_.solutionid) {
-                    [string]$_.solutionid.uniquename
-                }
-            })
-        if (-not (Test-ConvergenceContainsExactString `
+        $solutionNames = @(Get-UniqueConvergenceStrings -Value @($membership.value | ForEach-Object {
+                    if ($_.solutionid) {
+                        [string]$_.solutionid.uniquename
+                    }
+                }))
+        $reviewedMembership = @($Contract.solutions | Where-Object {
+                Test-ConvergenceContainsExactString `
                     -Value $solutionNames `
-                    -Expected 'crmshow_Foundation')) {
+                    -Expected ([string]$_)
+            })
+        if ($reviewedMembership.Count -eq 0) {
             continue
         }
 
-        if (-not (Test-ConvergenceContainsExactString `
-                    -Value @($expectedInventory.RolesBySolution['crmshow_Foundation']) `
-                    -Expected $roleName)) {
-            [void]$unexpected.Add("crmshow_Foundation/role/$roleName")
+        $declaredRoleSolutions = @($Contract.solutions | Where-Object {
+                Test-ConvergenceContainsExactString `
+                    -Value @($expectedInventory.RolesBySolution[[string]$_]) `
+                    -Expected $roleName
+            })
+        if ($declaredRoleSolutions.Count -gt 0) {
+            continue
+        }
+
+        foreach ($reviewedSolutionUniqueName in @($reviewedMembership)) {
+            [void]$unexpected.Add("$reviewedSolutionUniqueName/role/$roleName")
             [void]$details.Add(
-                "Unexpected root role '$roleName' is owned by solution 'crmshow_Foundation' but is not listed in the contract."
+                "Unexpected root role '$roleName' is owned by solution '$reviewedSolutionUniqueName' but is not listed in the contract."
             )
         }
     }

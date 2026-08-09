@@ -518,6 +518,46 @@ BeforeAll {
         }
     }
 
+    function script:New-SolutionInventoryEntry {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [string]$ObjectId,
+
+            [Parameter(Mandatory)]
+            [int]$ComponentType,
+
+            [string]$SolutionComponentId,
+
+            [string]$RootSolutionComponentId,
+
+            [AllowNull()]
+            [int]$RootComponentBehavior
+        )
+
+        $resolvedObjectId = ([string]$ObjectId).Trim('{}')
+        $resolvedSolutionComponentId = if ([string]::IsNullOrWhiteSpace($SolutionComponentId)) {
+            $resolvedObjectId
+        }
+        else {
+            ([string]$SolutionComponentId).Trim('{}')
+        }
+        $resolvedRootSolutionComponentId = if ([string]::IsNullOrWhiteSpace($RootSolutionComponentId)) {
+            $null
+        }
+        else {
+            ([string]$RootSolutionComponentId).Trim('{}')
+        }
+
+        return [pscustomobject]@{
+            solutioncomponentid          = $resolvedSolutionComponentId
+            objectid                     = $resolvedObjectId
+            componenttype                = [int]$ComponentType
+            rootcomponentbehavior        = $RootComponentBehavior
+            _rootsolutioncomponentid_value = $resolvedRootSolutionComponentId
+        }
+    }
+
     function script:New-EntityInventorySnapshot {
         [CmdletBinding()]
         param(
@@ -662,10 +702,11 @@ BeforeAll {
                 $choiceSnapshot
             $responses[(Get-ConvergenceSolutionMembershipPath -ComponentId $choiceSnapshot.MetadataId)] =
                 script:New-SolutionMembershipResponse -SolutionUniqueName ([string]$choice.solution)
-            [void]$solutionInventory[[string]$choice.solution].Add([pscustomobject]@{
-                    objectid      = [string]$choiceSnapshot.MetadataId
-                    componenttype = 9
-                })
+            [void]$solutionInventory[[string]$choice.solution].Add(
+                (script:New-SolutionInventoryEntry `
+                    -ObjectId ([string]$choiceSnapshot.MetadataId) `
+                    -ComponentType 9)
+            )
         }
 
         foreach ($extension in @($Contract.nativeExtensions)) {
@@ -713,10 +754,11 @@ BeforeAll {
                 [pscustomobject]@{ value = @($tableSnapshot) }
             $responses[(Get-ConvergenceSolutionMembershipPath -ComponentId $tableSnapshot.MetadataId)] =
                 script:New-SolutionMembershipResponse -SolutionUniqueName ([string]$table.solution)
-            [void]$solutionInventory[[string]$table.solution].Add([pscustomobject]@{
-                    objectid      = [string]$tableSnapshot.MetadataId
-                    componenttype = 1
-                })
+            [void]$solutionInventory[[string]$table.solution].Add(
+                (script:New-SolutionInventoryEntry `
+                    -ObjectId ([string]$tableSnapshot.MetadataId) `
+                    -ComponentType 1)
+            )
 
             $inventoryAttributes = foreach ($column in @($table.columns)) {
                 script:New-AttributeInventorySnapshot `
@@ -779,10 +821,11 @@ BeforeAll {
                     $savedQuery
                 $responses[(Get-ConvergenceSolutionMembershipPath -ComponentId $savedQuery.savedqueryid)] =
                     script:New-SolutionMembershipResponse -SolutionUniqueName ([string]$table.solution)
-                [void]$solutionInventory[[string]$table.solution].Add([pscustomobject]@{
-                        objectid      = [string]$savedQuery.savedqueryid
-                        componenttype = 26
-                    })
+                [void]$solutionInventory[[string]$table.solution].Add(
+                    (script:New-SolutionInventoryEntry `
+                        -ObjectId ([string]$savedQuery.savedqueryid) `
+                        -ComponentType 26)
+                )
                 script:Add-LocalizedFieldResponses `
                     -Responses $responses `
                     -EntityLogicalName 'savedquery' `
@@ -810,10 +853,11 @@ BeforeAll {
                     $savedQuery
                 $responses[(Get-ConvergenceSolutionMembershipPath -ComponentId $savedQuery.savedqueryid)] =
                     script:New-SolutionMembershipResponse -SolutionUniqueName ([string]$table.solution)
-                [void]$solutionInventory[[string]$table.solution].Add([pscustomobject]@{
-                        objectid      = [string]$savedQuery.savedqueryid
-                        componenttype = 26
-                    })
+                [void]$solutionInventory[[string]$table.solution].Add(
+                    (script:New-SolutionInventoryEntry `
+                        -ObjectId ([string]$savedQuery.savedqueryid) `
+                        -ComponentType 26)
+                )
                 script:Add-LocalizedFieldResponses `
                     -Responses $responses `
                     -EntityLogicalName 'savedquery' `
@@ -838,10 +882,11 @@ BeforeAll {
                     $systemForm
                 $responses[(Get-ConvergenceSolutionMembershipPath -ComponentId $systemForm.formid)] =
                     script:New-SolutionMembershipResponse -SolutionUniqueName ([string]$table.solution)
-                [void]$solutionInventory[[string]$table.solution].Add([pscustomobject]@{
-                        objectid      = [string]$systemForm.formid
-                        componenttype = 60
-                    })
+                [void]$solutionInventory[[string]$table.solution].Add(
+                    (script:New-SolutionInventoryEntry `
+                        -ObjectId ([string]$systemForm.formid) `
+                        -ComponentType 60)
+                )
                 script:Add-LocalizedFieldResponses `
                     -Responses $responses `
                     -EntityLogicalName 'systemform' `
@@ -1059,11 +1104,11 @@ Write-Json $property.Value
         [CmdletBinding()]
         param(
             [Parameter(Mandatory)]
-            [ValidateSet('Ready', 'MissingLanguage', 'RoleNameCaseConflict', 'TransportFailure', 'RetrieveLocLabelsUnsupported')]
+            [ValidateSet('Ready', 'MissingLanguage', 'RoleNameCaseConflict', 'MissingRoleAndUnexpectedView', 'TransportFailure', 'RetrieveLocLabelsUnsupported')]
             [string]$Scenario
         )
 
-        $fixtureScenario = if ($Scenario -in @('TransportFailure', 'RetrieveLocLabelsUnsupported')) {
+        $fixtureScenario = if ($Scenario -in @('MissingRoleAndUnexpectedView', 'TransportFailure', 'RetrieveLocLabelsUnsupported')) {
             'Ready'
         }
         else {
@@ -1073,6 +1118,39 @@ Write-Json $property.Value
             -Contract $script:contract `
             -Manifest $script:manifest `
             -Scenario $fixtureScenario
+
+        if ($Scenario -eq 'MissingRoleAndUnexpectedView') {
+            $missingRole = @($script:contract.roles | Where-Object {
+                    [string]$_.name -ceq 'CRM Showcase Insurance Data Steward'
+                })[0]
+            $fixture.Responses[(Get-InsuranceSecurityRolePath -RoleName ([string]$missingRole.name))] =
+                [pscustomobject]@{
+                    value = @()
+                }
+
+            $table = @($script:contract.tables | Where-Object {
+                    [string]$_.logicalName -ceq 'crmshow_policyprojection'
+                })[0]
+            $viewId = script:New-FakeGuid -Index 9721
+            $inventoryPath = Get-ConvergenceSolutionInventoryPath `
+                -SolutionId $fixture.SolutionIds['crmshow_DataModel'] `
+                -ComponentType (Get-ConvergenceReverseInventoryComponentTypes)
+            $fixture.Responses[$inventoryPath].value = @(
+                $fixture.Responses[$inventoryPath].value +
+                (script:New-SolutionInventoryEntry `
+                    -ObjectId $viewId `
+                    -ComponentType 26)
+            )
+            $fixture.Responses[(Get-ConvergenceSavedQueryByIdPath -SavedQueryId $viewId)] =
+                [pscustomobject]@{
+                    savedqueryid     = $viewId
+                    name             = 'Unexpected Policy Projection View'
+                    description      = 'Unexpected custom view.'
+                    returnedtypecode = [string]$table.logicalName
+                    fetchxml         = '<fetch version="1.0"><entity name="crmshow_policyprojection"><attribute name="crmshow_name" /></entity></fetch>'
+                    layoutxml        = '<grid name="resultset" object="10428"><row name="crmshow_policyprojection" id="crmshow_policyprojectionid"><cell name="crmshow_name" width="150" /></row></grid>'
+                }
+        }
 
         $testRoot = Join-Path (Get-PSDrive -Name TestDrive).Root ([guid]::NewGuid().Guid)
         $null = New-Item -ItemType Directory -Path $testRoot -Force
@@ -1160,24 +1238,36 @@ Describe 'New-ConvergenceSummary' {
             Should -Be 'Ready'
     }
 
-    It 'preserves the first blocking classification in result order' {
+    It 'lets ContractConflict dominate later in result order' {
         $summary = New-ConvergenceSummary -Results @(
             [pscustomobject]@{ Component='roles'; State='ManualPrerequisite' },
             [pscustomobject]@{ Component='tables'; State='ContractConflict' }
         )
 
-        $summary.State | Should -Be 'ManualPrerequisite'
+        $summary.State | Should -Be 'ContractConflict'
         $summary.BlockingComponents | Should -Be @('roles', 'tables')
+    }
+
+    It 'uses deterministic safety precedence when no contract conflict exists' {
+        $summary = New-ConvergenceSummary -Results @(
+            [pscustomobject]@{ Component='roles'; State='ManualPrerequisite' },
+            [pscustomobject]@{ Component='languages'; State='Precondition' },
+            [pscustomobject]@{ Component='tables'; State='UnsupportedInTenant' },
+            [pscustomobject]@{ Component='choices'; State='Ready' }
+        )
+
+        $summary.State | Should -Be 'UnsupportedInTenant'
+        $summary.BlockingComponents | Should -Be @('roles', 'languages', 'tables')
     }
 
     It 'keeps all blocking components and MutationOccurred false' {
         $summary = New-ConvergenceSummary -Results @(
-            [pscustomobject]@{ Component='languages'; State='Precondition' },
             [pscustomobject]@{ Component='roles'; State='ManualPrerequisite' },
-            [pscustomobject]@{ Component='choices'; State='Ready' }
+            [pscustomobject]@{ Component='languages'; State='Precondition' }
         )
 
-        $summary.BlockingComponents | Should -Be @('languages', 'roles')
+        $summary.State | Should -Be 'Precondition'
+        $summary.BlockingComponents | Should -Be @('roles', 'languages')
         $summary.MutationOccurred | Should -BeFalse
     }
 }
@@ -1288,7 +1378,7 @@ Describe 'Convergence path builders' {
         Get-ConvergenceSolutionInventoryPath `
             -SolutionId '{11111111-1111-1111-1111-111111111111}' `
             -ComponentType @(60, 1, 9, 26, 1) | Should -Be (
-                "/solutioncomponents?`$select=objectid,componenttype&" +
+                "/solutioncomponents?`$select=solutioncomponentid,objectid,componenttype,rootcomponentbehavior,_rootsolutioncomponentid_value&" +
                 "`$filter=_solutionid_value eq 11111111-1111-1111-1111-111111111111 and (componenttype eq 1 or componenttype eq 9 or componenttype eq 26 or componenttype eq 60)"
             )
 
@@ -1809,7 +1899,7 @@ Describe 'Component-level convergence checks' {
 }
 
 Describe 'Table classification propagation' {
-    It 'preserves the first blocking child classification when direct checks are exact' {
+    It 'lets ContractConflict dominate blocking child classifications when direct checks are exact' {
         $fixture = script:New-ReadyConvergenceResponseMap `
             -Contract $script:contract `
             -Manifest $script:manifest `
@@ -1885,7 +1975,7 @@ Describe 'Table classification propagation' {
             -EnvironmentUrl 'https://unit.crm.dynamics.com' `
             -Table $table
 
-        $result.State | Should -Be 'UnsupportedInTenant'
+        $result.State | Should -Be 'ContractConflict'
         @($result.Children | Where-Object {
                 $_.State -ne 'Ready'
             } | ForEach-Object {
@@ -2060,10 +2150,9 @@ Describe 'Unexpected metadata reverse inventory' {
             -ComponentType (Get-ConvergenceReverseInventoryComponentTypes)
         $fixture.Responses[$inventoryPath].value = @(
             $fixture.Responses[$inventoryPath].value +
-            [pscustomobject]@{
-                objectid      = $viewId
-                componenttype = 26
-            }
+            (script:New-SolutionInventoryEntry `
+                -ObjectId $viewId `
+                -ComponentType 26)
         )
         $fixture.Responses[(Get-ConvergenceSavedQueryByIdPath -SavedQueryId $viewId)] =
             [pscustomobject]@{
@@ -2096,10 +2185,9 @@ Describe 'Unexpected metadata reverse inventory' {
             -ComponentType (Get-ConvergenceReverseInventoryComponentTypes)
         $fixture.Responses[$inventoryPath].value = @(
             $fixture.Responses[$inventoryPath].value +
-            [pscustomobject]@{
-                objectid      = $formId
-                componenttype = 60
-            }
+            (script:New-SolutionInventoryEntry `
+                -ObjectId $formId `
+                -ComponentType 60)
         )
         $fixture.Responses[(Get-ConvergenceSystemFormByIdPath -FormId $formId)] =
             [pscustomobject]@{
@@ -2121,7 +2209,121 @@ Describe 'Unexpected metadata reverse inventory' {
         @($result.Unexpected) | Should -Contain 'crmshow_DataModel/form/crmshow_policyprojection/Unexpected Policy Projection Form'
     }
 
-    It 'classifies an additional CRM Showcase Insurance root role as ContractConflict' {
+    It 'ignores transitive generated Information and default-active components included through the table root' {
+        $fixture = script:New-ReadyConvergenceResponseMap `
+            -Contract $script:contract `
+            -Manifest $script:manifest `
+            -Scenario Ready
+        $table = @($script:contract.tables | Where-Object {
+                [string]$_.logicalName -ceq 'crmshow_policyprojection'
+            })[0]
+        $inventoryPath = Get-ConvergenceSolutionInventoryPath `
+            -SolutionId $fixture.SolutionIds['crmshow_DataModel'] `
+            -ComponentType (Get-ConvergenceReverseInventoryComponentTypes)
+        $tableRootEntry = @($fixture.Responses[$inventoryPath].value | Where-Object {
+                [int]$_.componenttype -eq 1 -and
+                [string]$_.objectid -ceq [string]$fixture.IdMap["table:$($table.logicalName)"]
+            })[0]
+        $tableRootSolutionComponentId = if ($null -eq $tableRootEntry.solutioncomponentid) {
+            [string]$tableRootEntry.objectid
+        }
+        else {
+            [string]$tableRootEntry.solutioncomponentid
+        }
+        $viewId = script:New-FakeGuid -Index 9709
+        $formId = script:New-FakeGuid -Index 9710
+        $fixture.Responses[$inventoryPath].value = @(
+            $fixture.Responses[$inventoryPath].value +
+            (script:New-SolutionInventoryEntry `
+                -ObjectId $viewId `
+                -ComponentType 26 `
+                -RootSolutionComponentId $tableRootSolutionComponentId `
+                -RootComponentBehavior 0) +
+            (script:New-SolutionInventoryEntry `
+                -ObjectId $formId `
+                -ComponentType 60 `
+                -RootSolutionComponentId $tableRootSolutionComponentId `
+                -RootComponentBehavior 0)
+        )
+        $fixture.Responses[(Get-ConvergenceSavedQueryByIdPath -SavedQueryId $viewId)] =
+            [pscustomobject]@{
+                savedqueryid     = $viewId
+                name             = 'Active Policy Projections'
+                description      = 'Platform-generated default active view.'
+                returnedtypecode = [string]$table.logicalName
+                fetchxml         = '<fetch version="1.0"><entity name="crmshow_policyprojection"><attribute name="crmshow_name" /></entity></fetch>'
+                layoutxml        = '<grid name="resultset" object="10428"><row name="crmshow_policyprojection" id="crmshow_policyprojectionid"><cell name="crmshow_name" width="150" /></row></grid>'
+            }
+        $fixture.Responses[(Get-ConvergenceSystemFormByIdPath -FormId $formId)] =
+            [pscustomobject]@{
+                formid         = $formId
+                name           = 'Information'
+                description    = 'Platform-generated default main form.'
+                objecttypecode = [string]$table.logicalName
+                type           = 2
+                formxml        = '<form><tabs><tab name="general"><columns><column width="100%"><sections><section name="general"><rows><row><cell><control id="crmshow_name" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="crmshow_name" /></cell></row></rows></section></sections></column></columns></tab></tabs></form>'
+            }
+        script:Register-ConvergenceTransportMock -Responses $fixture.Responses
+
+        $result = Test-InsuranceFoundationUnexpectedMetadata `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Contract $script:contract `
+            -Manifest $script:manifest
+
+        $result.State | Should -Be 'Ready'
+        @($result.Unexpected) | Should -Be @()
+    }
+
+    It 'still flags explicitly owned Information and default-active components' {
+        $fixture = script:New-ReadyConvergenceResponseMap `
+            -Contract $script:contract `
+            -Manifest $script:manifest `
+            -Scenario Ready
+        $viewId = script:New-FakeGuid -Index 9711
+        $formId = script:New-FakeGuid -Index 9712
+        $inventoryPath = Get-ConvergenceSolutionInventoryPath `
+            -SolutionId $fixture.SolutionIds['crmshow_DataModel'] `
+            -ComponentType (Get-ConvergenceReverseInventoryComponentTypes)
+        $fixture.Responses[$inventoryPath].value = @(
+            $fixture.Responses[$inventoryPath].value +
+            (script:New-SolutionInventoryEntry `
+                -ObjectId $viewId `
+                -ComponentType 26) +
+            (script:New-SolutionInventoryEntry `
+                -ObjectId $formId `
+                -ComponentType 60)
+        )
+        $fixture.Responses[(Get-ConvergenceSavedQueryByIdPath -SavedQueryId $viewId)] =
+            [pscustomobject]@{
+                savedqueryid     = $viewId
+                name             = 'Active Policy Projections'
+                description      = 'Explicit extra custom view.'
+                returnedtypecode = 'crmshow_policyprojection'
+                fetchxml         = '<fetch version="1.0"><entity name="crmshow_policyprojection"><attribute name="crmshow_name" /></entity></fetch>'
+                layoutxml        = '<grid name="resultset" object="10428"><row name="crmshow_policyprojection" id="crmshow_policyprojectionid"><cell name="crmshow_name" width="150" /></row></grid>'
+            }
+        $fixture.Responses[(Get-ConvergenceSystemFormByIdPath -FormId $formId)] =
+            [pscustomobject]@{
+                formid         = $formId
+                name           = 'Information'
+                description    = 'Explicit extra custom form.'
+                objecttypecode = 'crmshow_policyprojection'
+                type           = 2
+                formxml        = '<form><tabs><tab name="general"><columns><column width="100%"><sections><section name="general"><rows><row><cell><control id="crmshow_name" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="crmshow_name" /></cell></row></rows></section></sections></column></columns></tab></tabs></form>'
+            }
+        script:Register-ConvergenceTransportMock -Responses $fixture.Responses
+
+        $result = Test-InsuranceFoundationUnexpectedMetadata `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Contract $script:contract `
+            -Manifest $script:manifest
+
+        $result.State | Should -Be 'ContractConflict'
+        @($result.Unexpected) | Should -Contain 'crmshow_DataModel/view/crmshow_policyprojection/Active Policy Projections'
+        @($result.Unexpected) | Should -Contain 'crmshow_DataModel/form/crmshow_policyprojection/Information'
+    }
+
+    It 'classifies an additional CRM Showcase Insurance Foundation root role as ContractConflict' {
         $fixture = script:New-ReadyConvergenceResponseMap `
             -Contract $script:contract `
             -Manifest $script:manifest `
@@ -2154,7 +2356,40 @@ Describe 'Unexpected metadata reverse inventory' {
         @($result.Unexpected) | Should -Contain 'crmshow_Foundation/role/CRM Showcase Insurance Escalation'
     }
 
-    It 'ignores system-generated table children and unrelated platform roles or views' {
+    It 'classifies an additional CRM Showcase Insurance DataModel root role as ContractConflict' {
+        $fixture = script:New-ReadyConvergenceResponseMap `
+            -Contract $script:contract `
+            -Manifest $script:manifest `
+            -Scenario Ready
+        $roleId = script:New-FakeGuid -Index 9713
+        $rolesPath = Get-ConvergenceRootInsuranceRolesPath -RolePrefix 'CRM Showcase Insurance '
+        $fixture.Responses[$rolesPath].value = @(
+            $fixture.Responses[$rolesPath].value +
+            [pscustomobject]@{
+                roleid = $roleId
+                name = 'CRM Showcase Insurance DataModel Reviewer'
+                _parentrootroleid_value = $null
+            }
+        )
+        $fixture.Responses[(Get-ConvergenceRoleByIdPath -RoleId $roleId)] = [pscustomobject]@{
+            roleid = $roleId
+            name = 'CRM Showcase Insurance DataModel Reviewer'
+            _parentrootroleid_value = $null
+        }
+        $fixture.Responses[(Get-ConvergenceSolutionMembershipPath -ComponentId $roleId)] =
+            script:New-SolutionMembershipResponse -SolutionUniqueName 'crmshow_DataModel'
+        script:Register-ConvergenceTransportMock -Responses $fixture.Responses
+
+        $result = Test-InsuranceFoundationUnexpectedMetadata `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Contract $script:contract `
+            -Manifest $script:manifest
+
+        $result.State | Should -Be 'ContractConflict'
+        @($result.Unexpected) | Should -Contain 'crmshow_DataModel/role/CRM Showcase Insurance DataModel Reviewer'
+    }
+
+    It 'ignores system-generated table children and unrelated roles or views outside reviewed solutions' {
         $fixture = script:New-ReadyConvergenceResponseMap `
             -Contract $script:contract `
             -Manifest $script:manifest `
@@ -2187,8 +2422,15 @@ Describe 'Unexpected metadata reverse inventory' {
                 roleid = script:New-FakeGuid -Index 9706
                 name = 'System Administrator'
                 _parentrootroleid_value = $null
+            } +
+            [pscustomobject]@{
+                roleid = script:New-FakeGuid -Index 9714
+                name = 'CRM Showcase Insurance Archive'
+                _parentrootroleid_value = $null
             }
         )
+        $fixture.Responses[(Get-ConvergenceSolutionMembershipPath -ComponentId (script:New-FakeGuid -Index 9714))] =
+            script:New-SolutionMembershipResponse -SolutionUniqueName 'crmshow_Unreviewed'
 
         $viewId = script:New-FakeGuid -Index 9707
         $formId = script:New-FakeGuid -Index 9708
@@ -2197,14 +2439,12 @@ Describe 'Unexpected metadata reverse inventory' {
             -ComponentType (Get-ConvergenceReverseInventoryComponentTypes)
         $fixture.Responses[$inventoryPath].value = @(
             $fixture.Responses[$inventoryPath].value +
-            [pscustomobject]@{
-                objectid      = $viewId
-                componenttype = 26
-            } +
-            [pscustomobject]@{
-                objectid      = $formId
-                componenttype = 60
-            }
+            (script:New-SolutionInventoryEntry `
+                -ObjectId $viewId `
+                -ComponentType 26) +
+            (script:New-SolutionInventoryEntry `
+                -ObjectId $formId `
+                -ComponentType 60)
         )
         $fixture.Responses[(Get-ConvergenceSavedQueryByIdPath -SavedQueryId $viewId)] =
             [pscustomobject]@{
@@ -2363,6 +2603,24 @@ Describe 'Convergence direct entry point' {
         $result.State | Should -Be 'ContractConflict'
         @($result.Results | Where-Object {
                 $_.Component -eq 'roles' -and $_.State -eq 'ContractConflict'
+            }).Count | Should -Be 1
+    }
+
+    It 'emits contract-conflict JSON and exits three when drift coexists with a manual prerequisite' {
+        $invocation = script:Invoke-ConvergenceEntryScript -Scenario MissingRoleAndUnexpectedView
+
+        $invocation.ExitCode | Should -Be 3
+        { $invocation.Output | ConvertFrom-Json -ErrorAction Stop } |
+            Should -Not -Throw
+
+        $result = $invocation.Output | ConvertFrom-Json -ErrorAction Stop
+        $result.State | Should -Be 'ContractConflict'
+        @($result.Results | Where-Object {
+                $_.Component -eq 'roles' -and $_.State -eq 'ManualPrerequisite'
+            }).Count | Should -Be 1
+        @($result.Results | Where-Object {
+                $_.Component -eq 'unexpectedMetadata' -and
+                $_.State -eq 'ContractConflict'
             }).Count | Should -Be 1
     }
 

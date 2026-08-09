@@ -1021,18 +1021,34 @@ Describe 'New-ConvergenceSummary' {
             Should -Be 'Ready'
     }
 
-    It 'preserves the first blocking classification' {
+    It 'lets ContractConflict dominate later in result order' {
         $summary = New-ConvergenceSummary -Results @(
-            [pscustomobject]@{ Component='choices'; State='Ready' },
-            [pscustomobject]@{
-                Component='roles'; State='ManualPrerequisite'
-            }
+            [pscustomobject]@{ Component='roles'; State='ManualPrerequisite' },
+            [pscustomobject]@{ Component='tables'; State='ContractConflict' }
         )
-        $summary.State | Should -Be 'ManualPrerequisite'
-        $summary.BlockingComponents | Should -Contain 'roles'
+
+        $summary.State | Should -Be 'ContractConflict'
+        $summary.BlockingComponents | Should -Be @('roles', 'tables')
+    }
+
+    It 'uses deterministic safety precedence when no contract conflict exists' {
+        $summary = New-ConvergenceSummary -Results @(
+            [pscustomobject]@{ Component='roles'; State='ManualPrerequisite' },
+            [pscustomobject]@{ Component='languages'; State='Precondition' },
+            [pscustomobject]@{ Component='tables'; State='UnsupportedInTenant' }
+        )
+
+        $summary.State | Should -Be 'UnsupportedInTenant'
+        $summary.BlockingComponents | Should -Be @('roles', 'languages', 'tables')
     }
 }
 ```
+
+> **Correction from review evidence (2026-08-09).** Task 6 no longer uses
+> first-blocking semantics. The convergence summary must preserve safety
+> evidence by prioritizing `ContractConflict`, then
+> `UnsupportedInTenant`, `Precondition`, `ManualPrerequisite`, then `Ready`.
+> `BlockingComponents` still reports every blocking component in result order.
 
 - [ ] **Step 2: Run tests and verify RED**
 
@@ -1049,15 +1065,30 @@ Expected: FAIL because the convergence script does not exist.
 Create the script with:
 
 ```powershell
+$blockingStatePriority = @(
+    'ContractConflict',
+    'UnsupportedInTenant',
+    'Precondition',
+    'ManualPrerequisite'
+)
+
+function Get-ConvergenceBlockingState {
+    param([object[]]$Results, [string]$Default = 'Ready')
+    $blocking = @($Results | Where-Object State -ne 'Ready')
+    foreach ($state in $blockingStatePriority) {
+        if (@($blocking | Where-Object State -eq $state).Count -gt 0) {
+            return $state
+        }
+    }
+    if ($blocking.Count -gt 0) { return [string]$blocking[0].State }
+    return $Default
+}
+
 function New-ConvergenceSummary {
     param([Parameter(Mandatory)] [object[]]$Results)
     $blocking = @($Results | Where-Object State -ne 'Ready')
     [pscustomobject]@{
-        State = if ($blocking.Count -eq 0) {
-            'Ready'
-        } else {
-            [string]$blocking[0].State
-        }
+        State = Get-ConvergenceBlockingState -Results @($Results)
         BlockingComponents = @($blocking.Component)
         Results = @($Results)
         MutationOccurred = $false
