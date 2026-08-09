@@ -326,58 +326,131 @@ function Resolve-InsuranceFoundationPackageExportTarget {
     }
 }
 
-function Remove-InsuranceFoundationCreatedOutputDirectoryParent {
+function New-InsuranceFoundationDirectoryCreationContext {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    $firstPreExistingAncestor = $null
+    $missingDirectories = New-Object 'System.Collections.Generic.List[string]'
+    $currentPath = $resolvedPath
+
+    while ($true) {
+        if (Test-Path -LiteralPath $currentPath) {
+            if (-not (Test-Path -LiteralPath $currentPath -PathType Container)) {
+                throw "OutputDirectory parent is not a directory: $currentPath"
+            }
+
+            $firstPreExistingAncestor = $currentPath
+            break
+        }
+
+        $missingDirectories.Add($currentPath) | Out-Null
+
+        $nextPath = Split-Path -Path $currentPath -Parent
+        if ([string]::IsNullOrWhiteSpace($nextPath)) {
+            throw "OutputDirectory parent must be below an existing filesystem root: $resolvedPath"
+        }
+
+        $resolvedNextPath = [System.IO.Path]::GetFullPath($nextPath)
+        if ($resolvedNextPath -ceq $currentPath) {
+            throw "OutputDirectory parent must be below an existing filesystem root: $resolvedPath"
+        }
+
+        $currentPath = $resolvedNextPath
+    }
+
+    $createdDirectories = @()
+    $directoriesToCreate = @($missingDirectories)
+    [array]::Reverse($directoriesToCreate)
+
+    try {
+        foreach ($directoryPath in $directoriesToCreate) {
+            if (Test-Path -LiteralPath $directoryPath) {
+                if (-not (Test-Path -LiteralPath $directoryPath -PathType Container)) {
+                    throw "OutputDirectory parent is not a directory: $directoryPath"
+                }
+
+                continue
+            }
+
+            try {
+                New-Item -ItemType Directory -Path $directoryPath -ErrorAction Stop | Out-Null
+            }
+            catch {
+                if (Test-Path -LiteralPath $directoryPath -PathType Container) {
+                    continue
+                }
+
+                throw
+            }
+
+            $createdDirectories += $directoryPath
+        }
+
+        return [pscustomobject][ordered]@{
+            Path                     = $resolvedPath
+            FirstPreExistingAncestor = $firstPreExistingAncestor
+            CreatedDirectories       = @($createdDirectories)
+        }
+    }
+    catch {
+        Remove-InsuranceFoundationCreatedDirectories `
+            -FirstPreExistingAncestor $firstPreExistingAncestor `
+            -CreatedDirectories $createdDirectories
+        throw
+    }
+}
+
+function Remove-InsuranceFoundationCreatedDirectories {
     [CmdletBinding()]
     param(
         [AllowNull()]
-        [string]$Path,
+        [string]$FirstPreExistingAncestor,
 
         [AllowNull()]
-        [string]$ExpectedPath,
-
-        [AllowNull()]
-        [string[]]$CreatedPaths
+        [string[]]$CreatedDirectories
     )
 
-    if ([string]::IsNullOrWhiteSpace($Path)) {
-        return
-    }
-    if ([string]::IsNullOrWhiteSpace($ExpectedPath)) {
+    if (-not $CreatedDirectories) {
         return
     }
 
-    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
-    $resolvedExpectedPath = [System.IO.Path]::GetFullPath($ExpectedPath)
-    if ($resolvedPath -cne $resolvedExpectedPath) {
-        return
+    $resolvedFirstPreExistingAncestor = $null
+    if (-not [string]::IsNullOrWhiteSpace($FirstPreExistingAncestor)) {
+        $resolvedFirstPreExistingAncestor = [System.IO.Path]::GetFullPath($FirstPreExistingAncestor)
     }
 
-    if (-not (Test-Path -LiteralPath $resolvedPath -PathType Container)) {
-        return
-    }
-
-    $pathsToCheck = @()
-    if ($CreatedPaths) {
-        $pathsToCheck = @($CreatedPaths | ForEach-Object {
+    $pathsToCheck = @(
+        @($CreatedDirectories | ForEach-Object {
             if (-not [string]::IsNullOrWhiteSpace($_)) {
                 [System.IO.Path]::GetFullPath($_)
             }
-        })
-    }
+        }) | Where-Object { $_ }
+    )
 
-    foreach ($candidatePath in @($pathsToCheck | Where-Object { $_ })) {
-        if (-not (Test-Path -LiteralPath $candidatePath -PathType Container)) {
+    for ($index = ($pathsToCheck.Count - 1); $index -ge 0; $index--) {
+        $candidatePath = $pathsToCheck[$index]
+        if ($resolvedFirstPreExistingAncestor -and $candidatePath -ceq $resolvedFirstPreExistingAncestor) {
             continue
         }
+        if (-not (Test-Path -LiteralPath $candidatePath -PathType Container)) {
+            if (Test-Path -LiteralPath $candidatePath) {
+                break
+            }
+
+            continue
+        }
+
         $entries = @(Get-InsuranceFoundationDirectoryEntries -Path $candidatePath)
         if ($entries.Count -gt 0) {
             break
         }
+
         Remove-Item -LiteralPath $candidatePath -Force
-        if ($candidatePath -cne $resolvedPath) {
-            continue
-        }
-        return
     }
 }
 
@@ -392,19 +465,13 @@ function New-InsuranceFoundationPackageStagingDirectory {
     )
 
     $parentPath = [System.IO.Path]::GetFullPath($OutputDirectoryParent)
-    $createdPaths = @()
+    $parentDirectoryContext = $null
     $stagingDirectory = $null
 
     try {
-        if (Test-Path -LiteralPath $parentPath) {
-            if (-not (Test-Path -LiteralPath $parentPath -PathType Container)) {
-                throw "OutputDirectory parent is not a directory: $parentPath"
-            }
-        }
-        else {
-            New-Item -ItemType Directory -Path $parentPath -Force | Out-Null
-            $createdPaths += $parentPath
-        }
+        $parentDirectoryContext = New-InsuranceFoundationDirectoryCreationContext `
+            -Path $parentPath
+        $parentPath = [string]$parentDirectoryContext.Path
 
         $leafName = Split-Path -Path $OutputDirectory -Leaf
         if ([string]::IsNullOrWhiteSpace($leafName)) {
@@ -418,20 +485,18 @@ function New-InsuranceFoundationPackageStagingDirectory {
         } while (Test-Path -LiteralPath $stagingDirectory)
 
         New-Item -ItemType Directory -Path $stagingDirectory -Force | Out-Null
-        $createdPaths += $stagingDirectory
-
         return [pscustomobject][ordered]@{
             StagingDirectory             = $stagingDirectory
             OutputDirectoryParent        = $parentPath
-            CreatedPaths                 = @($createdPaths)
+            FirstPreExistingAncestor     = $parentDirectoryContext.FirstPreExistingAncestor
+            CreatedDirectories           = @($parentDirectoryContext.CreatedDirectories)
         }
     }
     catch {
         Remove-InsuranceFoundationStagingDirectory -Path $stagingDirectory
-        Remove-InsuranceFoundationCreatedOutputDirectoryParent `
-            -Path $parentPath `
-            -ExpectedPath $parentPath `
-            -CreatedPaths $createdPaths
+        Remove-InsuranceFoundationCreatedDirectories `
+            -FirstPreExistingAncestor $parentDirectoryContext.FirstPreExistingAncestor `
+            -CreatedDirectories $parentDirectoryContext.CreatedDirectories
         throw
     }
 }
@@ -540,6 +605,7 @@ function Invoke-InsuranceFoundationPackageExport {
     $exports = @(Get-InsuranceFoundationExports)
     $pacCommand = $null
     $stagingDirectory = $null
+    $stagingDirectoryInfo = $null
 
     try {
         $stagingDirectoryInfo = New-InsuranceFoundationPackageStagingDirectory `
@@ -590,10 +656,9 @@ function Invoke-InsuranceFoundationPackageExport {
     }
     finally {
         Remove-InsuranceFoundationStagingDirectory -Path $stagingDirectory
-        Remove-InsuranceFoundationCreatedOutputDirectoryParent `
-            -Path $outputDirectoryParent `
-            -ExpectedPath $outputDirectoryParent `
-            -CreatedPaths $stagingDirectoryInfo.CreatedPaths
+        Remove-InsuranceFoundationCreatedDirectories `
+            -FirstPreExistingAncestor $stagingDirectoryInfo.FirstPreExistingAncestor `
+            -CreatedDirectories $stagingDirectoryInfo.CreatedDirectories
     }
 }
 

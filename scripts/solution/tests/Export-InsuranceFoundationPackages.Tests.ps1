@@ -82,6 +82,13 @@ if (-not [string]::IsNullOrWhiteSpace($env:TEST_EXPORT_PAC_LOG_PATH)) {
         -Encoding UTF8
 }
 
+if (-not [string]::IsNullOrWhiteSpace($env:TEST_EXPORT_PAC_INTERFERENCE_FILE)) {
+    [System.IO.File]::WriteAllText(
+        $env:TEST_EXPORT_PAC_INTERFERENCE_FILE,
+        'interference'
+    )
+}
+
 if ($env:TEST_EXPORT_PAC_FAIL_FILE -eq $fileName) {
     Write-Output "simulated export failure for $fileName"
     exit 19
@@ -188,7 +195,8 @@ exit 0
 
             [string]$FailFile,
             [string]$ZeroByteFile,
-            [string]$SkipFile
+            [string]$SkipFile,
+            [string]$InterferenceFile
         )
 
         $previousPacPath = $env:POWERPLATFORMTOOLS_PACPATH
@@ -196,6 +204,7 @@ exit 0
         $previousFailFile = $env:TEST_EXPORT_PAC_FAIL_FILE
         $previousZeroByteFile = $env:TEST_EXPORT_PAC_ZERO_BYTE_FILE
         $previousSkipFile = $env:TEST_EXPORT_PAC_SKIP_FILE
+        $previousInterferenceFile = $env:TEST_EXPORT_PAC_INTERFERENCE_FILE
 
         try {
             $env:POWERPLATFORMTOOLS_PACPATH = $Context.PacPath
@@ -220,6 +229,13 @@ exit 0
             }
             else {
                 $env:TEST_EXPORT_PAC_SKIP_FILE = $SkipFile
+            }
+
+            if ([string]::IsNullOrWhiteSpace($InterferenceFile)) {
+                Remove-Item Env:TEST_EXPORT_PAC_INTERFERENCE_FILE -ErrorAction SilentlyContinue
+            }
+            else {
+                $env:TEST_EXPORT_PAC_INTERFERENCE_FILE = $InterferenceFile
             }
 
             $arguments = @(
@@ -281,6 +297,13 @@ exit 0
             }
             else {
                 $env:TEST_EXPORT_PAC_SKIP_FILE = $previousSkipFile
+            }
+
+            if ($null -eq $previousInterferenceFile) {
+                Remove-Item Env:TEST_EXPORT_PAC_INTERFERENCE_FILE -ErrorAction SilentlyContinue
+            }
+            else {
+                $env:TEST_EXPORT_PAC_INTERFERENCE_FILE = $previousInterferenceFile
             }
         }
 
@@ -378,6 +401,44 @@ Describe 'Assert-InsuranceFoundationPackageSet' {
     }
 }
 
+Describe 'New-InsuranceFoundationPackageStagingDirectory' {
+    It 'tracks the first pre-existing ancestor and every created parent directory' {
+        $context = script:New-ExportTestContext
+        $ancestor = Join-Path $context.RootPath 'pre-existing-ancestor'
+        $mid = Join-Path $ancestor 'created-mid'
+        $outputParent = Join-Path $mid 'created-parent'
+        $outputDirectory = Join-Path $outputParent 'out'
+        $null = New-Item -ItemType Directory -Path $ancestor -Force
+
+        $stagingInfo = $null
+        try {
+            $stagingInfo = New-InsuranceFoundationPackageStagingDirectory `
+                -OutputDirectory $outputDirectory `
+                -OutputDirectoryParent $outputParent
+
+            $stagingInfo.FirstPreExistingAncestor | Should -Be $ancestor
+            @($stagingInfo.CreatedDirectories) | Should -Be @(
+                $mid
+                $outputParent
+            )
+            Test-Path -LiteralPath $stagingInfo.StagingDirectory | Should -BeTrue
+            (Split-Path -Path $stagingInfo.StagingDirectory -Parent) |
+                Should -Be $outputParent
+        }
+        finally {
+            Remove-InsuranceFoundationStagingDirectory -Path $stagingInfo.StagingDirectory
+            Remove-InsuranceFoundationCreatedDirectories `
+                -FirstPreExistingAncestor $stagingInfo.FirstPreExistingAncestor `
+                -CreatedDirectories $stagingInfo.CreatedDirectories
+        }
+
+        Test-Path -LiteralPath $outputParent | Should -BeFalse
+        Test-Path -LiteralPath $mid | Should -BeFalse
+        Test-Path -LiteralPath $ancestor | Should -BeTrue
+        @(Get-ChildItem -LiteralPath $ancestor -Force).Count | Should -Be 0
+    }
+}
+
 Describe 'Export-InsuranceFoundationPackages entry point' {
     BeforeEach {
         $script:originalPacPath = $env:POWERPLATFORMTOOLS_PACPATH
@@ -385,6 +446,7 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
         $script:originalFailFile = $env:TEST_EXPORT_PAC_FAIL_FILE
         $script:originalZeroByteFile = $env:TEST_EXPORT_PAC_ZERO_BYTE_FILE
         $script:originalSkipFile = $env:TEST_EXPORT_PAC_SKIP_FILE
+        $script:originalInterferenceFile = $env:TEST_EXPORT_PAC_INTERFERENCE_FILE
     }
 
     AfterEach {
@@ -421,6 +483,13 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
         }
         else {
             $env:TEST_EXPORT_PAC_SKIP_FILE = $script:originalSkipFile
+        }
+
+        if ($null -eq $script:originalInterferenceFile) {
+            Remove-Item Env:TEST_EXPORT_PAC_INTERFERENCE_FILE -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:TEST_EXPORT_PAC_INTERFERENCE_FILE = $script:originalInterferenceFile
         }
     }
 
@@ -752,14 +821,13 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
         $mid = Join-Path $ancestor 'created-mid'
         $outputParent = Join-Path $mid 'created-parent'
         $null = New-Item -ItemType Directory -Path $ancestor -Force
-        $null = New-Item -ItemType Directory -Path $mid -Force
-        Set-Content -LiteralPath (Join-Path $mid 'block.txt') -Value 'x'
         $context.OutputDirectory = Join-Path $outputParent 'out'
         script:New-FakePacCommand -Path $context.PacPath | Out-Null
 
         $invocation = script:Invoke-ExportEntryScript `
             -Context $context `
-            -FailFile 'crmshow_DataModel_managed.zip'
+            -FailFile 'crmshow_DataModel_managed.zip' `
+            -InterferenceFile (Join-Path $mid 'block.txt')
 
         $invocation.ExitCode | Should -Not -Be 0
         @($invocation.Invocations).Count | Should -Be 4
@@ -767,10 +835,11 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
         Test-Path -LiteralPath $outputParent | Should -BeFalse
         Test-Path -LiteralPath $mid | Should -BeTrue
         Test-Path -LiteralPath $ancestor | Should -BeTrue
-        @(Get-ChildItem -LiteralPath $mid -Force).Count | Should -Be 1
+        @(Get-ChildItem -LiteralPath $mid -Force | ForEach-Object { $_.Name }) | Should -Be @(
+            'block.txt'
+        )
         @(script:Get-ContextDirectoryPaths -Context $context) | Should -Be @(
             $ancestor
-            $mid
         )
     }
 
