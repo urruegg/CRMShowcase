@@ -104,7 +104,7 @@ and the
 | US-706 | Deliver effective-dated PolicyPartyRole | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
 | US-707 | Validate schema and multilingual semantic metadata | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
 | US-708 | Author and export unmanaged/managed packages from DEV; managed TEST promotion is a separate solution-versioning sprint | In progress - [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
-| US-709 | Load synthetic fixtures and publish smoke evidence | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
+| US-709 | Load synthetic fixtures and publish persona security smoke evidence after managed TEST promotion | Deferred - separate follow-up after the solution-versioning sprint - [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
 | US-710 | Enforce effective-date integrity across every Dataverse write path | Deferred — [#9](https://github.com/urruegg/CRMShowcase/issues/9) · [OR-001](./requirements/OR-001-effective-date-integrity.md) |
 
 ## Epic 8 — Engineering capability packs

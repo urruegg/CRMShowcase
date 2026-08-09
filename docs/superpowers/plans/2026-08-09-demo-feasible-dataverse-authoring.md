@@ -14,8 +14,8 @@
 
 This plan implements the **demo scope** from
 `docs/superpowers/specs/2026-08-09-demo-feasible-dataverse-authoring-design.md`.
-It does not implement managed TEST promotion, automated privileged bootstrap,
-fixtures, or persona security smoke tests.
+It does not implement managed TEST promotion, TEST deployment evidence,
+automated privileged bootstrap, fixtures, or persona security smoke tests.
 
 The administrator role prerequisite is intentionally a gate:
 
@@ -30,7 +30,7 @@ The administrator role prerequisite is intentionally a gate:
 | Path | Responsibility |
 | --- | --- |
 | `docs/adr/ADR-0023-demo-feasible-dataverse-bootstrap.md` | Records demo boundary and target bootstrap hypothesis |
-| `docs/BACKLOG.md` | Updates US-702/US-708 scope and issue links |
+| `docs/BACKLOG.md` | Updates US-702/US-708 scope, defers US-709 follow-up evidence, and preserves issue links |
 | `scripts/solution/Test-InsuranceAuthoringPreflight.ps1` | Read-only environment, role, solution, and phase feasibility checks |
 | `scripts/solution/tests/Test-InsuranceAuthoringPreflight.Tests.ps1` | Preflight result and no-mutation tests |
 | `scripts/solution/Publish-InsuranceFoundation.ps1` | Adds explicit `Demo` and `SecurityRoles` scopes and bounded metadata waits |
@@ -43,13 +43,13 @@ The administrator role prerequisite is intentionally a gate:
 | `scripts/solution/tests/Export-InsuranceFoundationPackages.Tests.ps1` | Export command and package-set tests |
 | `.github/workflows/solution-author-dev.yml` | Preflight-first, demo-safe authoring, validation, and export |
 | `docs/runbooks/insurance-foundation-security-role-bootstrap.md` | Administrator prerequisite and verification procedure |
-| `docs/superpowers/specs/2026-08-08-insurance-foundation-design.md` | Marks TEST promotion and automated role bootstrap as deferred |
+| `docs/superpowers/specs/2026-08-08-insurance-foundation-design.md` | Marks managed TEST promotion, TEST deployment evidence, fixtures, persona security smoke tests, and automated role bootstrap as deferred |
 
 ### Task 1: Record the demo boundary and bootstrap hypothesis
 
 **Files:**
 - Create: `docs/adr/ADR-0023-demo-feasible-dataverse-bootstrap.md`
-- Modify: `docs/BACKLOG.md`
+- Modify: `docs/BACKLOG.md` (US-702/US-708 wording and US-709 deferral)
 - Modify: `docs/superpowers/specs/2026-08-08-insurance-foundation-design.md`
 
 - [ ] **Step 1: Write the ADR**
@@ -140,6 +140,7 @@ In `docs/BACKLOG.md`, change the affected Epic 7 rows to:
 ```markdown
 | US-702 | Deliver shared insurance choices; create security roles through the approved DEV administrator prerequisite and verify them in CI | In progress - [#8](https://github.com/urruegg/CRMShowcase/issues/8), [#40](https://github.com/urruegg/CRMShowcase/issues/40) |
 | US-708 | Author and export unmanaged/managed packages from DEV; managed TEST promotion is a separate solution-versioning sprint | In progress - [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
+| US-709 | Load synthetic fixtures and publish persona security smoke evidence after managed TEST promotion | Deferred - separate follow-up after the solution-versioning sprint - [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
 ```
 
 - [ ] **Step 3: Align the original Sprint 3 specification**
@@ -150,10 +151,13 @@ Add this note after the Outcome section in
 ```markdown
 > **Demo feasibility amendment (2026-08-09).** The current tenant permits the
 > environment-scoped CI application user to author schema metadata but not
-> security roles. The approved demo scope and administrator prerequisite are
-> defined in
+> security roles. The approved Sprint 3 boundary is DEV authoring, validation,
+> and exact package export. The administrator prerequisite and follow-up target
+> sequence are defined in
 > [Demo-Feasible Dataverse Authoring and Bootstrap](./2026-08-09-demo-feasible-dataverse-authoring-design.md)
-> and ADR-0023. Managed TEST promotion remains a separate sprint.
+> and [ADR-0023](../../adr/ADR-0023-demo-feasible-dataverse-bootstrap.md).
+> Managed TEST promotion, TEST deployment evidence, fixtures, and persona
+> security smoke tests remain separate follow-up work.
 ```
 
 - [ ] **Step 4: Validate documentation**
@@ -1578,9 +1582,9 @@ In `docs/superpowers/plans/2026-08-08-insurance-foundation.md`, mark the
 completed DEV authoring/export steps and add:
 
 ```markdown
-Managed TEST promotion, fixtures, and persona security smoke tests remain
-separate follow-up work. Sprint 3 demo evidence is limited to the approved
-DEV package-authoring boundary in ADR-0023.
+Managed TEST promotion, TEST deployment evidence, fixtures, and persona
+security smoke tests remain separate follow-up work. Sprint 3 demo evidence
+is limited to the approved DEV package-authoring boundary in ADR-0023.
 ```
 
 - [ ] **Step 10: Commit evidence documentation**
