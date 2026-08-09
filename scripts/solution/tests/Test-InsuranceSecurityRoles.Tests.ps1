@@ -283,9 +283,15 @@ switch ($path) {
     "/roles?`$select=roleid,name&`$filter=_parentrootroleid_value eq null and name eq 'CRM Showcase Insurance Data Steward'" {
         $roles = @()
         if ($env:TEST_INSURANCE_SECURITY_ROLES_SCENARIO -ne 'MissingRole') {
+            $resolvedRoleName = if ($env:TEST_INSURANCE_SECURITY_ROLES_SCENARIO -eq 'LowerCaseRoleName') {
+                'crm showcase insurance data steward'
+            }
+            else {
+                'CRM Showcase Insurance Data Steward'
+            }
             $roles += [pscustomobject]@{
                 roleid = $stewardRoleId
-                name = 'CRM Showcase Insurance Data Steward'
+                name = $resolvedRoleName
             }
         }
         Write-Json ([pscustomobject]@{ value = @($roles) })
@@ -412,7 +418,7 @@ switch ($path) {
         [CmdletBinding()]
         param(
             [Parameter(Mandatory)]
-            [ValidateSet('Ready', 'MissingRole')]
+            [ValidateSet('Ready', 'MissingRole', 'LowerCaseRoleName')]
             [string]$Scenario
         )
 
@@ -758,6 +764,27 @@ Describe 'Test-InsuranceSecurityRole' {
         )
     }
 
+    It 'returns ContractConflict when the root-role query resolves only a case-insensitive name match' {
+        $resolvedRoleName = $script:role.name.ToLowerInvariant()
+        $script:rootRoleItems = @([pscustomobject]@{
+                roleid = $script:roleId
+                name = $resolvedRoleName
+            })
+
+        $result = Test-InsuranceSecurityRole `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Role $script:role `
+            -Contract $script:contract
+
+        $result.State | Should -Be 'ContractConflict'
+        @($result.Details) | Should -Contain (
+            "Root security role query for contract name '$($script:role.name)' returned name '$resolvedRoleName'; exact case-sensitive identity match is required."
+        )
+        @($script:calls.Path) | Should -Be @(
+            Get-InsuranceSecurityRolePath -RoleName $script:role.name
+        )
+    }
+
     It 'returns ContractConflict when the role is not owned by its declared solution' {
         $script:solutionNames = @('crmshow_DataModel')
 
@@ -953,6 +980,27 @@ Describe 'Security-role verifier direct entry point' {
         $result.MutationOccurred | Should -BeFalse
         @($result.Results | Where-Object State -eq 'ManualPrerequisite').Count |
             Should -Be 1
+    }
+
+    It 'emits classified non-ready JSON and exits two when the root-role query returns lower-case name only' {
+        $invocation = script:Invoke-SecurityRolesEntryScript -Scenario LowerCaseRoleName
+
+        $invocation.ExitCode | Should -Be 2
+        { $invocation.Output | ConvertFrom-Json -ErrorAction Stop } |
+            Should -Not -Throw
+
+        $result = $invocation.Output | ConvertFrom-Json -ErrorAction Stop
+        $result.State | Should -Be 'ContractConflict'
+        @($result.Results | Where-Object {
+                $_.Role -eq 'CRM Showcase Insurance Data Steward' -and
+                $_.State -eq 'ContractConflict'
+            }).Count | Should -Be 1
+        @($result.Results | Where-Object {
+                $_.Role -eq 'CRM Showcase Insurance Data Steward' -and
+                @($_.Details) -contains (
+                    "Root security role query for contract name 'CRM Showcase Insurance Data Steward' returned name 'crm showcase insurance data steward'; exact case-sensitive identity match is required."
+                )
+            }).Count | Should -Be 1
     }
 }
 

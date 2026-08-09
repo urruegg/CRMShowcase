@@ -33,8 +33,8 @@ This bootstrap may change only:
   (`1040`) role labels and descriptions;
 - only the privileges declared by the reviewed contract.
 
-If the local confirmation text or resulting verifier output implies any other
-change, stop and escalate under administrator review.
+If the local confirmation text or resulting structural verifier output implies
+any other change, stop and escalate under administrator review.
 
 ## Procedure
 
@@ -57,7 +57,7 @@ change, stop and escalate under administrator review.
 3. Review every `ShouldProcess` confirmation before accepting it. The run is
    bounded to the permitted changes listed above.
 
-4. Run the read-only verifier:
+4. Run the GET-only, read-only verifier:
 
    ```powershell
    .\scripts\solution\Test-InsuranceSecurityRoles.ps1 `
@@ -69,26 +69,44 @@ change, stop and escalate under administrator review.
    - overall `State` = `Ready`;
    - one `Ready` result for each reviewed role;
    - `MutationOccurred` = `false`.
+   Use the verifier only as evidence of:
+   - exact case-sensitive root role identity/name;
+   - solution membership;
+   - exact declared privileges and Dataverse depth;
+   - no mutation during verification.
 
-6. Attach the verifier JSON output and any local confirmation evidence to
+6. For localized English (`1033`), German (`1031`), French (`1036`), and
+   Italian (`1040`) role labels/descriptions, capture the reviewed
+   `ShouldProcess`/publisher output from step 2 and inspect the role
+   translations in Power Platform before attaching evidence. This is a manual
+   evidence item because the current GET-only verifier does not retrieve
+   localized role labels/descriptions.
+
+7. Attach the verifier JSON output and the manual localization evidence to
    issue #40, then trigger **Author insurance foundation in DEV**.
 
 ## Failure and rollback
 
-- Stop immediately if verification reports unexpected privileges, wrong
-  solution ownership, duplicate root roles, unsupported depth, or any other
-  `ContractConflict`.
+- Stop immediately if verification reports an exact-name mismatch, unexpected
+  privileges, wrong solution ownership, duplicate root roles, unsupported
+  depth, or any other `ContractConflict`.
+- Stop immediately if the manual Power Platform review shows incorrect
+  EN/DE/FR/IT role labels or descriptions.
 - Do **not** delete either role.
 - Do **not** elevate normal GitHub CI beyond the approved `System Customizer`
   role.
-- Correct the role metadata or privilege assignment locally under
-  administrator review, rerun the read-only verifier, and add the updated
-  evidence to issue #40.
+- Correct the role identity, solution membership, privilege assignment, or
+  localized translation locally under administrator review, rerun the
+  read-only verifier for structural evidence, repeat the manual localization
+  review, and add the updated evidence to issue #40.
 
 ## Evidence and sign-out
 
-- Keep the local terminal transcript, screenshots, or pasted verifier JSON as
-  administrator evidence for issue #40.
+- Keep the local terminal transcript, reviewed `ShouldProcess`/publisher
+  output, Power Platform translation review screenshots/notes, and pasted
+  verifier JSON as administrator evidence for issue #40.
+- Localized label/description evidence remains manual because the current
+  GET-only verifier does not retrieve localized role labels/descriptions.
 - After the verified DEV bootstrap is complete, sign out locally:
 
   ```powershell

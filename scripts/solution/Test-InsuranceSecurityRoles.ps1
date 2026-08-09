@@ -1,10 +1,12 @@
 <#
 .SYNOPSIS
-    Performs read-only verification of the reviewed Insurance Foundation roles.
+    Performs read-only structural verification of the reviewed Insurance Foundation roles.
 .DESCRIPTION
     Uses GET-only `az rest` requests against Dataverse v9.2 with the
-    environment URL resource. The verifier never mutates role metadata and is
-    safe to dot-source for testing.
+    environment URL resource. The verifier proves exact root-role identity,
+    solution membership, and declared privilege/depth structure without
+    mutating Dataverse. It does not retrieve localized role labels or
+    descriptions and is safe to dot-source for testing.
 #>
 [CmdletBinding()]
 param(
@@ -596,6 +598,23 @@ function Test-InsuranceSecurityRole {
             -State 'ContractConflict' `
             -Details @(
                 "Expected exactly one root security role named '$roleName', found $($matches.Count)."
+            )
+    }
+
+    $resolvedRoleName = [string]$matches[0].name
+    if (-not ($resolvedRoleName -ceq $roleName)) {
+        $resolvedRoleNameDetail = if ([string]::IsNullOrWhiteSpace($resolvedRoleName)) {
+            '<empty>'
+        }
+        else {
+            $resolvedRoleName
+        }
+
+        return New-InsuranceSecurityRoleResult `
+            -Role $roleName `
+            -State 'ContractConflict' `
+            -Details @(
+                "Root security role query for contract name '$roleName' returned name '$resolvedRoleNameDetail'; exact case-sensitive identity match is required."
             )
     }
 
