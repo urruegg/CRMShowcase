@@ -42,16 +42,18 @@ module "github" {
 
   environments = {
     dev = {
-      ci_client_id          = module.entra.client_ids["dev"]
-      ci_tenant_id          = var.tenant_id
-      powerplatform_env_id  = module.powerplatform.environment_ids["dev"]
-      powerplatform_env_url = module.powerplatform.environment_urls["dev"]
+      ci_client_id            = module.entra.client_ids["dev"]
+      ci_tenant_id            = var.tenant_id
+      powerplatform_env_id    = module.powerplatform.environment_ids["dev"]
+      powerplatform_env_url   = module.powerplatform.environment_urls["dev"]
+      allowed_branch_patterns = ["main"]
     }
     test = {
-      ci_client_id          = module.entra.client_ids["test"]
-      ci_tenant_id          = var.tenant_id
-      powerplatform_env_id  = module.powerplatform.environment_ids["test"]
-      powerplatform_env_url = module.powerplatform.environment_urls["test"]
+      ci_client_id            = module.entra.client_ids["test"]
+      ci_tenant_id            = var.tenant_id
+      powerplatform_env_id    = module.powerplatform.environment_ids["test"]
+      powerplatform_env_url   = module.powerplatform.environment_urls["test"]
+      allowed_branch_patterns = ["main"]
     }
   }
 }

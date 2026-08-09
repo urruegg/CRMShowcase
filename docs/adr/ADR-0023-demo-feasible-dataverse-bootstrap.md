@@ -53,6 +53,13 @@ capabilities support a separately approved and auditable privileged identity.
 
 - **Known:** System Customizer lacks prvCreateRole in this tenant.
 - **Known:** normal CI can reconcile the reviewed schema metadata.
+- **Known:** demo DEV authoring can be constrained to reviewed refs by allowing
+  the privileged `dev` workflow to deploy only from `main`, while `main`
+  itself is protected by pull-request flow plus the required `gate1` status
+  check.
+- **Constraint:** this personal demo repo has no dependable independent
+  reviewer pool, so the reviewed-ref control requires pull requests but sets
+  the approving-review count to zero to avoid owner deadlock.
 - **Inferred:** imported source-controlled solutions can become the steady-state
   path after the first successful export.
 - **Evidence still required:** administrator-created roles export correctly and
@@ -69,7 +76,11 @@ promotion requires a different permission model.
 - **At the next release:** import reviewed solution packages; do not reconstruct
   released metadata with live authoring.
 - **Operationally:** first environment setup has an administrator prerequisite.
+- **Operationally:** privileged DEV authoring runs only from reviewed `main`
+  refs, and `main` merges stay gated by `gate1` with force-push and deletion
+  protection enabled for admins as well.
 - **For customer teams:** bootstrap and deployment identities have separate
-  accountability.
+  accountability, and once an independent reviewer pool exists they should
+  require at least one approving review before `main` can advance.
 - **Reversibility:** automated bootstrap can replace the runbook without
   changing the schema contract.
