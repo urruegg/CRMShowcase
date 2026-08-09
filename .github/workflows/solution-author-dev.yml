@@ -42,7 +42,8 @@ jobs:
           $root = $env:GITHUB_WORKSPACE
           $targeted = Invoke-Pester -Path @(
             (Join-Path $root 'scripts/solution/tests/InsuranceFoundationContract.Tests.ps1'),
-            (Join-Path $root 'scripts/solution/tests/Publish-InsuranceFoundation.Tests.ps1')
+            (Join-Path $root 'scripts/solution/tests/Publish-InsuranceFoundation.Tests.ps1'),
+            (Join-Path $root 'infra/scripts/tests/Set-DataverseLanguages.Tests.ps1')
           ) -PassThru -Output Detailed
           if ($targeted.Result -ne 'Passed') { throw 'Targeted authoring tests failed.' }
           $full = Invoke-Pester -Path (Join-Path $root 'scripts/solution/tests') `
