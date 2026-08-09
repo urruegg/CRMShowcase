@@ -1189,7 +1189,7 @@ function Invoke-TableChildren {
     foreach ($form in $Table.forms) {
         $formLabel = ([string]$form.metadata.label.'1033').Replace("'", "''")
         Invoke-ChildRequestIfMissing `
-            -QueryPath "/systemforms?`$select=formid,name,description,objecttypecode,type,formxml,_solutionid_value&`$filter=name eq '$formLabel' and objecttypecode eq '$($Table.logicalName)' and type eq 2" `
+            -QueryPath "/systemforms?`$select=formid,name,description,objecttypecode,type,formxml&`$filter=name eq '$formLabel' and objecttypecode eq '$($Table.logicalName)' and type eq 2" `
             -Request ($formRequest = New-FormRequest $Table $form) `
             -Component "$($Table.logicalName)/$($form.name)" `
             -AssertCompatible {
