@@ -1133,7 +1133,7 @@ function Assert-XmlCompatible {
     $actual = Get-XmlStructuralSignature ([string]$Existing.$Property) $Component
     $wanted = Get-XmlStructuralSignature ([string]$Request.Body.$Property) $Component
     if ($actual -ne $wanted) {
-        throw "Structural XML conflict for '$Component': existing $Property is stale."
+        throw "Structural XML conflict for '$Component': existing $Property is stale. Actual signature: $actual Wanted signature: $wanted"
     }
 }
 

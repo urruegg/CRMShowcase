@@ -1403,6 +1403,16 @@ Describe 'Insurance Foundation reconciliation' {
         }
     }
 
+    It 'includes comparable XML signatures when existing metadata is stale' {
+        $table = $script:contract.tables[0]
+        $request = New-ViewRequest $table $table.views[0] 10427
+        $existing = [pscustomobject]@{ fetchxml = '<fetch><entity name="stale" /></fetch>' }
+
+        {
+            Assert-XmlCompatible $existing $request fetchxml 'component'
+        } | Should -Throw '*Actual signature:*name=stale*Wanted signature:*'
+    }
+
     It 'updates an empty existing choice rather than treating it as unchanged' {
         $choice = $script:contract.choices[0]
         Mock Invoke-DataverseRequest {
