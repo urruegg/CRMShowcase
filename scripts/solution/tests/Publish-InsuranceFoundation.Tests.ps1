@@ -180,6 +180,28 @@ BeforeAll {
             value = @($attributes)
         }
     }
+
+    function Get-SnapshotAttribute {
+        param(
+            [Parameter(Mandatory)] $Snapshot,
+            [Parameter(Mandatory)] [string]$LogicalName
+        )
+
+        return @($Snapshot.Attributes | Where-Object {
+            $_.LogicalName -eq $LogicalName
+        })[0]
+    }
+
+    function Get-SnapshotRelationship {
+        param(
+            [Parameter(Mandatory)] $Snapshot,
+            [Parameter(Mandatory)] [string]$SchemaName
+        )
+
+        return @($Snapshot.ManyToOneRelationships | Where-Object {
+            $_.SchemaName -eq $SchemaName
+        })[0]
+    }
 }
 
 Describe 'Insurance Foundation request builders' {
@@ -2588,6 +2610,689 @@ Describe 'Insurance Foundation table metadata convergence' {
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and $_.Path -eq '/PublishXml'
         }).Count | Should -Be 1
+    }
+
+    It 'waits for initial choice binding metadata before posting child components' {
+        $table = $script:contract.tables[0] |
+            ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        $table.columns = @($table.columns | Where-Object {
+            $_.logicalName -in @(
+                'crmshow_name',
+                'crmshow_roletype',
+                'crmshow_validfrom'
+            )
+        })
+        $table.relationships = @()
+        $table.alternateKeys = @()
+        $table.businessRules = @()
+        $table.views = @($table.views[0] |
+            ConvertTo-Json -Depth 20 | ConvertFrom-Json)
+        $table.views[0].columns = @(
+            'crmshow_name',
+            'crmshow_roletype',
+            'crmshow_validfrom'
+        )
+        $table.forms = @($table.forms[0] |
+            ConvertTo-Json -Depth 20 | ConvertFrom-Json)
+        $table.forms[0].columns = @(
+            'crmshow_name',
+            'crmshow_roletype',
+            'crmshow_validfrom'
+        )
+        $script:tableSnapshotReads = 0
+        $script:partialChoiceSequence = $null
+        $script:fullChoiceSequence = $null
+
+        Mock Start-Sleep {}
+        Mock Get-TableMetadataSnapshot {
+            param($LogicalName, $RequestedAttributeLogicalNames)
+            $script:tableSnapshotReads++
+            $snapshot = switch ($script:tableSnapshotReads) {
+                1 { $null }
+                2 {
+                    $candidate = New-TableMetadataSnapshot -Table $table
+                    $choice = Get-SnapshotAttribute $candidate `
+                        'crmshow_roletype'
+                    $choice.PSObject.Properties.Remove('GlobalOptionSet')
+                    $candidate
+                }
+                default { New-TableMetadataSnapshot -Table $table }
+            }
+            $script:calls.Add([pscustomobject]@{
+                Sequence = $script:calls.Count + 1
+                Method = 'SNAPSHOT'
+                Path = $LogicalName
+                Body = $snapshot
+                Headers = $null
+                RequestedAttributeLogicalNames = @(
+                    $RequestedAttributeLogicalNames
+                )
+            })
+            if ($null -ne $snapshot) {
+                $choice = Get-SnapshotAttribute $snapshot 'crmshow_roletype'
+                if ($null -eq $choice.GlobalOptionSet -and
+                    $null -eq $script:partialChoiceSequence) {
+                    $script:partialChoiceSequence = $script:calls[-1].Sequence
+                }
+                if ($null -ne $choice.GlobalOptionSet -and
+                    $null -eq $script:fullChoiceSequence) {
+                    $script:fullChoiceSequence = $script:calls[-1].Sequence
+                }
+            }
+            return $snapshot
+        }
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Sequence = $script:calls.Count + 1
+                Method = $Method
+                Path = $Path
+                Body = $Body
+                Headers = $Headers
+            })
+            if ($Method -eq 'GET' -and
+                $Path -like "/GlobalOptionSetDefinitions(Name='*") {
+                return [pscustomobject]@{
+                    MetadataId = '11111111-1111-1111-1111-111111111111'
+                }
+            }
+            if ($Method -eq 'GET' -and
+                $Path -match '(?:^/savedqueries\?|^/systemforms\?)') {
+                return [pscustomobject]@{ value = @() }
+            }
+            if ($Method -eq 'POST' -and $Path -eq '/savedqueries') {
+                return [pscustomobject]@{ savedqueryid = 'new-view' }
+            }
+            if ($Method -eq 'POST' -and $Path -eq '/systemforms') {
+                return [pscustomobject]@{ formid = 'new-form' }
+            }
+            if ($Method -eq 'GET') {
+                throw "Unsupported mocked endpoint: $Method $Path"
+            }
+            return [pscustomobject]@{}
+        }
+
+        Invoke-TableReconciliation $table | Out-Null
+
+        $script:tableSnapshotReads | Should -Be 3
+        $script:partialChoiceSequence | Should -Not -BeNullOrEmpty
+        $script:fullChoiceSequence | Should -Not -BeNullOrEmpty
+        $script:fullChoiceSequence |
+            Should -BeGreaterThan $script:partialChoiceSequence
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and
+            $_.Path -eq "/EntityDefinitions(LogicalName='$($table.logicalName)')/Attributes"
+        }) | Should -BeNullOrEmpty
+        foreach ($snapshotCall in @($script:calls | Where-Object {
+            $_.Method -eq 'SNAPSHOT'
+        })) {
+            @($snapshotCall.RequestedAttributeLogicalNames | Sort-Object) |
+                Should -Be @($table.columns.logicalName | Sort-Object)
+        }
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/savedqueries'
+        })[0].Sequence | Should -BeGreaterThan $script:fullChoiceSequence
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/systemforms'
+        })[0].Sequence | Should -BeGreaterThan $script:fullChoiceSequence
+    }
+
+    It 'waits for initial string and date metadata completion before posting child components' {
+        $table = $script:contract.tables[0] |
+            ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        $table.columns = @($table.columns | Where-Object {
+            $_.logicalName -in @(
+                'crmshow_name',
+                'crmshow_roletype',
+                'crmshow_validfrom'
+            )
+        })
+        $table.relationships = @()
+        $table.alternateKeys = @()
+        $table.businessRules = @()
+        $table.views = @($table.views[0] |
+            ConvertTo-Json -Depth 20 | ConvertFrom-Json)
+        $table.views[0].columns = @(
+            'crmshow_name',
+            'crmshow_roletype',
+            'crmshow_validfrom'
+        )
+        $table.forms = @($table.forms[0] |
+            ConvertTo-Json -Depth 20 | ConvertFrom-Json)
+        $table.forms[0].columns = @(
+            'crmshow_name',
+            'crmshow_roletype',
+            'crmshow_validfrom'
+        )
+        $script:tableSnapshotReads = 0
+        $script:partialTypedSequence = $null
+        $script:fullTypedSequence = $null
+
+        Mock Start-Sleep {}
+        Mock Get-TableMetadataSnapshot {
+            param($LogicalName, $RequestedAttributeLogicalNames)
+            $script:tableSnapshotReads++
+            $snapshot = switch ($script:tableSnapshotReads) {
+                1 { $null }
+                2 {
+                    $candidate = New-TableMetadataSnapshot -Table $table
+                    $name = Get-SnapshotAttribute $candidate 'crmshow_name'
+                    $validFrom = Get-SnapshotAttribute $candidate `
+                        'crmshow_validfrom'
+                    $name.PSObject.Properties.Remove('MaxLength')
+                    $validFrom.PSObject.Properties.Remove('Format')
+                    $validFrom.PSObject.Properties.Remove(
+                        'DateTimeBehavior'
+                    )
+                    $candidate
+                }
+                default { New-TableMetadataSnapshot -Table $table }
+            }
+            $script:calls.Add([pscustomobject]@{
+                Sequence = $script:calls.Count + 1
+                Method = 'SNAPSHOT'
+                Path = $LogicalName
+                Body = $snapshot
+                Headers = $null
+                RequestedAttributeLogicalNames = @(
+                    $RequestedAttributeLogicalNames
+                )
+            })
+            if ($null -ne $snapshot) {
+                $name = Get-SnapshotAttribute $snapshot 'crmshow_name'
+                $validFrom = Get-SnapshotAttribute $snapshot `
+                    'crmshow_validfrom'
+                $isComplete = $null -ne $name.MaxLength -and
+                    $null -ne $validFrom.Format -and
+                    $null -ne $validFrom.DateTimeBehavior
+                if (-not $isComplete -and
+                    $null -eq $script:partialTypedSequence) {
+                    $script:partialTypedSequence = $script:calls[-1].Sequence
+                }
+                if ($isComplete -and
+                    $null -eq $script:fullTypedSequence) {
+                    $script:fullTypedSequence = $script:calls[-1].Sequence
+                }
+            }
+            return $snapshot
+        }
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Sequence = $script:calls.Count + 1
+                Method = $Method
+                Path = $Path
+                Body = $Body
+                Headers = $Headers
+            })
+            if ($Method -eq 'GET' -and
+                $Path -like "/GlobalOptionSetDefinitions(Name='*") {
+                return [pscustomobject]@{
+                    MetadataId = '11111111-1111-1111-1111-111111111111'
+                }
+            }
+            if ($Method -eq 'GET' -and
+                $Path -match '(?:^/savedqueries\?|^/systemforms\?)') {
+                return [pscustomobject]@{ value = @() }
+            }
+            if ($Method -eq 'POST' -and $Path -eq '/savedqueries') {
+                return [pscustomobject]@{ savedqueryid = 'new-view' }
+            }
+            if ($Method -eq 'POST' -and $Path -eq '/systemforms') {
+                return [pscustomobject]@{ formid = 'new-form' }
+            }
+            if ($Method -eq 'GET') {
+                throw "Unsupported mocked endpoint: $Method $Path"
+            }
+            return [pscustomobject]@{}
+        }
+
+        Invoke-TableReconciliation $table | Out-Null
+
+        $script:tableSnapshotReads | Should -Be 3
+        $script:partialTypedSequence | Should -Not -BeNullOrEmpty
+        $script:fullTypedSequence | Should -Not -BeNullOrEmpty
+        $script:fullTypedSequence |
+            Should -BeGreaterThan $script:partialTypedSequence
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and
+            $_.Path -eq "/EntityDefinitions(LogicalName='$($table.logicalName)')/Attributes"
+        }) | Should -BeNullOrEmpty
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/savedqueries'
+        })[0].Sequence | Should -BeGreaterThan $script:fullTypedSequence
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/systemforms'
+        })[0].Sequence | Should -BeGreaterThan $script:fullTypedSequence
+    }
+
+    It 'waits for complete Customer metadata before publishing child components' {
+        $table = $script:contract.tables[2] |
+            ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        $table.columns = @($table.columns | Where-Object {
+            $_.logicalName -in @(
+                'crmshow_name',
+                'crmshow_policyid',
+                'crmshow_partyid',
+                'crmshow_roletype',
+                'crmshow_validfrom'
+            )
+        })
+        $table.relationships = @($table.relationships | Where-Object {
+            $_.lookupColumn -in @('crmshow_policyid', 'crmshow_partyid')
+        })
+        $table.alternateKeys = @()
+        $table.businessRules = @()
+        $table.views = @($table.views[0] |
+            ConvertTo-Json -Depth 20 | ConvertFrom-Json)
+        $table.views[0].columns = @(
+            'crmshow_name',
+            'crmshow_policyid',
+            'crmshow_partyid',
+            'crmshow_roletype',
+            'crmshow_validfrom'
+        )
+        $table.forms = @($table.forms[0] |
+            ConvertTo-Json -Depth 20 | ConvertFrom-Json)
+        $table.forms[0].columns = @(
+            'crmshow_name',
+            'crmshow_policyid',
+            'crmshow_partyid',
+            'crmshow_roletype',
+            'crmshow_validfrom'
+        )
+        $customer = @($table.columns | Where-Object {
+            $_.logicalName -eq 'crmshow_partyid'
+        })[0]
+        $customerRelationship = @($table.relationships | Where-Object {
+            $_.lookupColumn -eq $customer.logicalName -and
+            $_.authoring -eq 'CreateCustomerRelationships'
+        })[0]
+        $expectedRelationshipSchemas = @($customer.lookup.targets |
+            ForEach-Object {
+                "$($customerRelationship.schemaName)_$_"
+            })
+        $script:tableCreated = $false
+        $script:customerCreateSeen = $false
+        $script:customerVisibilityReads = 0
+        $script:partialCustomerSequence = $null
+        $script:fullCustomerSequence = $null
+
+        Mock Start-Sleep {}
+        Mock Get-TableMetadataSnapshot {
+            param($LogicalName, $RequestedAttributeLogicalNames)
+            if (-not $script:tableCreated) {
+                return $null
+            }
+            if ($script:customerCreateSeen) {
+                $script:customerVisibilityReads++
+            }
+            $snapshot = if (-not $script:customerCreateSeen) {
+                New-TableMetadataSnapshot -Table $table
+            } elseif ($script:customerVisibilityReads -eq 1) {
+                $candidate = New-TableMetadataSnapshot -Table $table `
+                    -IncludeCustomerRelationships
+                $party = Get-SnapshotAttribute $candidate `
+                    $customer.logicalName
+                $party.PSObject.Properties.Remove('Targets')
+                (Get-SnapshotRelationship $candidate `
+                    $expectedRelationshipSchemas[0]).ReferencingAttribute =
+                        $null
+                $contactRelationship = Get-SnapshotRelationship $candidate `
+                    $expectedRelationshipSchemas[1]
+                $contactRelationship.CascadeConfiguration.Delete = $null
+                $candidate
+            } else {
+                New-TableMetadataSnapshot -Table $table `
+                    -IncludeCustomerRelationships
+            }
+            $script:calls.Add([pscustomobject]@{
+                Sequence = $script:calls.Count + 1
+                Method = 'SNAPSHOT'
+                Path = $LogicalName
+                Body = $snapshot
+                Headers = $null
+                RequestedAttributeLogicalNames = @(
+                    $RequestedAttributeLogicalNames
+                )
+            })
+            if ($script:customerCreateSeen -and $null -ne $snapshot) {
+                $party = Get-SnapshotAttribute $snapshot `
+                    $customer.logicalName
+                $accountRelationship = Get-SnapshotRelationship $snapshot `
+                    $expectedRelationshipSchemas[0]
+                $contactRelationship = Get-SnapshotRelationship $snapshot `
+                    $expectedRelationshipSchemas[1]
+                $isComplete = @($party.Targets).Count -eq
+                    @($customer.lookup.targets).Count -and
+                    -not [string]::IsNullOrWhiteSpace([string]$accountRelationship.ReferencingAttribute) -and
+                    -not [string]::IsNullOrWhiteSpace([string]$contactRelationship.CascadeConfiguration.Delete)
+                if (-not $isComplete -and
+                    $null -eq $script:partialCustomerSequence) {
+                    $script:partialCustomerSequence = `
+                        $script:calls[-1].Sequence
+                }
+                if ($isComplete -and
+                    $null -eq $script:fullCustomerSequence) {
+                    $script:fullCustomerSequence = `
+                        $script:calls[-1].Sequence
+                }
+            }
+            return $snapshot
+        }
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Sequence = $script:calls.Count + 1
+                Method = $Method
+                Path = $Path
+                Body = $Body
+                Headers = $Headers
+            })
+            if ($Method -eq 'GET' -and
+                $Path -like "/GlobalOptionSetDefinitions(Name='*") {
+                return [pscustomobject]@{
+                    MetadataId = '11111111-1111-1111-1111-111111111111'
+                }
+            }
+            if ($Method -eq 'GET' -and
+                $Path -match '(?:^/savedqueries\?|^/systemforms\?)') {
+                return [pscustomobject]@{ value = @() }
+            }
+            if ($Method -eq 'POST' -and $Path -eq '/EntityDefinitions') {
+                $script:tableCreated = $true
+                return [pscustomobject]@{}
+            }
+            if ($Method -eq 'POST' -and
+                $Path -eq '/CreateCustomerRelationships') {
+                $script:customerCreateSeen = $true
+                return [pscustomobject]@{}
+            }
+            if ($Method -eq 'POST' -and $Path -eq '/savedqueries') {
+                return [pscustomobject]@{ savedqueryid = 'new-view' }
+            }
+            if ($Method -eq 'POST' -and $Path -eq '/systemforms') {
+                return [pscustomobject]@{ formid = 'new-form' }
+            }
+            if ($Method -eq 'GET') {
+                throw "Unsupported mocked endpoint: $Method $Path"
+            }
+            return [pscustomobject]@{}
+        }
+
+        Invoke-TableReconciliation $table | Out-Null
+
+        $script:customerVisibilityReads | Should -Be 2
+        $script:partialCustomerSequence | Should -Not -BeNullOrEmpty
+        $script:fullCustomerSequence | Should -Not -BeNullOrEmpty
+        $script:fullCustomerSequence |
+            Should -BeGreaterThan $script:partialCustomerSequence
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and
+            $_.Path -eq '/CreateCustomerRelationships'
+        }).Count | Should -Be 1
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/savedqueries'
+        })[0].Sequence | Should -BeGreaterThan $script:fullCustomerSequence
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/systemforms'
+        })[0].Sequence | Should -BeGreaterThan $script:fullCustomerSequence
+    }
+
+    It 'times out partial initial typed metadata without creating duplicates or posting children' {
+        $table = $script:contract.tables[0] |
+            ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        $table.columns = @($table.columns | Where-Object {
+            $_.logicalName -in @(
+                'crmshow_name',
+                'crmshow_roletype',
+                'crmshow_validfrom'
+            )
+        })
+        $table.relationships = @()
+        $table.alternateKeys = @()
+        $table.businessRules = @()
+        $table.views = @($table.views[0] |
+            ConvertTo-Json -Depth 20 | ConvertFrom-Json)
+        $table.views[0].columns = @(
+            'crmshow_name',
+            'crmshow_roletype',
+            'crmshow_validfrom'
+        )
+        $table.forms = @($table.forms[0] |
+            ConvertTo-Json -Depth 20 | ConvertFrom-Json)
+        $table.forms[0].columns = @(
+            'crmshow_name',
+            'crmshow_roletype',
+            'crmshow_validfrom'
+        )
+
+        $start = [datetime]'2026-08-09T12:00:00Z'
+        $script:clock = [System.Collections.Generic.Queue[datetime]]::new()
+        foreach ($value in @(
+            $start,
+            $start,
+            $start,
+            $start,
+            $start.AddSeconds(180)
+        )) {
+            $script:clock.Enqueue($value)
+        }
+
+        Mock Start-Sleep {}
+        Mock Get-Date { $script:clock.Dequeue() }
+        Mock Get-TableMetadataSnapshot {
+            param($LogicalName, $RequestedAttributeLogicalNames)
+            $snapshot = if ($script:calls.Count -eq 0) {
+                $null
+            } else {
+                $candidate = New-TableMetadataSnapshot -Table $table
+                $choice = Get-SnapshotAttribute $candidate `
+                    'crmshow_roletype'
+                $choice.PSObject.Properties.Remove('GlobalOptionSet')
+                $candidate
+            }
+            $script:calls.Add([pscustomobject]@{
+                Sequence = $script:calls.Count + 1
+                Method = 'SNAPSHOT'
+                Path = $LogicalName
+                Body = $snapshot
+                Headers = $null
+                RequestedAttributeLogicalNames = @(
+                    $RequestedAttributeLogicalNames
+                )
+            })
+            return $snapshot
+        }
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Sequence = $script:calls.Count + 1
+                Method = $Method
+                Path = $Path
+                Body = $Body
+                Headers = $Headers
+            })
+            if ($Method -eq 'GET' -and
+                $Path -like "/GlobalOptionSetDefinitions(Name='*") {
+                return [pscustomobject]@{
+                    MetadataId = '11111111-1111-1111-1111-111111111111'
+                }
+            }
+            if ($Method -eq 'GET') {
+                throw "Unsupported mocked endpoint: $Method $Path"
+            }
+            return [pscustomobject]@{}
+        }
+
+        {
+            Invoke-TableReconciliation $table
+        } | Should -Throw (
+            "*EventualConsistencyTimeout*$($table.logicalName)*180*"
+        )
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/EntityDefinitions'
+        }).Count | Should -Be 1
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and
+            $_.Path -eq "/EntityDefinitions(LogicalName='$($table.logicalName)')/Attributes"
+        }) | Should -BeNullOrEmpty
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/PublishXml'
+        }).Count | Should -Be 1
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and
+            $_.Path -in @('/savedqueries', '/systemforms')
+        }) | Should -BeNullOrEmpty
+    }
+
+    It 'times out partial Customer metadata without retrying the action or posting children' {
+        $table = $script:contract.tables[2] |
+            ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        $table.columns = @($table.columns | Where-Object {
+            $_.logicalName -in @(
+                'crmshow_name',
+                'crmshow_policyid',
+                'crmshow_partyid',
+                'crmshow_roletype',
+                'crmshow_validfrom'
+            )
+        })
+        $table.relationships = @($table.relationships | Where-Object {
+            $_.lookupColumn -in @('crmshow_policyid', 'crmshow_partyid')
+        })
+        $table.alternateKeys = @()
+        $table.businessRules = @()
+        $table.views = @($table.views[0] |
+            ConvertTo-Json -Depth 20 | ConvertFrom-Json)
+        $table.views[0].columns = @(
+            'crmshow_name',
+            'crmshow_policyid',
+            'crmshow_partyid',
+            'crmshow_roletype',
+            'crmshow_validfrom'
+        )
+        $table.forms = @($table.forms[0] |
+            ConvertTo-Json -Depth 20 | ConvertFrom-Json)
+        $table.forms[0].columns = @(
+            'crmshow_name',
+            'crmshow_policyid',
+            'crmshow_partyid',
+            'crmshow_roletype',
+            'crmshow_validfrom'
+        )
+        $customer = @($table.columns | Where-Object {
+            $_.logicalName -eq 'crmshow_partyid'
+        })[0]
+        $customerRelationship = @($table.relationships | Where-Object {
+            $_.lookupColumn -eq $customer.logicalName -and
+            $_.authoring -eq 'CreateCustomerRelationships'
+        })[0]
+        $expectedRelationshipSchemas = @($customer.lookup.targets |
+            ForEach-Object {
+                "$($customerRelationship.schemaName)_$_"
+            })
+        $script:tableCreated = $false
+        $script:customerCreateSeen = $false
+
+        $start = [datetime]'2026-08-09T12:00:00Z'
+        $script:clock = [System.Collections.Generic.Queue[datetime]]::new()
+        foreach ($value in @(
+            $start,
+            $start,
+            $start,
+            $start,
+            $start,
+            $start.AddSeconds(180)
+        )) {
+            $script:clock.Enqueue($value)
+        }
+
+        Mock Start-Sleep {}
+        Mock Get-Date { $script:clock.Dequeue() }
+        Mock Get-TableMetadataSnapshot {
+            param($LogicalName, $RequestedAttributeLogicalNames)
+            if (-not $script:tableCreated) {
+                return $null
+            }
+            $snapshot = if (-not $script:customerCreateSeen) {
+                New-TableMetadataSnapshot -Table $table
+            } else {
+                $candidate = New-TableMetadataSnapshot -Table $table `
+                    -IncludeCustomerRelationships
+                $party = Get-SnapshotAttribute $candidate `
+                    $customer.logicalName
+                $party.PSObject.Properties.Remove('Targets')
+                (Get-SnapshotRelationship $candidate `
+                    $expectedRelationshipSchemas[0]).ReferencingAttribute =
+                        $null
+                $contactRelationship = Get-SnapshotRelationship $candidate `
+                    $expectedRelationshipSchemas[1]
+                $contactRelationship.CascadeConfiguration.Delete = $null
+                $candidate
+            }
+            $script:calls.Add([pscustomobject]@{
+                Sequence = $script:calls.Count + 1
+                Method = 'SNAPSHOT'
+                Path = $LogicalName
+                Body = $snapshot
+                Headers = $null
+                RequestedAttributeLogicalNames = @(
+                    $RequestedAttributeLogicalNames
+                )
+            })
+            return $snapshot
+        }
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Sequence = $script:calls.Count + 1
+                Method = $Method
+                Path = $Path
+                Body = $Body
+                Headers = $Headers
+            })
+            if ($Method -eq 'GET' -and
+                $Path -like "/GlobalOptionSetDefinitions(Name='*") {
+                return [pscustomobject]@{
+                    MetadataId = '11111111-1111-1111-1111-111111111111'
+                }
+            }
+            if ($Method -eq 'POST' -and $Path -eq '/EntityDefinitions') {
+                $script:tableCreated = $true
+                return [pscustomobject]@{}
+            }
+            if ($Method -eq 'POST' -and
+                $Path -eq '/CreateCustomerRelationships') {
+                $script:customerCreateSeen = $true
+                return [pscustomobject]@{}
+            }
+            if ($Method -eq 'GET') {
+                throw "Unsupported mocked endpoint: $Method $Path"
+            }
+            return [pscustomobject]@{}
+        }
+
+        {
+            Invoke-TableReconciliation $table
+        } | Should -Throw (
+            "*EventualConsistencyTimeout*" +
+            "$($table.logicalName)/$($customer.logicalName)*180*"
+        )
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/EntityDefinitions'
+        }).Count | Should -Be 1
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and
+            $_.Path -eq '/CreateCustomerRelationships'
+        }).Count | Should -Be 1
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/PublishXml'
+        }).Count | Should -Be 1
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and
+            $_.Path -in @('/savedqueries', '/systemforms')
+        }) | Should -BeNullOrEmpty
     }
 
     It 'waits for a newly created scalar attribute on an existing table before publishing and posting children' {
