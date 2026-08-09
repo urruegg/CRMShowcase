@@ -127,6 +127,57 @@ exit 0
         )
     }
 
+    function script:Get-ContextDirectoryPaths {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            $Context
+        )
+
+        if (-not (Test-Path -LiteralPath $Context.RootPath -PathType Container)) {
+            return @()
+        }
+
+        return @(
+            Get-ChildItem -LiteralPath $Context.RootPath -Directory -Force |
+                ForEach-Object { $_.FullName } |
+                Sort-Object
+        )
+    }
+
+    function script:Get-DirectoryFileNames {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [string]$Path
+        )
+
+        if (-not (Test-Path -LiteralPath $Path -PathType Container)) {
+            return @()
+        }
+
+        return @(
+            Get-ChildItem -LiteralPath $Path -File -Force |
+                ForEach-Object { $_.Name } |
+                Sort-Object
+        )
+    }
+
+    function script:Get-StagingDirectoryPaths {
+        [CmdletBinding()]
+        param(
+            [AllowNull()]
+            [object[]]$Invocations
+        )
+
+        return @(
+            @($Invocations) |
+                Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.Path) } |
+                ForEach-Object { Split-Path -Path ([string]$_.Path) -Parent } |
+                Sort-Object -Unique
+        )
+    }
+
     function script:Invoke-ExportEntryScript {
         [CmdletBinding()]
         param(
@@ -186,8 +237,15 @@ exit 0
                 $arguments += '-WhatIf'
             }
 
-            $output = & $script:childPowerShellPath @arguments 2>&1
-            $exitCode = $LASTEXITCODE
+            $previousErrorActionPreference = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            try {
+                $output = & $script:childPowerShellPath @arguments 2>&1
+                $exitCode = $LASTEXITCODE
+            }
+            finally {
+                $ErrorActionPreference = $previousErrorActionPreference
+            }
         }
         finally {
             if ($null -eq $previousPacPath) {
@@ -377,8 +435,17 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
             -EnvironmentUrl 'https://unit.crm.dynamics.com' `
             -OutputDirectory $context.OutputDirectory
 
+        $invocations = @(script:Get-FakePacInvocations -LogPath $context.LogPath)
+        $stagingDirectories = @(script:Get-StagingDirectoryPaths -Invocations $invocations)
+
+        $stagingDirectories.Count | Should -Be 1
+        $stagingDirectory = $stagingDirectories[0]
+        $stagingDirectory | Should -Not -Be $context.OutputDirectory
+        (Split-Path -Path $stagingDirectory -Parent) |
+            Should -Be (Split-Path -Path $context.OutputDirectory -Parent)
+
         $actual = @(
-            script:Get-FakePacInvocations -LogPath $context.LogPath |
+            $invocations |
                 Sort-Object Path |
                 ForEach-Object { @($_.Arguments) -join '|' }
         )
@@ -388,7 +455,7 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
                     'solution', 'export',
                     '--environment', 'https://unit.crm.dynamics.com',
                     '--name', 'crmshow_DataModel',
-                    '--path', (Join-Path $context.OutputDirectory 'crmshow_DataModel.zip'),
+                    '--path', (Join-Path $stagingDirectory 'crmshow_DataModel.zip'),
                     '--managed', 'false',
                     '--overwrite'
                 ) -join '|'),
@@ -396,7 +463,7 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
                     'solution', 'export',
                     '--environment', 'https://unit.crm.dynamics.com',
                     '--name', 'crmshow_DataModel',
-                    '--path', (Join-Path $context.OutputDirectory 'crmshow_DataModel_managed.zip'),
+                    '--path', (Join-Path $stagingDirectory 'crmshow_DataModel_managed.zip'),
                     '--managed', 'true',
                     '--overwrite'
                 ) -join '|'),
@@ -404,7 +471,7 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
                     'solution', 'export',
                     '--environment', 'https://unit.crm.dynamics.com',
                     '--name', 'crmshow_Foundation',
-                    '--path', (Join-Path $context.OutputDirectory 'crmshow_Foundation.zip'),
+                    '--path', (Join-Path $stagingDirectory 'crmshow_Foundation.zip'),
                     '--managed', 'false',
                     '--overwrite'
                 ) -join '|'),
@@ -412,7 +479,7 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
                     'solution', 'export',
                     '--environment', 'https://unit.crm.dynamics.com',
                     '--name', 'crmshow_Foundation',
-                    '--path', (Join-Path $context.OutputDirectory 'crmshow_Foundation_managed.zip'),
+                    '--path', (Join-Path $stagingDirectory 'crmshow_Foundation_managed.zip'),
                     '--managed', 'true',
                     '--overwrite'
                 ) -join '|')
@@ -489,22 +556,39 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
         } | Should -Throw '*did not produce package*crmshow_Foundation_managed.zip*'
     }
 
-    It 'rejects a preexisting unrelated file in the output directory' {
+    It 'rejects a preexisting nonempty target untouched and does not invoke pac' {
         $context = script:New-ExportTestContext
         script:New-FakePacCommand -Path $context.PacPath | Out-Null
         New-Item -ItemType Directory -Path $context.OutputDirectory -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $context.OutputDirectory 'keep.txt') -Value 'x'
+        New-Item -ItemType Directory -Path (Join-Path $context.OutputDirectory 'keep-dir') -Force | Out-Null
 
         $env:POWERPLATFORMTOOLS_PACPATH = $context.PacPath
         $env:TEST_EXPORT_PAC_LOG_PATH = $context.LogPath
 
-        {
+        $message = $null
+        try {
             Invoke-InsuranceFoundationPackageExport `
                 -EnvironmentUrl 'https://unit.crm.dynamics.com' `
                 -OutputDirectory $context.OutputDirectory
-        } | Should -Throw '*already contains file*keep.txt*'
+            throw 'Expected output directory preflight to fail.'
+        }
+        catch {
+            $message = $_.Exception.Message
+        }
+
+        $message | Should -Match 'already contains item'
+        $message | Should -Match 'keep\.txt'
+        $message | Should -Match 'keep-dir'
 
         @(script:Get-FakePacInvocations -LogPath $context.LogPath).Count | Should -Be 0
+        $existingItems = @(
+            Get-ChildItem -LiteralPath $context.OutputDirectory -Force |
+                ForEach-Object { $_.Name }
+        )
+        $existingItems.Count | Should -Be 2
+        $existingItems | Should -Contain 'keep.txt'
+        $existingItems | Should -Contain 'keep-dir'
     }
 
     It 'runs successfully as a standalone entry point with a fake pac command' {
@@ -514,14 +598,62 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
         $invocation = script:Invoke-ExportEntryScript -Context $context
 
         $invocation.ExitCode | Should -Be 0
-        @(Get-ChildItem -LiteralPath $invocation.OutputDirectory -File | ForEach-Object Name |
-                Sort-Object) | Should -Be @(
+        $stagingDirectories = @(script:Get-StagingDirectoryPaths -Invocations $invocation.Invocations)
+
+        $stagingDirectories.Count | Should -Be 1
+        $stagingDirectories[0] | Should -Not -Be $invocation.OutputDirectory
+        (Split-Path -Path $stagingDirectories[0] -Parent) |
+            Should -Be (Split-Path -Path $invocation.OutputDirectory -Parent)
+        Test-Path -LiteralPath $stagingDirectories[0] | Should -BeFalse
+        @(script:Get-DirectoryFileNames -Path $invocation.OutputDirectory) | Should -Be @(
             'crmshow_DataModel.zip',
             'crmshow_DataModel_managed.zip',
             'crmshow_Foundation.zip',
             'crmshow_Foundation_managed.zip'
         )
+        @(script:Get-ContextDirectoryPaths -Context $context) | Should -Be @(
+            $invocation.OutputDirectory
+        )
         @($invocation.Invocations).Count | Should -Be 4
+    }
+
+    It 'fourth export failure leaves zero final files and cleans the staging directory' {
+        $context = script:New-ExportTestContext
+        script:New-FakePacCommand -Path $context.PacPath | Out-Null
+
+        $invocation = script:Invoke-ExportEntryScript `
+            -Context $context `
+            -FailFile 'crmshow_DataModel_managed.zip'
+
+        $invocation.ExitCode | Should -Not -Be 0
+        $invocation.Output | Should -Match 'crmshow_DataModel_managed.zip'
+        $invocation.Output | Should -Match 'simulated export failure'
+        @($invocation.Invocations).Count | Should -Be 4
+
+        $stagingDirectories = @(script:Get-StagingDirectoryPaths -Invocations $invocation.Invocations)
+        $stagingDirectories.Count | Should -Be 1
+        Test-Path -LiteralPath $invocation.OutputDirectory | Should -BeFalse
+        Test-Path -LiteralPath $stagingDirectories[0] | Should -BeFalse
+        @(script:Get-ContextDirectoryPaths -Context $context).Count | Should -Be 0
+    }
+
+    It 'zero-byte validation failure leaves zero final files' {
+        $context = script:New-ExportTestContext
+        script:New-FakePacCommand -Path $context.PacPath | Out-Null
+
+        $invocation = script:Invoke-ExportEntryScript `
+            -Context $context `
+            -ZeroByteFile 'crmshow_Foundation.zip'
+
+        $invocation.ExitCode | Should -Not -Be 0
+        $invocation.Output | Should -Match 'zero-byte package'
+        @($invocation.Invocations).Count | Should -Be 1
+
+        $stagingDirectories = @(script:Get-StagingDirectoryPaths -Invocations $invocation.Invocations)
+        $stagingDirectories.Count | Should -Be 1
+        Test-Path -LiteralPath $invocation.OutputDirectory | Should -BeFalse
+        Test-Path -LiteralPath $stagingDirectories[0] | Should -BeFalse
+        @(script:Get-ContextDirectoryPaths -Context $context).Count | Should -Be 0
     }
 
     It 'does not invoke pac or fail a final package assertion when run with WhatIf' {
@@ -533,6 +665,7 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
         $invocation.ExitCode | Should -Be 0
         @($invocation.Invocations).Count | Should -Be 0
         Test-Path -LiteralPath $invocation.OutputDirectory | Should -BeFalse
+        @(script:Get-ContextDirectoryPaths -Context $context).Count | Should -Be 0
         $invocation.Output | Should -Not -Match 'Unexpected authored package set'
     }
 
@@ -550,6 +683,7 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
 
         @(script:Get-FakePacInvocations -LogPath $context.LogPath).Count | Should -Be 0
         Test-Path -LiteralPath $context.OutputDirectory | Should -BeFalse
+        @(script:Get-ContextDirectoryPaths -Context $context).Count | Should -Be 0
     }
 }
 
@@ -587,5 +721,55 @@ function pac { throw 'pac was called' }
             Replace('__OUTPUT__', $outputDirectory.Replace("'", "''"))
 
         & ([scriptblock]::Create($text))
+    }
+
+    It 'uses only literal-path Remove-Item calls without wildcard arguments' {
+        $tokens = $null
+        $errors = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+            $script:exportScriptPath,
+            [ref]$tokens,
+            [ref]$errors
+        )
+
+        @($errors) | Should -BeNullOrEmpty
+
+        $removeItemCalls = @(
+            $ast.FindAll({
+                    param($node)
+
+                    $node -is [System.Management.Automation.Language.CommandAst] -and
+                    $node.GetCommandName() -eq 'Remove-Item'
+                }, $true)
+        )
+
+        $removeItemCalls.Count | Should -BeGreaterThan 0
+
+        foreach ($call in $removeItemCalls) {
+            $parameters = @(
+                $call.CommandElements |
+                    Where-Object {
+                        $_ -is [System.Management.Automation.Language.CommandParameterAst]
+                    }
+            )
+
+            @($parameters | Where-Object { $_.ParameterName -eq 'Path' }).Count |
+                Should -Be 0
+            @($parameters | Where-Object { $_.ParameterName -eq 'LiteralPath' }).Count |
+                Should -BeGreaterThan 0
+
+            $argumentValues = @(
+                $call.CommandElements |
+                    Select-Object -Skip 1 |
+                    Where-Object {
+                        $_ -is [System.Management.Automation.Language.StringConstantExpressionAst] -or
+                        $_ -is [System.Management.Automation.Language.ExpandableStringExpressionAst]
+                    } |
+                    ForEach-Object { $_.Value }
+            )
+
+            @($argumentValues | Where-Object { $_ -match '[\*\?]' }) |
+                Should -BeNullOrEmpty
+        }
     }
 }

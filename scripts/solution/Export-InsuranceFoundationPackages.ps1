@@ -4,8 +4,9 @@
 .DESCRIPTION
     Produces only the four approved Insurance Foundation packages from a
     Dataverse DEV environment. The script refuses to export into a directory
-    that already contains files, resolves PAC via Resolve-PacCommand.ps1, and
-    verifies every exported package before asserting the final exact file set.
+    that already contains files or subdirectories, stages exports into a
+    unique sibling directory, resolves PAC via Resolve-PacCommand.ps1, and
+    publishes only a fully validated exact package set.
 .PARAMETER EnvironmentUrl
     Dataverse environment URL passed to pac solution export.
 .PARAMETER OutputDirectory
@@ -228,6 +229,180 @@ function Assert-InsuranceFoundationExportedPackage {
     }
 }
 
+function Get-InsuranceFoundationDirectoryEntries {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Container)) {
+        return @()
+    }
+
+    return @(
+        Get-ChildItem `
+            -LiteralPath $Path `
+            -Force
+    )
+}
+
+function Assert-InsuranceFoundationOutputDirectorySafety {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$OutputDirectory
+    )
+
+    if (-not (Test-Path -LiteralPath $OutputDirectory)) {
+        return
+    }
+
+    if (-not (Test-Path -LiteralPath $OutputDirectory -PathType Container)) {
+        throw "OutputDirectory is not a directory: $OutputDirectory"
+    }
+
+    $existingItems = @(Get-InsuranceFoundationDirectoryEntries -Path $OutputDirectory)
+    if ($existingItems.Count -eq 0) {
+        return
+    }
+
+    throw (
+        "Output directory already contains item(s): {0}. " +
+        'Use a new empty directory and rerun the export.'
+    ) -f (Format-InsuranceFoundationPackageList -FileNames (
+            $existingItems | ForEach-Object { $_.Name }
+        ))
+}
+
+function Get-InsuranceFoundationOutputDirectoryParent {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$OutputDirectory
+    )
+
+    $parentPath = Split-Path -Path $OutputDirectory -Parent
+    if ([string]::IsNullOrWhiteSpace($parentPath)) {
+        throw "OutputDirectory must not be a filesystem root: $OutputDirectory"
+    }
+
+    return [System.IO.Path]::GetFullPath($parentPath)
+}
+
+function New-InsuranceFoundationPackageStagingDirectory {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$OutputDirectory
+    )
+
+    $parentPath = Get-InsuranceFoundationOutputDirectoryParent `
+        -OutputDirectory $OutputDirectory
+    if (-not (Test-Path -LiteralPath $parentPath -PathType Container)) {
+        New-Item -ItemType Directory -Path $parentPath -Force | Out-Null
+    }
+
+    $leafName = Split-Path -Path $OutputDirectory -Leaf
+    if ([string]::IsNullOrWhiteSpace($leafName)) {
+        $leafName = 'insurance-foundation-packages'
+    }
+
+    do {
+        $stagingDirectory = Join-Path `
+            $parentPath `
+            ('{0}.staging.{1}' -f $leafName, [guid]::NewGuid().Guid)
+    } while (Test-Path -LiteralPath $stagingDirectory)
+
+    New-Item -ItemType Directory -Path $stagingDirectory -Force | Out-Null
+    return $stagingDirectory
+}
+
+function Assert-InsuranceFoundationStagingDirectory {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Container)) {
+        throw "Export staging directory is missing: $Path"
+    }
+
+    $entries = @(Get-InsuranceFoundationDirectoryEntries -Path $Path)
+    $directories = @($entries | Where-Object { $_.PSIsContainer })
+    if ($directories.Count -gt 0) {
+        throw (
+            "Export staging directory contains unexpected subdirector(ies): {0}."
+        ) -f (Format-InsuranceFoundationPackageList -FileNames (
+                $directories | ForEach-Object { $_.Name }
+            ))
+    }
+
+    foreach ($export in @(Get-InsuranceFoundationExports)) {
+        Assert-InsuranceFoundationExportedPackage `
+            -Path (Join-Path $Path $export.File) `
+            -File $export.File
+    }
+
+    Assert-InsuranceFoundationPackageSet -FileNames @(
+        $entries |
+            Where-Object { -not $_.PSIsContainer } |
+            ForEach-Object { $_.Name }
+    )
+}
+
+function Publish-InsuranceFoundationStagingDirectory {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$StagingDirectory,
+
+        [Parameter(Mandatory)]
+        [string]$OutputDirectory
+    )
+
+    if (-not (Test-Path -LiteralPath $StagingDirectory -PathType Container)) {
+        throw "Export staging directory is missing before publish: $StagingDirectory"
+    }
+
+    if (Test-Path -LiteralPath $OutputDirectory) {
+        if (-not (Test-Path -LiteralPath $OutputDirectory -PathType Container)) {
+            throw "OutputDirectory is not a directory: $OutputDirectory"
+        }
+
+        $existingItems = @(Get-InsuranceFoundationDirectoryEntries -Path $OutputDirectory)
+        if ($existingItems.Count -gt 0) {
+            throw (
+                "Output directory became non-empty before publish: {0}. " +
+                'Refusing to replace an existing path.'
+            ) -f (Format-InsuranceFoundationPackageList -FileNames (
+                    $existingItems | ForEach-Object { $_.Name }
+                ))
+        }
+
+        Remove-Item -LiteralPath $OutputDirectory -Force
+    }
+
+    [System.IO.Directory]::Move($StagingDirectory, $OutputDirectory)
+}
+
+function Remove-InsuranceFoundationStagingDirectory {
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [string]$Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return
+    }
+
+    if (Test-Path -LiteralPath $Path -PathType Container) {
+        Remove-Item -LiteralPath $Path -Recurse -Force
+    }
+}
+
 function Invoke-InsuranceFoundationPackageExport {
     [CmdletBinding()]
     param(
@@ -246,83 +421,61 @@ function Invoke-InsuranceFoundationPackageExport {
     }
 
     $resolvedOutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
-
-    if (Test-Path -LiteralPath $resolvedOutputDirectory) {
-        if (-not (Test-Path -LiteralPath $resolvedOutputDirectory -PathType Container)) {
-            throw "OutputDirectory is not a directory: $resolvedOutputDirectory"
-        }
-
-        $existingFiles = @(
-            Get-ChildItem `
-                -LiteralPath $resolvedOutputDirectory `
-                -File `
-                -Force `
-                -Recurse
-        )
-        if ($existingFiles.Count -gt 0) {
-            throw (
-                "Output directory already contains file(s): {0}. " +
-                'Use a new empty directory and rerun the export.'
-            ) -f (Format-InsuranceFoundationPackageList -FileNames (
-                    $existingFiles | ForEach-Object { $_.Name }
-                ))
-        }
-    }
+    Assert-InsuranceFoundationOutputDirectorySafety `
+        -OutputDirectory $resolvedOutputDirectory
 
     $exports = @(Get-InsuranceFoundationExports)
     $pacCommand = $null
+    $stagingDirectory = $null
 
-    if (-not (Test-Path -LiteralPath $resolvedOutputDirectory -PathType Container)) {
-        New-Item `
-            -ItemType Directory `
-            -Path $resolvedOutputDirectory `
-            -Force | Out-Null
-    }
+    try {
+        $stagingDirectory = New-InsuranceFoundationPackageStagingDirectory `
+            -OutputDirectory $resolvedOutputDirectory
 
-    foreach ($export in $exports) {
-        $packagePath = Join-Path $resolvedOutputDirectory $export.File
-        $managedValue = if ([bool]$export.Managed) { 'true' } else { 'false' }
-        if ($null -eq $pacCommand) {
-            $pacCommand = Resolve-InsuranceFoundationPacCommand
-        }
-
-        $arguments = @(
-            'solution',
-            'export',
-            '--environment', $EnvironmentUrl,
-            '--name', [string]$export.Name,
-            '--path', $packagePath,
-            '--managed', $managedValue,
-            '--overwrite'
-        )
-
-        $output = & $pacCommand @arguments 2>&1
-        $exitCode = $LASTEXITCODE
-        if ($exitCode -ne 0) {
-            $detail = ($output | Out-String).Trim()
-            if ([string]::IsNullOrWhiteSpace($detail)) {
-                $detail = '<no output>'
+        foreach ($export in $exports) {
+            $packagePath = Join-Path $stagingDirectory $export.File
+            $managedValue = if ([bool]$export.Managed) { 'true' } else { 'false' }
+            if ($null -eq $pacCommand) {
+                $pacCommand = Resolve-InsuranceFoundationPacCommand
             }
 
-            throw (
-                "pac solution export failed for '{0}' (solution '{1}', " +
-                'managed={2}, exit code {3}). Output: {4}'
-            ) -f $export.File, $export.Name, $managedValue, $exitCode, $detail
+            $arguments = @(
+                'solution',
+                'export',
+                '--environment', $EnvironmentUrl,
+                '--name', [string]$export.Name,
+                '--path', $packagePath,
+                '--managed', $managedValue,
+                '--overwrite'
+            )
+
+            $output = & $pacCommand @arguments 2>&1
+            $exitCode = $LASTEXITCODE
+            if ($exitCode -ne 0) {
+                $detail = ($output | Out-String).Trim()
+                if ([string]::IsNullOrWhiteSpace($detail)) {
+                    $detail = '<no output>'
+                }
+
+                throw (
+                    "pac solution export failed for '{0}' (solution '{1}', " +
+                    'managed={2}, exit code {3}). Output: {4}'
+                ) -f $export.File, $export.Name, $managedValue, $exitCode, $detail
+            }
+
+            Assert-InsuranceFoundationExportedPackage `
+                -Path $packagePath `
+                -File $export.File
         }
 
-        Assert-InsuranceFoundationExportedPackage `
-            -Path $packagePath `
-            -File $export.File
+        Assert-InsuranceFoundationStagingDirectory -Path $stagingDirectory
+        Publish-InsuranceFoundationStagingDirectory `
+            -StagingDirectory $stagingDirectory `
+            -OutputDirectory $resolvedOutputDirectory
     }
-
-    Assert-InsuranceFoundationPackageSet -FileNames @(
-        Get-ChildItem `
-            -LiteralPath $resolvedOutputDirectory `
-            -File `
-            -Force `
-            -Recurse |
-            ForEach-Object { $_.Name }
-    )
+    finally {
+        Remove-InsuranceFoundationStagingDirectory -Path $stagingDirectory
+    }
 }
 
 function Invoke-InsuranceFoundationPackageExportEntry {
