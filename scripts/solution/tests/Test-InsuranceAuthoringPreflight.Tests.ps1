@@ -40,8 +40,10 @@ function script:New-PreflightAzShim {
         [string]$RootPath
     )
     $shimScriptPath = Join-Path $RootPath 'az.ps1'
+    $shimCommandPath = Join-Path $RootPath 'az'
 
     $shimScript = @'
+#!/usr/bin/env pwsh
 param(
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$Arguments
@@ -143,7 +145,18 @@ switch ($path) {
 }
 '@
 
-    Set-Content -LiteralPath $shimScriptPath -Value $shimScript -Encoding UTF8
+    $shimScript = $shimScript -replace "`r`n", "`n"
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+
+    [System.IO.File]::WriteAllText($shimScriptPath, $shimScript, $utf8NoBom)
+    [System.IO.File]::WriteAllText($shimCommandPath, $shimScript, $utf8NoBom)
+
+    if ([System.IO.Path]::DirectorySeparatorChar -eq '/') {
+        & chmod +x -- $shimCommandPath
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to make az shim executable: $shimCommandPath"
+        }
+    }
 }
 
 function script:Invoke-PreflightEntryScript {
@@ -167,7 +180,13 @@ function script:Invoke-PreflightEntryScript {
     )
 
     try {
-        $env:PATH = "$testRoot;$previousPath"
+        $pathSeparator = [System.IO.Path]::PathSeparator
+        $env:PATH = if ([string]::IsNullOrEmpty($previousPath)) {
+            $testRoot
+        }
+        else {
+            "$testRoot$pathSeparator$previousPath"
+        }
         $env:TEST_INSURANCE_PREFLIGHT_SCENARIO = $Scenario
 
         $output = & $script:childPowerShellPath `
@@ -194,6 +213,63 @@ function script:Invoke-PreflightEntryScript {
         Output   = (@($output | ForEach-Object { $_.ToString() }) -join [Environment]::NewLine).Trim()
     }
 }
+}
+
+Describe 'New-PreflightAzShim' {
+    It 'creates a shim that resolves ahead of any real Azure CLI on Windows and Ubuntu pwsh' {
+        $testRoot = Join-Path (Get-PSDrive -Name TestDrive).Root ([guid]::NewGuid().Guid)
+        $null = New-Item -ItemType Directory -Path $testRoot -Force
+
+        script:New-PreflightAzShim -RootPath $testRoot
+
+        $powershellShimPath = Join-Path $testRoot 'az.ps1'
+        $unixShimPath = Join-Path $testRoot 'az'
+        $unixShimBytes = [System.IO.File]::ReadAllBytes($unixShimPath)
+        $unixShimText = [System.Text.Encoding]::UTF8.GetString($unixShimBytes)
+
+        Test-Path -LiteralPath $powershellShimPath -PathType Leaf | Should -BeTrue
+        Test-Path -LiteralPath $unixShimPath -PathType Leaf | Should -BeTrue
+        $unixShimText.StartsWith("#!/usr/bin/env pwsh`n") | Should -BeTrue
+        $unixShimText.Contains("`r") | Should -BeFalse
+        if ($unixShimBytes.Length -ge 3) {
+            ($unixShimBytes[0] -eq 0xEF -and
+                $unixShimBytes[1] -eq 0xBB -and
+                $unixShimBytes[2] -eq 0xBF) | Should -BeFalse
+        }
+
+        $previousPath = $env:PATH
+        try {
+            $pathSeparator = [System.IO.Path]::PathSeparator
+            $env:PATH = if ([string]::IsNullOrEmpty($previousPath)) {
+                $testRoot
+            }
+            else {
+                "$testRoot$pathSeparator$previousPath"
+            }
+
+            $resolved = & $script:childPowerShellPath `
+                -NoLogo `
+                -NoProfile `
+                -NonInteractive `
+                -Command @'
+$command = Get-Command az -ErrorAction Stop
+if ([string]::IsNullOrWhiteSpace($command.Source)) {
+    $command.Definition
+}
+else {
+    $command.Source
+}
+'@
+            $exitCode = $LASTEXITCODE
+        }
+        finally {
+            $env:PATH = $previousPath
+        }
+
+        $exitCode | Should -Be 0
+        $resolvedPath = ($resolved | Out-String).Trim()
+        Split-Path -Path $resolvedPath -Parent | Should -Be $testRoot
+    }
 }
 
 Describe 'Get-InsuranceAuthoringPhaseState' {
