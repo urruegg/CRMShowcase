@@ -409,20 +409,25 @@ function Add-ConvergenceStringsToList {
     }
 }
 
+function Get-ConvergenceErrorMessage {
+    [CmdletBinding()]
+    param($ErrorRecord)
+
+    if ($ErrorRecord -is [System.Management.Automation.ErrorRecord]) {
+        return [string]$ErrorRecord.Exception.Message
+    }
+    if ($ErrorRecord -is [System.Exception]) {
+        return [string]$ErrorRecord.Message
+    }
+
+    return [string]$ErrorRecord
+}
+
 function Test-ConvergenceTransportError {
     [CmdletBinding()]
     param($ErrorRecord)
 
-    $message = if ($ErrorRecord -is [System.Management.Automation.ErrorRecord]) {
-        [string]$ErrorRecord.Exception.Message
-    }
-    elseif ($ErrorRecord -is [System.Exception]) {
-        [string]$ErrorRecord.Message
-    }
-    else {
-        [string]$ErrorRecord
-    }
-
+    $message = Get-ConvergenceErrorMessage -ErrorRecord $ErrorRecord
     if ([string]::IsNullOrWhiteSpace($message)) {
         return $false
     }
@@ -430,6 +435,19 @@ function Test-ConvergenceTransportError {
     return $message -like 'Dataverse convergence transport failed*' -or
         $message -like 'Dataverse security-role verification failed*' -or
         $message -like 'Dataverse request failed*'
+}
+
+function Test-ConvergenceRetrieveLocLabelsUnsupportedError {
+    [CmdletBinding()]
+    param($ErrorRecord)
+
+    $message = Get-ConvergenceErrorMessage -ErrorRecord $ErrorRecord
+    if ([string]::IsNullOrWhiteSpace($message) -or
+        $message -notlike 'Dataverse convergence transport failed (GET /RetrieveLocLabels*') {
+        return $false
+    }
+
+    return $message -match '(?i)(400|404|BadRequest|Bad Request|Not Found|Resource not found|does not support|not supported|unsupported)'
 }
 
 function Get-ConvergenceLanguagesPath {
@@ -652,6 +670,37 @@ function Get-ConvergenceSystemFormPath {
     )
 }
 
+function Get-ConvergenceRetrieveLocLabelsPath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$EntityLogicalName,
+
+        [Parameter(Mandatory)]
+        [string]$IdProperty,
+
+        [Parameter(Mandatory)]
+        [string]$RecordId,
+
+        [Parameter(Mandatory)]
+        [string]$AttributeName
+    )
+
+    $resolvedRecordId = ([string]$RecordId).Trim('{}')
+    $entityMoniker = [ordered]@{
+        '@odata.type' = "Microsoft.Dynamics.CRM.$EntityLogicalName"
+        "$IdProperty" = $resolvedRecordId
+    } | ConvertTo-Json -Compress
+    $escapedEntityMoniker = [System.Uri]::EscapeDataString($entityMoniker)
+    $escapedAttributeName = ConvertTo-ODataKeyString $AttributeName
+    return (
+        '/RetrieveLocLabels(EntityMoniker=@p1,AttributeName=@p2,IncludeUnpublished=@p3)?' +
+        "@p1=$escapedEntityMoniker&" +
+        "@p2='$escapedAttributeName'&" +
+        '@p3=true'
+    )
+}
+
 function Invoke-ConvergenceDataverseRequest {
     [CmdletBinding()]
     param(
@@ -752,6 +801,106 @@ function Invoke-InsuranceSecurityRoleDataverseRequest {
         -Method $Method `
         -EnvironmentUrl $EnvironmentUrl `
         -Path $Path
+}
+
+function Test-ConvergenceLocalizedRecordFields {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$EnvironmentUrl,
+
+        [Parameter(Mandatory)]
+        [string]$EntityLogicalName,
+
+        [Parameter(Mandatory)]
+        [string]$IdProperty,
+
+        [Parameter(Mandatory)]
+        [string]$RecordId,
+
+        [Parameter(Mandatory)]
+        $LocalizedFields,
+
+        [Parameter(Mandatory)]
+        [string]$Component
+    )
+
+    $differences = [System.Collections.Generic.List[object]]::new()
+    $details = [System.Collections.Generic.List[string]]::new()
+    $unsupported = [System.Collections.Generic.List[string]]::new()
+
+    foreach ($field in @($LocalizedFields.Keys | Sort-Object)) {
+        $response = $null
+        try {
+            $response = Invoke-ConvergenceDataverseRequest `
+                -Method GET `
+                -EnvironmentUrl $EnvironmentUrl `
+                -Path (Get-ConvergenceRetrieveLocLabelsPath `
+                    -EntityLogicalName $EntityLogicalName `
+                    -IdProperty $IdProperty `
+                    -RecordId $RecordId `
+                    -AttributeName ([string]$field))
+        }
+        catch {
+            if (Test-ConvergenceRetrieveLocLabelsUnsupportedError $_) {
+                [void]$unsupported.Add(
+                    "RetrieveLocLabels GET for '$EntityLogicalName.$field' on '$Component' is unavailable for GET-only localized convergence verification in this tenant. $(
+                        Get-ConvergenceErrorMessage -ErrorRecord $_
+                    )"
+                )
+                continue
+            }
+
+            if (Test-ConvergenceTransportError $_) {
+                throw
+            }
+
+            [void]$details.Add((Get-ConvergenceErrorMessage -ErrorRecord $_))
+            continue
+        }
+
+        if ($null -eq $response -or
+            $response.PSObject.Properties.Name -notcontains 'Label' -or
+            $null -eq $response.Label) {
+            [void]$unsupported.Add(
+                "RetrieveLocLabels GET for '$EntityLogicalName.$field' on '$Component' returned no Label payload; GET-only localized convergence verification cannot prove the required translations in this tenant."
+            )
+            continue
+        }
+
+        foreach ($language in @($script:RequiredLanguages)) {
+            $expected = [string]$LocalizedFields[$field].$language
+            $actual = Get-ConvergenceLocalizedLabel `
+                -LocalizedValue $response.Label `
+                -LanguageCode $language
+            if ($actual -cne $expected) {
+                [void]$differences.Add([pscustomobject][ordered]@{
+                        Property = [string]$field
+                        Language = [string]$language
+                        Expected = $expected
+                        Actual   = $actual
+                    })
+            }
+        }
+    }
+
+    $state = 'Ready'
+    if ($differences.Count -gt 0 -or $details.Count -gt 0) {
+        $state = 'ContractConflict'
+    }
+    elseif ($unsupported.Count -gt 0) {
+        $state = 'UnsupportedInTenant'
+    }
+
+    return [pscustomobject]@{
+        State       = $state
+        Differences = @($differences)
+        Details     = @(
+            Get-UniqueConvergenceStrings -Value (
+                @($details) + @($unsupported)
+            )
+        )
+    }
 }
 
 function Get-PicklistAttributeMetadata {
@@ -1642,6 +1791,7 @@ function Test-InsuranceFoundationView {
 
     $differences = [System.Collections.Generic.List[object]]::new()
     $details = [System.Collections.Generic.List[string]]::new()
+    $unsupportedDetails = [System.Collections.Generic.List[string]]::new()
     try {
         Assert-ConvergenceSolutionOwnership `
             -Existing $actual `
@@ -1652,19 +1802,27 @@ function Test-InsuranceFoundationView {
         [void]$details.Add($_.Exception.Message)
     }
 
-    if ([string]$actual.name -cne $expectedName) {
-        [void]$differences.Add([pscustomobject]@{
-                Property = 'Name'
-                Expected = $expectedName
-                Actual   = [string]$actual.name
-            })
-    }
-    if ([string]$actual.description -cne [string]$View.metadata.description.'1033') {
-        [void]$differences.Add([pscustomobject]@{
-                Property = 'Description'
-                Expected = [string]$View.metadata.description.'1033'
-                Actual   = [string]$actual.description
-            })
+    $localizedFields = Test-ConvergenceLocalizedRecordFields `
+        -EnvironmentUrl $EnvironmentUrl `
+        -EntityLogicalName 'savedquery' `
+        -IdProperty 'savedqueryid' `
+        -RecordId ([string]$actual.savedqueryid) `
+        -LocalizedFields $expectedRequest.LocalizedFields `
+        -Component $component
+    switch ([string]$localizedFields.State) {
+        'ContractConflict' {
+            foreach ($difference in @($localizedFields.Differences)) {
+                [void]$differences.Add($difference)
+            }
+            Add-ConvergenceStringsToList `
+                -List $details `
+                -Values @($localizedFields.Details)
+        }
+        'UnsupportedInTenant' {
+            Add-ConvergenceStringsToList `
+                -List $unsupportedDetails `
+                -Values @($localizedFields.Details)
+        }
     }
 
     try {
@@ -1690,15 +1848,27 @@ function Test-InsuranceFoundationView {
     Add-ConvergenceStringsToList `
         -List $details `
         -Values @(Get-ConvergenceDifferenceDetails -Differences @($differences))
-    if ($differences.Count -eq 0 -and $details.Count -eq 0) {
+    $allDetails = [System.Collections.Generic.List[string]]::new()
+    Add-ConvergenceStringsToList -List $allDetails -Values @($details)
+    Add-ConvergenceStringsToList -List $allDetails -Values @($unsupportedDetails)
+    if ($differences.Count -eq 0 -and
+        $details.Count -eq 0 -and
+        $unsupportedDetails.Count -eq 0) {
         return New-ConvergenceResult -Component $component -State 'Ready'
     }
 
     return New-ConvergenceResult `
         -Component $component `
-        -State 'ContractConflict' `
+        -State $(if ($differences.Count -eq 0 -and
+                $details.Count -eq 0 -and
+                $unsupportedDetails.Count -gt 0) {
+                'UnsupportedInTenant'
+            }
+            else {
+                'ContractConflict'
+            }) `
         -Differences @($differences) `
-        -Details @($details)
+        -Details @($allDetails)
 }
 
 function Test-InsuranceFoundationForm {
@@ -1745,6 +1915,7 @@ function Test-InsuranceFoundationForm {
 
     $differences = [System.Collections.Generic.List[object]]::new()
     $details = [System.Collections.Generic.List[string]]::new()
+    $unsupportedDetails = [System.Collections.Generic.List[string]]::new()
     try {
         Assert-ConvergenceSolutionOwnership `
             -Existing $actual `
@@ -1755,19 +1926,27 @@ function Test-InsuranceFoundationForm {
         [void]$details.Add($_.Exception.Message)
     }
 
-    if ([string]$actual.name -cne $expectedName) {
-        [void]$differences.Add([pscustomobject]@{
-                Property = 'Name'
-                Expected = $expectedName
-                Actual   = [string]$actual.name
-            })
-    }
-    if ([string]$actual.description -cne [string]$Form.metadata.description.'1033') {
-        [void]$differences.Add([pscustomobject]@{
-                Property = 'Description'
-                Expected = [string]$Form.metadata.description.'1033'
-                Actual   = [string]$actual.description
-            })
+    $localizedFields = Test-ConvergenceLocalizedRecordFields `
+        -EnvironmentUrl $EnvironmentUrl `
+        -EntityLogicalName 'systemform' `
+        -IdProperty 'formid' `
+        -RecordId ([string]$actual.formid) `
+        -LocalizedFields $expectedRequest.LocalizedFields `
+        -Component $component
+    switch ([string]$localizedFields.State) {
+        'ContractConflict' {
+            foreach ($difference in @($localizedFields.Differences)) {
+                [void]$differences.Add($difference)
+            }
+            Add-ConvergenceStringsToList `
+                -List $details `
+                -Values @($localizedFields.Details)
+        }
+        'UnsupportedInTenant' {
+            Add-ConvergenceStringsToList `
+                -List $unsupportedDetails `
+                -Values @($localizedFields.Details)
+        }
     }
 
     try {
@@ -1789,15 +1968,27 @@ function Test-InsuranceFoundationForm {
     Add-ConvergenceStringsToList `
         -List $details `
         -Values @(Get-ConvergenceDifferenceDetails -Differences @($differences))
-    if ($differences.Count -eq 0 -and $details.Count -eq 0) {
+    $allDetails = [System.Collections.Generic.List[string]]::new()
+    Add-ConvergenceStringsToList -List $allDetails -Values @($details)
+    Add-ConvergenceStringsToList -List $allDetails -Values @($unsupportedDetails)
+    if ($differences.Count -eq 0 -and
+        $details.Count -eq 0 -and
+        $unsupportedDetails.Count -eq 0) {
         return New-ConvergenceResult -Component $component -State 'Ready'
     }
 
     return New-ConvergenceResult `
         -Component $component `
-        -State 'ContractConflict' `
+        -State $(if ($differences.Count -eq 0 -and
+                $details.Count -eq 0 -and
+                $unsupportedDetails.Count -gt 0) {
+                'UnsupportedInTenant'
+            }
+            else {
+                'ContractConflict'
+            }) `
         -Differences @($differences) `
-        -Details @($details)
+        -Details @($allDetails)
 }
 
 function Test-InsuranceFoundationTable {

@@ -3,7 +3,12 @@ BeforeAll {
     $script:contractPath = Join-Path $script:repoRoot 'solution/schema/insurance-foundation.json'
     $script:manifestPath = Join-Path $script:repoRoot 'solution/manifest.json'
     $script:convergencePath = Join-Path $script:repoRoot 'scripts/solution/Test-InsuranceFoundationConvergence.ps1'
-    $script:childPowerShellPath = (Get-Command powershell -ErrorAction Stop).Source
+    $script:childPowerShellPath = if (Get-Command pwsh -ErrorAction SilentlyContinue) {
+        (Get-Command pwsh -ErrorAction Stop).Source
+    }
+    else {
+        (Get-Command powershell -ErrorAction Stop).Source
+    }
     . (Join-Path $script:repoRoot 'scripts/solution/Get-Manifest.ps1')
     . $script:convergencePath `
         -EnvironmentUrl 'https://unit.crm.dynamics.com' `
@@ -348,6 +353,47 @@ BeforeAll {
         }
     }
 
+    function script:New-LocalizedRecordResponse {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            $Text
+        )
+
+        return [pscustomobject]@{
+            Label = [pscustomobject](ConvertTo-LocalizedLabel $Text)
+        }
+    }
+
+    function script:Add-LocalizedFieldResponses {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [hashtable]$Responses,
+
+            [Parameter(Mandatory)]
+            [string]$EntityLogicalName,
+
+            [Parameter(Mandatory)]
+            [string]$IdProperty,
+
+            [Parameter(Mandatory)]
+            [string]$RecordId,
+
+            [Parameter(Mandatory)]
+            $LocalizedFields
+        )
+
+        foreach ($field in @($LocalizedFields.Keys | Sort-Object)) {
+            $Responses[(Get-ConvergenceRetrieveLocLabelsPath `
+                    -EntityLogicalName $EntityLogicalName `
+                    -IdProperty $IdProperty `
+                    -RecordId $RecordId `
+                    -AttributeName ([string]$field))] =
+                script:New-LocalizedRecordResponse -Text $LocalizedFields[$field]
+        }
+    }
+
     function script:Get-SchemaMap {
         [CmdletBinding()]
         param(
@@ -594,6 +640,12 @@ BeforeAll {
                 }
                 $responses[(Get-ConvergenceSolutionMembershipPath -ComponentId $savedQuery.savedqueryid)] =
                     script:New-SolutionMembershipResponse -SolutionUniqueName ([string]$table.solution)
+                script:Add-LocalizedFieldResponses `
+                    -Responses $responses `
+                    -EntityLogicalName 'savedquery' `
+                    -IdProperty 'savedqueryid' `
+                    -RecordId $savedQuery.savedqueryid `
+                    -LocalizedFields $ruleRequest.LocalizedFields
             }
 
             foreach ($view in @($table.views)) {
@@ -613,6 +665,12 @@ BeforeAll {
                 }
                 $responses[(Get-ConvergenceSolutionMembershipPath -ComponentId $savedQuery.savedqueryid)] =
                     script:New-SolutionMembershipResponse -SolutionUniqueName ([string]$table.solution)
+                script:Add-LocalizedFieldResponses `
+                    -Responses $responses `
+                    -EntityLogicalName 'savedquery' `
+                    -IdProperty 'savedqueryid' `
+                    -RecordId $savedQuery.savedqueryid `
+                    -LocalizedFields $viewRequest.LocalizedFields
             }
 
             foreach ($form in @($table.forms)) {
@@ -629,6 +687,12 @@ BeforeAll {
                 }
                 $responses[(Get-ConvergenceSolutionMembershipPath -ComponentId $systemForm.formid)] =
                     script:New-SolutionMembershipResponse -SolutionUniqueName ([string]$table.solution)
+                script:Add-LocalizedFieldResponses `
+                    -Responses $responses `
+                    -EntityLogicalName 'systemform' `
+                    -IdProperty 'formid' `
+                    -RecordId $systemForm.formid `
+                    -LocalizedFields $formRequest.LocalizedFields
             }
         }
 
@@ -777,6 +841,11 @@ else {
     $path = $url
 }
 
+if ($env:TEST_INSURANCE_CONVERGENCE_SCENARIO -eq 'TransportFailure') {
+    Write-Error 'Synthetic az transport failure.'
+    exit 1
+}
+
 $map = Get-Content -LiteralPath '__MAP__' -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
 $property = $map.PSObject.Properties[$path]
 if ($null -eq $property) {
@@ -792,20 +861,33 @@ Write-Json $property.Value
 
         [System.IO.File]::WriteAllText($shimScriptPath, $shimScript, $utf8NoBom)
         [System.IO.File]::WriteAllText($shimCommandPath, $shimScript, $utf8NoBom)
+
+        if ([System.IO.Path]::DirectorySeparatorChar -eq '/') {
+            & chmod +x -- $shimCommandPath
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to make az shim executable: $shimCommandPath"
+            }
+        }
     }
 
     function script:Invoke-ConvergenceEntryScript {
         [CmdletBinding()]
         param(
             [Parameter(Mandatory)]
-            [ValidateSet('Ready', 'MissingLanguage', 'RoleNameCaseConflict')]
+            [ValidateSet('Ready', 'MissingLanguage', 'RoleNameCaseConflict', 'TransportFailure')]
             [string]$Scenario
         )
 
+        $fixtureScenario = if ($Scenario -eq 'TransportFailure') {
+            'Ready'
+        }
+        else {
+            $Scenario
+        }
         $fixture = script:New-ReadyConvergenceResponseMap `
             -Contract $script:contract `
             -Manifest $script:manifest `
-            -Scenario $Scenario
+            -Scenario $fixtureScenario
 
         $testRoot = Join-Path (Get-PSDrive -Name TestDrive).Root ([guid]::NewGuid().Guid)
         $null = New-Item -ItemType Directory -Path $testRoot -Force
@@ -819,6 +901,10 @@ Write-Json $property.Value
             -ResponseMapPath $responseMapPath
 
         $previousPath = $env:PATH
+        $previousScenario = [Environment]::GetEnvironmentVariable(
+            'TEST_INSURANCE_CONVERGENCE_SCENARIO',
+            'Process'
+        )
         try {
             $pathSeparator = [System.IO.Path]::PathSeparator
             $env:PATH = if ([string]::IsNullOrEmpty($previousPath)) {
@@ -827,18 +913,49 @@ Write-Json $property.Value
             else {
                 "$testRoot$pathSeparator$previousPath"
             }
+            $env:TEST_INSURANCE_CONVERGENCE_SCENARIO = $Scenario
 
-            $output = & $script:childPowerShellPath `
-                -NoLogo `
-                -NoProfile `
-                -NonInteractive `
-                -File $script:convergencePath `
-                -EnvironmentUrl 'https://unit.crm.dynamics.com' `
-                -ContractPath $script:contractPath 2>&1
-            $exitCode = $LASTEXITCODE
+            $stdoutPath = Join-Path $testRoot 'stdout.txt'
+            $stderrPath = Join-Path $testRoot 'stderr.txt'
+            $process = Start-Process `
+                -FilePath $script:childPowerShellPath `
+                -ArgumentList @(
+                    '-NoLogo',
+                    '-NoProfile',
+                    '-NonInteractive',
+                    '-File', $script:convergencePath,
+                    '-EnvironmentUrl', 'https://unit.crm.dynamics.com',
+                    '-ContractPath', $script:contractPath
+                ) `
+                -Wait `
+                -PassThru `
+                -RedirectStandardOutput $stdoutPath `
+                -RedirectStandardError $stderrPath
+            $stdout = if (Test-Path -LiteralPath $stdoutPath -PathType Leaf) {
+                Get-Content -LiteralPath $stdoutPath -Raw -Encoding UTF8
+            }
+            else {
+                ''
+            }
+            $stderr = if (Test-Path -LiteralPath $stderrPath -PathType Leaf) {
+                Get-Content -LiteralPath $stderrPath -Raw -Encoding UTF8
+            }
+            else {
+                ''
+            }
+            $output = @($stdout, $stderr) | Where-Object {
+                -not [string]::IsNullOrWhiteSpace([string]$_)
+            }
+            $exitCode = $process.ExitCode
         }
         finally {
             $env:PATH = $previousPath
+            if ($null -eq $previousScenario) {
+                Remove-Item Env:TEST_INSURANCE_CONVERGENCE_SCENARIO -ErrorAction SilentlyContinue
+            }
+            else {
+                $env:TEST_INSURANCE_CONVERGENCE_SCENARIO = $previousScenario
+            }
         }
 
         return [pscustomobject]@{
@@ -918,6 +1035,23 @@ Describe 'Convergence path builders' {
                 '/systemforms?' +
                 "`$select=formid,name,description,objecttypecode,type,formxml&" +
                 "`$filter=name eq 'O''Reilly Form' and objecttypecode eq 'crmshow_o''reilly' and type eq 2"
+            )
+
+        $expectedEntityMoniker = [System.Uri]::EscapeDataString(
+            ([ordered]@{
+                    '@odata.type' = 'Microsoft.Dynamics.CRM.savedquery'
+                    savedqueryid  = '11111111-1111-1111-1111-111111111111'
+                } | ConvertTo-Json -Compress)
+        )
+        Get-ConvergenceRetrieveLocLabelsPath `
+            -EntityLogicalName 'savedquery' `
+            -IdProperty 'savedqueryid' `
+            -RecordId '11111111-1111-1111-1111-111111111111' `
+            -AttributeName "na'me" | Should -Be (
+                '/RetrieveLocLabels(EntityMoniker=@p1,AttributeName=@p2,IncludeUnpublished=@p3)?' +
+                "@p1=$expectedEntityMoniker&" +
+                "@p2='na''me'&" +
+                '@p3=true'
             )
     }
 }
@@ -1077,7 +1211,7 @@ Describe 'Component-level convergence checks' {
             }).Count | Should -Be 1
     }
 
-    It 'accepts server-normalized view XML with a savedqueryid attribute' {
+    It 'accepts server-normalized view XML with exact four-language localized labels' {
         $table = script:Clone-Object -InputObject $script:contract.tables[0]
         $view = $table.views[0]
         $request = New-ViewRequest -Table $table -View $view -ObjectTypeCode 10427
@@ -1091,7 +1225,7 @@ Describe 'Component-level convergence checks' {
             -SavedQueryId (script:New-FakeGuid -Index 6)
         $savedQuery.fetchxml = $storedFetchXml
 
-        script:Register-ConvergenceTransportMock -Responses @{
+        $responses = @{
             (Get-ConvergenceSavedQueryPath `
                 -TableLogicalName $table.logicalName `
                 -Label ([string]$view.metadata.label.'1033')) = [pscustomobject]@{
@@ -1100,6 +1234,13 @@ Describe 'Component-level convergence checks' {
             (Get-ConvergenceSolutionMembershipPath -ComponentId $savedQuery.savedqueryid) =
                 script:New-SolutionMembershipResponse -SolutionUniqueName ([string]$table.solution)
         }
+        script:Add-LocalizedFieldResponses `
+            -Responses $responses `
+            -EntityLogicalName 'savedquery' `
+            -IdProperty 'savedqueryid' `
+            -RecordId $savedQuery.savedqueryid `
+            -LocalizedFields $request.LocalizedFields
+        script:Register-ConvergenceTransportMock -Responses $responses
 
         $result = Test-InsuranceFoundationView `
             -EnvironmentUrl 'https://unit.crm.dynamics.com' `
@@ -1108,9 +1249,69 @@ Describe 'Component-level convergence checks' {
             -ObjectTypeCode 10427
 
         $result.State | Should -Be 'Ready'
+        Should -Invoke Invoke-ConvergenceDataverseRequest -Times 2 -Exactly -ParameterFilter {
+            $Method -eq 'GET' -and $Path -like '/RetrieveLocLabels*'
+        }
     }
 
-    It 'accepts platform-normalized form ids and localized field labels' {
+    It 'classifies a view localized-field conflict when translations are missing or wrong' {
+        $table = script:Clone-Object -InputObject $script:contract.tables[0]
+        $view = $table.views[0]
+        $request = New-ViewRequest -Table $table -View $view -ObjectTypeCode 10427
+        $savedQuery = script:New-SavedQuerySnapshot `
+            -Request $request `
+            -Table $table `
+            -SavedQueryId (script:New-FakeGuid -Index 16)
+
+        $nameResponse = script:New-LocalizedRecordResponse -Text $request.LocalizedFields.name
+        $nameResponse.Label.LocalizedLabels = @($nameResponse.Label.LocalizedLabels | Where-Object {
+                [int]$_.LanguageCode -ne 1040
+            })
+        $descriptionResponse = script:New-LocalizedRecordResponse -Text $request.LocalizedFields.description
+        @($descriptionResponse.Label.LocalizedLabels | Where-Object {
+                [int]$_.LanguageCode -eq 1031
+            })[0].Label = 'Wrong localized description'
+
+        script:Register-ConvergenceTransportMock -Responses @{
+            (Get-ConvergenceSavedQueryPath `
+                -TableLogicalName $table.logicalName `
+                -Label ([string]$view.metadata.label.'1033')) = [pscustomobject]@{
+                value = @($savedQuery)
+            }
+            (Get-ConvergenceSolutionMembershipPath -ComponentId $savedQuery.savedqueryid) =
+                script:New-SolutionMembershipResponse -SolutionUniqueName ([string]$table.solution)
+            (Get-ConvergenceRetrieveLocLabelsPath `
+                -EntityLogicalName 'savedquery' `
+                -IdProperty 'savedqueryid' `
+                -RecordId $savedQuery.savedqueryid `
+                -AttributeName 'name') = $nameResponse
+            (Get-ConvergenceRetrieveLocLabelsPath `
+                -EntityLogicalName 'savedquery' `
+                -IdProperty 'savedqueryid' `
+                -RecordId $savedQuery.savedqueryid `
+                -AttributeName 'description') = $descriptionResponse
+        }
+
+        $result = Test-InsuranceFoundationView `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Table $table `
+            -View $view `
+            -ObjectTypeCode 10427
+
+        $result.State | Should -Be 'ContractConflict'
+        @($result.Differences | Where-Object {
+                $_.Property -eq 'name' -and
+                $_.Language -eq '1040' -and
+                $null -eq $_.Actual
+            }).Count | Should -Be 1
+        @($result.Differences | Where-Object {
+                $_.Property -eq 'description' -and
+                $_.Language -eq '1031' -and
+                $_.Actual -eq 'Wrong localized description'
+            }).Count | Should -Be 1
+    }
+
+    It 'accepts platform-normalized form ids with exact four-language localized labels' {
         $table = script:Clone-Object -InputObject $script:contract.tables[0]
         $form = $table.forms[0]
         $request = New-FormRequest -Table $table -Form $form
@@ -1131,7 +1332,7 @@ Describe 'Component-level convergence checks' {
                 )
         }
 
-        script:Register-ConvergenceTransportMock -Responses @{
+        $responses = @{
             (Get-ConvergenceSystemFormPath `
                 -TableLogicalName $table.logicalName `
                 -Label ([string]$form.metadata.label.'1033')) = [pscustomobject]@{
@@ -1140,6 +1341,13 @@ Describe 'Component-level convergence checks' {
             (Get-ConvergenceSolutionMembershipPath -ComponentId $systemForm.formid) =
                 script:New-SolutionMembershipResponse -SolutionUniqueName ([string]$table.solution)
         }
+        script:Add-LocalizedFieldResponses `
+            -Responses $responses `
+            -EntityLogicalName 'systemform' `
+            -IdProperty 'formid' `
+            -RecordId $systemForm.formid `
+            -LocalizedFields $request.LocalizedFields
+        script:Register-ConvergenceTransportMock -Responses $responses
 
         $result = Test-InsuranceFoundationForm `
             -EnvironmentUrl 'https://unit.crm.dynamics.com' `
@@ -1147,6 +1355,67 @@ Describe 'Component-level convergence checks' {
             -Form $form
 
         $result.State | Should -Be 'Ready'
+        Should -Invoke Invoke-ConvergenceDataverseRequest -Times 2 -Exactly -ParameterFilter {
+            $Method -eq 'GET' -and $Path -like '/RetrieveLocLabels*'
+        }
+    }
+
+    It 'classifies a form localized-field conflict when translations are missing or wrong' {
+        $table = script:Clone-Object -InputObject $script:contract.tables[0]
+        $form = $table.forms[0]
+        $request = New-FormRequest -Table $table -Form $form
+        $systemForm = script:New-FormSnapshot `
+            -Request $request `
+            -Table $table `
+            -FormId (script:New-FakeGuid -Index 17)
+
+        $nameResponse = script:New-LocalizedRecordResponse -Text $request.LocalizedFields.name
+        @($nameResponse.Label.LocalizedLabels | Where-Object {
+                [int]$_.LanguageCode -eq 1036
+            })[0].Label = 'Wrong localized form name'
+        $descriptionResponse = script:New-LocalizedRecordResponse -Text $request.LocalizedFields.description
+        $descriptionResponse.Label.LocalizedLabels = @(
+            $descriptionResponse.Label.LocalizedLabels | Where-Object {
+                [int]$_.LanguageCode -ne 1040
+            }
+        )
+
+        script:Register-ConvergenceTransportMock -Responses @{
+            (Get-ConvergenceSystemFormPath `
+                -TableLogicalName $table.logicalName `
+                -Label ([string]$form.metadata.label.'1033')) = [pscustomobject]@{
+                value = @($systemForm)
+            }
+            (Get-ConvergenceSolutionMembershipPath -ComponentId $systemForm.formid) =
+                script:New-SolutionMembershipResponse -SolutionUniqueName ([string]$table.solution)
+            (Get-ConvergenceRetrieveLocLabelsPath `
+                -EntityLogicalName 'systemform' `
+                -IdProperty 'formid' `
+                -RecordId $systemForm.formid `
+                -AttributeName 'name') = $nameResponse
+            (Get-ConvergenceRetrieveLocLabelsPath `
+                -EntityLogicalName 'systemform' `
+                -IdProperty 'formid' `
+                -RecordId $systemForm.formid `
+                -AttributeName 'description') = $descriptionResponse
+        }
+
+        $result = Test-InsuranceFoundationForm `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Table $table `
+            -Form $form
+
+        $result.State | Should -Be 'ContractConflict'
+        @($result.Differences | Where-Object {
+                $_.Property -eq 'name' -and
+                $_.Language -eq '1036' -and
+                $_.Actual -eq 'Wrong localized form name'
+            }).Count | Should -Be 1
+        @($result.Differences | Where-Object {
+                $_.Property -eq 'description' -and
+                $_.Language -eq '1040' -and
+                $null -eq $_.Actual
+            }).Count | Should -Be 1
     }
 
     It 'classifies a role prerequisite through the reused role verifier result' {
@@ -1304,6 +1573,15 @@ Describe 'Convergence direct entry point' {
         @($result.Results | Where-Object {
                 $_.Component -eq 'roles' -and $_.State -eq 'ContractConflict'
             }).Count | Should -Be 1
+    }
+
+    It 'emits error output and exits one when az returns a non-classified transport failure' {
+        $invocation = script:Invoke-ConvergenceEntryScript -Scenario TransportFailure
+
+        $invocation.ExitCode | Should -Be 1
+        $invocation.Output | Should -Match 'Synthetic az transport failure|Dataverse convergence transport failed'
+        { $invocation.Output | ConvertFrom-Json -ErrorAction Stop } |
+            Should -Throw
     }
 }
 
