@@ -1341,7 +1341,7 @@ Describe 'Insurance Foundation reconciliation' {
         }
         {
             Invoke-TableChildren $script:contract.tables[0] 10427
-        } | Should -Throw '*key conflict*'
+        } | Should -Throw '*key conflict*Actual: crmshow_sourceid*Expected:*'
     }
 
     It 'throws on type and global-choice binding conflicts' {
