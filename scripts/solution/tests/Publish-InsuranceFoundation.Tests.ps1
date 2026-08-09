@@ -471,6 +471,37 @@ Describe 'Insurance Foundation reconciliation' {
         )
     }
 
+    It 'queries saved queries only through supported Web API properties' {
+        Invoke-InsuranceFoundationReconciliation -Contract $script:contract -Scope All -Confirm:$false
+
+        $savedQueryReads = @($script:calls | Where-Object {
+            $_.Method -eq 'GET' -and $_.Path -match '^/savedqueries\?'
+        })
+        $savedQueryReads.Count | Should -BeGreaterThan 0
+        @($savedQueryReads.Path | Where-Object { $_ -match '_solutionid_value' }) |
+            Should -BeNullOrEmpty
+    }
+
+    It 'verifies saved-query ownership through solution component membership' {
+        Mock Invoke-DataverseRequest {
+            return [pscustomobject]@{
+                value = @([pscustomobject]@{
+                    solutionid = [pscustomobject]@{ uniquename = 'crmshow_DataModel' }
+                })
+            }
+        }
+
+        Assert-SolutionOwnership `
+            ([pscustomobject]@{ savedqueryid = '11111111-1111-1111-1111-111111111111' }) `
+            'crmshow_DataModel' 'existing view'
+
+        Should -Invoke Invoke-DataverseRequest -Times 1 -Exactly -ParameterFilter {
+            $Method -eq 'GET' -and
+            $Path -match 'solutioncomponents' -and
+            $Path -match 'objectid eq 11111111-1111-1111-1111-111111111111'
+        }
+    }
+
     It 'continues after all five choices already exist and creates schema components' {
         $script:choicesExist = $true
 
@@ -704,6 +735,15 @@ Describe 'Insurance Foundation reconciliation' {
                 $script:calls.Add([pscustomobject]@{
                     Method=$Method; Path=$Path; Body=$Body; Headers=$Headers
                 })
+                if ($Method -eq 'GET' -and $Path -match '^/solutioncomponents\?') {
+                    return [pscustomobject]@{
+                        value = @([pscustomobject]@{
+                            solutionid = [pscustomobject]@{
+                                uniquename = $request.Solution
+                            }
+                        })
+                    }
+                }
                 if ($Method -eq 'GET') {
                     return [pscustomobject]@{ value=@($existing) }
                 }
