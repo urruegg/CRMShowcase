@@ -1168,7 +1168,7 @@ function Invoke-TableChildren {
             -AssertCompatible {
                 param($actual)
                 if ((@($actual.KeyAttributes) -join ',') -ne ($expectedKeyColumns -join ',')) {
-                    throw "Structural key conflict for '$($Table.logicalName)/$($key.name)'."
+                    throw "Structural key conflict for '$($Table.logicalName)/$($key.name)'. Actual: $(@($actual.KeyAttributes) -join ','). Expected: $($expectedKeyColumns -join ',')."
                 }
             }
     }
