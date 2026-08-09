@@ -157,6 +157,86 @@ function Get-UniqueConvergenceDifferenceObjects {
     return @($items)
 }
 
+function Test-ConvergenceContainsExactString {
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [object[]]$Value,
+
+        [Parameter(Mandatory)]
+        [string]$Expected
+    )
+
+    return @($Value | Where-Object {
+            [string]$_ -ceq $Expected
+        }).Count -gt 0
+}
+
+function Add-ConvergenceStringToMapList {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$Map,
+
+        [Parameter(Mandatory)]
+        [string]$Key,
+
+        [AllowNull()]
+        [string]$Value
+    )
+
+    if (-not $Map.ContainsKey($Key)) {
+        $Map[$Key] = @()
+    }
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return
+    }
+
+    if (-not (Test-ConvergenceContainsExactString `
+                -Value @($Map[$Key]) `
+                -Expected $Value)) {
+        $Map[$Key] = @(@($Map[$Key]) + $Value)
+    }
+}
+
+function Test-ConvergenceStartsWithPrefix {
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [string]$Value,
+
+        [Parameter(Mandatory)]
+        [string]$Prefix
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value) -or
+        [string]::IsNullOrWhiteSpace($Prefix)) {
+        return $false
+    }
+
+    return $Value.StartsWith($Prefix, [System.StringComparison]::Ordinal)
+}
+
+function Get-ConvergenceBlockingState {
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [object[]]$Results = @(),
+
+        [string]$Default = 'Ready'
+    )
+
+    $blocking = @($Results | Where-Object {
+            $null -ne $_ -and [string]$_.State -ne 'Ready'
+        })
+    if ($blocking.Count -gt 0) {
+        return [string]$blocking[0].State
+    }
+
+    return $Default
+}
+
 function New-ConvergenceResult {
     [CmdletBinding()]
     param(
@@ -212,10 +292,7 @@ function New-ConvergenceSummary {
             [string]$_.State -ne 'Ready'
         })
 
-    $state = 'Ready'
-    if ($blocking.Count -gt 0) {
-        $state = [string]$blocking[0].State
-    }
+    $state = Get-ConvergenceBlockingState -Results @($resolvedResults)
 
     return [pscustomobject][ordered]@{
         State              = $state
@@ -416,8 +493,7 @@ function Test-ConvergenceRetrieveLocLabelsUnsupportedError {
     param($ErrorRecord)
 
     $message = Get-ConvergenceErrorMessage -ErrorRecord $ErrorRecord
-    if ([string]::IsNullOrWhiteSpace($message) -or
-        $message -notlike 'Dataverse convergence transport failed (GET /RetrieveLocLabels*') {
+    if ([string]::IsNullOrWhiteSpace($message)) {
         return $false
     }
 
@@ -481,6 +557,39 @@ function Get-ConvergenceSolutionMembershipPath {
     )
 }
 
+function Get-ConvergenceReverseInventoryComponentTypes {
+    [CmdletBinding()]
+    param()
+
+    return @(1, 9, 26, 60)
+}
+
+function Get-ConvergenceSolutionInventoryPath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$SolutionId,
+
+        [Parameter(Mandatory)]
+        [int[]]$ComponentType
+    )
+
+    $resolvedSolutionId = ([string]$SolutionId).Trim('{}')
+    $requestedTypes = @($ComponentType | Sort-Object -Unique)
+    if ($requestedTypes.Count -eq 0) {
+        throw 'At least one solution component type is required for reverse inventory.'
+    }
+
+    $typeFilter = @($requestedTypes | ForEach-Object {
+            "componenttype eq $([int]$_)"
+        }) -join ' or '
+
+    return (
+        "/solutioncomponents?`$select=objectid,componenttype&" +
+        "`$filter=_solutionid_value eq $resolvedSolutionId and ($typeFilter)"
+    )
+}
+
 function Get-ConvergenceGlobalChoicePath {
     [CmdletBinding()]
     param(
@@ -492,6 +601,20 @@ function Get-ConvergenceGlobalChoicePath {
     return (
         "/GlobalOptionSetDefinitions(Name='$escapedChoiceName')/" +
         'Microsoft.Dynamics.CRM.OptionSetMetadata'
+    )
+}
+
+function Get-ConvergenceGlobalChoiceByMetadataIdPath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$MetadataId
+    )
+
+    $resolvedMetadataId = ([string]$MetadataId).Trim('{}')
+    return (
+        "/GlobalOptionSetDefinitions($resolvedMetadataId)/" +
+        "Microsoft.Dynamics.CRM.OptionSetMetadata?`$select=MetadataId,Name,IsGlobal,OptionSetType"
     )
 }
 
@@ -602,6 +725,17 @@ function Get-ConvergenceTableMetadataPath {
     )
 }
 
+function Get-ConvergenceEntityByMetadataIdPath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$MetadataId
+    )
+
+    $resolvedMetadataId = ([string]$MetadataId).Trim('{}')
+    return "/EntityDefinitions($resolvedMetadataId)?`$select=MetadataId,LogicalName,SchemaName"
+}
+
 function Get-ConvergenceKeyPath {
     [CmdletBinding()]
     param(
@@ -618,6 +752,31 @@ function Get-ConvergenceKeyPath {
         "/EntityDefinitions(LogicalName='$escapedTableName')/Keys?" +
         "`$select=MetadataId,SchemaName,KeyAttributes&" +
         "`$filter=SchemaName eq '$escapedSchemaName'"
+    )
+}
+
+function Get-ConvergenceTableUnexpectedChildrenPath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$LogicalName,
+
+        [Parameter(Mandatory)]
+        [string]$PublisherPrefix
+    )
+
+    $escapedLogicalName = ConvertTo-ODataKeyString $LogicalName
+    $escapedPrefix = ConvertTo-ODataKeyString $PublisherPrefix
+
+    return (
+        "/EntityDefinitions(LogicalName='$escapedLogicalName')?" +
+        "`$select=MetadataId,LogicalName,SchemaName,PrimaryIdAttribute&" +
+        "`$expand=" +
+        "Attributes(`$select=LogicalName,SchemaName,AttributeType,AttributeOf;" +
+        "`$filter=startswith(LogicalName,'$escapedPrefix') or startswith(SchemaName,'$escapedPrefix'))," +
+        "ManyToOneRelationships(`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute;" +
+        "`$filter=startswith(SchemaName,'$escapedPrefix') or startswith(ReferencingAttribute,'$escapedPrefix'))," +
+        "Keys(`$select=SchemaName,KeyAttributes;`$filter=startswith(SchemaName,'$escapedPrefix'))"
     )
 }
 
@@ -640,6 +799,20 @@ function Get-ConvergenceSavedQueryPath {
     )
 }
 
+function Get-ConvergenceSavedQueryByIdPath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$SavedQueryId
+    )
+
+    $resolvedSavedQueryId = ([string]$SavedQueryId).Trim('{}')
+    return (
+        "/savedqueries($resolvedSavedQueryId)?" +
+        "`$select=savedqueryid,name,description,returnedtypecode,fetchxml,layoutxml"
+    )
+}
+
 function Get-ConvergenceSystemFormPath {
     [CmdletBinding()]
     param(
@@ -657,6 +830,45 @@ function Get-ConvergenceSystemFormPath {
         "`$select=formid,name,description,objecttypecode,type,formxml&" +
         "`$filter=name eq '$escapedLabel' and objecttypecode eq '$escapedTableName' and type eq 2"
     )
+}
+
+function Get-ConvergenceSystemFormByIdPath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$FormId
+    )
+
+    $resolvedFormId = ([string]$FormId).Trim('{}')
+    return (
+        "/systemforms($resolvedFormId)?" +
+        "`$select=formid,name,description,objecttypecode,type,formxml"
+    )
+}
+
+function Get-ConvergenceRootInsuranceRolesPath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$RolePrefix
+    )
+
+    $escapedRolePrefix = ConvertTo-ODataKeyString $RolePrefix
+    return (
+        "/roles?`$select=roleid,name,_parentrootroleid_value&" +
+        "`$filter=_parentrootroleid_value eq null and startswith(name,'$escapedRolePrefix')"
+    )
+}
+
+function Get-ConvergenceRoleByIdPath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$RoleId
+    )
+
+    $resolvedRoleId = ([string]$RoleId).Trim('{}')
+    return "/roles($resolvedRoleId)?`$select=roleid,name,_parentrootroleid_value"
 }
 
 function Get-ConvergenceRetrieveLocLabelsEntityMoniker {
@@ -1012,6 +1224,282 @@ function Assert-ConvergenceSolutionOwnership {
     }
 
     Assert-SolutionOwnership $Existing $Expected $Component
+}
+
+function Get-ConvergencePublisherLogicalPrefix {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        $Manifest
+    )
+
+    if ($null -eq $Manifest.publisher -or
+        [string]::IsNullOrWhiteSpace([string]$Manifest.publisher.prefix)) {
+        throw 'solution/manifest.json must declare publisher.prefix for reverse inventory scoping.'
+    }
+
+    $publisherPrefix = [string]$Manifest.publisher.prefix
+    if ($publisherPrefix.EndsWith('_', [System.StringComparison]::Ordinal)) {
+        return $publisherPrefix
+    }
+
+    return "$publisherPrefix" + '_'
+}
+
+function Get-ConvergenceViewInventoryKey {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$TableLogicalName,
+
+        [Parameter(Mandatory)]
+        [string]$Name
+    )
+
+    return "$TableLogicalName|$Name"
+}
+
+function Get-ConvergenceFormInventoryKey {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$TableLogicalName,
+
+        [Parameter(Mandatory)]
+        [string]$Name,
+
+        [int]$Type = 2
+    )
+
+    return "$TableLogicalName|$Type|$Name"
+}
+
+function Get-ConvergenceReviewedTableLogicalNames {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        $Contract
+    )
+
+    $tables = [System.Collections.Generic.List[string]]::new()
+    foreach ($extension in @($Contract.nativeExtensions)) {
+        $logicalName = [string]$extension.table
+        if (-not (Test-ConvergenceContainsExactString `
+                    -Value @($tables) `
+                    -Expected $logicalName)) {
+            [void]$tables.Add($logicalName)
+        }
+    }
+    foreach ($table in @($Contract.tables)) {
+        $logicalName = [string]$table.logicalName
+        if (-not (Test-ConvergenceContainsExactString `
+                    -Value @($tables) `
+                    -Expected $logicalName)) {
+            [void]$tables.Add($logicalName)
+        }
+    }
+
+    return @($tables)
+}
+
+function Get-ConvergenceExpectedInventory {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        $Contract
+    )
+
+    $choicesBySolution = @{}
+    $tablesBySolution = @{}
+    $rolesBySolution = @{}
+    $viewsBySolution = @{}
+    $formsBySolution = @{}
+    foreach ($solutionUniqueName in @($Contract.solutions)) {
+        $choicesBySolution[[string]$solutionUniqueName] = @()
+        $tablesBySolution[[string]$solutionUniqueName] = @()
+        $rolesBySolution[[string]$solutionUniqueName] = @()
+        $viewsBySolution[[string]$solutionUniqueName] = @()
+        $formsBySolution[[string]$solutionUniqueName] = @()
+    }
+
+    foreach ($choice in @($Contract.choices)) {
+        Add-ConvergenceStringToMapList `
+            -Map $choicesBySolution `
+            -Key ([string]$choice.solution) `
+            -Value ([string]$choice.logicalName)
+    }
+
+    foreach ($role in @($Contract.roles)) {
+        Add-ConvergenceStringToMapList `
+            -Map $rolesBySolution `
+            -Key ([string]$role.solution) `
+            -Value ([string]$role.name)
+    }
+
+    foreach ($table in @($Contract.tables)) {
+        Add-ConvergenceStringToMapList `
+            -Map $tablesBySolution `
+            -Key ([string]$table.solution) `
+            -Value ([string]$table.logicalName)
+
+        foreach ($rule in @($table.businessRules)) {
+            Add-ConvergenceStringToMapList `
+                -Map $viewsBySolution `
+                -Key ([string]$table.solution) `
+                -Value (Get-ConvergenceViewInventoryKey `
+                    -TableLogicalName ([string]$table.logicalName) `
+                    -Name ([string]$rule.metadata.label.'1033'))
+        }
+
+        foreach ($view in @($table.views)) {
+            Add-ConvergenceStringToMapList `
+                -Map $viewsBySolution `
+                -Key ([string]$table.solution) `
+                -Value (Get-ConvergenceViewInventoryKey `
+                    -TableLogicalName ([string]$table.logicalName) `
+                    -Name ([string]$view.metadata.label.'1033'))
+        }
+
+        foreach ($form in @($table.forms)) {
+            Add-ConvergenceStringToMapList `
+                -Map $formsBySolution `
+                -Key ([string]$table.solution) `
+                -Value (Get-ConvergenceFormInventoryKey `
+                    -TableLogicalName ([string]$table.logicalName) `
+                    -Name ([string]$form.metadata.label.'1033'))
+        }
+    }
+
+    $columnsByTable = @{}
+    foreach ($tableLogicalName in @(Get-ConvergenceReviewedTableLogicalNames -Contract $Contract)) {
+        $columnsByTable[$tableLogicalName] = @()
+    }
+    foreach ($extension in @($Contract.nativeExtensions)) {
+        Add-ConvergenceStringToMapList `
+            -Map $columnsByTable `
+            -Key ([string]$extension.table) `
+            -Value ([string]$extension.logicalName)
+    }
+    foreach ($table in @($Contract.tables)) {
+        foreach ($column in @($table.columns)) {
+            Add-ConvergenceStringToMapList `
+                -Map $columnsByTable `
+                -Key ([string]$table.logicalName) `
+                -Value ([string]$column.logicalName)
+        }
+    }
+
+    $relationshipsByTable = @{}
+    $keysByTable = @{}
+    foreach ($tableLogicalName in @(Get-ConvergenceReviewedTableLogicalNames -Contract $Contract)) {
+        $relationshipsByTable[$tableLogicalName] = @()
+        $keysByTable[$tableLogicalName] = @()
+    }
+    foreach ($table in @($Contract.tables)) {
+        foreach ($relationship in @($table.relationships)) {
+            if ([string]$relationship.authoring -eq 'CreateCustomerRelationships') {
+                $column = @($table.columns | Where-Object {
+                        [string]$_.logicalName -ceq [string]$relationship.lookupColumn
+                    })
+                if ($column.Count -ne 1) {
+                    throw "Customer relationship '$($relationship.schemaName)' could not resolve lookup column '$($relationship.lookupColumn)' in '$($table.logicalName)'."
+                }
+
+                foreach ($expected in @(Get-ExpectedCustomerRelationships `
+                            -Table $table `
+                            -Column $column[0])) {
+                    Add-ConvergenceStringToMapList `
+                        -Map $relationshipsByTable `
+                        -Key ([string]$table.logicalName) `
+                        -Value ([string]$expected.SchemaName)
+                }
+                continue
+            }
+
+            Add-ConvergenceStringToMapList `
+                -Map $relationshipsByTable `
+                -Key ([string]$table.logicalName) `
+                -Value ([string]$relationship.schemaName)
+        }
+
+        foreach ($key in @($table.alternateKeys)) {
+            Add-ConvergenceStringToMapList `
+                -Map $keysByTable `
+                -Key ([string]$table.logicalName) `
+                -Value ([string]$key.schemaName)
+        }
+    }
+
+    return [pscustomobject]@{
+        ChoicesBySolution = $choicesBySolution
+        TablesBySolution  = $tablesBySolution
+        RolesBySolution   = $rolesBySolution
+        ViewsBySolution   = $viewsBySolution
+        FormsBySolution   = $formsBySolution
+        ColumnsByTable    = $columnsByTable
+        RelationshipsByTable = $relationshipsByTable
+        KeysByTable       = $keysByTable
+        ReviewedTables    = @(Get-ConvergenceReviewedTableLogicalNames -Contract $Contract)
+    }
+}
+
+function Get-ConvergenceReviewedSolutionLookup {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$EnvironmentUrl,
+
+        [Parameter(Mandatory)]
+        $Contract
+    )
+
+    Set-ConvergenceRuntimeContext -EnvironmentUrl $EnvironmentUrl
+
+    $response = Invoke-ConvergenceDataverseRequest `
+        -Method GET `
+        -EnvironmentUrl $EnvironmentUrl `
+        -Path (Get-ConvergenceSolutionsPath -SolutionUniqueName @($Contract.solutions))
+    $solutions = @($response.value)
+    $lookup = @{}
+    $missing = [System.Collections.Generic.List[string]]::new()
+    $duplicates = [System.Collections.Generic.List[string]]::new()
+    $details = [System.Collections.Generic.List[string]]::new()
+    foreach ($expectedSolution in @($Contract.solutions)) {
+        $matches = @($solutions | Where-Object {
+                [string]$_.uniquename -ceq [string]$expectedSolution
+            })
+        if ($matches.Count -eq 0) {
+            [void]$missing.Add([string]$expectedSolution)
+            continue
+        }
+        if ($matches.Count -gt 1) {
+            [void]$duplicates.Add([string]$expectedSolution)
+            continue
+        }
+
+        $lookup[[string]$expectedSolution] = $matches[0]
+    }
+
+    $state = 'Ready'
+    if ($duplicates.Count -gt 0) {
+        $state = 'ContractConflict'
+        [void]$details.Add(
+            "Reverse inventory resolved duplicate reviewed solutions: $(@($duplicates) -join ', ')."
+        )
+    }
+    elseif ($missing.Count -gt 0) {
+        $state = 'Precondition'
+        [void]$details.Add(
+            "Reverse inventory requires reviewed solutions that are missing from the environment: $(@($missing) -join ', ')."
+        )
+    }
+
+    return [pscustomobject]@{
+        State   = $state
+        Missing = @($missing)
+        Details = @($details)
+        Lookup  = $lookup
+    }
 }
 
 function Test-InsuranceFoundationManifestAlignment {
@@ -2198,12 +2686,6 @@ function Test-InsuranceFoundationTable {
     $blockingChildren = @($children | Where-Object {
             [string]$_.State -ne 'Ready'
         })
-    if ($blockingChildren.Count -gt 0) {
-        [void]$details.Add(
-            "Blocking child components: $(@($blockingChildren.Component) -join ', ')."
-        )
-    }
-
     Add-ConvergenceStringsToList `
         -List $details `
         -Values @(Get-ConvergenceDifferenceDetails -Differences @($differences))
@@ -2214,12 +2696,571 @@ function Test-InsuranceFoundationTable {
             -Children @($children)
     }
 
+    $allDetails = [System.Collections.Generic.List[string]]::new()
+    Add-ConvergenceStringsToList -List $allDetails -Values @($details)
+    if ($blockingChildren.Count -gt 0) {
+        [void]$allDetails.Add(
+            "Blocking child components: $(@($blockingChildren.Component) -join ', ')."
+        )
+    }
+
+    $state = if ($differences.Count -gt 0 -or $details.Count -gt 0) {
+        'ContractConflict'
+    }
+    else {
+        Get-ConvergenceBlockingState -Results @($blockingChildren)
+    }
+
     return New-ConvergenceResult `
         -Component ([string]$Table.logicalName) `
-        -State 'ContractConflict' `
+        -State $state `
         -Differences @($differences) `
-        -Details @($details) `
+        -Details @($allDetails) `
         -Children @($children)
+}
+
+function Test-ConvergenceUnexpectedAttributeCandidate {
+    [CmdletBinding()]
+    param(
+        $Attribute,
+
+        [string]$PrimaryIdAttribute,
+
+        [Parameter(Mandatory)]
+        [string]$PublisherPrefix
+    )
+
+    if ($null -eq $Attribute) {
+        return $false
+    }
+
+    $logicalName = [string]$Attribute.LogicalName
+    $schemaName = [string]$Attribute.SchemaName
+    if (-not (Test-ConvergenceStartsWithPrefix `
+                -Value $logicalName `
+                -Prefix $PublisherPrefix) -and
+        -not (Test-ConvergenceStartsWithPrefix `
+                -Value $schemaName `
+                -Prefix $PublisherPrefix)) {
+        return $false
+    }
+
+    if ($Attribute.PSObject.Properties.Name -contains 'AttributeOf' -and
+        -not [string]::IsNullOrWhiteSpace([string]$Attribute.AttributeOf)) {
+        return $false
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($PrimaryIdAttribute) -and
+        $logicalName -ceq $PrimaryIdAttribute) {
+        return $false
+    }
+
+    return $true
+}
+
+function Test-ConvergenceUnexpectedRelationshipCandidate {
+    [CmdletBinding()]
+    param(
+        $Relationship,
+
+        [Parameter(Mandatory)]
+        [string]$PublisherPrefix
+    )
+
+    if ($null -eq $Relationship) {
+        return $false
+    }
+
+    return (
+        (Test-ConvergenceStartsWithPrefix `
+            -Value ([string]$Relationship.SchemaName) `
+            -Prefix $PublisherPrefix) -or
+        (Test-ConvergenceStartsWithPrefix `
+            -Value ([string]$Relationship.ReferencingAttribute) `
+            -Prefix $PublisherPrefix)
+    )
+}
+
+function Test-ConvergenceUnexpectedKeyCandidate {
+    [CmdletBinding()]
+    param(
+        $Key,
+
+        [Parameter(Mandatory)]
+        [string]$PublisherPrefix
+    )
+
+    if ($null -eq $Key) {
+        return $false
+    }
+
+    return Test-ConvergenceStartsWithPrefix `
+        -Value ([string]$Key.SchemaName) `
+        -Prefix $PublisherPrefix
+}
+
+function Test-ConvergenceReviewedOrPrefixedTable {
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [string]$LogicalName,
+
+        [Parameter(Mandatory)]
+        [string[]]$ReviewedTables,
+
+        [Parameter(Mandatory)]
+        [string]$PublisherPrefix
+    )
+
+    if ([string]::IsNullOrWhiteSpace($LogicalName)) {
+        return $false
+    }
+
+    return (
+        (Test-ConvergenceContainsExactString `
+            -Value $ReviewedTables `
+            -Expected $LogicalName) -or
+        (Test-ConvergenceStartsWithPrefix `
+            -Value $LogicalName `
+            -Prefix $PublisherPrefix)
+    )
+}
+
+function Test-InsuranceFoundationUnexpectedMetadata {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$EnvironmentUrl,
+
+        [Parameter(Mandatory)]
+        $Contract,
+
+        [Parameter(Mandatory)]
+        $Manifest
+    )
+
+    Set-ConvergenceRuntimeContext -EnvironmentUrl $EnvironmentUrl
+
+    $component = 'unexpectedMetadata'
+    $rolePrefix = 'CRM Showcase Insurance '
+    $unexpected = [System.Collections.Generic.List[string]]::new()
+    $details = [System.Collections.Generic.List[string]]::new()
+    $publisherPrefix = $null
+    $expectedInventory = $null
+    try {
+        $publisherPrefix = Get-ConvergencePublisherLogicalPrefix -Manifest $Manifest
+        $expectedInventory = Get-ConvergenceExpectedInventory -Contract $Contract
+    }
+    catch {
+        return New-ConvergenceResult `
+            -Component $component `
+            -State 'ContractConflict' `
+            -Details @($_.Exception.Message)
+    }
+
+    $solutionLookup = $null
+    try {
+        $solutionLookup = Get-ConvergenceReviewedSolutionLookup `
+            -EnvironmentUrl $EnvironmentUrl `
+            -Contract $Contract
+    }
+    catch {
+        if (Test-ConvergenceTransportError $_) {
+            throw
+        }
+
+        return New-ConvergenceResult `
+            -Component $component `
+            -State 'ContractConflict' `
+            -Details @($_.Exception.Message)
+    }
+
+    if ([string]$solutionLookup.State -ne 'Ready') {
+        return New-ConvergenceResult `
+            -Component $component `
+            -State ([string]$solutionLookup.State) `
+            -Missing @($solutionLookup.Missing) `
+            -Details @($solutionLookup.Details)
+    }
+
+    foreach ($solutionUniqueName in @($Contract.solutions)) {
+        $solution = $solutionLookup.Lookup[[string]$solutionUniqueName]
+        $solutionId = [string]$solution.solutionid
+        $inventory = $null
+        try {
+            $inventory = Invoke-DataverseRequest `
+                -Method GET `
+                -Path (Get-ConvergenceSolutionInventoryPath `
+                    -SolutionId $solutionId `
+                    -ComponentType (Get-ConvergenceReverseInventoryComponentTypes))
+        }
+        catch {
+            if (Test-ConvergenceTransportError $_) {
+                throw
+            }
+
+            return New-ConvergenceResult `
+                -Component $component `
+                -State 'ContractConflict' `
+                -Details @($_.Exception.Message)
+        }
+
+        foreach ($entry in @($inventory.value | Sort-Object componenttype, objectid)) {
+            $objectId = [string]$entry.objectid
+            if ([string]::IsNullOrWhiteSpace($objectId)) {
+                [void]$details.Add(
+                    "Reverse inventory entry in solution '$solutionUniqueName' returned no object ID for component type '$($entry.componenttype)'."
+                )
+                continue
+            }
+
+            switch ([int]$entry.componenttype) {
+                1 {
+                    $entity = $null
+                    try {
+                        $entity = Invoke-DataverseRequest `
+                            -Method GET `
+                            -Path (Get-ConvergenceEntityByMetadataIdPath `
+                                -MetadataId $objectId)
+                    }
+                    catch {
+                        if (Test-ConvergenceTransportError $_) {
+                            throw
+                        }
+
+                        [void]$details.Add($_.Exception.Message)
+                        continue
+                    }
+
+                    if ($null -eq $entity) {
+                        [void]$details.Add(
+                            "Reverse inventory could not resolve custom table metadata '$objectId' in solution '$solutionUniqueName'."
+                        )
+                        continue
+                    }
+
+                    $logicalName = [string]$entity.LogicalName
+                    if (-not (Test-ConvergenceStartsWithPrefix `
+                                -Value $logicalName `
+                                -Prefix $publisherPrefix)) {
+                        continue
+                    }
+
+                    if (-not (Test-ConvergenceContainsExactString `
+                                -Value @($expectedInventory.TablesBySolution[$solutionUniqueName]) `
+                                -Expected $logicalName)) {
+                        [void]$unexpected.Add("$solutionUniqueName/table/$logicalName")
+                        [void]$details.Add(
+                            "Unexpected custom table '$logicalName' is owned by solution '$solutionUniqueName' but is not listed in the contract."
+                        )
+                    }
+                }
+                9 {
+                    $choice = $null
+                    try {
+                        $choice = Invoke-DataverseRequest `
+                            -Method GET `
+                            -Path (Get-ConvergenceGlobalChoiceByMetadataIdPath `
+                                -MetadataId $objectId)
+                    }
+                    catch {
+                        if (Test-ConvergenceTransportError $_) {
+                            throw
+                        }
+
+                        [void]$details.Add($_.Exception.Message)
+                        continue
+                    }
+
+                    if ($null -eq $choice) {
+                        [void]$details.Add(
+                            "Reverse inventory could not resolve global choice metadata '$objectId' in solution '$solutionUniqueName'."
+                        )
+                        continue
+                    }
+
+                    $logicalName = [string]$choice.Name
+                    if (-not [bool]$choice.IsGlobal -or
+                        -not (Test-ConvergenceStartsWithPrefix `
+                                -Value $logicalName `
+                                -Prefix $publisherPrefix)) {
+                        continue
+                    }
+
+                    if (-not (Test-ConvergenceContainsExactString `
+                                -Value @($expectedInventory.ChoicesBySolution[$solutionUniqueName]) `
+                                -Expected $logicalName)) {
+                        [void]$unexpected.Add("$solutionUniqueName/choice/$logicalName")
+                        [void]$details.Add(
+                            "Unexpected global choice '$logicalName' is owned by solution '$solutionUniqueName' but is not listed in the contract."
+                        )
+                    }
+                }
+                26 {
+                    $view = $null
+                    try {
+                        $view = Invoke-DataverseRequest `
+                            -Method GET `
+                            -Path (Get-ConvergenceSavedQueryByIdPath `
+                                -SavedQueryId $objectId)
+                    }
+                    catch {
+                        if (Test-ConvergenceTransportError $_) {
+                            throw
+                        }
+
+                        [void]$details.Add($_.Exception.Message)
+                        continue
+                    }
+
+                    if ($null -eq $view) {
+                        [void]$details.Add(
+                            "Reverse inventory could not resolve view '$objectId' in solution '$solutionUniqueName'."
+                        )
+                        continue
+                    }
+
+                    $tableLogicalName = [string]$view.returnedtypecode
+                    if (-not (Test-ConvergenceReviewedOrPrefixedTable `
+                                -LogicalName $tableLogicalName `
+                                -ReviewedTables @($expectedInventory.ReviewedTables) `
+                                -PublisherPrefix $publisherPrefix)) {
+                        continue
+                    }
+
+                    $viewKey = Get-ConvergenceViewInventoryKey `
+                        -TableLogicalName $tableLogicalName `
+                        -Name ([string]$view.name)
+                    if (-not (Test-ConvergenceContainsExactString `
+                                -Value @($expectedInventory.ViewsBySolution[$solutionUniqueName]) `
+                                -Expected $viewKey)) {
+                        [void]$unexpected.Add(
+                            "$solutionUniqueName/view/$tableLogicalName/$([string]$view.name)"
+                        )
+                        [void]$details.Add(
+                            "Unexpected solution-owned view '$([string]$view.name)' targeting '$tableLogicalName' is owned by solution '$solutionUniqueName' but is not listed in the contract."
+                        )
+                    }
+                }
+                60 {
+                    $form = $null
+                    try {
+                        $form = Invoke-DataverseRequest `
+                            -Method GET `
+                            -Path (Get-ConvergenceSystemFormByIdPath `
+                                -FormId $objectId)
+                    }
+                    catch {
+                        if (Test-ConvergenceTransportError $_) {
+                            throw
+                        }
+
+                        [void]$details.Add($_.Exception.Message)
+                        continue
+                    }
+
+                    if ($null -eq $form) {
+                        [void]$details.Add(
+                            "Reverse inventory could not resolve form '$objectId' in solution '$solutionUniqueName'."
+                        )
+                        continue
+                    }
+
+                    $tableLogicalName = [string]$form.objecttypecode
+                    if (-not (Test-ConvergenceReviewedOrPrefixedTable `
+                                -LogicalName $tableLogicalName `
+                                -ReviewedTables @($expectedInventory.ReviewedTables) `
+                                -PublisherPrefix $publisherPrefix)) {
+                        continue
+                    }
+
+                    $formType = if ($null -eq $form.type) {
+                        -1
+                    }
+                    else {
+                        [int]$form.type
+                    }
+                    $formKey = Get-ConvergenceFormInventoryKey `
+                        -TableLogicalName $tableLogicalName `
+                        -Name ([string]$form.name) `
+                        -Type $formType
+                    if (-not (Test-ConvergenceContainsExactString `
+                                -Value @($expectedInventory.FormsBySolution[$solutionUniqueName]) `
+                                -Expected $formKey)) {
+                        [void]$unexpected.Add(
+                            "$solutionUniqueName/form/$tableLogicalName/$([string]$form.name)"
+                        )
+                        [void]$details.Add(
+                            "Unexpected solution-owned form '$([string]$form.name)' targeting '$tableLogicalName' is owned by solution '$solutionUniqueName' but is not listed in the contract."
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    $rootRoles = $null
+    try {
+        $rootRoles = Invoke-DataverseRequest `
+            -Method GET `
+            -Path (Get-ConvergenceRootInsuranceRolesPath `
+                -RolePrefix $rolePrefix)
+    }
+    catch {
+        if (Test-ConvergenceTransportError $_) {
+            throw
+        }
+
+        return New-ConvergenceResult `
+            -Component $component `
+            -State 'ContractConflict' `
+            -Details @($_.Exception.Message)
+    }
+
+    foreach ($role in @($rootRoles.value | Sort-Object name, roleid)) {
+        $roleName = [string]$role.name
+        if (-not (Test-ConvergenceStartsWithPrefix `
+                    -Value $roleName `
+                    -Prefix $rolePrefix)) {
+            continue
+        }
+
+        $roleId = [string]$role.roleid
+        if ([string]::IsNullOrWhiteSpace($roleId)) {
+            [void]$details.Add(
+                "Reverse inventory role '$roleName' returned no role ID."
+            )
+            continue
+        }
+
+        $membership = $null
+        try {
+            $membership = Invoke-DataverseRequest `
+                -Method GET `
+                -Path (Get-ConvergenceSolutionMembershipPath `
+                    -ComponentId $roleId)
+        }
+        catch {
+            if (Test-ConvergenceTransportError $_) {
+                throw
+            }
+
+            [void]$details.Add($_.Exception.Message)
+            continue
+        }
+
+        $solutionNames = @($membership.value | ForEach-Object {
+                if ($_.solutionid) {
+                    [string]$_.solutionid.uniquename
+                }
+            })
+        if (-not (Test-ConvergenceContainsExactString `
+                    -Value $solutionNames `
+                    -Expected 'crmshow_Foundation')) {
+            continue
+        }
+
+        if (-not (Test-ConvergenceContainsExactString `
+                    -Value @($expectedInventory.RolesBySolution['crmshow_Foundation']) `
+                    -Expected $roleName)) {
+            [void]$unexpected.Add("crmshow_Foundation/role/$roleName")
+            [void]$details.Add(
+                "Unexpected root role '$roleName' is owned by solution 'crmshow_Foundation' but is not listed in the contract."
+            )
+        }
+    }
+
+    foreach ($tableLogicalName in @($expectedInventory.ReviewedTables)) {
+        $tableInventory = $null
+        try {
+            $tableInventory = Invoke-DataverseRequest `
+                -Method GET `
+                -Path (Get-ConvergenceTableUnexpectedChildrenPath `
+                    -LogicalName $tableLogicalName `
+                    -PublisherPrefix $publisherPrefix)
+        }
+        catch {
+            if (Test-ConvergenceTransportError $_) {
+                throw
+            }
+
+            return New-ConvergenceResult `
+                -Component $component `
+                -State 'ContractConflict' `
+                -Details @($_.Exception.Message)
+        }
+
+        if ($null -eq $tableInventory) {
+            continue
+        }
+
+        $primaryIdAttribute = [string]$tableInventory.PrimaryIdAttribute
+        foreach ($attribute in @($tableInventory.Attributes | Sort-Object LogicalName, SchemaName)) {
+            if (-not (Test-ConvergenceUnexpectedAttributeCandidate `
+                        -Attribute $attribute `
+                        -PrimaryIdAttribute $primaryIdAttribute `
+                        -PublisherPrefix $publisherPrefix)) {
+                continue
+            }
+
+            $logicalName = [string]$attribute.LogicalName
+            if (-not (Test-ConvergenceContainsExactString `
+                        -Value @($expectedInventory.ColumnsByTable[$tableLogicalName]) `
+                        -Expected $logicalName)) {
+                [void]$unexpected.Add("$tableLogicalName/column/$logicalName")
+                [void]$details.Add(
+                    "Unexpected custom column '$logicalName' exists on '$tableLogicalName' but is not listed in the contract."
+                )
+            }
+        }
+
+        foreach ($relationship in @($tableInventory.ManyToOneRelationships |
+                    Sort-Object SchemaName, ReferencingAttribute)) {
+            if (-not (Test-ConvergenceUnexpectedRelationshipCandidate `
+                        -Relationship $relationship `
+                        -PublisherPrefix $publisherPrefix)) {
+                continue
+            }
+
+            $schemaName = [string]$relationship.SchemaName
+            if (-not (Test-ConvergenceContainsExactString `
+                        -Value @($expectedInventory.RelationshipsByTable[$tableLogicalName]) `
+                        -Expected $schemaName)) {
+                [void]$unexpected.Add("$tableLogicalName/relationship/$schemaName")
+                [void]$details.Add(
+                    "Unexpected custom relationship '$schemaName' exists on '$tableLogicalName' but is not listed in the contract."
+                )
+            }
+        }
+
+        foreach ($key in @($tableInventory.Keys | Sort-Object SchemaName)) {
+            if (-not (Test-ConvergenceUnexpectedKeyCandidate `
+                        -Key $key `
+                        -PublisherPrefix $publisherPrefix)) {
+                continue
+            }
+
+            $schemaName = [string]$key.SchemaName
+            if (-not (Test-ConvergenceContainsExactString `
+                        -Value @($expectedInventory.KeysByTable[$tableLogicalName]) `
+                        -Expected $schemaName)) {
+                [void]$unexpected.Add("$tableLogicalName/key/$schemaName")
+                [void]$details.Add(
+                    "Unexpected custom alternate key '$schemaName' exists on '$tableLogicalName' but is not listed in the contract."
+                )
+            }
+        }
+    }
+
+    if ($unexpected.Count -eq 0 -and $details.Count -eq 0) {
+        return New-ConvergenceResult -Component $component -State 'Ready'
+    }
+
+    return New-ConvergenceResult `
+        -Component $component `
+        -State 'ContractConflict' `
+        -Unexpected @($unexpected) `
+        -Details @($details)
 }
 
 function Test-InsuranceFoundationRoles {
@@ -2338,6 +3379,12 @@ function Invoke-InsuranceFoundationConvergence {
             -EnvironmentUrl $EnvironmentUrl `
             -Contract $contract)
     )
+    [void]$results.Add(
+        (Test-InsuranceFoundationUnexpectedMetadata `
+            -EnvironmentUrl $EnvironmentUrl `
+            -Contract $contract `
+            -Manifest $manifest)
+    )
 
     return New-ConvergenceSummary -Results @($results)
 }
@@ -2359,6 +3406,8 @@ if ($MyInvocation.InvocationName -ne '.') {
             -ContractPath $ContractPath
         $result | ConvertTo-Json -Depth 50
 
+        # Exit 2 is deliberate for prerequisite gaps and tenant limitations,
+        # including GET-only UnsupportedInTenant classifications.
         switch ([string]$result.State) {
             'Ready' { exit 0 }
             'ManualPrerequisite' { exit 2 }
