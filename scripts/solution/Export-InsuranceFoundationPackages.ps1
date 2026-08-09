@@ -229,7 +229,7 @@ function Assert-InsuranceFoundationExportedPackage {
 }
 
 function Invoke-InsuranceFoundationPackageExport {
-    [CmdletBinding(SupportsShouldProcess)]
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
         [string]$EnvironmentUrl,
@@ -270,72 +270,99 @@ function Invoke-InsuranceFoundationPackageExport {
     }
 
     $exports = @(Get-InsuranceFoundationExports)
-    $completedExports = 0
     $pacCommand = $null
+
+    if (-not (Test-Path -LiteralPath $resolvedOutputDirectory -PathType Container)) {
+        New-Item `
+            -ItemType Directory `
+            -Path $resolvedOutputDirectory `
+            -Force | Out-Null
+    }
 
     foreach ($export in $exports) {
         $packagePath = Join-Path $resolvedOutputDirectory $export.File
         $managedValue = if ([bool]$export.Managed) { 'true' } else { 'false' }
-        $action = "Export $($export.Name) managed=$managedValue"
-
-        if ($PSCmdlet.ShouldProcess($packagePath, $action)) {
-            if (-not (Test-Path -LiteralPath $resolvedOutputDirectory -PathType Container)) {
-                New-Item `
-                    -ItemType Directory `
-                    -Path $resolvedOutputDirectory `
-                    -Force | Out-Null
-            }
-
-            if ($null -eq $pacCommand) {
-                $pacCommand = Resolve-InsuranceFoundationPacCommand
-            }
-
-            $arguments = @(
-                'solution',
-                'export',
-                '--environment', $EnvironmentUrl,
-                '--name', [string]$export.Name,
-                '--path', $packagePath,
-                '--managed', $managedValue,
-                '--overwrite'
-            )
-
-            $output = & $pacCommand @arguments 2>&1
-            $exitCode = $LASTEXITCODE
-            if ($exitCode -ne 0) {
-                $detail = ($output | Out-String).Trim()
-                if ([string]::IsNullOrWhiteSpace($detail)) {
-                    $detail = '<no output>'
-                }
-
-                throw (
-                    "pac solution export failed for '{0}' (solution '{1}', " +
-                    'managed={2}, exit code {3}). Output: {4}'
-                ) -f $export.File, $export.Name, $managedValue, $exitCode, $detail
-            }
-
-            Assert-InsuranceFoundationExportedPackage `
-                -Path $packagePath `
-                -File $export.File
-            $completedExports++
+        if ($null -eq $pacCommand) {
+            $pacCommand = Resolve-InsuranceFoundationPacCommand
         }
+
+        $arguments = @(
+            'solution',
+            'export',
+            '--environment', $EnvironmentUrl,
+            '--name', [string]$export.Name,
+            '--path', $packagePath,
+            '--managed', $managedValue,
+            '--overwrite'
+        )
+
+        $output = & $pacCommand @arguments 2>&1
+        $exitCode = $LASTEXITCODE
+        if ($exitCode -ne 0) {
+            $detail = ($output | Out-String).Trim()
+            if ([string]::IsNullOrWhiteSpace($detail)) {
+                $detail = '<no output>'
+            }
+
+            throw (
+                "pac solution export failed for '{0}' (solution '{1}', " +
+                'managed={2}, exit code {3}). Output: {4}'
+            ) -f $export.File, $export.Name, $managedValue, $exitCode, $detail
+        }
+
+        Assert-InsuranceFoundationExportedPackage `
+            -Path $packagePath `
+            -File $export.File
     }
 
-    if ($completedExports -eq $exports.Count) {
-        Assert-InsuranceFoundationPackageSet -FileNames @(
-            Get-ChildItem `
-                -LiteralPath $resolvedOutputDirectory `
-                -File `
-                -Force `
-                -Recurse |
-                ForEach-Object { $_.Name }
-        )
+    Assert-InsuranceFoundationPackageSet -FileNames @(
+        Get-ChildItem `
+            -LiteralPath $resolvedOutputDirectory `
+            -File `
+            -Force `
+            -Recurse |
+            ForEach-Object { $_.Name }
+    )
+}
+
+function Invoke-InsuranceFoundationPackageExportEntry {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$EnvironmentUrl,
+
+        [Parameter(Mandatory)]
+        [string]$OutputDirectory,
+
+        [Parameter(Mandatory)]
+        [bool]$ApprovalGranted
+    )
+
+    if (-not $ApprovalGranted) {
+        return
     }
+
+    Invoke-InsuranceFoundationPackageExport `
+        -EnvironmentUrl $EnvironmentUrl `
+        -OutputDirectory $OutputDirectory
 }
 
 if ($MyInvocation.InvocationName -ne '.') {
-    Invoke-InsuranceFoundationPackageExport `
+    $resolvedOutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
+    $packageSummary = ((
+            Get-InsuranceFoundationExports |
+                ForEach-Object {
+                    '{0} ({1})' -f $_.File, ($(if ([bool]$_.Managed) { 'managed' } else { 'unmanaged' }))
+                }
+        ) -join ', ')
+
+    Invoke-InsuranceFoundationPackageExportEntry `
         -EnvironmentUrl $EnvironmentUrl `
-        -OutputDirectory $OutputDirectory `
-        -WhatIf:$WhatIfPreference
+        -OutputDirectory $resolvedOutputDirectory `
+        -ApprovalGranted:$(
+            $PSCmdlet.ShouldProcess(
+                $resolvedOutputDirectory,
+                "Export four reviewed packages: $packageSummary"
+            )
+        )
 }

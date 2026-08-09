@@ -373,7 +373,7 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
         $env:POWERPLATFORMTOOLS_PACPATH = $context.PacPath
         $env:TEST_EXPORT_PAC_LOG_PATH = $context.LogPath
 
-        & $script:exportScriptPath `
+        Invoke-InsuranceFoundationPackageExport `
             -EnvironmentUrl 'https://unit.crm.dynamics.com' `
             -OutputDirectory $context.OutputDirectory
 
@@ -421,6 +421,29 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
         $actual | Should -Be $expected
     }
 
+    It 'calls the export helper only after approval is granted' {
+        $outputDirectory = Join-Path (Get-PSDrive -Name TestDrive).Root 'approval-gate'
+
+        Mock Invoke-InsuranceFoundationPackageExport {}
+
+        Invoke-InsuranceFoundationPackageExportEntry `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -OutputDirectory $outputDirectory `
+            -ApprovalGranted:$false
+
+        Should -Invoke Invoke-InsuranceFoundationPackageExport -Times 0 -Exactly
+
+        Invoke-InsuranceFoundationPackageExportEntry `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -OutputDirectory $outputDirectory `
+            -ApprovalGranted:$true
+
+        Should -Invoke Invoke-InsuranceFoundationPackageExport -Times 1 -Exactly -ParameterFilter {
+            $EnvironmentUrl -eq 'https://unit.crm.dynamics.com' -and
+            $OutputDirectory -eq $outputDirectory
+        }
+    }
+
     It 'includes the package file name and CLI output when an export fails' {
         $context = script:New-ExportTestContext
         script:New-FakePacCommand -Path $context.PacPath | Out-Null
@@ -430,7 +453,7 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
         $env:TEST_EXPORT_PAC_FAIL_FILE = 'crmshow_DataModel_managed.zip'
 
         {
-            & $script:exportScriptPath `
+            Invoke-InsuranceFoundationPackageExport `
                 -EnvironmentUrl 'https://unit.crm.dynamics.com' `
                 -OutputDirectory $context.OutputDirectory
         } | Should -Throw '*crmshow_DataModel_managed.zip*simulated export failure*'
@@ -445,7 +468,7 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
         $env:TEST_EXPORT_PAC_ZERO_BYTE_FILE = 'crmshow_Foundation.zip'
 
         {
-            & $script:exportScriptPath `
+            Invoke-InsuranceFoundationPackageExport `
                 -EnvironmentUrl 'https://unit.crm.dynamics.com' `
                 -OutputDirectory $context.OutputDirectory
         } | Should -Throw '*zero-byte package*crmshow_Foundation.zip*'
@@ -460,7 +483,7 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
         $env:TEST_EXPORT_PAC_SKIP_FILE = 'crmshow_Foundation_managed.zip'
 
         {
-            & $script:exportScriptPath `
+            Invoke-InsuranceFoundationPackageExport `
                 -EnvironmentUrl 'https://unit.crm.dynamics.com' `
                 -OutputDirectory $context.OutputDirectory
         } | Should -Throw '*did not produce package*crmshow_Foundation_managed.zip*'
@@ -476,7 +499,7 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
         $env:TEST_EXPORT_PAC_LOG_PATH = $context.LogPath
 
         {
-            & $script:exportScriptPath `
+            Invoke-InsuranceFoundationPackageExport `
                 -EnvironmentUrl 'https://unit.crm.dynamics.com' `
                 -OutputDirectory $context.OutputDirectory
         } | Should -Throw '*already contains file*keep.txt*'
@@ -512,9 +535,49 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
         Test-Path -LiteralPath $invocation.OutputDirectory | Should -BeFalse
         $invocation.Output | Should -Not -Match 'Unexpected authored package set'
     }
+
+    It 'declined approval performs no exports and leaves the output directory empty' {
+        $context = script:New-ExportTestContext
+        script:New-FakePacCommand -Path $context.PacPath | Out-Null
+
+        $env:POWERPLATFORMTOOLS_PACPATH = $context.PacPath
+        $env:TEST_EXPORT_PAC_LOG_PATH = $context.LogPath
+
+        Invoke-InsuranceFoundationPackageExportEntry `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -OutputDirectory $context.OutputDirectory `
+            -ApprovalGranted:$false
+
+        @(script:Get-FakePacInvocations -LogPath $context.LogPath).Count | Should -Be 0
+        Test-Path -LiteralPath $context.OutputDirectory | Should -BeFalse
+    }
 }
 
 Describe 'Export package script safety' {
+    It 'contains exactly one ShouldProcess approval gate' {
+        $tokens = $null
+        $errors = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+            $script:exportScriptPath,
+            [ref]$tokens,
+            [ref]$errors
+        )
+
+        @($errors) | Should -BeNullOrEmpty
+
+        $shouldProcessCalls = @(
+            $ast.FindAll({
+                    param($node)
+
+                    $node -is [System.Management.Automation.Language.InvokeMemberExpressionAst] -and
+                    $node.Member -is [System.Management.Automation.Language.StringConstantExpressionAst] -and
+                    $node.Member.Value -eq 'ShouldProcess'
+                }, $true)
+        )
+
+        $shouldProcessCalls.Count | Should -Be 1
+    }
+
     It 'does not invoke pac when dot-sourced' {
         $outputDirectory = Join-Path (Get-PSDrive -Name TestDrive).Root 'dot-source-only'
         $text = @'
