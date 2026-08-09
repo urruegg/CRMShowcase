@@ -20,9 +20,10 @@
 
 The DEV OIDC application user has System Customizer and can author the reviewed
 schema, but Dataverse rejects security-role creation because it lacks
-prvCreateRole. Run 31302762752 proved that choices, extensions, tables,
-relationships, keys, views, forms, and multilingual metadata are feasible
-before that boundary.
+prvCreateRole.
+[Run 31302762752](https://github.com/urruegg/CRMShowcase/actions/runs/31302762752/job/93218095999)
+proved that choices, extensions, tables, relationships, keys, views, forms,
+and multilingual metadata are feasible before that boundary.
 
 ## Options
 
