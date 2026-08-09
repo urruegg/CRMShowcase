@@ -1113,7 +1113,9 @@ function Get-XmlStructuralSignature {
             return '#text:' + $Node.Value
         }
         if ($Node.NodeType -ne [System.Xml.XmlNodeType]::Element) { return '' }
-        $attributes = @($Node.Attributes | Sort-Object Name | ForEach-Object {
+        $attributes = @($Node.Attributes |
+            Where-Object Name -ne 'savedqueryid' |
+            Sort-Object Name | ForEach-Object {
             "$($_.Name)=$($_.Value)"
         }) -join ';'
         $children = @($Node.ChildNodes | ForEach-Object {

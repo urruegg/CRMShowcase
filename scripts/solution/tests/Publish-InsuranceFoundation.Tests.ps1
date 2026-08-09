@@ -1413,6 +1413,21 @@ Describe 'Insurance Foundation reconciliation' {
         } | Should -Throw '*Actual signature:*name=stale*Wanted signature:*'
     }
 
+    It 'accepts the server-assigned saved-query ID in stored FetchXML' {
+        $table = $script:contract.tables[0]
+        $request = New-ViewRequest $table $table.views[0] 10427
+        $storedFetchXml = $request.Body.fetchxml.Replace(
+            '<fetch ',
+            '<fetch savedqueryid="fd79983c-bf93-f111-8075-000d3a30c0f4" '
+        )
+
+        {
+            Assert-XmlCompatible (
+                [pscustomobject]@{ fetchxml = $storedFetchXml }
+            ) $request fetchxml 'component'
+        } | Should -Not -Throw
+    }
+
     It 'updates an empty existing choice rather than treating it as unchanged' {
         $choice = $script:contract.choices[0]
         Mock Invoke-DataverseRequest {
