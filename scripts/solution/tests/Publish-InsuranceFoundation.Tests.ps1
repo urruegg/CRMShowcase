@@ -4563,6 +4563,7 @@ function pac { throw 'pac was called' }
         $expectedSuites = @(
             'scripts/solution/tests/InsuranceFoundationContract.Tests.ps1'
             'scripts/solution/tests/Publish-InsuranceFoundation.Tests.ps1'
+            'scripts/solution/tests/Get-InsuranceAuthoringPreflightFailureMessage.Tests.ps1'
             'scripts/solution/tests/Test-InsuranceAuthoringPreflight.Tests.ps1'
             'scripts/solution/tests/Test-InsuranceSecurityRoles.Tests.ps1'
             'scripts/solution/tests/Test-InsuranceFoundationConvergence.Tests.ps1'
@@ -4597,7 +4598,7 @@ function pac { throw 'pac was called' }
         $script:authoringWorkflow | Should -Not -Match '\${{\s*secrets\.'
     }
 
-    It 'classifies preflight exit code 2 with runbook guidance before mutation' {
+    It 'captures, echoes, and classifies preflight JSON before mutation' {
         $preflight = $script:authoringWorkflow.IndexOf(
             '- name: Run authoring preflight'
         )
@@ -4607,17 +4608,34 @@ function pac { throw 'pac was called' }
         $metadata = $script:authoringWorkflow.IndexOf(
             '- name: Reconcile demo-safe metadata'
         )
+        $capture = $script:authoringWorkflow.IndexOf(
+            '$preflightJsonLines = & $pwsh'
+        )
+        $exitCapture = $script:authoringWorkflow.IndexOf(
+            '$exitCode = $LASTEXITCODE'
+        )
+        $logJson = $script:authoringWorkflow.IndexOf(
+            'Write-Host $preflightJson'
+        )
+        $failure = $script:authoringWorkflow.IndexOf(
+            'throw (Get-InsuranceAuthoringPreflightFailureMessage'
+        )
 
         $preflight | Should -BeGreaterOrEqual 0
         $preflight | Should -BeLessThan $languages
         $preflight | Should -BeLessThan $metadata
-        $script:authoringWorkflow | Should -Match 'if \(\$exitCode -eq 2\)'
-        $script:authoringWorkflow | Should -Match (
-            [regex]::Escape(
-                'docs/runbooks/insurance-foundation-security-role-bootstrap.md'
-            )
-        )
+        $capture | Should -BeGreaterOrEqual 0
+        $capture | Should -BeLessThan $exitCapture
+        $exitCapture | Should -BeLessThan $logJson
+        $logJson | Should -BeLessThan $failure
         $script:authoringWorkflow | Should -Match 'Test-InsuranceAuthoringPreflight\.ps1'
+        $script:authoringWorkflow | Should -Match (
+            'Get-InsuranceAuthoringPreflightFailureMessage\.ps1'
+        )
+        $script:authoringWorkflow | Should -Match 'Write-Host \$preflightJson'
+        $script:authoringWorkflow | Should -Match (
+            'throw \(Get-InsuranceAuthoringPreflightFailureMessage'
+        )
     }
 
     It 'reconciles only demo-safe metadata and never requests full or role authoring' {

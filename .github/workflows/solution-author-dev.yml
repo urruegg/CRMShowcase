@@ -45,6 +45,7 @@ jobs:
           $targeted = Invoke-Pester -Path @(
             (Join-Path $root 'scripts/solution/tests/InsuranceFoundationContract.Tests.ps1'),
             (Join-Path $root 'scripts/solution/tests/Publish-InsuranceFoundation.Tests.ps1'),
+            (Join-Path $root 'scripts/solution/tests/Get-InsuranceAuthoringPreflightFailureMessage.Tests.ps1'),
             (Join-Path $root 'scripts/solution/tests/Test-InsuranceAuthoringPreflight.Tests.ps1'),
             (Join-Path $root 'scripts/solution/tests/Test-InsuranceSecurityRoles.Tests.ps1'),
             (Join-Path $root 'scripts/solution/tests/Test-InsuranceFoundationConvergence.Tests.ps1'),
@@ -73,10 +74,11 @@ jobs:
         shell: pwsh
         run: |
           $root = $env:GITHUB_WORKSPACE
+          . (Join-Path $root 'scripts/solution/Get-InsuranceAuthoringPreflightFailureMessage.ps1')
           $pwsh = (Get-Command pwsh -ErrorAction Stop).Source
           $preflightScript = Join-Path $root 'scripts/solution/Test-InsuranceAuthoringPreflight.ps1'
           $contractPath = Join-Path $root 'solution/schema/insurance-foundation.json'
-          & $pwsh `
+          $preflightJsonLines = & $pwsh `
             -NoLogo `
             -NoProfile `
             -NonInteractive `
@@ -84,10 +86,17 @@ jobs:
             -EnvironmentUrl $env:POWER_PLATFORM_ENV_URL `
             -ContractPath $contractPath
           $exitCode = $LASTEXITCODE
-          if ($exitCode -eq 2) {
-            throw 'Authoring preflight reported a non-ready state. Review the JSON above and follow docs/runbooks/insurance-foundation-security-role-bootstrap.md before rerunning once the prerequisite or tenant capability gap is resolved.'
+          $preflightJson = (@($preflightJsonLines | ForEach-Object {
+                $_.ToString()
+              }) -join [Environment]::NewLine).Trim()
+          if (-not [string]::IsNullOrWhiteSpace($preflightJson)) {
+            Write-Host $preflightJson
           }
-          if ($exitCode -ne 0) { throw 'Authoring preflight failed.' }
+          if ($exitCode -ne 0) {
+            throw (Get-InsuranceAuthoringPreflightFailureMessage `
+              -ExitCode $exitCode `
+              -JsonText $preflightJson)
+          }
 
       - name: Reconcile Dataverse languages
         shell: pwsh
