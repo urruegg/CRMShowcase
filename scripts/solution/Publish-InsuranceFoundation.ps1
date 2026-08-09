@@ -387,7 +387,7 @@ function Get-AlternateKeyRequest {
         Method = 'POST'
         Path = "/EntityDefinitions(LogicalName='$TableLogicalName')/Keys"
         Solution = 'crmshow_DataModel'
-        SolutionComponentType = 14
+        InheritsSolutionOwnership = $true
         Body = @{
             SchemaName = $SchemaName
             DisplayName = if ($Metadata) {
@@ -757,43 +757,11 @@ function Get-MergeLabelHeaders {
     return $headers
 }
 
-function Wait-SolutionComponentMembership {
-    param(
-        [Parameter(Mandatory)] [string]$ComponentId,
-        [Parameter(Mandatory)] [string]$Expected,
-        [ValidateRange(0, [int]::MaxValue)] [int]$TimeoutSeconds = 600,
-        [ValidateRange(1, [int]::MaxValue)] [int]$PollSeconds = 10
-    )
-
-    $deadline = [DateTimeOffset]::UtcNow.AddSeconds($TimeoutSeconds)
-    while ($true) {
-        $membership = Invoke-DataverseRequest -Method GET -Path (
-            "/solutioncomponents?`$select=solutioncomponentid&" +
-            "`$filter=objectid eq $ComponentId&" +
-            "`$expand=solutionid(`$select=uniquename)"
-        )
-        $solutionNames = @($membership.value | ForEach-Object {
-            if ($_.solutionid) { $_.solutionid.uniquename }
-        })
-        if ($Expected -in $solutionNames) { return }
-
-        $remainingSeconds = ($deadline - [DateTimeOffset]::UtcNow).TotalSeconds
-        if ($remainingSeconds -le 0) {
-            throw "Solution component '$ComponentId' was not added to '$Expected' within $TimeoutSeconds seconds."
-        }
-        Start-Sleep -Seconds ([Math]::Min(
-            $PollSeconds,
-            [Math]::Ceiling($remainingSeconds)
-        ))
-    }
-}
-
 function Assert-SolutionOwnership {
     param(
         $Existing,
         [string]$Expected,
-        [string]$Component,
-        [Nullable[int]]$RepairComponentType
+        [string]$Component
     )
     if ($Existing.PSObject.Properties.Name -contains 'SolutionUniqueName' -and
         $Existing.SolutionUniqueName -and $Existing.SolutionUniqueName -ne $Expected) {
@@ -815,18 +783,7 @@ function Assert-SolutionOwnership {
             if ($_.solutionid) { $_.solutionid.uniquename }
         })
         if ($Expected -notin $solutionNames) {
-            if ($null -eq $RepairComponentType) {
-                throw "Structural ownership conflict for '$Component': component is not in '$Expected'."
-            }
-            Invoke-DataverseRequest -Method POST -Path '/AddSolutionComponent' -Body @{
-                ComponentId = $componentId
-                ComponentType = [int]$RepairComponentType
-                SolutionUniqueName = $Expected
-                AddRequiredComponents = $false
-                DoNotIncludeSubcomponents = $true
-            } -Headers (Get-DataverseHeaders $Expected) | Out-Null
-            Wait-SolutionComponentMembership -ComponentId $componentId `
-                -Expected $Expected
+            throw "Structural ownership conflict for '$Component': component is not in '$Expected'."
         }
     }
     if ($Existing._solutionid_value) {
@@ -1125,8 +1082,9 @@ function Invoke-ChildRequestIfMissing {
         Set-RecordLocalizedFields -Request $Request -CreatedRecord $created
         Write-Output "$Component`: Created"
     } else {
-        Assert-SolutionOwnership $existing $Request.Solution $Component `
-            -RepairComponentType $Request.SolutionComponentType
+        if (-not $Request.InheritsSolutionOwnership) {
+            Assert-SolutionOwnership $existing $Request.Solution $Component
+        }
         if ($AssertCompatible) { & $AssertCompatible $existing }
         if ($Request.LocalizedFields) {
             # savedquery/systemform localization cannot be expanded reliably
