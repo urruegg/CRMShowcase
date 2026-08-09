@@ -24,7 +24,7 @@ Copy [ADR-TEMPLATE.md](./ADR-TEMPLATE.md) and edit — do not invent a new shape
 
 `ADR-####-kebab-case-title.md`, four-digit sequence, no gaps.
 
-`0023` is allocated; use the next available sequence number for any new ADR.
+`0023` is the latest allocated sequence; use `0024` for the next ADR.
 
 ## Index
 

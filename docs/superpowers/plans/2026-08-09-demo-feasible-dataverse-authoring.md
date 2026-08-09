@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Deliver one deterministic DEV authoring workflow that stays within the existing `System Customizer` permissions, stops before mutation when the manual security-role prerequisite is missing, converges Dataverse metadata without operator reruns, and exports exactly four reviewed solution packages.
+**Goal:** Deliver one deterministic DEV authoring workflow that stays within the existing `System Customizer` permissions, stops before mutation when the manual security-role prerequisite is missing, converges Dataverse metadata without operator reruns, and exports exactly four reviewed solution packages. `0023` is the latest allocated sequence; use `0024` for the next ADR.
 
 **Architecture:** Split the current monolithic authoring path into read-only preflight, demo-safe schema reconciliation, read-only role/convergence verification, and exact package export. Keep security-role mutation available only as an explicit administrator-run bootstrap scope; document automated privileged bootstrap as an ADR hypothesis rather than implementing unavailable tenant capability.
 
@@ -139,6 +139,7 @@ promotion requires a different permission model.
 
 In `docs/adr/README.md`, update the domain-and-delivery numbering range and
 ADR index so ADR-0023 is discoverable and the next allocation remains clear:
+`0023` is the latest allocated sequence; use `0024` for the next ADR.
 
 ```markdown
 - **Domain and delivery ADRs (0006–0023)** record the CRM Frontier Firm design position on the
