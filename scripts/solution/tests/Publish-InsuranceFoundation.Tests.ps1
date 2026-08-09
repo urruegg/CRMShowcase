@@ -505,6 +505,17 @@ Describe 'Insurance Foundation reconciliation' {
             Should -BeNullOrEmpty
     }
 
+    It 'queries roles only through supported Web API properties' {
+        Invoke-InsuranceFoundationReconciliation -Contract $script:contract -Scope All -Confirm:$false
+
+        $roleReads = @($script:calls | Where-Object {
+            $_.Method -eq 'GET' -and $_.Path -match '^/roles\?'
+        })
+        $roleReads.Count | Should -BeGreaterThan 0
+        @($roleReads.Path | Where-Object { $_ -match '_solutionid_value' }) |
+            Should -BeNullOrEmpty
+    }
+
     It 'verifies saved-query ownership through solution component membership' {
         Mock Invoke-DataverseRequest {
             return [pscustomobject]@{
@@ -517,6 +528,27 @@ Describe 'Insurance Foundation reconciliation' {
         Assert-SolutionOwnership `
             ([pscustomobject]@{ savedqueryid = '11111111-1111-1111-1111-111111111111' }) `
             'crmshow_DataModel' 'existing view'
+    }
+
+    It 'verifies role ownership through solution component membership' {
+        $script:ownershipPath = $null
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path)
+            $script:ownershipPath = $Path
+            return [pscustomobject]@{
+                value = @([pscustomobject]@{
+                    solutionid = [pscustomobject]@{ uniquename = 'crmshow_DataModel' }
+                })
+            }
+        }
+
+        Assert-SolutionOwnership `
+            ([pscustomobject]@{ roleid = '11111111-1111-1111-1111-111111111111' }) `
+            'crmshow_DataModel' 'existing role'
+
+        $script:ownershipPath | Should -Match (
+            'objectid eq 11111111-1111-1111-1111-111111111111'
+        )
 
         Should -Invoke Invoke-DataverseRequest -Times 1 -Exactly -ParameterFilter {
             $Method -eq 'GET' -and
@@ -1645,6 +1677,11 @@ Describe 'Insurance Foundation reconciliation' {
                     description=[string]$role.metadata.description.'1033'
                 }) }
             }
+            if ($Method -eq 'GET' -and $Path -like '/solutioncomponents?*') {
+                return [pscustomobject]@{ value = @([pscustomobject]@{
+                    solutionid = [pscustomobject]@{ uniquename = $role.solution }
+                }) }
+            }
             if ($Method -eq 'GET' -and
                 $Path -match "^/EntityDefinitions\(LogicalName='([^']+)'\)") {
                 $logicalName = $Matches[1]
@@ -1714,6 +1751,11 @@ Describe 'Insurance Foundation reconciliation' {
                 return [pscustomobject]@{ value = @([pscustomobject]@{
                     roleid=$roleId; name=$role.name
                     description=[string]$role.metadata.description.'1033'
+                }) }
+            }
+            if ($Method -eq 'GET' -and $Path -like '/solutioncomponents?*') {
+                return [pscustomobject]@{ value = @([pscustomobject]@{
+                    solutionid = [pscustomobject]@{ uniquename = $role.solution }
                 }) }
             }
             if ($Method -eq 'GET' -and

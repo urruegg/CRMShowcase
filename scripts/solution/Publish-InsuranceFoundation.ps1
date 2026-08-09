@@ -773,6 +773,8 @@ function Assert-SolutionOwnership {
         ([string]$Existing.MetadataId).Trim('{}')
     } elseif ($Existing.savedqueryid) {
         ([string]$Existing.savedqueryid).Trim('{}')
+    } elseif ($Existing.roleid) {
+        ([string]$Existing.roleid).Trim('{}')
     }
     if ($componentId -and
         $Existing.PSObject.Properties.Name -notcontains 'SolutionUniqueName') {
@@ -1551,7 +1553,7 @@ function Invoke-RoleReconciliation {
         }
     }
     $escapedName = $Role.name.Replace("'", "''")
-    $existing = Get-One "/roles?`$select=roleid,name,description,_businessunitid_value,_solutionid_value&`$filter=name eq '$escapedName' and _parentrootroleid_value eq null"
+    $existing = Get-One "/roles?`$select=roleid,name,description,_businessunitid_value&`$filter=name eq '$escapedName' and _parentrootroleid_value eq null"
     if ($null -eq $existing) {
         $businessUnit = Get-One "/businessunits?`$select=businessunitid&`$filter=parentbusinessunitid eq null"
         if ($null -eq $businessUnit -or -not $businessUnit.businessunitid) {
