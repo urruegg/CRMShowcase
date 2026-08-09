@@ -12,6 +12,20 @@ BeforeAll {
         -EnvironmentUrl 'https://unit.crm.dynamics.com' `
         -OutputDirectory (Join-Path (Get-PSDrive -Name TestDrive).Root 'dot-source')
 
+    function script:Assert-SafeDiagnosticLine {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [string]$Text,
+
+            [int]$MaxLength = 600
+        )
+
+        $Text | Should -Not -Match '[\x00-\x1F\x7F-\x9F]'
+        $Text | Should -Not -Match '(^|[\r\n])::'
+        $Text.Length | Should -BeLessThan ($MaxLength + 1)
+    }
+
     function script:New-ExportTestContext {
         [CmdletBinding()]
         param()
@@ -90,7 +104,12 @@ if (-not [string]::IsNullOrWhiteSpace($env:TEST_EXPORT_PAC_INTERFERENCE_FILE)) {
 }
 
 if ($env:TEST_EXPORT_PAC_FAIL_FILE -eq $fileName) {
-    Write-Output "simulated export failure for $fileName"
+    if (-not [string]::IsNullOrWhiteSpace($env:TEST_EXPORT_PAC_FAIL_TEXT)) {
+        Write-Error $env:TEST_EXPORT_PAC_FAIL_TEXT -ErrorAction Continue
+    }
+    else {
+        Write-Output "simulated export failure for $fileName"
+    }
     exit 19
 }
 
@@ -194,6 +213,7 @@ exit 0
             [switch]$WhatIf,
 
             [string]$FailFile,
+            [string]$FailText,
             [string]$ZeroByteFile,
             [string]$SkipFile,
             [string]$InterferenceFile
@@ -202,6 +222,7 @@ exit 0
         $previousPacPath = $env:POWERPLATFORMTOOLS_PACPATH
         $previousLogPath = $env:TEST_EXPORT_PAC_LOG_PATH
         $previousFailFile = $env:TEST_EXPORT_PAC_FAIL_FILE
+        $previousFailText = $env:TEST_EXPORT_PAC_FAIL_TEXT
         $previousZeroByteFile = $env:TEST_EXPORT_PAC_ZERO_BYTE_FILE
         $previousSkipFile = $env:TEST_EXPORT_PAC_SKIP_FILE
         $previousInterferenceFile = $env:TEST_EXPORT_PAC_INTERFERENCE_FILE
@@ -215,6 +236,13 @@ exit 0
             }
             else {
                 $env:TEST_EXPORT_PAC_FAIL_FILE = $FailFile
+            }
+
+            if ([string]::IsNullOrWhiteSpace($FailText)) {
+                Remove-Item Env:TEST_EXPORT_PAC_FAIL_TEXT -ErrorAction SilentlyContinue
+            }
+            else {
+                $env:TEST_EXPORT_PAC_FAIL_TEXT = $FailText
             }
 
             if ([string]::IsNullOrWhiteSpace($ZeroByteFile)) {
@@ -283,6 +311,13 @@ exit 0
             }
             else {
                 $env:TEST_EXPORT_PAC_FAIL_FILE = $previousFailFile
+            }
+
+            if ($null -eq $previousFailText) {
+                Remove-Item Env:TEST_EXPORT_PAC_FAIL_TEXT -ErrorAction SilentlyContinue
+            }
+            else {
+                $env:TEST_EXPORT_PAC_FAIL_TEXT = $previousFailText
             }
 
             if ($null -eq $previousZeroByteFile) {
@@ -729,6 +764,31 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
         Test-Path -LiteralPath $invocation.OutputDirectory | Should -BeFalse
         Test-Path -LiteralPath $stagingDirectories[0] | Should -BeFalse
         @(script:Get-ContextDirectoryPaths -Context $context).Count | Should -Be 0
+    }
+
+    It 'emits a single safe pac export failure without raw command formatting' {
+        $context = script:New-ExportTestContext
+        script:New-FakePacCommand -Path $context.PacPath | Out-Null
+        $escape = [char]27
+
+        $invocation = script:Invoke-ExportEntryScript `
+            -Context $context `
+            -FailFile 'crmshow_DataModel_managed.zip' `
+            -FailText (
+                "::warning::export transport`r`nPermission denied`t" +
+                "$escape[31mblocked$escape[0m"
+            )
+
+        $invocation.ExitCode | Should -Be 1
+        script:Assert-SafeDiagnosticLine -Text $invocation.Output -MaxLength 450
+        $invocation.Output | Should -Match 'pac solution export failed'
+        $invocation.Output | Should -Match 'crmshow_DataModel_managed\.zip'
+        $invocation.Output | Should -Match (
+            [regex]::Escape(
+                "Output: '::warning::export transport Permission denied blocked"
+            )
+        )
+        $invocation.Output | Should -Not -Match 'At line:|--environment|--name|--path'
     }
 
     It 'zero-byte validation failure leaves zero final files' {

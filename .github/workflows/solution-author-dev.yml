@@ -45,6 +45,7 @@ jobs:
           $targeted = Invoke-Pester -Path @(
             (Join-Path $root 'scripts/solution/tests/InsuranceFoundationContract.Tests.ps1'),
             (Join-Path $root 'scripts/solution/tests/Publish-InsuranceFoundation.Tests.ps1'),
+            (Join-Path $root 'scripts/solution/tests/ConvertTo-SafeCliDiagnosticLine.Tests.ps1'),
             (Join-Path $root 'scripts/solution/tests/Get-InsuranceAuthoringPreflightFailureMessage.Tests.ps1'),
             (Join-Path $root 'scripts/solution/tests/Test-InsuranceAuthoringPreflight.Tests.ps1'),
             (Join-Path $root 'scripts/solution/tests/Test-InsuranceSecurityRoles.Tests.ps1'),

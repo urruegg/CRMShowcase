@@ -22,6 +22,8 @@ param(
     [string]$OutputDirectory
 )
 
+. (Join-Path $PSScriptRoot 'ConvertTo-SafeCliDiagnosticLine.ps1')
+
 $ErrorActionPreference = 'Stop'
 
 function Get-InsuranceFoundationExports {
@@ -633,10 +635,7 @@ function Invoke-InsuranceFoundationPackageExport {
             $output = & $pacCommand @arguments 2>&1
             $exitCode = $LASTEXITCODE
             if ($exitCode -ne 0) {
-                $detail = ($output | Out-String).Trim()
-                if ([string]::IsNullOrWhiteSpace($detail)) {
-                    $detail = '<no output>'
-                }
+                $detail = ConvertTo-SafeCliDiagnosticLine -Value $output
 
                 throw (
                     "pac solution export failed for '{0}' (solution '{1}', " +
@@ -685,23 +684,29 @@ function Invoke-InsuranceFoundationPackageExportEntry {
 }
 
 if ($MyInvocation.InvocationName -ne '.') {
-    $target = Resolve-InsuranceFoundationPackageExportTarget `
-        -EnvironmentUrl $EnvironmentUrl `
-        -OutputDirectory $OutputDirectory
-    $packageSummary = ((
-            Get-InsuranceFoundationExports |
-                ForEach-Object {
-                    '{0} ({1})' -f $_.File, ($(if ([bool]$_.Managed) { 'managed' } else { 'unmanaged' }))
-                }
-        ) -join ', ')
+    try {
+        $target = Resolve-InsuranceFoundationPackageExportTarget `
+            -EnvironmentUrl $EnvironmentUrl `
+            -OutputDirectory $OutputDirectory
+        $packageSummary = ((
+                Get-InsuranceFoundationExports |
+                    ForEach-Object {
+                        '{0} ({1})' -f $_.File, ($(if ([bool]$_.Managed) { 'managed' } else { 'unmanaged' }))
+                    }
+            ) -join ', ')
 
-    Invoke-InsuranceFoundationPackageExportEntry `
-        -EnvironmentUrl $target.EnvironmentUrl `
-        -OutputDirectory $target.OutputDirectory `
-        -ApprovalGranted:$(
-            $PSCmdlet.ShouldProcess(
-                $target.OutputDirectory,
-                "Export four reviewed packages: $packageSummary"
+        Invoke-InsuranceFoundationPackageExportEntry `
+            -EnvironmentUrl $target.EnvironmentUrl `
+            -OutputDirectory $target.OutputDirectory `
+            -ApprovalGranted:$(
+                $PSCmdlet.ShouldProcess(
+                    $target.OutputDirectory,
+                    "Export four reviewed packages: $packageSummary"
+                )
             )
-        )
+    }
+    catch {
+        Write-SafeCliErrorLine -ErrorRecord $_
+        exit 1
+    }
 }

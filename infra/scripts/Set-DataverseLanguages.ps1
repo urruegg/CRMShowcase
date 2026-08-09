@@ -18,6 +18,8 @@ param(
     [int[]]$LocaleId
 )
 
+. (Join-Path $PSScriptRoot '..\..\scripts\solution\ConvertTo-SafeCliDiagnosticLine.ps1')
+
 $ErrorActionPreference = 'Stop'
 $script:SupportedLocaleIds = @(1031, 1033, 1036, 1040)
 
@@ -118,9 +120,10 @@ function Invoke-DataverseRest {
             )
         }
 
-        $result = & az @arguments
+        $result = & az @arguments 2>&1
         if ($LASTEXITCODE -ne 0) {
-            throw "Dataverse request failed: $Method $Url."
+            $detail = ConvertTo-SafeCliDiagnosticLine -Value $result
+            throw "Dataverse request failed: $Method $Url. Output: $detail"
         }
         if ($result) {
             return $result | ConvertFrom-Json
@@ -172,7 +175,13 @@ function Invoke-DataverseLanguageReconciliation {
 }
 
 if ($MyInvocation.InvocationName -ne '.') {
-    $baseUrl = $EnvironmentUrl.TrimEnd('/')
-    $requiredLocaleIds = Get-NormalizedLocaleIds -LocaleId $LocaleId
-    Invoke-DataverseLanguageReconciliation -BaseUrl $baseUrl -RequiredLocaleId $requiredLocaleIds
+    try {
+        $baseUrl = $EnvironmentUrl.TrimEnd('/')
+        $requiredLocaleIds = Get-NormalizedLocaleIds -LocaleId $LocaleId
+        Invoke-DataverseLanguageReconciliation -BaseUrl $baseUrl -RequiredLocaleId $requiredLocaleIds
+    }
+    catch {
+        Write-SafeCliErrorLine -ErrorRecord $_
+        exit 1
+    }
 }

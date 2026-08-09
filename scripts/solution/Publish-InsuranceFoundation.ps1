@@ -14,6 +14,8 @@ param(
     [string]$Scope = 'Demo'
 )
 
+. (Join-Path $PSScriptRoot 'ConvertTo-SafeCliDiagnosticLine.ps1')
+
 $ErrorActionPreference = 'Stop'
 $script:DataverseBaseUrl = $EnvironmentUrl.TrimEnd('/')
 $script:ContractFile = $ContractPath
@@ -71,8 +73,8 @@ function Invoke-DataverseRequest {
         $output = & az @arguments 2>&1
         $exitCode = $LASTEXITCODE
         if ($exitCode -ne 0) {
-            $detail = ($output | Out-String).Trim()
-            throw "Dataverse request failed ($Method $Path); az rest exited with code $exitCode. $detail"
+            $detail = ConvertTo-SafeCliDiagnosticLine -Value $output
+            throw "Dataverse request failed ($Method $Path); az rest exited with code $exitCode. Output: $detail"
         }
         if (-not [string]::IsNullOrWhiteSpace(($output | Out-String))) {
             return ($output | Out-String) | ConvertFrom-Json
@@ -2474,7 +2476,7 @@ if ($MyInvocation.InvocationName -ne '.') {
         $contract = Test-InsuranceFoundationContract -Path $ContractPath
         Invoke-InsuranceFoundationReconciliation -Contract $contract -Scope $Scope
     } catch {
-        Write-Error $_
+        Write-SafeCliErrorLine -ErrorRecord $_
         exit 1
     }
 }

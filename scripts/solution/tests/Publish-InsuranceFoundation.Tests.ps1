@@ -5,6 +5,20 @@ BeforeAll {
     . $script:publisherPath -EnvironmentUrl 'https://unit.crm.dynamics.com' -ContractPath $script:contractPath
     $script:contract = Get-Content $script:contractPath -Raw | ConvertFrom-Json
 
+    function script:Assert-SafeDiagnosticLine {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [string]$Text,
+
+            [int]$MaxLength = 600
+        )
+
+        $Text | Should -Not -Match '[\x00-\x1F\x7F-\x9F]'
+        $Text | Should -Not -Match '(^|[\r\n])::'
+        $Text.Length | Should -BeLessThan ($MaxLength + 1)
+    }
+
     function Get-ContractTableByLogicalName {
         param([Parameter(Mandatory)] [string]$LogicalName)
         return @($script:contract.tables | Where-Object logicalName -eq $LogicalName)[0]
@@ -743,16 +757,35 @@ Describe 'az rest transport' {
         Get-GlobalOptionSet 'crmshow_accounttype' | Should -BeNullOrEmpty
     }
 
-    It 'does not hide a non-404 Dataverse error emitted by az on stderr' {
+    It 'sanitizes hostile non-404 Dataverse stderr without leaking command formatting' {
+        $escape = [char]27
         function global:az {
-            Write-Error 'ERROR: {"error":{"code":"0x80040265","message":"Permission denied"}}' `
-                -ErrorAction Continue
+            Write-Error (
+                "::warning::publish transport`r`n" +
+                'ERROR: {"error":{"code":"0x80040265","message":"Permission denied"}}' +
+                "`t$escape[31mblocked$escape[0m"
+            ) -ErrorAction Continue
             $global:LASTEXITCODE = 4
         }
 
-        {
-            Get-GlobalOptionSet 'crmshow_accounttype'
-        } | Should -Throw '*exited with code 4*Permission denied*'
+        $message = $null
+        try {
+            Get-GlobalOptionSet 'crmshow_accounttype' | Out-Null
+            throw 'Expected transport failure.'
+        }
+        catch {
+            $message = $_.Exception.Message
+        }
+
+        script:Assert-SafeDiagnosticLine -Text $message -MaxLength 400
+        $message | Should -Match 'exited with code 4'
+        $message | Should -Match 'crmshow_accounttype'
+        $message | Should -Match 'Permission denied'
+        $message | Should -Match 'blocked'
+        $message | Should -Match (
+            [regex]::Escape("Output: '::warning::publish transport")
+        )
+        $message | Should -Not -Match 'At line:|--body|--headers|--method|--url|--resource'
     }
 }
 
@@ -4563,6 +4596,7 @@ function pac { throw 'pac was called' }
         $expectedSuites = @(
             'scripts/solution/tests/InsuranceFoundationContract.Tests.ps1'
             'scripts/solution/tests/Publish-InsuranceFoundation.Tests.ps1'
+            'scripts/solution/tests/ConvertTo-SafeCliDiagnosticLine.Tests.ps1'
             'scripts/solution/tests/Get-InsuranceAuthoringPreflightFailureMessage.Tests.ps1'
             'scripts/solution/tests/Test-InsuranceAuthoringPreflight.Tests.ps1'
             'scripts/solution/tests/Test-InsuranceSecurityRoles.Tests.ps1'

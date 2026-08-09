@@ -13,6 +13,8 @@ param(
     [string]$ContractPath
 )
 
+. (Join-Path $PSScriptRoot 'ConvertTo-SafeCliDiagnosticLine.ps1')
+
 $ErrorActionPreference = 'Stop'
 $script:SupportedAuthoringRoles = @('System Customizer', 'System Administrator')
 
@@ -269,8 +271,8 @@ function Invoke-PreflightDataverseRequest {
     $output = & az @arguments 2>&1
     $exitCode = $LASTEXITCODE
     if ($exitCode -ne 0) {
-        $detail = ($output | Out-String).Trim()
-        throw "Dataverse preflight transport failed (GET $Path); az rest exited with code $exitCode. $detail"
+        $detail = ConvertTo-SafeCliDiagnosticLine -Value $output
+        throw "Dataverse preflight transport failed (GET $Path); az rest exited with code $exitCode. Output: $detail"
     }
 
     $text = ($output | Out-String).Trim()
@@ -405,26 +407,32 @@ function Invoke-InsuranceAuthoringPreflight {
 }
 
 if ($MyInvocation.InvocationName -ne '.') {
-    if ([string]::IsNullOrWhiteSpace($EnvironmentUrl)) {
-        throw 'EnvironmentUrl is required.'
-    }
-    if ([string]::IsNullOrWhiteSpace($ContractPath)) {
-        throw 'ContractPath is required.'
-    }
-    if (-not (Test-Path -LiteralPath $ContractPath -PathType Leaf)) {
-        throw "ContractPath was not found: $ContractPath"
-    }
+    try {
+        if ([string]::IsNullOrWhiteSpace($EnvironmentUrl)) {
+            throw 'EnvironmentUrl is required.'
+        }
+        if ([string]::IsNullOrWhiteSpace($ContractPath)) {
+            throw 'ContractPath is required.'
+        }
+        if (-not (Test-Path -LiteralPath $ContractPath -PathType Leaf)) {
+            throw "ContractPath was not found: $ContractPath"
+        }
 
-    $contract = Get-Content -LiteralPath $ContractPath -Raw -Encoding UTF8 |
-        ConvertFrom-Json -ErrorAction Stop
-    $result = Invoke-InsuranceAuthoringPreflight `
-        -EnvironmentUrl $EnvironmentUrl `
-        -Contract $contract
-    $result | ConvertTo-Json -Depth 10
+        $contract = Get-Content -LiteralPath $ContractPath -Raw -Encoding UTF8 |
+            ConvertFrom-Json -ErrorAction Stop
+        $result = Invoke-InsuranceAuthoringPreflight `
+            -EnvironmentUrl $EnvironmentUrl `
+            -Contract $contract
+        $result | ConvertTo-Json -Depth 10
 
-    if ($result.State -eq 'Ready') {
-        exit 0
+        if ($result.State -eq 'Ready') {
+            exit 0
+        }
+
+        exit 2
     }
-
-    exit 2
+    catch {
+        Write-SafeCliErrorLine -ErrorRecord $_
+        exit 1
+    }
 }

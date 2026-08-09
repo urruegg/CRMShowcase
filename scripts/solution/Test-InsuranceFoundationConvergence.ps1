@@ -14,6 +14,8 @@ param(
     [string]$ContractPath
 )
 
+. (Join-Path $PSScriptRoot 'ConvertTo-SafeCliDiagnosticLine.ps1')
+
 $ErrorActionPreference = 'Stop'
 $script:ConvergenceBlockingStatePriority = @(
     'ContractConflict',
@@ -996,8 +998,8 @@ function Invoke-ConvergenceDataverseRequest {
     $output = & az @arguments 2>&1
     $exitCode = $LASTEXITCODE
     if ($exitCode -ne 0) {
-        $detail = ($output | Out-String).Trim()
-        throw "Dataverse convergence transport failed (GET $Path); az rest exited with code $exitCode. $detail"
+        $detail = ConvertTo-SafeCliDiagnosticLine -Value $output
+        throw "Dataverse convergence transport failed (GET $Path); az rest exited with code $exitCode. Output: $detail"
     }
 
     $text = ($output | Out-String).Trim()
@@ -3650,7 +3652,7 @@ if ($MyInvocation.InvocationName -ne '.') {
         }
     }
     catch {
-        Write-Error $_
+        Write-SafeCliErrorLine -ErrorRecord $_
         exit 1
     }
 }

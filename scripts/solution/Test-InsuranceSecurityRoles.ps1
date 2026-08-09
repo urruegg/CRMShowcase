@@ -14,6 +14,8 @@ param(
     [string]$ContractPath
 )
 
+. (Join-Path $PSScriptRoot 'ConvertTo-SafeCliDiagnosticLine.ps1')
+
 $ErrorActionPreference = 'Stop'
 
 function ConvertTo-ODataStringLiteral {
@@ -136,8 +138,8 @@ function Invoke-InsuranceSecurityRoleDataverseRequest {
     $output = & az @arguments 2>&1
     $exitCode = $LASTEXITCODE
     if ($exitCode -ne 0) {
-        $detail = ($output | Out-String).Trim()
-        throw "Dataverse security-role verification failed (GET $Path); az rest exited with code $exitCode. $detail"
+        $detail = ConvertTo-SafeCliDiagnosticLine -Value $output
+        throw "Dataverse security-role verification failed (GET $Path); az rest exited with code $exitCode. Output: $detail"
     }
 
     $text = ($output | Out-String).Trim()
@@ -746,7 +748,7 @@ if ($MyInvocation.InvocationName -ne '.') {
         exit 2
     }
     catch {
-        Write-Error $_
+        Write-SafeCliErrorLine -ErrorRecord $_
         exit 1
     }
 }

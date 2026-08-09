@@ -12,6 +12,20 @@ BeforeAll {
     $script:contract = Get-Content -LiteralPath $script:contractPath -Raw -Encoding UTF8 |
         ConvertFrom-Json
 
+    function script:Assert-SafeDiagnosticLine {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [string]$Text,
+
+            [int]$MaxLength = 600
+        )
+
+        $Text | Should -Not -Match '[\x00-\x1F\x7F-\x9F]'
+        $Text | Should -Not -Match '(^|[\r\n])::'
+        $Text.Length | Should -BeLessThan ($MaxLength + 1)
+    }
+
     function script:Clone-Object {
         [CmdletBinding()]
         param(
@@ -267,6 +281,15 @@ else {
     $path = $url
 }
 
+$escape = [char]27
+if ($env:TEST_INSURANCE_SECURITY_ROLES_SCENARIO -eq 'TransportFailure') {
+    Write-Error (
+        "::warning::security roles transport`r`nPermission denied`t" +
+        "$escape[31mblocked$escape[0m"
+    ) -ErrorAction Continue
+    exit 9
+}
+
 $readerRoleId = '11111111-1111-1111-1111-111111111111'
 $stewardRoleId = '22222222-2222-2222-2222-222222222222'
 
@@ -418,7 +441,7 @@ switch ($path) {
         [CmdletBinding()]
         param(
             [Parameter(Mandatory)]
-            [ValidateSet('Ready', 'MissingRole', 'LowerCaseRoleName')]
+            [ValidateSet('Ready', 'MissingRole', 'LowerCaseRoleName', 'TransportFailure')]
             [string]$Scenario
         )
 
@@ -444,14 +467,21 @@ switch ($path) {
             }
             $env:TEST_INSURANCE_SECURITY_ROLES_SCENARIO = $Scenario
 
-            $output = & $script:childPowerShellPath `
-                -NoLogo `
-                -NoProfile `
-                -NonInteractive `
-                -File $script:verifierPath `
-                -EnvironmentUrl 'https://unit.crm.dynamics.com' `
-                -ContractPath $contractPath 2>&1
-            $exitCode = $LASTEXITCODE
+            $previousErrorActionPreference = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            try {
+                $output = & $script:childPowerShellPath `
+                    -NoLogo `
+                    -NoProfile `
+                    -NonInteractive `
+                    -File $script:verifierPath `
+                    -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+                    -ContractPath $contractPath 2>&1
+                $exitCode = $LASTEXITCODE
+            }
+            finally {
+                $ErrorActionPreference = $previousErrorActionPreference
+            }
         }
         finally {
             $env:PATH = $previousPath
@@ -508,18 +538,40 @@ Describe 'Invoke-InsuranceSecurityRoleDataverseRequest' {
         )
     }
 
-    It 'throws a transport error with the GET path and az output on nonzero exit' {
+    It 'sanitizes hostile az output on nonzero exit' {
+        $escape = [char]27
         function global:az {
+            Write-Error (
+                "::warning::security roles transport`r`nPermission denied`t" +
+                "$escape[31mblocked$escape[0m"
+            ) -ErrorAction Continue
             $global:LASTEXITCODE = 9
-            'Permission denied'
         }
 
-        {
+        $message = $null
+        try {
             Invoke-InsuranceSecurityRoleDataverseRequest `
                 -Method GET `
                 -EnvironmentUrl 'https://unit.crm.dynamics.com' `
                 -Path '/roles'
-        } | Should -Throw '*GET /roles*Permission denied*'
+            throw 'Expected transport failure.'
+        }
+        catch {
+            $message = $_.Exception.Message
+        }
+
+        script:Assert-SafeDiagnosticLine -Text $message -MaxLength 400
+        $message | Should -Match (
+            [regex]::Escape(
+                "Dataverse security-role verification failed (GET /roles); az rest exited with code 9."
+            )
+        )
+        $message | Should -Match (
+            [regex]::Escape(
+                "Output: '::warning::security roles transport Permission denied blocked"
+            )
+        )
+        $message | Should -Not -Match 'At line:|--method|--url|--resource'
     }
 }
 
@@ -1001,6 +1053,21 @@ Describe 'Security-role verifier direct entry point' {
                     "Root security role query for contract name 'CRM Showcase Insurance Data Steward' returned name 'crm showcase insurance data steward'; exact case-sensitive identity match is required."
                 )
             }).Count | Should -Be 1
+    }
+
+    It 'emits a single safe error line and exits one on hostile az transport failure' {
+        $invocation = script:Invoke-SecurityRolesEntryScript -Scenario TransportFailure
+
+        $invocation.ExitCode | Should -Be 1
+        script:Assert-SafeDiagnosticLine -Text $invocation.Output -MaxLength 450
+        $invocation.Output | Should -Match 'Dataverse security-role verification failed'
+        $invocation.Output | Should -Match '/roles\?\$select=roleid,name'
+        $invocation.Output | Should -Match (
+            [regex]::Escape(
+                "'::warning::security roles transport Permission denied blocked"
+            )
+        )
+        $invocation.Output | Should -Not -Match 'At line:|--method|--url|--resource'
     }
 }
 

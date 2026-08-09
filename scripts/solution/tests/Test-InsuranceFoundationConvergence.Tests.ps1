@@ -18,6 +18,20 @@ BeforeAll {
     $script:manifest = Get-Manifest -Path $script:manifestPath -Validate
     $script:languages = @('1033', '1031', '1036', '1040')
 
+    function script:Assert-SafeDiagnosticLine {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [string]$Text,
+
+            [int]$MaxLength = 600
+        )
+
+        $Text | Should -Not -Match '[\x00-\x1F\x7F-\x9F]'
+        $Text | Should -Not -Match '(^|[\r\n])::'
+        $Text.Length | Should -BeLessThan ($MaxLength + 1)
+    }
+
     function script:Clone-Object {
         [CmdletBinding()]
         param(
@@ -1071,7 +1085,11 @@ else {
 }
 
 if ($env:TEST_INSURANCE_CONVERGENCE_SCENARIO -eq 'TransportFailure') {
-    Write-Error 'Synthetic az transport failure.'
+    $escape = [char]27
+    Write-Error (
+        "::warning::convergence transport`r`nSynthetic az transport failure.`t" +
+        "$escape[31mblocked$escape[0m"
+    ) -ErrorAction Continue
     exit 1
 }
 
@@ -2736,7 +2754,15 @@ Describe 'Convergence direct entry point' {
         $invocation = script:Invoke-ConvergenceEntryScript -Scenario TransportFailure
 
         $invocation.ExitCode | Should -Be 1
-        $invocation.Output | Should -Match 'Synthetic az transport failure|Dataverse convergence transport failed'
+        script:Assert-SafeDiagnosticLine -Text $invocation.Output -MaxLength 450
+        $invocation.Output | Should -Match 'Dataverse convergence transport failed'
+        $invocation.Output | Should -Match '/RetrieveProvisionedLanguages\(\)'
+        $invocation.Output | Should -Match (
+            [regex]::Escape(
+                "'::warning::convergence transport Synthetic az transport failure. blocked"
+            )
+        )
+        $invocation.Output | Should -Not -Match 'At line:|--method|--url|--resource'
         { $invocation.Output | ConvertFrom-Json -ErrorAction Stop } |
             Should -Throw
     }
