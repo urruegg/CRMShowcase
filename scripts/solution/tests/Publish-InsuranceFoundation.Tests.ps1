@@ -245,8 +245,12 @@ Describe 'Insurance Foundation request builders' {
             $fetch | Should -Match 'distinct="true"'
             $fetch | Should -Match "<link-entity name=`"$($table.logicalName)`""
             ([regex]::Matches($fetch, 'operator="null"')).Count | Should -Be 2
-            $fetch | Should -Match 'valueof="a\.crmshow_validfrom"'
-            $fetch | Should -Match 'valueof="a\.crmshow_validto"'
+            $fetch | Should -Match 'valueof="b\.crmshow_validfrom"'
+            $fetch | Should -Match 'valueof="b\.crmshow_validto"'
+            $fetch | Should -Not -Match 'valueof="a\.'
+            [xml]$document = $fetch
+            $document.fetch.entity.'link-entity'.filter |
+                Should -BeNullOrEmpty
         }
     }
 

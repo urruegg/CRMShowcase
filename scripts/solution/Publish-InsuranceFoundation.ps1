@@ -463,16 +463,16 @@ function ConvertTo-FetchXml {
         }
         $primaryId = "$($Table.logicalName)id"
         $sameGroup = @($groupColumns[1..($groupColumns.Count - 1)] | ForEach-Object {
-            "<condition attribute=`"$_`" operator=`"eq`" valueof=`"a.$_`" />"
+            "<condition attribute=`"$_`" operator=`"eq`" valueof=`"b.$_`" />"
         }) -join ''
-        "<link-entity name=`"$($Table.logicalName)`" from=`"$($groupColumns[0])`" to=`"$($groupColumns[0])`" alias=`"b`">" +
+        "<link-entity name=`"$($Table.logicalName)`" from=`"$($groupColumns[0])`" to=`"$($groupColumns[0])`" alias=`"b`" />" +
         "<filter type=`"and`">$sameGroup" +
-        "<condition attribute=`"$primaryId`" operator=`"gt`" valueof=`"a.$primaryId`" />" +
+        "<condition attribute=`"$primaryId`" operator=`"lt`" valueof=`"b.$primaryId`" />" +
         "<filter type=`"or`"><condition attribute=`"crmshow_validto`" operator=`"null`" />" +
-        "<condition attribute=`"crmshow_validto`" operator=`"ge`" valueof=`"a.crmshow_validfrom`" /></filter>" +
-        "<filter type=`"or`"><condition entityname=`"a`" attribute=`"crmshow_validto`" operator=`"null`" />" +
-        "<condition attribute=`"crmshow_validfrom`" operator=`"le`" valueof=`"a.crmshow_validto`" /></filter>" +
-        '</filter></link-entity>'
+        "<condition attribute=`"crmshow_validto`" operator=`"ge`" valueof=`"b.crmshow_validfrom`" /></filter>" +
+        "<filter type=`"or`"><condition entityname=`"b`" attribute=`"crmshow_validto`" operator=`"null`" />" +
+        "<condition attribute=`"crmshow_validfrom`" operator=`"le`" valueof=`"b.crmshow_validto`" /></filter>" +
+        '</filter>'
     } else { '' }
     $distinct = if ($View.purpose -eq 'OverlapReporting') { ' distinct="true"' } else { '' }
     return "<fetch version=`"1.0`"$distinct><entity name=`"$($Table.logicalName)`" alias=`"a`">$attributes$filter</entity></fetch>"
