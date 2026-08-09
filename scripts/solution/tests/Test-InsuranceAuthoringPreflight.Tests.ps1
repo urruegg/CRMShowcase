@@ -2,9 +2,198 @@ BeforeAll {
     $script:repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../../..')).Path
     $script:contractPath = Join-Path $script:repoRoot 'solution/schema/insurance-foundation.json'
     $script:preflightPath = Join-Path $script:repoRoot 'scripts/solution/Test-InsuranceAuthoringPreflight.ps1'
+    $script:childPowerShellPath = if (Get-Command pwsh -ErrorAction SilentlyContinue) {
+        (Get-Command pwsh -ErrorAction Stop).Source
+    }
+    else {
+        (Get-Command powershell -ErrorAction Stop).Source
+    }
     . $script:preflightPath -EnvironmentUrl 'https://unit.crm.dynamics.com' -ContractPath $script:contractPath
     $script:contract = Get-Content -LiteralPath $script:contractPath -Raw -Encoding UTF8 |
         ConvertFrom-Json
+
+function script:New-PreflightEntryContract {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$RootPath
+    )
+
+    $contract = [ordered]@{
+        languages = @(1033, 1031, 1036, 1040)
+        solutions = @('crmshow_Foundation', 'crmshow_DataModel')
+        roles     = @(
+            [ordered]@{ name = 'CRM Showcase Insurance Reader' },
+            [ordered]@{ name = 'CRM Showcase Insurance Data Steward' }
+        )
+    }
+
+    $path = Join-Path $RootPath 'insurance-authoring-entry-contract.json'
+    Set-Content -LiteralPath $path -Value ($contract | ConvertTo-Json -Depth 10) -Encoding UTF8
+    return $path
+}
+
+function script:New-PreflightAzShim {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$RootPath
+    )
+    $shimScriptPath = Join-Path $RootPath 'az.ps1'
+
+    $shimScript = @'
+param(
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$Arguments
+)
+
+$ErrorActionPreference = 'Stop'
+
+function Get-ArgumentValue {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string[]]$InputArguments,
+
+        [Parameter(Mandatory)]
+        [string]$Name
+    )
+
+    $index = [Array]::IndexOf($InputArguments, $Name)
+    if ($index -lt 0 -or $index -ge ($InputArguments.Count - 1)) {
+        throw "Missing required argument: $Name"
+    }
+
+    return $InputArguments[$index + 1]
+}
+
+function Write-Json {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        $Value
+    )
+
+    $Value | ConvertTo-Json -Compress -Depth 10
+}
+
+$url = Get-ArgumentValue -InputArguments $Arguments -Name '--url'
+$prefix = '/api/data/v9.2'
+$prefixIndex = $url.IndexOf($prefix, [System.StringComparison]::OrdinalIgnoreCase)
+if ($prefixIndex -ge 0) {
+    $path = $url.Substring($prefixIndex + $prefix.Length)
+}
+else {
+    $path = $url
+}
+
+$roles = @(
+    [pscustomobject]@{
+        roleid = '00000000-0000-0000-0000-000000000001'
+        name   = 'CRM Showcase Insurance Reader'
+    }
+)
+if ($env:TEST_INSURANCE_PREFLIGHT_SCENARIO -ne 'MissingRoles') {
+    $roles += [pscustomobject]@{
+        roleid = '00000000-0000-0000-0000-000000000002'
+        name   = 'CRM Showcase Insurance Data Steward'
+    }
+}
+
+switch ($path) {
+    '/WhoAmI' {
+        Write-Json ([pscustomobject]@{
+                UserId = '11111111-1111-1111-1111-111111111111'
+            })
+        exit 0
+    }
+    '/systemusers(11111111-1111-1111-1111-111111111111)/systemuserroles_association?$select=name' {
+        Write-Json ([pscustomobject]@{
+                value = @(
+                    [pscustomobject]@{ name = 'System Customizer' }
+                )
+            })
+        exit 0
+    }
+    '/RetrieveProvisionedLanguages()' {
+        Write-Json ([pscustomobject]@{
+                RetrieveProvisionedLanguages = @(1033, 1031, 1036, 1040)
+            })
+        exit 0
+    }
+    '/solutions?$select=uniquename&$filter=uniquename eq ''crmshow_Foundation'' or uniquename eq ''crmshow_DataModel''' {
+        Write-Json ([pscustomobject]@{
+                value = @(
+                    [pscustomobject]@{ uniquename = 'crmshow_Foundation' },
+                    [pscustomobject]@{ uniquename = 'crmshow_DataModel' }
+                )
+            })
+        exit 0
+    }
+    '/roles?$select=roleid,name&$filter=_parentrootroleid_value eq null and (name eq ''CRM Showcase Insurance Reader'' or name eq ''CRM Showcase Insurance Data Steward'')' {
+        Write-Json ([pscustomobject]@{
+                value = @($roles)
+            })
+        exit 0
+    }
+    default {
+        Write-Error "Unexpected az rest URL: $url"
+        exit 1
+    }
+}
+'@
+
+    Set-Content -LiteralPath $shimScriptPath -Value $shimScript -Encoding UTF8
+}
+
+function script:Invoke-PreflightEntryScript {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet('Ready', 'MissingRoles')]
+        [string]$Scenario
+    )
+
+    $testRoot = Join-Path (Get-PSDrive -Name TestDrive).Root ([guid]::NewGuid().Guid)
+    $null = New-Item -ItemType Directory -Path $testRoot -Force
+
+    $contractPath = script:New-PreflightEntryContract -RootPath $testRoot
+    script:New-PreflightAzShim -RootPath $testRoot
+
+    $previousPath = $env:PATH
+    $previousScenario = [Environment]::GetEnvironmentVariable(
+        'TEST_INSURANCE_PREFLIGHT_SCENARIO',
+        'Process'
+    )
+
+    try {
+        $env:PATH = "$testRoot;$previousPath"
+        $env:TEST_INSURANCE_PREFLIGHT_SCENARIO = $Scenario
+
+        $output = & $script:childPowerShellPath `
+            -NoLogo `
+            -NoProfile `
+            -NonInteractive `
+            -File $script:preflightPath `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -ContractPath $contractPath 2>&1
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $env:PATH = $previousPath
+        if ($null -eq $previousScenario) {
+            Remove-Item Env:TEST_INSURANCE_PREFLIGHT_SCENARIO -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:TEST_INSURANCE_PREFLIGHT_SCENARIO = $previousScenario
+        }
+    }
+
+    return [pscustomobject]@{
+        ExitCode = $exitCode
+        Output   = (@($output | ForEach-Object { $_.ToString() }) -join [Environment]::NewLine).Trim()
+    }
+}
 }
 
 Describe 'Get-InsuranceAuthoringPhaseState' {
@@ -267,6 +456,44 @@ Describe 'Invoke-InsuranceAuthoringPreflight' {
             'CRM Showcase Insurance Reader',
             'CRM Showcase Insurance Data Steward'
         )
+    }
+
+    It 'keeps State ready but reconciles when only LCID 1033 is provisioned' {
+        $script:provisionedLanguages = @(1033)
+
+        $result = Invoke-InsuranceAuthoringPreflight `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Contract $script:contract
+
+        $result.State | Should -Be 'Ready'
+        $result.LanguagesReady | Should -BeFalse
+        $result.LanguageAction | Should -Be 'Reconcile'
+        $result.MutationOccurred | Should -BeFalse
+    }
+}
+
+Describe 'Preflight direct entry point' {
+    It 'emits ready JSON and exits zero when preflight is ready' {
+        $invocation = script:Invoke-PreflightEntryScript -Scenario Ready
+
+        $invocation.ExitCode | Should -Be 0
+        { $invocation.Output | ConvertFrom-Json -ErrorAction Stop } | Should -Not -Throw
+
+        $result = $invocation.Output | ConvertFrom-Json -ErrorAction Stop
+        $result.State | Should -Be 'Ready'
+        $result.MutationOccurred | Should -BeFalse
+    }
+
+    It 'emits classified non-ready JSON and exits two when root roles are missing' {
+        $invocation = script:Invoke-PreflightEntryScript -Scenario MissingRoles
+
+        $invocation.ExitCode | Should -Be 2
+        { $invocation.Output | ConvertFrom-Json -ErrorAction Stop } | Should -Not -Throw
+
+        $result = $invocation.Output | ConvertFrom-Json -ErrorAction Stop
+        $result.State | Should -Be 'ManualPrerequisite'
+        $result.RolesReady | Should -BeFalse
+        @($result.MissingRoles) | Should -Be @('CRM Showcase Insurance Data Steward')
     }
 }
 
