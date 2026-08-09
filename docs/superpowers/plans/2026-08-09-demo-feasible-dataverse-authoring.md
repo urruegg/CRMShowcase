@@ -30,6 +30,7 @@ The administrator role prerequisite is intentionally a gate:
 | Path | Responsibility |
 | --- | --- |
 | `docs/adr/ADR-0023-demo-feasible-dataverse-bootstrap.md` | Records demo boundary and target bootstrap hypothesis |
+| `docs/adr/README.md` | Registers ADR-0023 in the numbering guidance, proposed list, and index |
 | `docs/BACKLOG.md` | Updates US-702/US-708 scope, defers US-709 follow-up evidence, and preserves issue links |
 | `scripts/solution/Test-InsuranceAuthoringPreflight.ps1` | Read-only environment, role, solution, and phase feasibility checks |
 | `scripts/solution/tests/Test-InsuranceAuthoringPreflight.Tests.ps1` | Preflight result and no-mutation tests |
@@ -49,6 +50,7 @@ The administrator role prerequisite is intentionally a gate:
 
 **Files:**
 - Create: `docs/adr/ADR-0023-demo-feasible-dataverse-bootstrap.md`
+- Modify: `docs/adr/README.md` (register ADR-0023 in the ADR range/index)
 - Modify: `docs/BACKLOG.md` (US-702/US-708 wording and US-709 deferral)
 - Modify: `docs/superpowers/specs/2026-08-08-insurance-foundation-design.md`
 
@@ -133,17 +135,37 @@ promotion requires a different permission model.
   changing the schema contract.
 ```
 
-- [ ] **Step 2: Update Sprint 3 backlog wording**
+- [ ] **Step 2: Register ADR-0023 in the ADR README**
+
+In `docs/adr/README.md`, update the domain-and-delivery numbering range and
+ADR index so ADR-0023 is discoverable and the next allocation remains clear:
+
+```markdown
+- **Domain and delivery ADRs (0006–0023)** record the CRM Frontier Firm design position on the
+  illustrated insurance vertical: party model, portfolio placement, thin CRM over
+  the engines, consent, event cascade, jurisdiction eligibility, GA territory,
+  agents-advisory, voice, outbound, ALM, analytics split, and demo-feasible
+  Dataverse bootstrap boundaries.
+
+`0024` is allocated; use the next available sequence number for any new ADR.
+
+| [0023](./ADR-0023-demo-feasible-dataverse-bootstrap.md) | Demo-feasible Dataverse bootstrap and steady-state identities | A8 | Proposed hypothesis |
+
+ADRs 0011, 0012, 0013, 0017, 0018, 0019, 0020, and 0023 remain proposed until
+confirmed with customer architecture in the next review.
+```
+
+- [ ] **Step 3: Update Sprint 3 backlog wording**
 
 In `docs/BACKLOG.md`, change the affected Epic 7 rows to:
 
 ```markdown
 | US-702 | Deliver shared insurance choices; create security roles through the approved DEV administrator prerequisite and verify them in CI | In progress - [#8](https://github.com/urruegg/CRMShowcase/issues/8), [#40](https://github.com/urruegg/CRMShowcase/issues/40) |
 | US-708 | Author and export unmanaged/managed packages from DEV; managed TEST promotion is a separate solution-versioning sprint | In progress - [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
-| US-709 | Load synthetic fixtures and publish persona security smoke evidence after managed TEST promotion | Deferred - separate follow-up after the solution-versioning sprint - [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
+| US-709 | Load synthetic fixtures and publish persona security smoke evidence after managed TEST promotion | Deferred - included in the separate solution-versioning and managed TEST-promotion sprint - [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
 ```
 
-- [ ] **Step 3: Align the original Sprint 3 specification**
+- [ ] **Step 4: Align the original Sprint 3 specification**
 
 Add this note after the Outcome section in
 `docs/superpowers/specs/2026-08-08-insurance-foundation-design.md`:
@@ -160,21 +182,21 @@ Add this note after the Outcome section in
 > security smoke tests remain separate follow-up work.
 ```
 
-- [ ] **Step 4: Validate documentation**
+- [ ] **Step 5: Validate documentation**
 
 Run:
 
 ```powershell
 git diff --check
-rg "TBD|TODO|placeholder" docs/adr/ADR-0023-demo-feasible-dataverse-bootstrap.md
+rg "TBD|TODO|placeholder" docs/adr/ADR-0023-demo-feasible-dataverse-bootstrap.md docs/adr/README.md
 ```
 
 Expected: `git diff --check` exits 0 and `rg` returns no matches.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```powershell
-git add docs/adr/ADR-0023-demo-feasible-dataverse-bootstrap.md docs/BACKLOG.md docs/superpowers/specs/2026-08-08-insurance-foundation-design.md
+git add docs/adr/ADR-0023-demo-feasible-dataverse-bootstrap.md docs/adr/README.md docs/BACKLOG.md docs/superpowers/specs/2026-08-08-insurance-foundation-design.md
 git commit -m "docs(sprint-3): scope demo-feasible Dataverse bootstrap (US-702)"
 ```
 
