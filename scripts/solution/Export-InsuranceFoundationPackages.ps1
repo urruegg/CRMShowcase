@@ -290,32 +290,128 @@ function Get-InsuranceFoundationOutputDirectoryParent {
     return [System.IO.Path]::GetFullPath($parentPath)
 }
 
-function New-InsuranceFoundationPackageStagingDirectory {
+function Resolve-InsuranceFoundationPackageExportTarget {
     [CmdletBinding()]
     param(
+        [Parameter(Mandatory)]
+        [string]$EnvironmentUrl,
+
         [Parameter(Mandatory)]
         [string]$OutputDirectory
     )
 
-    $parentPath = Get-InsuranceFoundationOutputDirectoryParent `
-        -OutputDirectory $OutputDirectory
-    if (-not (Test-Path -LiteralPath $parentPath -PathType Container)) {
-        New-Item -ItemType Directory -Path $parentPath -Force | Out-Null
+    if ([string]::IsNullOrWhiteSpace($EnvironmentUrl)) {
+        throw 'EnvironmentUrl is required.'
+    }
+    if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
+        throw 'OutputDirectory is required.'
     }
 
-    $leafName = Split-Path -Path $OutputDirectory -Leaf
-    if ([string]::IsNullOrWhiteSpace($leafName)) {
-        $leafName = 'insurance-foundation-packages'
+    $resolvedOutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
+    Assert-InsuranceFoundationOutputDirectorySafety `
+        -OutputDirectory $resolvedOutputDirectory
+
+    $outputDirectoryParent = Get-InsuranceFoundationOutputDirectoryParent `
+        -OutputDirectory $resolvedOutputDirectory
+    if (Test-Path -LiteralPath $outputDirectoryParent) {
+        if (-not (Test-Path -LiteralPath $outputDirectoryParent -PathType Container)) {
+            throw "OutputDirectory parent is not a directory: $outputDirectoryParent"
+        }
     }
 
-    do {
-        $stagingDirectory = Join-Path `
-            $parentPath `
-            ('{0}.staging.{1}' -f $leafName, [guid]::NewGuid().Guid)
-    } while (Test-Path -LiteralPath $stagingDirectory)
+    return [pscustomobject][ordered]@{
+        EnvironmentUrl        = $EnvironmentUrl
+        OutputDirectory       = $resolvedOutputDirectory
+        OutputDirectoryParent = $outputDirectoryParent
+    }
+}
 
-    New-Item -ItemType Directory -Path $stagingDirectory -Force | Out-Null
-    return $stagingDirectory
+function Remove-InsuranceFoundationCreatedOutputDirectoryParent {
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [string]$Path,
+
+        [AllowNull()]
+        [string]$ExpectedPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return
+    }
+    if ([string]::IsNullOrWhiteSpace($ExpectedPath)) {
+        return
+    }
+
+    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    $resolvedExpectedPath = [System.IO.Path]::GetFullPath($ExpectedPath)
+    if ($resolvedPath -cne $resolvedExpectedPath) {
+        return
+    }
+
+    if (-not (Test-Path -LiteralPath $resolvedPath -PathType Container)) {
+        return
+    }
+
+    $entries = @(Get-InsuranceFoundationDirectoryEntries -Path $resolvedPath)
+    if ($entries.Count -gt 0) {
+        return
+    }
+
+    Remove-Item -LiteralPath $resolvedPath -Force
+}
+
+function New-InsuranceFoundationPackageStagingDirectory {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$OutputDirectory,
+
+        [Parameter(Mandatory)]
+        [string]$OutputDirectoryParent
+    )
+
+    $parentPath = [System.IO.Path]::GetFullPath($OutputDirectoryParent)
+    $createdOutputDirectoryParent = $null
+    $stagingDirectory = $null
+
+    try {
+        if (Test-Path -LiteralPath $parentPath) {
+            if (-not (Test-Path -LiteralPath $parentPath -PathType Container)) {
+                throw "OutputDirectory parent is not a directory: $parentPath"
+            }
+        }
+        else {
+            New-Item -ItemType Directory -Path $parentPath -Force | Out-Null
+            $createdOutputDirectoryParent = $parentPath
+        }
+
+        $leafName = Split-Path -Path $OutputDirectory -Leaf
+        if ([string]::IsNullOrWhiteSpace($leafName)) {
+            $leafName = 'insurance-foundation-packages'
+        }
+
+        do {
+            $stagingDirectory = Join-Path `
+                $parentPath `
+                ('{0}.staging.{1}' -f $leafName, [guid]::NewGuid().Guid)
+        } while (Test-Path -LiteralPath $stagingDirectory)
+
+        New-Item -ItemType Directory -Path $stagingDirectory -Force | Out-Null
+
+        return [pscustomobject][ordered]@{
+            StagingDirectory             = $stagingDirectory
+            OutputDirectoryParent        = $parentPath
+            CreatedOutputDirectoryParent = $createdOutputDirectoryParent
+        }
+    }
+    catch {
+        Remove-InsuranceFoundationStagingDirectory -Path $stagingDirectory
+        Remove-InsuranceFoundationCreatedOutputDirectoryParent `
+            -Path $createdOutputDirectoryParent `
+            -ExpectedPath $parentPath
+        throw
+    }
 }
 
 function Assert-InsuranceFoundationStagingDirectory {
@@ -413,24 +509,23 @@ function Invoke-InsuranceFoundationPackageExport {
         [string]$OutputDirectory
     )
 
-    if ([string]::IsNullOrWhiteSpace($EnvironmentUrl)) {
-        throw 'EnvironmentUrl is required.'
-    }
-    if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
-        throw 'OutputDirectory is required.'
-    }
-
-    $resolvedOutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
-    Assert-InsuranceFoundationOutputDirectorySafety `
-        -OutputDirectory $resolvedOutputDirectory
+    $target = Resolve-InsuranceFoundationPackageExportTarget `
+        -EnvironmentUrl $EnvironmentUrl `
+        -OutputDirectory $OutputDirectory
+    $resolvedOutputDirectory = $target.OutputDirectory
+    $outputDirectoryParent = $target.OutputDirectoryParent
 
     $exports = @(Get-InsuranceFoundationExports)
     $pacCommand = $null
     $stagingDirectory = $null
+    $createdOutputDirectoryParent = $null
 
     try {
-        $stagingDirectory = New-InsuranceFoundationPackageStagingDirectory `
-            -OutputDirectory $resolvedOutputDirectory
+        $stagingDirectoryInfo = New-InsuranceFoundationPackageStagingDirectory `
+            -OutputDirectory $resolvedOutputDirectory `
+            -OutputDirectoryParent $outputDirectoryParent
+        $stagingDirectory = [string]$stagingDirectoryInfo.StagingDirectory
+        $createdOutputDirectoryParent = [string]$stagingDirectoryInfo.CreatedOutputDirectoryParent
 
         foreach ($export in $exports) {
             $packagePath = Join-Path $stagingDirectory $export.File
@@ -475,6 +570,9 @@ function Invoke-InsuranceFoundationPackageExport {
     }
     finally {
         Remove-InsuranceFoundationStagingDirectory -Path $stagingDirectory
+        Remove-InsuranceFoundationCreatedOutputDirectoryParent `
+            -Path $createdOutputDirectoryParent `
+            -ExpectedPath $outputDirectoryParent
     }
 }
 
@@ -501,7 +599,9 @@ function Invoke-InsuranceFoundationPackageExportEntry {
 }
 
 if ($MyInvocation.InvocationName -ne '.') {
-    $resolvedOutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
+    $target = Resolve-InsuranceFoundationPackageExportTarget `
+        -EnvironmentUrl $EnvironmentUrl `
+        -OutputDirectory $OutputDirectory
     $packageSummary = ((
             Get-InsuranceFoundationExports |
                 ForEach-Object {
@@ -510,11 +610,11 @@ if ($MyInvocation.InvocationName -ne '.') {
         ) -join ', ')
 
     Invoke-InsuranceFoundationPackageExportEntry `
-        -EnvironmentUrl $EnvironmentUrl `
-        -OutputDirectory $resolvedOutputDirectory `
+        -EnvironmentUrl $target.EnvironmentUrl `
+        -OutputDirectory $target.OutputDirectory `
         -ApprovalGranted:$(
             $PSCmdlet.ShouldProcess(
-                $resolvedOutputDirectory,
+                $target.OutputDirectory,
                 "Export four reviewed packages: $packageSummary"
             )
         )

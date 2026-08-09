@@ -591,6 +591,31 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
         $existingItems | Should -Contain 'keep-dir'
     }
 
+    It 'fails WhatIf target preflight against a nonempty target and does not invoke pac' {
+        $context = script:New-ExportTestContext
+        script:New-FakePacCommand -Path $context.PacPath | Out-Null
+        New-Item -ItemType Directory -Path $context.OutputDirectory -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $context.OutputDirectory 'keep.txt') -Value 'x'
+        New-Item -ItemType Directory -Path (Join-Path $context.OutputDirectory 'keep-dir') -Force | Out-Null
+
+        $invocation = script:Invoke-ExportEntryScript -Context $context -WhatIf
+
+        $invocation.ExitCode | Should -Not -Be 0
+        $invocation.Output | Should -Match 'already contains item'
+        $invocation.Output | Should -Match 'keep\.txt'
+        $invocation.Output | Should -Match 'keep-dir'
+        @($invocation.Invocations).Count | Should -Be 0
+
+        $existingItems = @(
+            Get-ChildItem -LiteralPath $context.OutputDirectory -Force |
+                ForEach-Object { $_.Name } |
+                Sort-Object
+        )
+        $existingItems.Count | Should -Be 2
+        $existingItems | Should -Contain 'keep.txt'
+        $existingItems | Should -Contain 'keep-dir'
+    }
+
     It 'runs successfully as a standalone entry point with a fake pac command' {
         $context = script:New-ExportTestContext
         script:New-FakePacCommand -Path $context.PacPath | Out-Null
@@ -656,8 +681,50 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
         @(script:Get-ContextDirectoryPaths -Context $context).Count | Should -Be 0
     }
 
+    It 'removes a freshly created output parent after a nested failure' {
+        $context = script:New-ExportTestContext
+        $outputParent = Join-Path $context.RootPath 'fresh-parent'
+        $context.OutputDirectory = Join-Path $outputParent 'out'
+        script:New-FakePacCommand -Path $context.PacPath | Out-Null
+
+        $invocation = script:Invoke-ExportEntryScript `
+            -Context $context `
+            -FailFile 'crmshow_DataModel_managed.zip'
+
+        $invocation.ExitCode | Should -Not -Be 0
+        $invocation.Output | Should -Match 'crmshow_DataModel_managed.zip'
+        $invocation.Output | Should -Match 'simulated export failure'
+        @($invocation.Invocations).Count | Should -Be 4
+        Test-Path -LiteralPath $context.OutputDirectory | Should -BeFalse
+        Test-Path -LiteralPath $outputParent | Should -BeFalse
+        @(script:Get-ContextDirectoryPaths -Context $context).Count | Should -Be 0
+    }
+
+    It 'preserves a pre-existing empty output parent after failure' {
+        $context = script:New-ExportTestContext
+        $outputParent = Join-Path $context.RootPath 'existing-parent'
+        $null = New-Item -ItemType Directory -Path $outputParent -Force
+        $context.OutputDirectory = Join-Path $outputParent 'out'
+        script:New-FakePacCommand -Path $context.PacPath | Out-Null
+
+        $invocation = script:Invoke-ExportEntryScript `
+            -Context $context `
+            -FailFile 'crmshow_DataModel_managed.zip'
+
+        $invocation.ExitCode | Should -Not -Be 0
+        @($invocation.Invocations).Count | Should -Be 4
+        Test-Path -LiteralPath $context.OutputDirectory | Should -BeFalse
+        Test-Path -LiteralPath $outputParent | Should -BeTrue
+        @(Get-ChildItem -LiteralPath $outputParent -Force).Count | Should -Be 0
+        @(script:Get-ContextDirectoryPaths -Context $context) | Should -Be @(
+            $outputParent
+        )
+    }
+
     It 'does not invoke pac or fail a final package assertion when run with WhatIf' {
         $context = script:New-ExportTestContext
+        $outputParent = Join-Path $context.RootPath 'whatif-parent'
+        $context.OutputDirectory = Join-Path $outputParent 'out'
         script:New-FakePacCommand -Path $context.PacPath | Out-Null
 
         $invocation = script:Invoke-ExportEntryScript -Context $context -WhatIf
@@ -665,6 +732,7 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
         $invocation.ExitCode | Should -Be 0
         @($invocation.Invocations).Count | Should -Be 0
         Test-Path -LiteralPath $invocation.OutputDirectory | Should -BeFalse
+        Test-Path -LiteralPath $outputParent | Should -BeFalse
         @(script:Get-ContextDirectoryPaths -Context $context).Count | Should -Be 0
         $invocation.Output | Should -Not -Match 'Unexpected authored package set'
     }
