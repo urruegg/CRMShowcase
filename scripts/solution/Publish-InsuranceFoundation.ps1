@@ -102,13 +102,13 @@ function Wait-DataverseCondition {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     while ($true) {
         $result = & $Condition
-        if ($null -ne $result) {
-            return $result
-        }
-
         $now = Get-Date
         if ($now -ge $deadline) {
             throw "EventualConsistencyTimeout: component '$Component' did not converge within $TimeoutSeconds seconds."
+        }
+
+        if ($null -ne $result) {
+            return $result
         }
 
         $remainingSeconds = [int][Math]::Ceiling(($deadline - $now).TotalSeconds)
@@ -1089,22 +1089,172 @@ function Get-TypedAttributeMetadata {
     )
 }
 
+function Get-UniqueMetadataStrings {
+    [CmdletBinding()]
+    param([string[]]$Values)
+
+    $unique = [System.Collections.Generic.List[string]]::new()
+    $seen = @{}
+    foreach ($value in @($Values)) {
+        $candidate = [string]$value
+        if ([string]::IsNullOrWhiteSpace($candidate)) { continue }
+        if ($seen.ContainsKey($candidate)) { continue }
+        $seen[$candidate] = $true
+        $unique.Add($candidate) | Out-Null
+    }
+    return @($unique)
+}
+
+function Resolve-ContractColumnLogicalName {
+    [CmdletBinding()]
+    param(
+        $Table,
+        [string]$LogicalName,
+        [string]$SchemaName
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$LogicalName)) {
+        return [string]$LogicalName
+    }
+    if ($null -eq $Table -or
+        [string]::IsNullOrWhiteSpace([string]$SchemaName)) {
+        return $null
+    }
+
+    $matches = @($Table.columns | Where-Object {
+        $_.schemaName -eq $SchemaName
+    })
+    if ($matches.Count -gt 1) {
+        throw "Column schema '$SchemaName' was ambiguous in table '$($Table.logicalName)'."
+    }
+    if ($matches.Count -eq 1) {
+        return [string]$matches[0].logicalName
+    }
+    return $null
+}
+
+function Get-RequestSubmittedAttributeLogicalNames {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] $Request,
+        $Table
+    )
+
+    $candidates = [System.Collections.Generic.List[string]]::new()
+    if ($null -eq $Request.Body) {
+        return @()
+    }
+
+    $candidates.Add(
+        (Resolve-ContractColumnLogicalName -Table $Table `
+            -LogicalName $Request.Body.PrimaryNameAttribute)
+    ) | Out-Null
+    foreach ($attribute in @($Request.Body.Attributes)) {
+        if ($null -eq $attribute) { continue }
+        $candidates.Add(
+            (Resolve-ContractColumnLogicalName -Table $Table `
+                -LogicalName $attribute.LogicalName `
+                -SchemaName $attribute.SchemaName)
+        ) | Out-Null
+    }
+    $requestLookup = $Request.Body.Lookup
+    if ($null -ne $requestLookup) {
+        $candidates.Add(
+            (Resolve-ContractColumnLogicalName -Table $Table `
+                -LogicalName $requestLookup.LogicalName `
+                -SchemaName $requestLookup.SchemaName)
+        ) | Out-Null
+    }
+    foreach ($relationship in @($Request.Body.OneToManyRelationships)) {
+        if ($null -eq $relationship) { continue }
+        $relationshipLookup = $relationship.Lookup
+        if ($null -eq $relationshipLookup) {
+            continue
+        }
+        $candidates.Add(
+            (Resolve-ContractColumnLogicalName -Table $Table `
+                -LogicalName $relationshipLookup.LogicalName `
+                -SchemaName $relationshipLookup.SchemaName)
+        ) | Out-Null
+    }
+
+    return Get-UniqueMetadataStrings -Values @($candidates)
+}
+
+function Get-RequestSubmittedRelationshipSchemas {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] $Request)
+
+    if ($null -eq $Request.Body) {
+        return @()
+    }
+
+    $schemas = foreach ($relationship in @($Request.Body.OneToManyRelationships)) {
+        if ($null -eq $relationship) { continue }
+        if ([string]::IsNullOrWhiteSpace([string]$relationship.SchemaName)) {
+            continue
+        }
+        [string]$relationship.SchemaName
+    }
+    return Get-UniqueMetadataStrings -Values @($schemas)
+}
+
+function Get-TableContractAttributeLogicalNames {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] $Table)
+
+    return Get-UniqueMetadataStrings -Values @(
+        $Table.columns | ForEach-Object { [string]$_.logicalName }
+    )
+}
+
 function Get-TableMetadataSnapshot {
     [CmdletBinding()]
-    param([Parameter(Mandatory)] [string]$LogicalName)
+    param(
+        [Parameter(Mandatory)] [string]$LogicalName,
+        [string[]]$RequestedAttributeLogicalNames
+    )
 
     $escapedLogicalName = ConvertTo-ODataKeyString $LogicalName
+    $requestedAttributeLogicalNames = @(Get-UniqueMetadataStrings `
+        -Values $RequestedAttributeLogicalNames)
+    $requestedAttributeLookup = @{}
+    foreach ($requestedAttributeLogicalName in $requestedAttributeLogicalNames) {
+        $requestedAttributeLookup[$requestedAttributeLogicalName] = $true
+    }
+    $attributeExpand = (
+        "Attributes(`$select=MetadataId,LogicalName,SchemaName," +
+        'AttributeType,DisplayName,Description'
+    )
+    if ($requestedAttributeLogicalNames.Count -gt 0) {
+        $attributeFilter = @(
+            $requestedAttributeLogicalNames | ForEach-Object {
+                "LogicalName eq '$(
+                    ConvertTo-ODataKeyString ([string]$_)
+                )'"
+            }
+        ) -join ' or '
+        $attributeExpand += ";`$filter=$attributeFilter"
+    }
+    $attributeExpand += ')'
     $existing = Get-One (
         "/EntityDefinitions?" +
         "`$select=MetadataId,LogicalName,SchemaName,OwnershipType," +
         "PrimaryNameAttribute,IsAuditEnabled,DisplayName,Description,ObjectTypeCode&" +
-        "`$expand=Attributes(`$select=MetadataId,LogicalName,SchemaName,AttributeType,DisplayName,Description)," +
+        "`$expand=$attributeExpand," +
         "ManyToOneRelationships(`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute,CascadeConfiguration)&" +
         "`$filter=LogicalName eq '$escapedLogicalName'"
     )
     if ($null -eq $existing) { return $null }
 
-    $normalizedAttributes = foreach ($attribute in @($existing.Attributes)) {
+    $baseAttributes = @($existing.Attributes)
+    if ($requestedAttributeLookup.Count -gt 0) {
+        $baseAttributes = @($baseAttributes | Where-Object {
+            $requestedAttributeLookup.ContainsKey([string]$_.LogicalName)
+        })
+    }
+
+    $normalizedAttributes = foreach ($attribute in $baseAttributes) {
         $columnType = switch ([string]$attribute.AttributeType) {
             'String' { 'Text' }
             'Picklist' { 'GlobalChoice' }
@@ -1176,12 +1326,15 @@ function Wait-TableMetadataSnapshot {
     param(
         [Parameter(Mandatory)] $Table,
         [Parameter(Mandatory)] [string]$Component,
-        [scriptblock]$Ready
+        [scriptblock]$Ready,
+        [string[]]$RequestedAttributeLogicalNames
     )
 
     return Wait-DataverseCondition -Component $Component -Condition {
         try {
-            $snapshot = Get-TableMetadataSnapshot $Table.logicalName
+            $snapshot = Get-TableMetadataSnapshot `
+                -LogicalName $Table.logicalName `
+                -RequestedAttributeLogicalNames $RequestedAttributeLogicalNames
         } catch {
             if ($_.Exception.Message -like '*typed metadata is unavailable*') {
                 return $null
@@ -1205,11 +1358,31 @@ function Get-InitialTableCreateOrdinaryRelationships {
 
 function Wait-InitialTableCreateTableSnapshot {
     [CmdletBinding()]
-    param([Parameter(Mandatory)] $Table)
-
-    $relationships = @(
-        Get-InitialTableCreateOrdinaryRelationships -Table $Table
+    param(
+        [Parameter(Mandatory)] $Table,
+        [Parameter(Mandatory)] $TableCreateRequest,
+        [string[]]$RequestedAttributeLogicalNames
     )
+
+    $initialAttributeLogicalNames = @(
+        Get-RequestSubmittedAttributeLogicalNames `
+            -Request $TableCreateRequest -Table $Table
+    )
+    $relationshipSchemas = @(
+        Get-RequestSubmittedRelationshipSchemas -Request $TableCreateRequest
+    )
+    $relationships = foreach ($relationshipSchema in $relationshipSchemas) {
+        $matches = @($Table.relationships | Where-Object {
+            $_.schemaName -eq $relationshipSchema
+        })
+        if ($matches.Count -ne 1) {
+            throw (
+                "Initial create relationship '$relationshipSchema' must " +
+                "resolve one table relationship contract."
+            )
+        }
+        $matches[0]
+    }
     $component = if ($relationships.Count -eq 0) {
         $Table.logicalName
     } else {
@@ -1219,8 +1392,21 @@ function Wait-InitialTableCreateTableSnapshot {
     }
 
     return Wait-TableMetadataSnapshot -Table $Table `
-        -Component $component -Ready {
+        -Component $component `
+        -RequestedAttributeLogicalNames $RequestedAttributeLogicalNames `
+        -Ready {
             param($candidate)
+            foreach ($attributeLogicalName in $initialAttributeLogicalNames) {
+                $attributeMatches = @($candidate.Attributes | Where-Object {
+                    $_.LogicalName -eq $attributeLogicalName
+                })
+                if ($attributeMatches.Count -gt 1) {
+                    throw "Duplicate physical attributes found for '$($Table.logicalName)/$attributeLogicalName'."
+                }
+                if ($attributeMatches.Count -ne 1) {
+                    return $false
+                }
+            }
             foreach ($relationship in $relationships) {
                 if (-not (Test-OrdinaryRelationshipVisibility -Table $Table `
                             -Relationship $relationship -Snapshot $candidate)) {
@@ -1312,11 +1498,13 @@ function Wait-OrdinaryRelationshipVisibility {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)] $Table,
-        [Parameter(Mandatory)] $Relationship
+        [Parameter(Mandatory)] $Relationship,
+        [string[]]$RequestedAttributeLogicalNames
     )
 
     return Wait-TableMetadataSnapshot -Table $Table `
         -Component "$($Table.logicalName)/$($Relationship.lookupColumn)" `
+        -RequestedAttributeLogicalNames $RequestedAttributeLogicalNames `
         -Ready {
             param($candidate)
             Test-OrdinaryRelationshipVisibility -Table $Table `
@@ -1718,16 +1906,36 @@ function Invoke-TableReconciliation {
     param($Table)
 
     $tableWasCreated = $false
-    $snapshot = Get-TableMetadataSnapshot $Table.logicalName
+    $requestedAttributeLogicalNames = @(
+        Get-TableContractAttributeLogicalNames -Table $Table
+    )
+    $initialTableCreateAttributeLogicalNames = @()
+    $snapshot = Get-TableMetadataSnapshot `
+        -LogicalName $Table.logicalName `
+        -RequestedAttributeLogicalNames $requestedAttributeLogicalNames
     if ($null -eq $snapshot) {
         $choiceMetadataIds = Get-GlobalChoiceMetadataIds @($Table.columns)
+        $tableCreateRequest = Get-TableCreateRequest $Table $choiceMetadataIds
+        $initialTableCreateAttributeLogicalNames = @(
+            Get-RequestSubmittedAttributeLogicalNames `
+                -Request $tableCreateRequest -Table $Table
+        )
         Invoke-PlannedRequest (
-            Get-TableCreateRequest $Table $choiceMetadataIds
+            $tableCreateRequest
         ) | Out-Null
         $tableWasCreated = $true
         Write-Output "$($Table.logicalName): Created"
         Publish-TableMetadata $Table
-        $snapshot = Wait-InitialTableCreateTableSnapshot -Table $Table
+        $snapshot = Wait-InitialTableCreateTableSnapshot -Table $Table `
+            -TableCreateRequest $tableCreateRequest `
+            -RequestedAttributeLogicalNames $requestedAttributeLogicalNames
+    }
+    $initialTableCreateAttributeLookup = @{}
+    foreach ($initialTableCreateAttributeLogicalName in
+        $initialTableCreateAttributeLogicalNames) {
+        $initialTableCreateAttributeLookup[
+            $initialTableCreateAttributeLogicalName
+        ] = $true
     }
 
     Assert-SolutionOwnership $snapshot $Table.solution $Table.logicalName
@@ -1743,6 +1951,8 @@ function Invoke-TableReconciliation {
         if ($customerCreated) {
             $snapshot = Wait-TableMetadataSnapshot -Table $Table `
                 -Component "$($Table.logicalName)/$($customer.logicalName)" `
+                -RequestedAttributeLogicalNames `
+                    $requestedAttributeLogicalNames `
                 -Ready {
                     param($candidate)
                     $attributeMatches = @($candidate.Attributes | Where-Object {
@@ -1786,7 +1996,9 @@ function Invoke-TableReconciliation {
             )
         if ($lookupCreated) {
             $snapshot = Wait-OrdinaryRelationshipVisibility -Table $Table `
-                -Relationship $relationship
+                -Relationship $relationship `
+                -RequestedAttributeLogicalNames `
+                    $requestedAttributeLogicalNames
             Invoke-ExistingOrdinaryRelationshipReconciliation -Table $Table `
                 -Relationship $relationship -Snapshot $snapshot | Out-Null
         }
@@ -1812,6 +2024,17 @@ function Invoke-TableReconciliation {
             throw "Duplicate physical attributes found for '$($Table.logicalName)/$($column.logicalName)'."
         }
         if ($actual.Count -eq 0) {
+            if ($tableWasCreated -and
+                $initialTableCreateAttributeLookup.ContainsKey(
+                    [string]$column.logicalName
+                )) {
+                throw (
+                    "Structural attribute conflict for " +
+                    "'$($Table.logicalName)/$($column.logicalName)': " +
+                    "current-run InitialTableCreate metadata is absent " +
+                    'after atomic readiness; recovery POST is forbidden.'
+                )
+            }
             if ($column.type -in @('Lookup', 'Customer')) {
                 throw "Structural conflict: lookup '$($column.logicalName)' is missing from existing table '$($Table.logicalName)'; it will not be created or recreated."
             }
