@@ -490,6 +490,7 @@ function New-ViewRequest {
     param($Table, $View, [Parameter(Mandatory)] [int]$ObjectTypeCode)
     return [pscustomobject]@{
         Method = 'POST'; Path = '/savedqueries'; Solution = $Table.solution
+        InheritsSolutionOwnership = $true
         EntityLogicalName = 'savedquery'; IdProperty = 'savedqueryid'
         LocalizedFields = @{
             name = $View.metadata.label
@@ -518,6 +519,7 @@ function New-FormRequest {
     }) -join ''
     return [pscustomobject]@{
         Method = 'POST'; Path = '/systemforms'; Solution = $Table.solution
+        InheritsSolutionOwnership = $true
         EntityLogicalName = 'systemform'; IdProperty = 'formid'
         LocalizedFields = @{
             name = $Form.metadata.label

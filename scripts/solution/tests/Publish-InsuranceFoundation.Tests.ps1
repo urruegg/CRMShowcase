@@ -756,6 +756,7 @@ Describe 'Insurance Foundation reconciliation' {
             (New-FormRequest $table $table.forms[0])
         )
         foreach ($request in $requests) {
+            $request.InheritsSolutionOwnership | Should -BeTrue
             $script:calls.Clear()
             $id = if ($request.EntityLogicalName -eq 'savedquery') {
                 'existing-view'
@@ -776,15 +777,6 @@ Describe 'Insurance Foundation reconciliation' {
                 $script:calls.Add([pscustomobject]@{
                     Method=$Method; Path=$Path; Body=$Body; Headers=$Headers
                 })
-                if ($Method -eq 'GET' -and $Path -match '^/solutioncomponents\?') {
-                    return [pscustomobject]@{
-                        value = @([pscustomobject]@{
-                            solutionid = [pscustomobject]@{
-                                uniquename = $request.Solution
-                            }
-                        })
-                    }
-                }
                 if ($Method -eq 'GET') {
                     return [pscustomobject]@{ value=@($existing) }
                 }
@@ -809,6 +801,9 @@ Describe 'Insurance Foundation reconciliation' {
                 @($repair.Body.Labels.LanguageCode) |
                     Should -Be @(1033, 1031, 1036, 1040)
             }
+            @($script:calls | Where-Object {
+                $_.Method -eq 'GET' -and $_.Path -match '^/solutioncomponents\?'
+            }) | Should -BeNullOrEmpty
         }
     }
 
