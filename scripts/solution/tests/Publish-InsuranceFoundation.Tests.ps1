@@ -4474,6 +4474,11 @@ Describe 'Insurance Foundation table metadata convergence' {
 }
 
 Describe 'Publisher entry point safety' {
+    BeforeAll {
+        $script:authoringWorkflow = Get-Content (Join-Path $script:repoRoot `
+            '.github/workflows/solution-author-dev.yml') -Raw
+    }
+
     It 'does not invoke az or pac when dot-sourced' {
         $text = @'
 function az { throw 'az was called' }
@@ -4484,23 +4489,191 @@ function pac { throw 'pac was called' }
         & ([scriptblock]::Create($text))
     }
 
-    It 'runs all offline tests before authentication and language mutation' {
-        $workflow = Get-Content (Join-Path $script:repoRoot `
-            '.github/workflows/solution-author-dev.yml') -Raw
-        $tests = $workflow.IndexOf('- name: Run offline authoring contract tests')
-        $auth = $workflow.IndexOf('- name: Authenticate Power Platform CLI')
-        $languages = $workflow.IndexOf('- name: Reconcile Dataverse languages')
+    It 'allows manual dispatch only with exact top-level permissions' {
+        $script:authoringWorkflow | Should -Match (
+            '(?ms)^on:\r?\n' +
+            '\s+workflow_dispatch:\s*\{\}\s*\r?\n' +
+            '\r?\npermissions:\r?\n' +
+            '\s+contents:\s+read\r?\n' +
+            '\s+id-token:\s+write\r?\n' +
+            '\r?\njobs:\r?\n'
+        )
+        $script:authoringWorkflow | Should -Not -Match (
+            '(?m)^\s*(pull_request|pull_request_target|push|workflow_run|' +
+            'issue_comment|schedule|repository_dispatch):'
+        )
+    }
+
+    It 'pins the authoring job to ubuntu-latest in the dev environment' {
+        $script:authoringWorkflow | Should -Match (
+            '(?ms)jobs:\r?\n' +
+            '\s+author:\r?\n' +
+            '\s+runs-on:\s+ubuntu-latest\r?\n' +
+            '\s+environment:\s+dev\r?\n'
+        )
+    }
+
+    It 'checks out the reviewed commit without persisting credentials' {
+        $script:authoringWorkflow | Should -Match (
+            '(?ms)- name: Check out reviewed commit\r?\n' +
+            '\s+uses: actions/checkout@[0-9a-f]{40}\s+#\s+v[0-9][^\r\n]*\r?\n' +
+            '\s+with:\r?\n' +
+            '\s+persist-credentials:\s+false\r?\n'
+        )
+    }
+
+    It 'pins every external action to a full commit SHA with a version comment' {
+        $usesMatches = [regex]::Matches(
+            $script:authoringWorkflow,
+            '(?m)^\s+uses:\s+(?<action>[^@\s#]+)@(?<ref>[^\s#]+)(?:\s+#\s+(?<comment>[^\r\n]+))?\s*$'
+        )
+
+        $usesMatches.Count | Should -Be 4
+        foreach ($match in $usesMatches) {
+            $match.Groups['ref'].Value | Should -Match '^[0-9a-f]{40}$'
+            $match.Groups['comment'].Value | Should -Match '^v[0-9]'
+        }
+
+        $script:authoringWorkflow | Should -Not -Match (
+            '(?m)^\s+uses:\s+\S+@(main|master|v[0-9][^\s#]*)\s*$'
+        )
+    }
+
+    It 'runs offline authoring suites before PAC authentication and any mutation' {
+        $tests = $script:authoringWorkflow.IndexOf(
+            '- name: Run offline authoring contract tests'
+        )
+        $pacAuth = $script:authoringWorkflow.IndexOf(
+            '- name: Authenticate Power Platform CLI'
+        )
+        $preflight = $script:authoringWorkflow.IndexOf(
+            '- name: Run authoring preflight'
+        )
+        $languages = $script:authoringWorkflow.IndexOf(
+            '- name: Reconcile Dataverse languages'
+        )
         $tests | Should -BeGreaterOrEqual 0
-        $tests | Should -BeLessThan $auth
+        $tests | Should -BeLessThan $pacAuth
+        $pacAuth | Should -BeLessThan $preflight
+        $preflight | Should -BeLessThan $languages
         $tests | Should -BeLessThan $languages
     }
 
-    It 'runs the Dataverse language tests before mutating the environment' {
-        $workflow = Get-Content (Join-Path $script:repoRoot `
-            '.github/workflows/solution-author-dev.yml') -Raw
+    It 'includes the required targeted offline suites and then the full solution suite' {
+        $expectedSuites = @(
+            'scripts/solution/tests/InsuranceFoundationContract.Tests.ps1'
+            'scripts/solution/tests/Publish-InsuranceFoundation.Tests.ps1'
+            'scripts/solution/tests/Test-InsuranceAuthoringPreflight.Tests.ps1'
+            'scripts/solution/tests/Test-InsuranceSecurityRoles.Tests.ps1'
+            'scripts/solution/tests/Test-InsuranceFoundationConvergence.Tests.ps1'
+            'scripts/solution/tests/Export-InsuranceFoundationPackages.Tests.ps1'
+            'infra/scripts/tests/Set-DataverseLanguages.Tests.ps1'
+        )
 
-        $expected = [regex]::Escape(
-            "(Join-Path `$root 'infra/scripts/tests/Set-DataverseLanguages.Tests.ps1')")
-        $workflow | Should -Match $expected
+        foreach ($suite in $expectedSuites) {
+            $script:authoringWorkflow | Should -Match ([regex]::Escape($suite))
+        }
+
+        $targeted = $script:authoringWorkflow.IndexOf('-Path @(')
+        $full = $script:authoringWorkflow.IndexOf(
+            "Invoke-Pester -Path (Join-Path `$root 'scripts/solution/tests')"
+        )
+        $targeted | Should -BeGreaterOrEqual 0
+        $full | Should -BeGreaterThan $targeted
+    }
+
+    It 'authenticates Azure and PAC with workload federation only' {
+        $script:authoringWorkflow | Should -Match (
+            [regex]::Escape('client-id: ${{ env.AZURE_CLIENT_ID }}')
+        )
+        $script:authoringWorkflow | Should -Match (
+            [regex]::Escape('tenant-id: ${{ env.AZURE_TENANT_ID }}')
+        )
+        $script:authoringWorkflow | Should -Match 'allow-no-subscriptions:\s+true'
+        $script:authoringWorkflow | Should -Match '--githubFederated'
+        $script:authoringWorkflow | Should -Match '--applicationId \$env:AZURE_CLIENT_ID'
+        $script:authoringWorkflow | Should -Match '--tenant \$env:AZURE_TENANT_ID'
+        $script:authoringWorkflow | Should -Not -Match 'client-secret|creds:|password'
+        $script:authoringWorkflow | Should -Not -Match '\${{\s*secrets\.'
+    }
+
+    It 'classifies preflight exit code 2 with runbook guidance before mutation' {
+        $preflight = $script:authoringWorkflow.IndexOf(
+            '- name: Run authoring preflight'
+        )
+        $languages = $script:authoringWorkflow.IndexOf(
+            '- name: Reconcile Dataverse languages'
+        )
+        $metadata = $script:authoringWorkflow.IndexOf(
+            '- name: Reconcile demo-safe metadata'
+        )
+
+        $preflight | Should -BeGreaterOrEqual 0
+        $preflight | Should -BeLessThan $languages
+        $preflight | Should -BeLessThan $metadata
+        $script:authoringWorkflow | Should -Match 'if \(\$exitCode -eq 2\)'
+        $script:authoringWorkflow | Should -Match (
+            [regex]::Escape(
+                'docs/runbooks/insurance-foundation-security-role-bootstrap.md'
+            )
+        )
+        $script:authoringWorkflow | Should -Match 'Test-InsuranceAuthoringPreflight\.ps1'
+    }
+
+    It 'reconciles only demo-safe metadata and never requests full or role authoring' {
+        $script:authoringWorkflow | Should -Match '- name: Reconcile demo-safe metadata'
+        $script:authoringWorkflow | Should -Match '-Scope Demo'
+        $script:authoringWorkflow | Should -Not -Match '-Scope (?:All|SecurityRoles)'
+    }
+
+    It 'validates convergence before exporting and uses the tested export script only' {
+        $validation = $script:authoringWorkflow.IndexOf(
+            '- name: Validate complete demo convergence'
+        )
+        $export = $script:authoringWorkflow.IndexOf(
+            '- name: Export managed and unmanaged solutions'
+        )
+
+        $validation | Should -BeGreaterOrEqual 0
+        $validation | Should -BeLessThan $export
+        $script:authoringWorkflow | Should -Match (
+            'Test-InsuranceFoundationConvergence\.ps1'
+        )
+        $script:authoringWorkflow | Should -Match (
+            'Export-InsuranceFoundationPackages\.ps1'
+        )
+        $script:authoringWorkflow | Should -Not -Match 'pac solution export'
+        $script:authoringWorkflow | Should -Not -Match 'Verify exact authored package set'
+    }
+
+    It 'uploads the exact export directory after export with immutable retention' {
+        $export = $script:authoringWorkflow.IndexOf(
+            '- name: Export managed and unmanaged solutions'
+        )
+        $upload = $script:authoringWorkflow.IndexOf(
+            '- name: Upload authored solution packages'
+        )
+
+        $upload | Should -BeGreaterThan $export
+        $script:authoringWorkflow | Should -Match (
+            [regex]::Escape(
+                'path: ${{ runner.temp }}/insurance-foundation-authoring'
+            )
+        )
+        $script:authoringWorkflow | Should -Not -Match (
+            [regex]::Escape(
+                'path: ${{ runner.temp }}/insurance-foundation-authoring/*.zip'
+            )
+        )
+        $script:authoringWorkflow | Should -Match 'if-no-files-found:\s+error'
+        $script:authoringWorkflow | Should -Match 'retention-days:\s+14'
+    }
+
+    It 'avoids dangerous triggers, event interpolation, and credential inputs' {
+        $script:authoringWorkflow | Should -Not -Match (
+            'pull_request_target|workflow_run|issue_comment'
+        )
+        $script:authoringWorkflow | Should -Not -Match '\${{\s*github\.event\.'
+        $script:authoringWorkflow | Should -Not -Match 'client-secret|password'
     }
 }
