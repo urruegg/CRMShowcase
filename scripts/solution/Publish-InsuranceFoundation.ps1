@@ -757,6 +757,37 @@ function Get-MergeLabelHeaders {
     return $headers
 }
 
+function Wait-SolutionComponentMembership {
+    param(
+        [Parameter(Mandatory)] [string]$ComponentId,
+        [Parameter(Mandatory)] [string]$Expected,
+        [ValidateRange(0, [int]::MaxValue)] [int]$TimeoutSeconds = 600,
+        [ValidateRange(1, [int]::MaxValue)] [int]$PollSeconds = 10
+    )
+
+    $deadline = [DateTimeOffset]::UtcNow.AddSeconds($TimeoutSeconds)
+    while ($true) {
+        $membership = Invoke-DataverseRequest -Method GET -Path (
+            "/solutioncomponents?`$select=solutioncomponentid&" +
+            "`$filter=objectid eq $ComponentId&" +
+            "`$expand=solutionid(`$select=uniquename)"
+        )
+        $solutionNames = @($membership.value | ForEach-Object {
+            if ($_.solutionid) { $_.solutionid.uniquename }
+        })
+        if ($Expected -in $solutionNames) { return }
+
+        $remainingSeconds = ($deadline - [DateTimeOffset]::UtcNow).TotalSeconds
+        if ($remainingSeconds -le 0) {
+            throw "Solution component '$ComponentId' was not added to '$Expected' within $TimeoutSeconds seconds."
+        }
+        Start-Sleep -Seconds ([Math]::Min(
+            $PollSeconds,
+            [Math]::Ceiling($remainingSeconds)
+        ))
+    }
+}
+
 function Assert-SolutionOwnership {
     param(
         $Existing,
@@ -794,17 +825,8 @@ function Assert-SolutionOwnership {
                 AddRequiredComponents = $false
                 DoNotIncludeSubcomponents = $true
             } -Headers (Get-DataverseHeaders $Expected) | Out-Null
-            $membership = Invoke-DataverseRequest -Method GET -Path (
-                "/solutioncomponents?`$select=solutioncomponentid&" +
-                "`$filter=objectid eq $componentId&" +
-                "`$expand=solutionid(`$select=uniquename)"
-            )
-            $solutionNames = @($membership.value | ForEach-Object {
-                if ($_.solutionid) { $_.solutionid.uniquename }
-            })
-            if ($Expected -notin $solutionNames) {
-                throw "Structural ownership conflict for '$Component': repair did not add the component to '$Expected'."
-            }
+            Wait-SolutionComponentMembership -ComponentId $componentId `
+                -Expected $Expected
         }
     }
     if ($Existing._solutionid_value) {
