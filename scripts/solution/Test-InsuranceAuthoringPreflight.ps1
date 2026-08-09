@@ -229,9 +229,10 @@ function Get-RequiredRolesPath {
         [string[]]$RoleName
     )
 
-    $filter = @($RoleName | ForEach-Object {
+    $roleNameFilter = @($RoleName | ForEach-Object {
             "name eq '$(ConvertTo-ODataStringLiteral -Value $_)'"
         }) -join ' or '
+    $filter = "_parentrootroleid_value eq null and ($roleNameFilter)"
 
     return "/roles?`$select=roleid,name&`$filter=$filter"
 }

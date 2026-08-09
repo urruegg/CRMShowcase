@@ -170,7 +170,7 @@ Describe 'Invoke-InsuranceAuthoringPreflight' {
                             })
                     }
                 }
-                "/roles?`$select=roleid,name&`$filter=name eq 'CRM Showcase Insurance Reader' or name eq 'CRM Showcase Insurance Data Steward'" {
+                "/roles?`$select=roleid,name&`$filter=_parentrootroleid_value eq null and (name eq 'CRM Showcase Insurance Reader' or name eq 'CRM Showcase Insurance Data Steward')" {
                     $index = 0
                     return [pscustomobject]@{
                         value = @($script:availableRoles | ForEach-Object {
@@ -213,8 +213,21 @@ Describe 'Invoke-InsuranceAuthoringPreflight' {
             "/systemusers(11111111-1111-1111-1111-111111111111)/systemuserroles_association?`$select=name",
             '/RetrieveProvisionedLanguages()',
             "/solutions?`$select=uniquename&`$filter=uniquename eq 'crmshow_Foundation' or uniquename eq 'crmshow_DataModel'",
-            "/roles?`$select=roleid,name&`$filter=name eq 'CRM Showcase Insurance Reader' or name eq 'CRM Showcase Insurance Data Steward'"
+            "/roles?`$select=roleid,name&`$filter=_parentrootroleid_value eq null and (name eq 'CRM Showcase Insurance Reader' or name eq 'CRM Showcase Insurance Data Steward')"
         )
+    }
+
+    It 'keeps matching mocked root-role endpoint paths with escaped role names' {
+        $script:availableRoles = @('CRM Showcase Insurance Reader', 'CRM Showcase Insurance Data Steward')
+
+        $result = Invoke-InsuranceAuthoringPreflight `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Contract $script:contract
+
+        $result.RolesReady | Should -BeTrue
+        Should -Invoke Invoke-PreflightDataverseRequest -Times 1 -Exactly -ParameterFilter {
+            $Path -eq "/roles?`$select=roleid,name&`$filter=_parentrootroleid_value eq null and (name eq 'CRM Showcase Insurance Reader' or name eq 'CRM Showcase Insurance Data Steward')"
+        }
     }
 
     It 'classifies a missing solution as Precondition' {
