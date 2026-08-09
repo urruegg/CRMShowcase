@@ -975,13 +975,14 @@ Describe 'New-ConvergenceSummary' {
             Should -Be 'Ready'
     }
 
-    It 'prefers ContractConflict over ManualPrerequisite regardless of array order' {
+    It 'preserves the first blocking classification in result order' {
         $summary = New-ConvergenceSummary -Results @(
             [pscustomobject]@{ Component='roles'; State='ManualPrerequisite' },
             [pscustomobject]@{ Component='tables'; State='ContractConflict' }
         )
 
-        $summary.State | Should -Be 'ContractConflict'
+        $summary.State | Should -Be 'ManualPrerequisite'
+        $summary.BlockingComponents | Should -Be @('roles', 'tables')
     }
 
     It 'keeps all blocking components and MutationOccurred false' {
@@ -993,6 +994,34 @@ Describe 'New-ConvergenceSummary' {
 
         $summary.BlockingComponents | Should -Be @('languages', 'roles')
         $summary.MutationOccurred | Should -BeFalse
+    }
+}
+
+Describe 'Test-ConvergenceRetrieveLocLabelsUnsupportedError' {
+    It 'returns true for known endpoint-not-supported semantics' {
+        $errorRecord = $null
+        try {
+            throw "Dataverse convergence transport failed (GET /RetrieveLocLabels(EntityMoniker=@p1,AttributeName=@p2,IncludeUnpublished=@p3)?@p1=x&@p2='name'&@p3=true); az rest exited with code 1. The requested resource does not support HTTP method 'GET'."
+        }
+        catch {
+            $errorRecord = $_
+        }
+
+        Test-ConvergenceRetrieveLocLabelsUnsupportedError -ErrorRecord $errorRecord |
+            Should -BeTrue
+    }
+
+    It 'does not mask ordinary bad requests as UnsupportedInTenant' {
+        $errorRecord = $null
+        try {
+            throw "Dataverse convergence transport failed (GET /RetrieveLocLabels(EntityMoniker=@p1,AttributeName=@p2,IncludeUnpublished=@p3)?@p1=x&@p2='name'&@p3=true); az rest exited with code 1. 400 Bad Request. Request message has unresolved parameters."
+        }
+        catch {
+            $errorRecord = $_
+        }
+
+        Test-ConvergenceRetrieveLocLabelsUnsupportedError -ErrorRecord $errorRecord |
+            Should -BeFalse
     }
 }
 
@@ -1036,12 +1065,11 @@ Describe 'Convergence path builders' {
                 "`$select=formid,name,description,objecttypecode,type,formxml&" +
                 "`$filter=name eq 'O''Reilly Form' and objecttypecode eq 'crmshow_o''reilly' and type eq 2"
             )
+    }
 
+    It 'builds savedquery RetrieveLocLabels paths with @odata.id entity monikers' {
         $expectedEntityMoniker = [System.Uri]::EscapeDataString(
-            ([ordered]@{
-                    '@odata.type' = 'Microsoft.Dynamics.CRM.savedquery'
-                    savedqueryid  = '11111111-1111-1111-1111-111111111111'
-                } | ConvertTo-Json -Compress)
+            '{"@odata.id":"savedqueries(11111111-1111-1111-1111-111111111111)"}'
         )
         Get-ConvergenceRetrieveLocLabelsPath `
             -EntityLogicalName 'savedquery' `
@@ -1053,6 +1081,59 @@ Describe 'Convergence path builders' {
                 "@p2='na''me'&" +
                 '@p3=true'
             )
+    }
+
+    It 'builds systemform RetrieveLocLabels paths with @odata.id entity monikers' {
+        $expectedEntityMoniker = [System.Uri]::EscapeDataString(
+            '{"@odata.id":"systemforms(22222222-2222-2222-2222-222222222222)"}'
+        )
+        Get-ConvergenceRetrieveLocLabelsPath `
+            -EntityLogicalName 'systemform' `
+            -IdProperty 'formid' `
+            -RecordId '{22222222-2222-2222-2222-222222222222}' `
+            -AttributeName 'description' | Should -Be (
+                '/RetrieveLocLabels(EntityMoniker=@p1,AttributeName=@p2,IncludeUnpublished=@p3)?' +
+                "@p1=$expectedEntityMoniker&" +
+                "@p2='description'&" +
+                '@p3=true'
+            )
+    }
+}
+
+Describe 'Convergence fixture paths' {
+    It 'registers savedquery and systemform localized-label paths with @odata.id monikers' {
+        $fixture = script:New-ReadyConvergenceResponseMap `
+            -Contract $script:contract `
+            -Manifest $script:manifest `
+            -Scenario Ready
+
+        $table = $script:contract.tables[0]
+        $view = $table.views[0]
+        $form = $table.forms[0]
+
+        $viewId = [string]$fixture.IdMap["view:$($table.logicalName)/$($view.name)"]
+        $formId = [string]$fixture.IdMap["form:$($table.logicalName)/$($form.name)"]
+        $expectedViewEntityMoniker = [System.Uri]::EscapeDataString(
+            '{"@odata.id":"savedqueries(' + $viewId + ')"}'
+        )
+        $expectedFormEntityMoniker = [System.Uri]::EscapeDataString(
+            '{"@odata.id":"systemforms(' + $formId + ')"}'
+        )
+        $expectedViewPath = (
+            '/RetrieveLocLabels(EntityMoniker=@p1,AttributeName=@p2,IncludeUnpublished=@p3)?' +
+            "@p1=$expectedViewEntityMoniker&" +
+            "@p2='name'&" +
+            '@p3=true'
+        )
+        $expectedFormPath = (
+            '/RetrieveLocLabels(EntityMoniker=@p1,AttributeName=@p2,IncludeUnpublished=@p3)?' +
+            "@p1=$expectedFormEntityMoniker&" +
+            "@p2='name'&" +
+            '@p3=true'
+        )
+
+        $fixture.Responses.ContainsKey($expectedViewPath) | Should -BeTrue
+        $fixture.Responses.ContainsKey($expectedFormPath) | Should -BeTrue
     }
 }
 
@@ -1311,6 +1392,52 @@ Describe 'Component-level convergence checks' {
             }).Count | Should -Be 1
     }
 
+    It 'rethrows ordinary RetrieveLocLabels bad requests for views' {
+        $table = script:Clone-Object -InputObject $script:contract.tables[0]
+        $view = $table.views[0]
+        $request = New-ViewRequest -Table $table -View $view -ObjectTypeCode 10427
+        $savedQuery = script:New-SavedQuerySnapshot `
+            -Request $request `
+            -Table $table `
+            -SavedQueryId (script:New-FakeGuid -Index 18)
+        $savedQueryPath = Get-ConvergenceSavedQueryPath `
+            -TableLogicalName $table.logicalName `
+            -Label ([string]$view.metadata.label.'1033')
+        $solutionMembershipPath = Get-ConvergenceSolutionMembershipPath `
+            -ComponentId $savedQuery.savedqueryid
+        $solutionMembership = script:New-SolutionMembershipResponse `
+            -SolutionUniqueName ([string]$table.solution)
+
+        Mock Invoke-ConvergenceDataverseRequest {
+            param($Method, $EnvironmentUrl, $Path, $Headers)
+
+            if ($Method -cne 'GET') {
+                throw "Unexpected mocked method: $Method"
+            }
+            if ($Path -eq $savedQueryPath) {
+                return [pscustomobject]@{
+                    value = @($savedQuery)
+                }
+            }
+            if ($Path -eq $solutionMembershipPath) {
+                return $solutionMembership
+            }
+            if ($Path -like '/RetrieveLocLabels*') {
+                throw "Dataverse convergence transport failed (GET $Path); az rest exited with code 1. 400 Bad Request. Request message has unresolved parameters."
+            }
+
+            throw "Unexpected mocked path: $Path"
+        }
+
+        {
+            Test-InsuranceFoundationView `
+                -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+                -Table $table `
+                -View $view `
+                -ObjectTypeCode 10427
+        } | Should -Throw '*400 Bad Request*'
+    }
+
     It 'accepts platform-normalized form ids with exact four-language localized labels' {
         $table = script:Clone-Object -InputObject $script:contract.tables[0]
         $form = $table.forms[0]
@@ -1486,6 +1613,19 @@ Describe 'Invoke-InsuranceFoundationConvergence' {
         @($result.Results.Component) | Should -Contain 'account/crmshow_accounttype'
         @($result.Results.Component) | Should -Contain 'crmshow_policyprojection'
         @($result.Results.Component) | Should -Contain 'roles'
+        @($result.Results.Component) | Should -Be (
+            @('languages', 'solutions') +
+            @($script:contract.choices | ForEach-Object {
+                    [string]$_.logicalName
+                }) +
+            @($script:contract.nativeExtensions | ForEach-Object {
+                    "$($_.table)/$($_.logicalName)"
+                }) +
+            @($script:contract.tables | ForEach-Object {
+                    [string]$_.logicalName
+                }) +
+            @('roles')
+        )
 
         $policyProjection = @($result.Results | Where-Object {
                 $_.Component -eq 'crmshow_policyprojection'

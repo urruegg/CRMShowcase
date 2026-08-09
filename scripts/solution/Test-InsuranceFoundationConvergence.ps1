@@ -15,13 +15,6 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$script:ConvergenceStatePriority = @{
-    Ready              = 0
-    ManualPrerequisite = 1
-    Precondition       = 2
-    UnsupportedInTenant = 3
-    ContractConflict   = 4
-}
 
 function Get-ConvergenceRepoRoot {
     [CmdletBinding()]
@@ -106,20 +99,6 @@ function Get-ContractTableSchemaName {
     }
 
     return [string]$tables[0].schemaName
-}
-
-function Get-ConvergenceStatePriority {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]
-        [string]$State
-    )
-
-    if (-not $script:ConvergenceStatePriority.ContainsKey($State)) {
-        throw "Unsupported convergence state '$State'."
-    }
-
-    return [int]$script:ConvergenceStatePriority[$State]
 }
 
 function Get-UniqueConvergenceStrings {
@@ -235,12 +214,7 @@ function New-ConvergenceSummary {
 
     $state = 'Ready'
     if ($blocking.Count -gt 0) {
-        $state = @(
-            $blocking |
-                Sort-Object `
-                    @{ Expression = { -1 * (Get-ConvergenceStatePriority -State ([string]$_.State)) } }, `
-                    @{ Expression = { [string]$_.Component } }
-        )[0].State
+        $state = [string]$blocking[0].State
     }
 
     return [pscustomobject][ordered]@{
@@ -447,7 +421,22 @@ function Test-ConvergenceRetrieveLocLabelsUnsupportedError {
         return $false
     }
 
-    return $message -match '(?i)(400|404|BadRequest|Bad Request|Not Found|Resource not found|does not support|not supported|unsupported)'
+    $unsupportedPatterns = @(
+        '(?i)(?:does not support|not supported|unsupported).*(?:GET|HTTP|method|action|function|operation|request|resource|endpoint|RetrieveLocLabels)',
+        '(?i)(?:GET|HTTP|method|action|function|operation|request|resource|endpoint|RetrieveLocLabels).*(?:does not support|not supported|unsupported)',
+        "(?i)could not find an action named\s+['""]?RetrieveLocLabels['""]?",
+        "(?i)resource not found for (?:the )?segment\s+['""]?RetrieveLocLabels['""]?",
+        '(?i)no http resource was found that matches the request uri',
+        '(?i)no route data was found for this request'
+    )
+
+    foreach ($pattern in $unsupportedPatterns) {
+        if ($message -match $pattern) {
+            return $true
+        }
+    }
+
+    return $false
 }
 
 function Get-ConvergenceLanguagesPath {
@@ -670,6 +659,45 @@ function Get-ConvergenceSystemFormPath {
     )
 }
 
+function Get-ConvergenceRetrieveLocLabelsEntityMoniker {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$EntityLogicalName,
+
+        [Parameter(Mandatory)]
+        [string]$IdProperty,
+
+        [Parameter(Mandatory)]
+        [string]$RecordId
+    )
+
+    $resolvedRecordId = ([string]$RecordId).Trim('{}')
+    $entitySetName = switch ([string]$EntityLogicalName) {
+        'savedquery' {
+            if ([string]$IdProperty -cne 'savedqueryid') {
+                throw "RetrieveLocLabels entity moniker for '$EntityLogicalName' requires id property 'savedqueryid'."
+            }
+
+            'savedqueries'
+        }
+        'systemform' {
+            if ([string]$IdProperty -cne 'formid') {
+                throw "RetrieveLocLabels entity moniker for '$EntityLogicalName' requires id property 'formid'."
+            }
+
+            'systemforms'
+        }
+        default {
+            throw "Unsupported RetrieveLocLabels entity moniker '$EntityLogicalName'."
+        }
+    }
+
+    return ([ordered]@{
+            '@odata.id' = "$entitySetName($resolvedRecordId)"
+        } | ConvertTo-Json -Compress)
+}
+
 function Get-ConvergenceRetrieveLocLabelsPath {
     [CmdletBinding()]
     param(
@@ -686,11 +714,10 @@ function Get-ConvergenceRetrieveLocLabelsPath {
         [string]$AttributeName
     )
 
-    $resolvedRecordId = ([string]$RecordId).Trim('{}')
-    $entityMoniker = [ordered]@{
-        '@odata.type' = "Microsoft.Dynamics.CRM.$EntityLogicalName"
-        "$IdProperty" = $resolvedRecordId
-    } | ConvertTo-Json -Compress
+    $entityMoniker = Get-ConvergenceRetrieveLocLabelsEntityMoniker `
+        -EntityLogicalName $EntityLogicalName `
+        -IdProperty $IdProperty `
+        -RecordId $RecordId
     $escapedEntityMoniker = [System.Uri]::EscapeDataString($entityMoniker)
     $escapedAttributeName = ConvertTo-ODataKeyString $AttributeName
     return (
