@@ -510,21 +510,11 @@ Describe 'Insurance Foundation reconciliation' {
 
     It 'repairs missing alternate-key solution membership without recreating the key' {
         $script:membershipReads = 0
+        Mock Wait-SolutionComponentMembership
         Mock Invoke-DataverseRequest {
             param($Method, $Path, $Body)
             if ($Method -eq 'GET') {
-                $script:membershipReads++
-                return [pscustomobject]@{
-                    value = if ($script:membershipReads -eq 1) {
-                        @()
-                    } else {
-                        @([pscustomobject]@{
-                            solutionid = [pscustomobject]@{
-                                uniquename = 'crmshow_DataModel'
-                            }
-                        })
-                    }
-                }
+                return [pscustomobject]@{ value = @() }
             }
             return [pscustomobject]@{}
         }
@@ -540,6 +530,39 @@ Describe 'Insurance Foundation reconciliation' {
             $Body.SolutionUniqueName -eq 'crmshow_DataModel' -and
             $Body.AddRequiredComponents -eq $false -and
             $Body.DoNotIncludeSubcomponents -eq $true
+        }
+        Should -Invoke Wait-SolutionComponentMembership -Times 1 -Exactly `
+            -ParameterFilter {
+                $ComponentId -eq '22222222-2222-2222-2222-222222222222' -and
+                $Expected -eq 'crmshow_DataModel'
+            }
+    }
+
+    It 'polls solution membership until an internal component import completes' {
+        $script:membershipReads = 0
+        Mock Start-Sleep
+        Mock Invoke-DataverseRequest {
+            $script:membershipReads++
+            return [pscustomobject]@{
+                value = if ($script:membershipReads -lt 3) {
+                    @()
+                } else {
+                    @([pscustomobject]@{
+                        solutionid = [pscustomobject]@{
+                            uniquename = 'crmshow_DataModel'
+                        }
+                    })
+                }
+            }
+        }
+
+        Wait-SolutionComponentMembership `
+            -ComponentId '33333333-3333-3333-3333-333333333333' `
+            -Expected 'crmshow_DataModel' -TimeoutSeconds 5 -PollSeconds 1
+
+        Should -Invoke Invoke-DataverseRequest -Times 3 -Exactly
+        Should -Invoke Start-Sleep -Times 2 -Exactly -ParameterFilter {
+            $Seconds -eq 1
         }
     }
 
