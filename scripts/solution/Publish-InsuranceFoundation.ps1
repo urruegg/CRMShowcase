@@ -253,9 +253,9 @@ function Get-TableCreateRequest {
                 -GlobalChoiceMetadataIds $GlobalChoiceMetadataIds
         }
     }
-    $relationships = foreach ($relationship in @($Table.relationships | Where-Object {
-        $_.authoring -eq 'InitialTableCreate'
-    })) {
+    $relationships = foreach ($relationship in @(
+            Get-InitialTableCreateOrdinaryRelationships -Table $Table
+        )) {
         New-OrdinaryRelationshipMetadata -Table $Table -Relationship $relationship
     }
     return [pscustomobject]@{
@@ -1194,6 +1194,43 @@ function Wait-TableMetadataSnapshot {
     }
 }
 
+function Get-InitialTableCreateOrdinaryRelationships {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] $Table)
+
+    return @($Table.relationships | Where-Object {
+        $_.authoring -eq 'InitialTableCreate'
+    } | Sort-Object lookupColumn, schemaName)
+}
+
+function Wait-InitialTableCreateTableSnapshot {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] $Table)
+
+    $relationships = @(
+        Get-InitialTableCreateOrdinaryRelationships -Table $Table
+    )
+    $component = if ($relationships.Count -eq 0) {
+        $Table.logicalName
+    } else {
+        @($relationships | ForEach-Object {
+            "$($Table.logicalName)/$($_.lookupColumn)"
+        }) -join ', '
+    }
+
+    return Wait-TableMetadataSnapshot -Table $Table `
+        -Component $component -Ready {
+            param($candidate)
+            foreach ($relationship in $relationships) {
+                if (-not (Test-OrdinaryRelationshipVisibility -Table $Table `
+                            -Relationship $relationship -Snapshot $candidate)) {
+                    return $false
+                }
+            }
+            return $true
+        }
+}
+
 function Test-OrdinaryRelationshipVisibility {
     [CmdletBinding()]
     param(
@@ -1596,7 +1633,8 @@ function Invoke-ExistingOrdinaryRelationshipReconciliation {
     param(
         [Parameter(Mandatory)] $Table,
         [Parameter(Mandatory)] $Relationship,
-        [Parameter(Mandatory)] $Snapshot
+        [Parameter(Mandatory)] $Snapshot,
+        [switch]$ForbidCreate
     )
 
     $expected = [pscustomobject]@{
@@ -1610,6 +1648,14 @@ function Invoke-ExistingOrdinaryRelationshipReconciliation {
         Where-Object SchemaName -eq $expected.SchemaName)
     if ($actualRelationship.Count -eq 0 -and
         $attributeCandidates.Count -eq 0) {
+        if ($ForbidCreate) {
+            throw (
+                "Structural relationship conflict for " +
+                "'$($expected.SchemaName)': current-run " +
+                "InitialTableCreate metadata is absent after atomic " +
+                'readiness; recovery POST is forbidden.'
+            )
+        }
         Invoke-PlannedRequest (
             Get-OrdinaryRelationshipRequest $Table $Relationship
         ) | Out-Null
@@ -1681,14 +1727,7 @@ function Invoke-TableReconciliation {
         $tableWasCreated = $true
         Write-Output "$($Table.logicalName): Created"
         Publish-TableMetadata $Table
-        $snapshot = Wait-TableMetadataSnapshot -Table $Table `
-            -Component $Table.logicalName
-        foreach ($relationship in @($Table.relationships | Where-Object {
-            $_.authoring -eq 'InitialTableCreate'
-        })) {
-            $snapshot = Wait-OrdinaryRelationshipVisibility -Table $Table `
-                -Relationship $relationship
-        }
+        $snapshot = Wait-InitialTableCreateTableSnapshot -Table $Table
     }
 
     Assert-SolutionOwnership $snapshot $Table.solution $Table.logicalName
@@ -1740,7 +1779,11 @@ function Invoke-TableReconciliation {
         $_.authoring -ne 'CreateCustomerRelationships'
     })) {
         $lookupCreated = Invoke-ExistingOrdinaryRelationshipReconciliation `
-            -Table $Table -Relationship $relationship -Snapshot $snapshot
+            -Table $Table -Relationship $relationship -Snapshot $snapshot `
+            -ForbidCreate:(
+                $tableWasCreated -and
+                $relationship.authoring -eq 'InitialTableCreate'
+            )
         if ($lookupCreated) {
             $snapshot = Wait-OrdinaryRelationshipVisibility -Table $Table `
                 -Relationship $relationship

@@ -1112,7 +1112,7 @@ Describe 'Insurance Foundation reconciliation' {
         })
         $customerVisibilityReads = @($script:calls | Where-Object {
             $_.Method -eq 'SNAPSHOT' -and
-            $_.Path -eq 'crmshow_policypartyrole' -and
+            $_.Path -like 'crmshow_policypartyrole*' -and
             $_.Sequence -gt $initialPublish.Sequence -and
             $_.Sequence -lt $customerCreate[0].Sequence
         })
@@ -2300,14 +2300,15 @@ Describe 'Insurance Foundation table metadata convergence' {
             Should -BeGreaterThan $script:visibleSnapshotSequence
     }
 
-    It 'waits for deep-inserted initial lookups on a newly created table before posting child keys, views, and forms' {
+    It 'waits for all deep-inserted initial lookups atomically on a newly created table before posting child keys, views, and forms' {
         $table = $script:contract.tables[0] |
             ConvertTo-Json -Depth 100 | ConvertFrom-Json
         $table.columns = @($table.columns | Where-Object {
-            $_.logicalName -in @('crmshow_name', 'crmshow_accountid')
-        })
-        $table.relationships = @($table.relationships | Where-Object {
-            $_.lookupColumn -eq 'crmshow_accountid'
+            $_.logicalName -in @(
+                'crmshow_name',
+                'crmshow_accountid',
+                'crmshow_contactid'
+            )
         })
         $table.alternateKeys = @($table.alternateKeys[0])
         $table.businessRules = @()
@@ -2315,6 +2316,8 @@ Describe 'Insurance Foundation table metadata convergence' {
         $table.forms = @($table.forms[0])
         $script:tableSnapshotReads = 0
         $script:firstVisibleTableSequence = $null
+        $script:accountLookupOnlySequence = $null
+        $script:contactLookupOnlySequence = $null
         $script:initialLookupReadySequence = $null
 
         Mock Start-Sleep {}
@@ -2324,6 +2327,24 @@ Describe 'Insurance Foundation table metadata convergence' {
             $snapshot = switch ($script:tableSnapshotReads) {
                 1 { $null }
                 2 {
+                    New-TableMetadataSnapshot -Table $table `
+                        -OmitColumns @(
+                            'crmshow_accountid',
+                            'crmshow_contactid'
+                        ) `
+                        -OmitRelationshipSchemas @(
+                            'crmshow_Account_AccountContactRoles',
+                            'crmshow_Contact_AccountContactRoles'
+                        )
+                }
+                3 {
+                    New-TableMetadataSnapshot -Table $table `
+                        -OmitColumns @('crmshow_contactid') `
+                        -OmitRelationshipSchemas @(
+                            'crmshow_Contact_AccountContactRoles'
+                        )
+                }
+                4 {
                     New-TableMetadataSnapshot -Table $table `
                         -OmitColumns @('crmshow_accountid') `
                         -OmitRelationshipSchemas @(
@@ -2344,16 +2365,37 @@ Describe 'Insurance Foundation table metadata convergence' {
                 $script:firstVisibleTableSequence = $script:calls[-1].Sequence
             }
             if ($null -ne $snapshot) {
-                $lookupMatches = @($snapshot.Attributes | Where-Object {
+                $accountLookupMatches = @($snapshot.Attributes | Where-Object {
                     $_.LogicalName -eq 'crmshow_accountid'
                 })
-                $relationshipMatches = @(
+                $accountRelationshipMatches = @(
                     $snapshot.ManyToOneRelationships | Where-Object {
                         $_.SchemaName -eq 'crmshow_Account_AccountContactRoles'
                     }
                 )
-                if ($lookupMatches.Count -eq 1 -and
-                    $relationshipMatches.Count -eq 1) {
+                $contactLookupMatches = @($snapshot.Attributes | Where-Object {
+                    $_.LogicalName -eq 'crmshow_contactid'
+                })
+                $contactRelationshipMatches = @(
+                    $snapshot.ManyToOneRelationships | Where-Object {
+                        $_.SchemaName -eq 'crmshow_Contact_AccountContactRoles'
+                    }
+                )
+                $hasAccountLookup = $accountLookupMatches.Count -eq 1 -and
+                    $accountRelationshipMatches.Count -eq 1
+                $hasContactLookup = $contactLookupMatches.Count -eq 1 -and
+                    $contactRelationshipMatches.Count -eq 1
+                if ($hasAccountLookup -and -not $hasContactLookup -and
+                    $null -eq $script:accountLookupOnlySequence) {
+                    $script:accountLookupOnlySequence = `
+                        $script:calls[-1].Sequence
+                }
+                if ($hasContactLookup -and -not $hasAccountLookup -and
+                    $null -eq $script:contactLookupOnlySequence) {
+                    $script:contactLookupOnlySequence = `
+                        $script:calls[-1].Sequence
+                }
+                if ($hasAccountLookup -and $hasContactLookup) {
                     $script:initialLookupReadySequence = `
                         $script:calls[-1].Sequence
                 }
@@ -2389,8 +2431,14 @@ Describe 'Insurance Foundation table metadata convergence' {
             $_.Method -eq 'POST' -and $_.Path -eq '/RelationshipDefinitions'
         }).Count | Should -Be 0
         $script:firstVisibleTableSequence | Should -Not -BeNullOrEmpty
+        $script:accountLookupOnlySequence | Should -Not -BeNullOrEmpty
+        $script:contactLookupOnlySequence | Should -Not -BeNullOrEmpty
         $script:initialLookupReadySequence | Should -Not -BeNullOrEmpty
         $script:firstVisibleTableSequence |
+            Should -BeLessThan $script:accountLookupOnlySequence
+        $script:accountLookupOnlySequence |
+            Should -BeLessThan $script:initialLookupReadySequence
+        $script:contactLookupOnlySequence |
             Should -BeLessThan $script:initialLookupReadySequence
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and
@@ -2402,6 +2450,72 @@ Describe 'Insurance Foundation table metadata convergence' {
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and $_.Path -eq '/systemforms'
         })[0].Sequence | Should -BeGreaterThan $script:initialLookupReadySequence
+    }
+
+    It 'fails closed instead of recreating an InitialTableCreate relationship after a current-run table already passed atomic readiness' {
+        $table = $script:contract.tables[2] |
+            ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        $table.columns = @($table.columns | Where-Object {
+            $_.logicalName -in @(
+                'crmshow_name',
+                'crmshow_policyid',
+                'crmshow_partyid'
+            )
+        })
+        $table.alternateKeys = @()
+        $table.businessRules = @()
+        $table.views = @()
+        $table.forms = @()
+        $script:tableSnapshotReads = 0
+
+        Mock Start-Sleep {}
+        Mock Get-TableMetadataSnapshot {
+            param($LogicalName)
+            $script:tableSnapshotReads++
+            $snapshot = switch ($script:tableSnapshotReads) {
+                1 { $null }
+                2 { New-TableMetadataSnapshot -Table $table }
+                default {
+                    New-TableMetadataSnapshot -Table $table `
+                        -IncludeCustomerRelationships `
+                        -OmitColumns @('crmshow_policyid') `
+                        -OmitRelationshipSchemas @(
+                            'crmshow_PolicyProjection_PartyRoles'
+                        )
+                }
+            }
+            $script:calls.Add([pscustomobject]@{
+                Sequence = $script:calls.Count + 1
+                Method = 'SNAPSHOT'
+                Path = $LogicalName
+                Body = $snapshot
+                Headers = $null
+            })
+            return $snapshot
+        }
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Sequence = $script:calls.Count + 1
+                Method = $Method; Path = $Path; Body = $Body; Headers = $Headers
+            })
+            if ($Method -eq 'GET' -and
+                $Path -match '(?:/Keys\?|^/savedqueries\?|^/systemforms\?)') {
+                return [pscustomobject]@{ value = @() }
+            }
+            if ($Method -eq 'GET') { throw "Unsupported mocked endpoint: $Method $Path" }
+            return [pscustomobject]@{}
+        }
+
+        {
+            Invoke-TableReconciliation $table
+        } | Should -Throw '*current-run InitialTableCreate metadata is absent after atomic readiness*'
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/CreateCustomerRelationships'
+        }).Count | Should -Be 1
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/RelationshipDefinitions'
+        }) | Should -BeNullOrEmpty
     }
 
     It 'times out initial deep-insert lookup visibility without recreating the relationship or children' {
