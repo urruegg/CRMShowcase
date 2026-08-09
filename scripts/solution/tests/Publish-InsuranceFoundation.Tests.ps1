@@ -508,6 +508,41 @@ Describe 'Insurance Foundation reconciliation' {
         }
     }
 
+    It 'repairs missing alternate-key solution membership without recreating the key' {
+        $script:membershipReads = 0
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body)
+            if ($Method -eq 'GET') {
+                $script:membershipReads++
+                return [pscustomobject]@{
+                    value = if ($script:membershipReads -eq 1) {
+                        @()
+                    } else {
+                        @([pscustomobject]@{
+                            solutionid = [pscustomobject]@{
+                                uniquename = 'crmshow_DataModel'
+                            }
+                        })
+                    }
+                }
+            }
+            return [pscustomobject]@{}
+        }
+
+        Assert-SolutionOwnership `
+            ([pscustomobject]@{ MetadataId = '22222222-2222-2222-2222-222222222222' }) `
+            'crmshow_DataModel' 'existing key' -RepairComponentType 14
+
+        Should -Invoke Invoke-DataverseRequest -Times 1 -Exactly -ParameterFilter {
+            $Method -eq 'POST' -and $Path -eq '/AddSolutionComponent' -and
+            $Body.ComponentId -eq '22222222-2222-2222-2222-222222222222' -and
+            $Body.ComponentType -eq 14 -and
+            $Body.SolutionUniqueName -eq 'crmshow_DataModel' -and
+            $Body.AddRequiredComponents -eq $false -and
+            $Body.DoNotIncludeSubcomponents -eq $true
+        }
+    }
+
     It 'continues after all five choices already exist and creates schema components' {
         $script:choicesExist = $true
 
