@@ -10,7 +10,8 @@
 param(
     [Parameter(Mandatory)] [string]$EnvironmentUrl,
     [Parameter(Mandatory)] [string]$ContractPath,
-    [ValidateSet('Foundation', 'DataModel', 'All')] [string]$Scope = 'All'
+    [ValidateSet('Foundation', 'DataModel', 'Demo', 'SecurityRoles', 'All')]
+    [string]$Scope = 'Demo'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -1672,21 +1673,26 @@ function Invoke-InsuranceFoundationReconciliation {
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory)] $Contract,
-        [ValidateSet('Foundation', 'DataModel', 'All')] [string]$Scope = 'All'
+        [ValidateSet('Foundation', 'DataModel', 'Demo', 'SecurityRoles', 'All')]
+        [string]$Scope = 'Demo'
     )
 
     # This must remain the first operation: malformed or unresolved contracts
     # cannot cause even a metadata read, much less a mutation.
     Assert-InsuranceFoundationIntegrity $Contract
 
-    if ($Scope -in @('Foundation', 'All')) {
+    $includeChoices = $Scope -in @('Foundation', 'Demo', 'All')
+    $includeDataModel = $Scope -in @('DataModel', 'Demo', 'All')
+    $includeRoles = $Scope -in @('SecurityRoles', 'All')
+
+    if ($includeChoices) {
         foreach ($choice in $Contract.choices) {
             if ($PSCmdlet.ShouldProcess($choice.logicalName, 'Reconcile global choice')) {
                 Invoke-ChoiceReconciliation $choice
             }
         }
     }
-    if ($Scope -in @('DataModel', 'All')) {
+    if ($includeDataModel) {
         foreach ($extension in $Contract.nativeExtensions) {
             if ($PSCmdlet.ShouldProcess("$($extension.table)/$($extension.logicalName)", 'Reconcile native extension')) {
                 Invoke-NativeExtensionReconciliation $extension
@@ -1698,7 +1704,7 @@ function Invoke-InsuranceFoundationReconciliation {
             }
         }
     }
-    if ($Scope -in @('Foundation', 'All')) {
+    if ($includeRoles) {
         foreach ($role in $Contract.roles) {
             if ($PSCmdlet.ShouldProcess($role.name, 'Reconcile security role')) {
                 Invoke-RoleReconciliation $role $Contract
@@ -1706,9 +1712,14 @@ function Invoke-InsuranceFoundationReconciliation {
         }
     }
     if ($PSCmdlet.ShouldProcess($script:DataverseBaseUrl, 'Publish all customizations')) {
-        $solution = if ($Scope -eq 'Foundation') { 'crmshow_Foundation' } else { 'crmshow_DataModel' }
+        $publishSolution = if ($Scope -eq 'SecurityRoles' -or
+            ($includeChoices -and -not $includeDataModel)) {
+            'crmshow_Foundation'
+        } else {
+            'crmshow_DataModel'
+        }
         Invoke-DataverseRequest -Method POST -Path '/PublishAllXml' -Body @{} `
-            -Headers (Get-DataverseHeaders $solution) | Out-Null
+            -Headers (Get-DataverseHeaders $publishSolution) | Out-Null
         Write-Output 'Customizations: Published'
     }
 }

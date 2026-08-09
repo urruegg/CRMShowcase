@@ -331,6 +331,53 @@ Describe 'az rest transport' {
     }
 }
 
+Describe 'Insurance Foundation scope contract' {
+    It 'defaults both scope declarations to Demo and accepts all five supported scopes' {
+        $tokens = $null
+        $errors = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+            $script:publisherPath,
+            [ref]$tokens,
+            [ref]$errors
+        )
+
+        @($errors) | Should -BeNullOrEmpty
+        $expected = @('Foundation', 'DataModel', 'Demo', 'SecurityRoles', 'All')
+
+        $scriptScope = @($ast.ParamBlock.Parameters | Where-Object {
+            $_.Name.VariablePath.UserPath -eq 'Scope'
+        })[0]
+        $scriptScope | Should -Not -BeNullOrEmpty
+        $scriptValidateSet = @($scriptScope.Attributes | Where-Object {
+            $_.TypeName.FullName -eq 'ValidateSet'
+        })[0]
+        $scriptValidateSet | Should -Not -BeNullOrEmpty
+        @($scriptValidateSet.PositionalArguments | ForEach-Object {
+            $_.Extent.Text.Trim("'")
+        }) | Should -Be $expected
+        $scriptScope.DefaultValue.Extent.Text.Trim("'") | Should -Be 'Demo'
+
+        $reconciliation = $ast.Find({
+            param($node)
+            $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+            $node.Name -eq 'Invoke-InsuranceFoundationReconciliation'
+        }, $true)
+        $reconciliation | Should -Not -BeNullOrEmpty
+        $functionScope = @($reconciliation.Body.ParamBlock.Parameters | Where-Object {
+            $_.Name.VariablePath.UserPath -eq 'Scope'
+        })[0]
+        $functionScope | Should -Not -BeNullOrEmpty
+        $functionValidateSet = @($functionScope.Attributes | Where-Object {
+            $_.TypeName.FullName -eq 'ValidateSet'
+        })[0]
+        $functionValidateSet | Should -Not -BeNullOrEmpty
+        @($functionValidateSet.PositionalArguments | ForEach-Object {
+            $_.Extent.Text.Trim("'")
+        }) | Should -Be $expected
+        $functionScope.DefaultValue.Extent.Text.Trim("'") | Should -Be 'Demo'
+    }
+}
+
 Describe 'Insurance Foundation reconciliation' {
     BeforeEach {
         $script:calls = [System.Collections.Generic.List[object]]::new()
@@ -481,6 +528,96 @@ Describe 'Insurance Foundation reconciliation' {
             '^/GlobalOptionSetDefinitions\(' +
             '[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\)$'
         )
+    }
+
+    It 'keeps Foundation scope choice-only and publishes under the foundation header' {
+        Invoke-InsuranceFoundationReconciliation -Contract $script:contract `
+            -Scope Foundation -Confirm:$false | Out-Null
+
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/GlobalOptionSetDefinitions'
+        }).Count | Should -Be 5
+        @($script:calls | Where-Object {
+            $_.Method -ne 'GET' -and $_.Path -like '/EntityDefinitions*'
+        }) | Should -BeNullOrEmpty
+        @($script:calls | Where-Object {
+            $_.Method -ne 'GET' -and
+            ($_.Path -eq '/roles' -or $_.Path -match 'PrivilegesRole$')
+        }) | Should -BeNullOrEmpty
+        @($script:calls | Where-Object {
+            $_.Method -ne 'GET' -and $_.Path -eq '/PublishAllXml'
+        }).Headers.'MSCRM.SolutionUniqueName' | Should -Be 'crmshow_Foundation'
+    }
+
+    It 'keeps DataModel scope free of choice and role authoring and publishes under the data-model header' {
+        $script:choicesExist = $true
+        Invoke-InsuranceFoundationReconciliation -Contract $script:contract `
+            -Scope DataModel -Confirm:$false | Out-Null
+
+        @($script:calls | Where-Object {
+            $_.Method -ne 'GET' -and $_.Path -like '/GlobalOptionSetDefinitions*'
+        }) | Should -BeNullOrEmpty
+        @($script:calls | Where-Object {
+            $_.Method -ne 'GET' -and
+            ($_.Path -eq '/roles' -or $_.Path -match 'PrivilegesRole$')
+        }) | Should -BeNullOrEmpty
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/EntityDefinitions'
+        }).Count | Should -Be 3
+        @($script:calls | Where-Object {
+            $_.Method -ne 'GET' -and $_.Path -eq '/PublishAllXml'
+        }).Headers.'MSCRM.SolutionUniqueName' | Should -Be 'crmshow_DataModel'
+    }
+
+    It 'keeps Demo scope demo-safe while publishing under the data-model header' {
+        Invoke-InsuranceFoundationReconciliation -Contract $script:contract `
+            -Scope Demo -Confirm:$false | Out-Null
+
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/GlobalOptionSetDefinitions'
+        }).Count | Should -Be 5
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/EntityDefinitions'
+        }).Count | Should -Be 3
+        @($script:calls | Where-Object {
+            $_.Method -ne 'GET' -and
+            ($_.Path -eq '/roles' -or $_.Path -match 'PrivilegesRole$')
+        }) | Should -BeNullOrEmpty
+        @($script:calls | Where-Object {
+            $_.Method -ne 'GET' -and $_.Path -eq '/PublishAllXml'
+        }).Headers.'MSCRM.SolutionUniqueName' | Should -Be 'crmshow_DataModel'
+    }
+
+    It 'keeps SecurityRoles scope free of choice and data-model authoring and publishes under the foundation header' {
+        Invoke-InsuranceFoundationReconciliation -Contract $script:contract `
+            -Scope SecurityRoles -Confirm:$false | Out-Null
+
+        @($script:calls | Where-Object {
+            $_.Method -ne 'GET' -and $_.Path -like '/GlobalOptionSetDefinitions*'
+        }) | Should -BeNullOrEmpty
+        @($script:calls | Where-Object {
+            $_.Method -ne 'GET' -and $_.Path -like '/EntityDefinitions*'
+        }) | Should -BeNullOrEmpty
+        @($script:calls | Where-Object {
+            $_.Method -ne 'GET' -and
+            ($_.Path -eq '/roles' -or $_.Path -match 'PrivilegesRole$')
+        }).Count | Should -BeGreaterThan 0
+        @($script:calls | Where-Object {
+            $_.Method -ne 'GET' -and $_.Path -eq '/PublishAllXml'
+        }).Headers.'MSCRM.SolutionUniqueName' | Should -Be 'crmshow_Foundation'
+    }
+
+    It 'keeps All as the explicit privileged scope and publishes under the data-model header' {
+        Invoke-InsuranceFoundationReconciliation -Contract $script:contract `
+            -Scope All -Confirm:$false | Out-Null
+
+        @($script:calls | Where-Object {
+            $_.Method -ne 'GET' -and
+            ($_.Path -eq '/roles' -or $_.Path -match 'PrivilegesRole$')
+        }).Count | Should -BeGreaterThan 0
+        @($script:calls | Where-Object {
+            $_.Method -ne 'GET' -and $_.Path -eq '/PublishAllXml'
+        }).Headers.'MSCRM.SolutionUniqueName' | Should -Be 'crmshow_DataModel'
     }
 
     It 'queries saved queries only through supported Web API properties' {
