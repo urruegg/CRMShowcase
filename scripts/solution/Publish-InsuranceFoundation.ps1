@@ -1101,7 +1101,11 @@ function Invoke-ChildRequestIfMissing {
 }
 
 function Get-XmlStructuralSignature {
-    param([Parameter(Mandatory)] [string]$Xml, [Parameter(Mandatory)] [string]$Component)
+    param(
+        [Parameter(Mandatory)] [string]$Xml,
+        [Parameter(Mandatory)] [string]$Component,
+        [string]$Property
+    )
     try {
         [xml]$document = $Xml
     } catch {
@@ -1113,15 +1117,28 @@ function Get-XmlStructuralSignature {
             return '#text:' + $Node.Value
         }
         if ($Node.NodeType -ne [System.Xml.XmlNodeType]::Element) { return '' }
+        if ($Property -eq 'formxml') {
+            if ($Node.LocalName -eq 'labels' -and $Node.ParentNode.LocalName -eq 'cell') {
+                return ''
+            }
+            if ($Node.LocalName -eq 'label' -and
+                $Node.GetAttribute('languagecode') -ne '1033') {
+                return ''
+            }
+        }
+        $ignoredAttributes = @('savedqueryid')
+        if ($Property -eq 'formxml' -and $Node.LocalName -in @('tab', 'section')) {
+            $ignoredAttributes += 'id'
+        }
         $attributes = @($Node.Attributes |
-            Where-Object Name -ne 'savedqueryid' |
-            Sort-Object Name | ForEach-Object {
-            "$($_.Name)=$($_.Value)"
+            Where-Object LocalName -notin $ignoredAttributes |
+            Sort-Object LocalName | ForEach-Object {
+            "$($_.LocalName)=$($_.Value)"
         }) -join ';'
         $children = @($Node.ChildNodes | ForEach-Object {
             Get-NodeSignature $_
         } | Where-Object { $_ }) -join ''
-        return "<$($Node.Name)|$attributes>$children</$($Node.Name)>"
+        return "<$($Node.LocalName)|$attributes>$children</$($Node.LocalName)>"
     }
     return Get-NodeSignature $document.DocumentElement
 }
@@ -1132,8 +1149,8 @@ function Assert-XmlCompatible {
         [string]::IsNullOrWhiteSpace([string]$Existing.$Property)) {
         throw "Structural XML conflict for '$Component': '$Property' was not retrieved."
     }
-    $actual = Get-XmlStructuralSignature ([string]$Existing.$Property) $Component
-    $wanted = Get-XmlStructuralSignature ([string]$Request.Body.$Property) $Component
+    $actual = Get-XmlStructuralSignature ([string]$Existing.$Property) $Component $Property
+    $wanted = Get-XmlStructuralSignature ([string]$Request.Body.$Property) $Component $Property
     if ($actual -ne $wanted) {
         throw "Structural XML conflict for '$Component': existing $Property is stale. Actual signature: $actual Wanted signature: $wanted"
     }

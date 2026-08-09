@@ -1439,6 +1439,25 @@ Describe 'Insurance Foundation reconciliation' {
         } | Should -Not -Throw
     }
 
+    It 'accepts platform-normalized form IDs and localized field labels' {
+        $request = [pscustomobject]@{
+            Body = @{
+                formxml = @'
+<form><tabs><tab name="general"><labels><label description="English" languagecode="1033" /><label description="Deutsch" languagecode="1031" /></labels><columns><column><sections><section name="general"><labels><label description="English" languagecode="1033" /><label description="Deutsch" languagecode="1031" /></labels><rows><row><cell><control id="crmshow_name" datafieldname="crmshow_name" /></cell></row></rows></section></sections></column></columns></tab></tabs></form>
+'@
+            }
+        }
+        $existing = [pscustomobject]@{
+            formxml = @'
+<form><tabs><tab name="general" id="{11111111-1111-1111-1111-111111111111}"><labels><label description="English" languagecode="1033" /></labels><columns><column><sections><section name="general" id="{22222222-2222-2222-2222-222222222222}"><labels><label description="English" languagecode="1033" /></labels><rows><row><cell><labels><label description="Name" languagecode="1033" /></labels><control id="crmshow_name" datafieldname="crmshow_name" /></cell></row></rows></section></sections></column></columns></tab></tabs></form>
+'@
+        }
+
+        {
+            Assert-XmlCompatible $existing $request formxml 'component'
+        } | Should -Not -Throw
+    }
+
     It 'updates an empty existing choice rather than treating it as unchanged' {
         $choice = $script:contract.choices[0]
         Mock Invoke-DataverseRequest {
