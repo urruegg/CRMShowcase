@@ -15,7 +15,7 @@ Design: [../../docs/adr/ADR-0003-terraform-as-iac-toolchain.md](../../docs/adr/A
 | `terraform.tfvars.example` | **Committed placeholder** values. |
 | `terraform.tfvars` | **GIT-IGNORED** real values (create locally). |
 | `modules/entra/` | Entra app registrations + federated credentials for CI. |
-| `modules/github/` | GitHub Environments, deployment policies, variables, and desired branch protection. |
+| `modules/github/` | GitHub Environments, deployment policies, variables, and branch protection. |
 | `modules/powerplatform/` | Power Platform environments + tenant settings. |
 
 ## Bootstrap on the current tenant (ABSx demo)
@@ -58,20 +58,24 @@ terraform init
 # 5. Import existing GitHub Environments (import ID format: <repo>:<environment>)
 terraform import 'module.github.github_repository_environment.envs["dev"]' 'CRMShowcase:dev'
 terraform import 'module.github.github_repository_environment.envs["test"]' 'CRMShowcase:test'
-# 6. Import the existing TEST main deployment policy (import ID format: <repo>:<environment>:<policy_id>)
+# 6. Import the existing live DEV + TEST main deployment policies
+#    (IDs captured from live evidence on 2026-08-10; re-check if either GitHub Environment is recreated)
+terraform import 'module.github.github_repository_environment_deployment_policy.allowed_branches["dev:main"]' 'CRMShowcase:dev:56913774'
 terraform import 'module.github.github_repository_environment_deployment_policy.allowed_branches["test:main"]' 'CRMShowcase:test:56680080'
-# 7. Review the plan carefully
+# 7. Import the existing live main branch protection
+terraform import 'module.github.github_branch_protection.main' 'CRMShowcase:main'
+# 8. Review the plan carefully
 terraform plan
-# 8. Only if the plan shows exactly the intended changes:
+# 9. Only if the plan shows exactly the intended changes:
 terraform apply
-# 9. Add the two CI service principals as Dataverse application users
+# 10. Add the two CI service principals as Dataverse application users
 #    (Terraform provider does not yet support this — see ADR-0005)
 ../../infra/scripts/add-ci-app-users.ps1 -Slot all
-# 10. Reconcile required languages before importing multilingual solutions
+# 11. Reconcile required languages before importing multilingual solutions
 ../../infra/scripts/Set-DataverseLanguages.ps1 `
   -EnvironmentUrl https://crmshowdev.crm.dynamics.com `
   -LocaleId 1033,1031,1036,1040
-# 11. Import solutions only after language reconciliation reports every LCID Active
+# 12. Import solutions only after language reconciliation reports every LCID Active
 ../../scripts/solution/Import-Solution.ps1 -ZipFile <SOLUTION_ZIP>
 ```
 
@@ -82,11 +86,14 @@ Before `terraform apply`, confirm all of the following in the plan:
 - `module.github.github_repository_environment.envs["test"]` keeps
   `prevent_self_review = false`.
 - `module.github.github_repository_environment_deployment_policy.allowed_branches["dev:main"]`
-  is a create, because DEV currently has no live deployment branch policy.
-- `module.github.github_branch_protection.main` is a create unless the live repo
-  already has matching branch protection. If live state changes, import
-  `module.github.github_branch_protection.main` with `CRMShowcase:main` before
-  apply instead of letting Terraform replace or drift it.
+  and `["test:main"]` both remain imported from live state. At time of
+  evidence, the live policy IDs are `56913774` for `dev:main` and `56680080`
+  for `test:main`; if either GitHub Environment is recreated, re-check the
+  current live policy ID before re-importing Terraform state.
+- `module.github.github_branch_protection.main` remains imported from live
+  state and shows `required_linear_history = true`,
+  `dismiss_stale_reviews = true`, `required_approving_review_count = 0`, and
+  `contexts = ["gate1"]` with no unexpected replacement.
 
 ## Bootstrap on a fresh tenant
 

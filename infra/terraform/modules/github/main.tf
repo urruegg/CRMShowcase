@@ -96,6 +96,7 @@ resource "github_branch_protection" "main" {
   pattern       = "main"
 
   enforce_admins                  = true
+  required_linear_history         = true
   allows_force_pushes             = false
   force_push_bypassers            = []
   allows_deletions                = false
@@ -107,6 +108,7 @@ resource "github_branch_protection" "main" {
   }
 
   required_pull_request_reviews {
+    dismiss_stale_reviews           = true
     required_approving_review_count = 0
     pull_request_bypassers          = []
   }

@@ -57,27 +57,27 @@ that surface the identifiers to CI as **non-secret variables**.
   self-review would deadlock the TEST gate. Customer target state is stricter:
   use independent required reviewers and remove the owner-as-reviewer exception.
 
-### Reviewed-ref controls: live evidence vs desired IaC
+### Reviewed-ref controls: live evidence captured 2026-08-10
 
-**Current live evidence on the demo repo**
+Evidence captured on 2026-08-10 from the live demo repo shows the reviewed-ref
+controls are now active:
 
-- `test` already has the owner reviewer gate above.
-- `test` already has a `main` deployment branch policy.
-- `dev` currently has zero required reviewers and no live deployment branch
-  policy yet.
+- `dev` deploys only from `main` via live deployment policy ID `56913774`.
+- `test` deploys only from `main` via live deployment policy ID `56680080`.
+- `test` keeps required reviewer `urruegg` (GitHub user ID `46865858`);
+  `prevent_self_review = false` remains the deliberate single-maintainer demo
+  exception.
+- `main` branch protection is live and enforces pull-request flow, the `gate1`
+  status check, conversation resolution, `required_linear_history = true`,
+  `dismiss_stale_reviews = true`, `allows_force_pushes = false`,
+  `allows_deletions = false`, and `required_approving_review_count = 0`.
+- Deployment policy IDs are environment-scoped live identifiers. If either
+  GitHub Environment is recreated, re-check the current policy ID before
+  re-importing Terraform state.
 
-**Desired IaC state declared in this repo**
-
-- Both `dev` and `test` GitHub Environments deploy only from `main`.
-- `main` branch protection requires pull-request flow plus the `gate1` status
-  check.
-- `required_approving_review_count = 0` is the current demo-repo setting so the
-  single owner does not deadlock reviewed-ref authoring.
-
-That branch-protection rule is **desired IaC**, not live evidence, until the
-Terraform controller / maintainer session imports and applies it. For customer
-repos, the target state is at least one independent approving reviewer on
-`main`, plus independent required reviewers on `test`.
+Customer target state remains stricter: use independent required reviewers on
+`test` and raise `required_approving_review_count` on `main` to at least one
+independent approver once the repo is no longer single-maintainer.
 
 ### CI workflow
 
@@ -123,5 +123,5 @@ repos, the target state is at least one independent approving reviewer on
 - **ADR-0006** — Remote state backend choice.
 - Replace the demo owner-reviewer exception on `test` with independent required
   reviewers once a second maintainer or customer approver exists.
-- Raise `required_approving_review_count` above zero for customer repos, then
-  apply/import the matching live branch-protection rule and capture evidence.
+- Raise `required_approving_review_count` above zero for customer repos while
+  preserving imported live evidence for the demo repo.

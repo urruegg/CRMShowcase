@@ -81,11 +81,12 @@ Describe 'GitHub environment reviewed-ref policies' {
 }
 
 Describe 'Main branch protection contract' {
-    It 'protects main with enforced admins, gate1, and conversation resolution' {
+    It 'protects main with enforced admins, linear history, gate1, and conversation resolution' {
         $script:githubModuleMain | Should -Match (
             '(?ms)resource\s+"github_branch_protection"\s+"main"\s*\{.*?' +
             'pattern\s*=\s*"main".*?' +
             'enforce_admins\s*=\s*true.*?' +
+            'required_linear_history\s*=\s*true.*?' +
             'require_conversation_resolution\s*=\s*true.*?' +
             'required_status_checks\s*\{.*?' +
             'strict\s*=\s*true.*?' +
@@ -97,6 +98,7 @@ Describe 'Main branch protection contract' {
     It 'requires pull requests on main without a mandatory independent approver in the demo repo' {
         $script:githubModuleMain | Should -Match (
             '(?ms)required_pull_request_reviews\s*\{.*?' +
+            'dismiss_stale_reviews\s*=\s*true.*?' +
             'required_approving_review_count\s*=\s*0.*?' +
             'pull_request_bypassers\s*=\s*\[\s*\].*?' +
             '\}'
@@ -129,7 +131,7 @@ Describe 'Solution CI gate1 contract' {
 }
 
 Describe 'Terraform bootstrap/import runbook' {
-    It 'documents GitHub auth prerequisites and reviewed-ref imports before first apply' {
+    It 'documents GitHub auth prerequisites and imports all live reviewed-ref controls before first apply' {
         $script:terraformReadme | Should -Match 'GH_TOKEN'
         $script:terraformReadme | Should -Match 'GITHUB_TOKEN'
         $script:terraformReadme | Should -Match (
@@ -139,31 +141,50 @@ Describe 'Terraform bootstrap/import runbook' {
             'module\.github\.github_repository_environment\.envs\["test"\]'
         )
         $script:terraformReadme | Should -Match (
+            'module\.github\.github_repository_environment_deployment_policy\.allowed_branches\["dev:main"\]'
+        )
+        $script:terraformReadme | Should -Match '56913774'
+        $script:terraformReadme | Should -Match (
             'module\.github\.github_repository_environment_deployment_policy\.allowed_branches\["test:main"\]'
         )
         $script:terraformReadme | Should -Match '56680080'
+        $script:terraformReadme | Should -Match (
+            'module\.github\.github_branch_protection\.main'
+        )
+        $script:terraformReadme | Should -Match 'CRMShowcase:main'
     }
 
-    It 'warns operators to inspect the plan for reviewer retention before apply' {
+    It 'records the live import evidence and plan checks operators must preserve before apply' {
         $script:terraformReadme | Should -Match 'no reviewer removal'
-        $script:terraformReadme | Should -Match '(?ms)dev:main.*create'
-        $script:terraformReadme | Should -Match '(?ms)branch protection.*create'
+        $script:terraformReadme | Should -Match 'live evidence on 2026-08-10'
+        $script:terraformReadme | Should -Match (
+            'recreated,\s*re-check the\s*current live policy ID'
+        )
+        $script:terraformReadme | Should -Match 'required_linear_history = true'
+        $script:terraformReadme | Should -Match 'dismiss_stale_reviews = true'
+        $script:terraformReadme | Should -Not -Match 'is a create, because DEV currently has no live deployment branch policy'
+        $script:terraformReadme | Should -Not -Match 'is a create unless the live repo'
         $script:terraformReadme | Should -Not -Match 'not scaffolded yet'
     }
 }
 
 Describe 'ADR-0004 reviewed-ref narrative' {
-    It 'records the current TEST reviewer exception and customer target state' {
+    It 'records the live reviewed-ref evidence and preserves the demo exceptions' {
+        $script:adr0004 | Should -Match '2026-08-10'
+        $script:adr0004 | Should -Match '56913774'
+        $script:adr0004 | Should -Match '56680080'
         $script:adr0004 | Should -Match 'urruegg'
         $script:adr0004 | Should -Match '46865858'
         $script:adr0004 | Should -Match 'prevent_self_review = false'
-        $script:adr0004 | Should -Match 'zero required reviewers'
+        $script:adr0004 | Should -Match 'required_linear_history = true'
+        $script:adr0004 | Should -Match 'dismiss_stale_reviews = true'
+        $script:adr0004 | Should -Match 'required_approving_review_count = 0'
         $script:adr0004 | Should -Match 'independent required reviewers'
     }
 
-    It 'distinguishes desired IaC from live branch-protection evidence' {
-        $script:adr0004 | Should -Match 'desired IaC'
-        $script:adr0004 | Should -Match 'not live evidence'
-        $script:adr0004 | Should -Match 'Terraform controller / maintainer session'
+    It 'no longer describes main branch protection as desired-only' {
+        $script:adr0004 | Should -Not -Match 'desired IaC'
+        $script:adr0004 | Should -Not -Match 'not live evidence'
+        $script:adr0004 | Should -Not -Match 'Terraform controller / maintainer session'
     }
 }
