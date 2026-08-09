@@ -280,7 +280,11 @@ function New-OrdinaryRelationshipMetadata {
         CascadeConfiguration = @{
             Assign = 'NoCascade'
             Delete = 'Restrict'
-            Merge = 'NoCascade'
+            Merge = if ($target -in @('account', 'contact')) {
+                'Cascade'
+            } else {
+                'NoCascade'
+            }
             Reparent = 'NoCascade'
             Share = 'NoCascade'
             Unshare = 'NoCascade'
@@ -1380,7 +1384,12 @@ function Invoke-TableReconciliation {
                     throw "Structural relationship target conflict for '$($wanted.SchemaName)'."
                 }
                 $expectedCascade = @{
-                    Assign='NoCascade'; Delete='Restrict'; Merge='NoCascade'
+                    Assign='NoCascade'; Delete='Restrict'
+                    Merge=$(if ($wanted.ReferencedEntity -in @('account', 'contact')) {
+                        'Cascade'
+                    } else {
+                        'NoCascade'
+                    })
                     Reparent='NoCascade'; Share='NoCascade'; Unshare='NoCascade'
                 }
                 foreach ($action in @($expectedCascade.Keys | Sort-Object)) {
