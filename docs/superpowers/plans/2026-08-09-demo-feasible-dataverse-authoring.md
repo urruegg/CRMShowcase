@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Deliver one deterministic DEV authoring workflow that stays within the existing `System Customizer` permissions, stops before mutation when the manual security-role prerequisite is missing, converges Dataverse metadata without operator reruns, and exports exactly four reviewed solution packages. `0023` is the latest allocated sequence; use `0024` for the next ADR.
+**Goal:** Deliver one deterministic DEV authoring workflow that stays within the existing `System Customizer` permissions, stops before mutation when the manual security-role prerequisite is missing, converges Dataverse metadata without operator reruns, and exports exactly four reviewed solution packages.
 
 **Architecture:** Split the current monolithic authoring path into read-only preflight, demo-safe schema reconciliation, read-only role/convergence verification, and exact package export. Keep security-role mutation available only as an explicit administrator-run bootstrap scope; document automated privileged bootstrap as an ADR hypothesis rather than implementing unavailable tenant capability.
 
@@ -138,8 +138,7 @@ promotion requires a different permission model.
 - [ ] **Step 2: Register ADR-0023 in the ADR README**
 
 In `docs/adr/README.md`, update the domain-and-delivery numbering range and
-ADR index so ADR-0023 is discoverable and the next allocation remains clear:
-`0023` is the latest allocated sequence; use `0024` for the next ADR.
+ADR index so ADR-0023 is discoverable and the next allocation remains clear.
 
 ```markdown
 - **Domain and delivery ADRs (0006–0023)** record the CRM Frontier Firm design position on the
@@ -148,7 +147,7 @@ ADR index so ADR-0023 is discoverable and the next allocation remains clear:
   agents-advisory, voice, outbound, ALM, analytics split, and demo-feasible
   Dataverse bootstrap boundaries.
 
-`0024` is allocated; use the next available sequence number for any new ADR.
+`0023` is the latest allocated sequence; use `0024` for the next ADR.
 
 | [0023](./ADR-0023-demo-feasible-dataverse-bootstrap.md) | Demo-feasible Dataverse bootstrap and steady-state identities | A8 | Proposed hypothesis |
 
