@@ -4598,7 +4598,7 @@ function pac { throw 'pac was called' }
         $script:authoringWorkflow | Should -Not -Match '\${{\s*secrets\.'
     }
 
-    It 'captures, echoes, and classifies preflight JSON before mutation' {
+    It 'captures, sanitizes, and classifies preflight diagnostics before mutation' {
         $preflight = $script:authoringWorkflow.IndexOf(
             '- name: Run authoring preflight'
         )
@@ -4614,8 +4614,11 @@ function pac { throw 'pac was called' }
         $exitCapture = $script:authoringWorkflow.IndexOf(
             '$exitCode = $LASTEXITCODE'
         )
-        $logJson = $script:authoringWorkflow.IndexOf(
-            'Write-Host $preflightJson'
+        $sanitize = $script:authoringWorkflow.IndexOf(
+            '$preflightDiagnostics = Get-InsuranceAuthoringPreflightDiagnosticSummary'
+        )
+        $logDiagnostics = $script:authoringWorkflow.IndexOf(
+            'Write-Host $preflightDiagnostics'
         )
         $failure = $script:authoringWorkflow.IndexOf(
             'throw (Get-InsuranceAuthoringPreflightFailureMessage'
@@ -4626,13 +4629,20 @@ function pac { throw 'pac was called' }
         $preflight | Should -BeLessThan $metadata
         $capture | Should -BeGreaterOrEqual 0
         $capture | Should -BeLessThan $exitCapture
-        $exitCapture | Should -BeLessThan $logJson
-        $logJson | Should -BeLessThan $failure
+        $exitCapture | Should -BeLessThan $sanitize
+        $sanitize | Should -BeLessThan $logDiagnostics
+        $logDiagnostics | Should -BeLessThan $failure
         $script:authoringWorkflow | Should -Match 'Test-InsuranceAuthoringPreflight\.ps1'
         $script:authoringWorkflow | Should -Match (
             'Get-InsuranceAuthoringPreflightFailureMessage\.ps1'
         )
-        $script:authoringWorkflow | Should -Match 'Write-Host \$preflightJson'
+        $script:authoringWorkflow | Should -Match (
+            'Get-InsuranceAuthoringPreflightDiagnosticSummary'
+        )
+        $script:authoringWorkflow | Should -Match (
+            'Write-Host \$preflightDiagnostics'
+        )
+        $script:authoringWorkflow | Should -Not -Match 'Write-Host \$preflightJson'
         $script:authoringWorkflow | Should -Match (
             'throw \(Get-InsuranceAuthoringPreflightFailureMessage'
         )

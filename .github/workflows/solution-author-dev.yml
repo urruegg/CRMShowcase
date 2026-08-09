@@ -89,8 +89,10 @@ jobs:
           $preflightJson = (@($preflightJsonLines | ForEach-Object {
                 $_.ToString()
               }) -join [Environment]::NewLine).Trim()
-          if (-not [string]::IsNullOrWhiteSpace($preflightJson)) {
-            Write-Host $preflightJson
+          $preflightDiagnostics = Get-InsuranceAuthoringPreflightDiagnosticSummary `
+            -JsonText $preflightJson
+          if (-not [string]::IsNullOrWhiteSpace($preflightDiagnostics)) {
+            Write-Host $preflightDiagnostics
           }
           if ($exitCode -ne 0) {
             throw (Get-InsuranceAuthoringPreflightFailureMessage `
