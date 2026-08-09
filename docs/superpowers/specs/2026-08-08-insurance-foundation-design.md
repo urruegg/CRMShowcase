@@ -36,7 +36,8 @@ boundaries under the review triggers in ADR-0019.
 > security roles. The approved demo scope and administrator prerequisite are
 > defined in
 > [Demo-Feasible Dataverse Authoring and Bootstrap](./2026-08-09-demo-feasible-dataverse-authoring-design.md)
-> and ADR-0023. Managed TEST promotion remains a separate sprint.
+> and [ADR-0023](../../adr/ADR-0023-demo-feasible-dataverse-bootstrap.md).
+> Managed TEST promotion remains a separate sprint.
 
 ## 2. Scope
 
