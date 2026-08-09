@@ -60,7 +60,8 @@ Describe 'Invoke-DataverseLanguageReconciliation' {
             return @(1033)
         }
         Mock Invoke-DataverseRest {
-            [void]$script:events.Add("POST:$($Body.Language)")
+            [void]$script:events.Add("POST:${Url}:$($Body.Language)")
+            return @{ AsyncOperationId = '11111111-1111-1111-1111-111111111111' }
         }
         Mock Wait-DataverseLanguage {
             [void]$script:events.Add("WAIT:$LocaleId")
@@ -76,8 +77,8 @@ Describe 'Invoke-DataverseLanguageReconciliation' {
 
         $script:events | Should -Be @(
             'GET:PROVISIONED'
-            'POST:1031'
-            'POST:1036'
+            'POST:https://crmshowdev.crm.dynamics.com/api/data/v9.2/ProvisionLanguageAsync:1031'
+            'POST:https://crmshowdev.crm.dynamics.com/api/data/v9.2/ProvisionLanguageAsync:1036'
             'WAIT:1031'
             'WAIT:1036'
         )

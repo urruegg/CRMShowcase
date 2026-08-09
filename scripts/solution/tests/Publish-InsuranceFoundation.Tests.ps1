@@ -1640,4 +1640,13 @@ function pac { throw 'pac was called' }
         $tests | Should -BeLessThan $auth
         $tests | Should -BeLessThan $languages
     }
+
+    It 'runs the Dataverse language tests before mutating the environment' {
+        $workflow = Get-Content (Join-Path $script:repoRoot `
+            '.github/workflows/solution-author-dev.yml') -Raw
+
+        $expected = [regex]::Escape(
+            "(Join-Path `$root 'infra/scripts/tests/Set-DataverseLanguages.Tests.ps1')")
+        $workflow | Should -Match $expected
+    }
 }

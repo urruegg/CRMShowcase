@@ -151,7 +151,7 @@ function Invoke-DataverseLanguageReconciliation {
         $target = "$baseUrl locale $lcid"
         if ($PSCmdlet.ShouldProcess($target, 'Activate Dataverse language')) {
             Invoke-DataverseRest -Method POST `
-                -Url "$baseUrl/api/data/v9.2/ProvisionLanguage" `
+                -Url "$baseUrl/api/data/v9.2/ProvisionLanguageAsync" `
                 -Body @{ Language = [int]$lcid } | Out-Null
             $submitted += $lcid
         }
