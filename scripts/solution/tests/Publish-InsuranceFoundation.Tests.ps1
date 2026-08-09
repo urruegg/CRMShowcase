@@ -494,6 +494,17 @@ Describe 'Insurance Foundation reconciliation' {
             Should -BeNullOrEmpty
     }
 
+    It 'queries system forms only through supported Web API properties' {
+        Invoke-InsuranceFoundationReconciliation -Contract $script:contract -Scope All -Confirm:$false
+
+        $systemFormReads = @($script:calls | Where-Object {
+            $_.Method -eq 'GET' -and $_.Path -match '^/systemforms\?'
+        })
+        $systemFormReads.Count | Should -BeGreaterThan 0
+        @($systemFormReads.Path | Where-Object { $_ -match '_solutionid_value' }) |
+            Should -BeNullOrEmpty
+    }
+
     It 'verifies saved-query ownership through solution component membership' {
         Mock Invoke-DataverseRequest {
             return [pscustomobject]@{
