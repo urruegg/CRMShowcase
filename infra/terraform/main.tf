@@ -54,6 +54,8 @@ module "github" {
       powerplatform_env_id    = module.powerplatform.environment_ids["test"]
       powerplatform_env_url   = module.powerplatform.environment_urls["test"]
       allowed_branch_patterns = ["main"]
+      reviewer_user_ids       = [data.github_user.owner.id]
+      prevent_self_review     = false
     }
   }
 }

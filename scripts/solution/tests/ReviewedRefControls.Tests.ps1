@@ -6,6 +6,10 @@ BeforeAll {
         'infra/terraform/modules/github/main.tf') -Raw
     $script:terraformRoot = Get-Content (Join-Path $script:repoRoot `
         'infra/terraform/main.tf') -Raw
+    $script:terraformReadme = Get-Content (Join-Path $script:repoRoot `
+        'infra/terraform/README.md') -Raw
+    $script:adr0004 = Get-Content (Join-Path $script:repoRoot `
+        'docs/adr/ADR-0004-ci-plane-app-registrations-and-github-environments.md') -Raw
     $script:solutionCiWorkflow = Get-Content (Join-Path $script:repoRoot `
         '.github/workflows/solution-ci.yml') -Raw
 }
@@ -34,6 +38,29 @@ Describe 'GitHub environment reviewed-ref policies' {
         $script:githubModuleMain | Should -Match 'branch_pattern\s*=\s*each\.value\.branch_pattern'
     }
 
+    It 'supports optional reviewer user and team IDs in the module input contract' {
+        $script:githubModuleVariables | Should -Match (
+            'reviewer_user_ids\s*=\s*optional\(\s*set\(number\)\s*,\s*\[\s*\]\s*\)'
+        )
+        $script:githubModuleVariables | Should -Match (
+            'reviewer_team_ids\s*=\s*optional\(\s*set\(number\)\s*,\s*\[\s*\]\s*\)'
+        )
+    }
+
+    It 'emits a reviewers block only when reviewer IDs are configured' {
+        $script:githubModuleMain | Should -Match (
+            '(?ms)dynamic\s+"reviewers"\s*\{\s*' +
+            'for_each\s*=\s*length\(each\.value\.reviewer_user_ids\)\s*\+\s*' +
+            'length\(each\.value\.reviewer_team_ids\)\s*>\s*0\s*\?\s*\[each\.value\]\s*:\s*\[\]'
+        )
+        $script:githubModuleMain | Should -Match (
+            'users\s*=\s*length\(reviewers\.value\.reviewer_user_ids\)\s*==\s*0\s*\?\s*null\s*:\s*reviewers\.value\.reviewer_user_ids'
+        )
+        $script:githubModuleMain | Should -Match (
+            'teams\s*=\s*length\(reviewers\.value\.reviewer_team_ids\)\s*==\s*0\s*\?\s*null\s*:\s*reviewers\.value\.reviewer_team_ids'
+        )
+    }
+
     It 'pins the demo dev and test environments to main only' {
         $script:terraformRoot | Should -Match (
             '(?ms)dev\s*=\s*\{.*?allowed_branch_patterns\s*=\s*\[\s*"main"\s*\]'
@@ -41,6 +68,15 @@ Describe 'GitHub environment reviewed-ref policies' {
         $script:terraformRoot | Should -Match (
             '(?ms)test\s*=\s*\{.*?allowed_branch_patterns\s*=\s*\[\s*"main"\s*\]'
         )
+    }
+
+    It 'retains the demo TEST reviewer while leaving DEV without reviewers' {
+        $script:terraformRoot | Should -Match (
+            '(?ms)test\s*=\s*\{.*?reviewer_user_ids\s*=\s*\[\s*data\.github_user\.owner\.id\s*\].*?' +
+            'prevent_self_review\s*=\s*false'
+        )
+        ([regex]::Matches($script:terraformRoot, 'reviewer_user_ids\s*=')).Count |
+            Should -Be 1
     }
 }
 
@@ -89,5 +125,45 @@ Describe 'Solution CI gate1 contract' {
         $script:solutionCiWorkflow | Should -Match (
             '(?ms)^jobs:\r?\n\s+gate1:\r?\n\s+runs-on:\s+ubuntu-latest\r?\n\s+steps:'
         )
+    }
+}
+
+Describe 'Terraform bootstrap/import runbook' {
+    It 'documents GitHub auth prerequisites and reviewed-ref imports before first apply' {
+        $script:terraformReadme | Should -Match 'GH_TOKEN'
+        $script:terraformReadme | Should -Match 'GITHUB_TOKEN'
+        $script:terraformReadme | Should -Match (
+            'module\.github\.github_repository_environment\.envs\["dev"\]'
+        )
+        $script:terraformReadme | Should -Match (
+            'module\.github\.github_repository_environment\.envs\["test"\]'
+        )
+        $script:terraformReadme | Should -Match (
+            'module\.github\.github_repository_environment_deployment_policy\.allowed_branches\["test:main"\]'
+        )
+        $script:terraformReadme | Should -Match '56680080'
+    }
+
+    It 'warns operators to inspect the plan for reviewer retention before apply' {
+        $script:terraformReadme | Should -Match 'no reviewer removal'
+        $script:terraformReadme | Should -Match '(?ms)dev:main.*create'
+        $script:terraformReadme | Should -Match '(?ms)branch protection.*create'
+        $script:terraformReadme | Should -Not -Match 'not scaffolded yet'
+    }
+}
+
+Describe 'ADR-0004 reviewed-ref narrative' {
+    It 'records the current TEST reviewer exception and customer target state' {
+        $script:adr0004 | Should -Match 'urruegg'
+        $script:adr0004 | Should -Match '46865858'
+        $script:adr0004 | Should -Match 'prevent_self_review = false'
+        $script:adr0004 | Should -Match 'zero required reviewers'
+        $script:adr0004 | Should -Match 'independent required reviewers'
+    }
+
+    It 'distinguishes desired IaC from live branch-protection evidence' {
+        $script:adr0004 | Should -Match 'desired IaC'
+        $script:adr0004 | Should -Match 'not live evidence'
+        $script:adr0004 | Should -Match 'Terraform controller / maintainer session'
     }
 }

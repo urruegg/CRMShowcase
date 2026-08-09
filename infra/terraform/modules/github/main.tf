@@ -28,6 +28,15 @@ resource "github_repository_environment" "envs" {
   can_admins_bypass   = each.value.can_admins_bypass
   prevent_self_review = each.value.prevent_self_review
 
+  dynamic "reviewers" {
+    for_each = length(each.value.reviewer_user_ids) + length(each.value.reviewer_team_ids) > 0 ? [each.value] : []
+
+    content {
+      users = length(reviewers.value.reviewer_user_ids) == 0 ? null : reviewers.value.reviewer_user_ids
+      teams = length(reviewers.value.reviewer_team_ids) == 0 ? null : reviewers.value.reviewer_team_ids
+    }
+  }
+
   deployment_branch_policy {
     protected_branches     = false
     custom_branch_policies = true
