@@ -4510,6 +4510,22 @@ Describe 'Publisher entry point safety' {
     BeforeAll {
         $script:authoringWorkflow = Get-Content (Join-Path $script:repoRoot `
             '.github/workflows/solution-author-dev.yml') -Raw
+        $script:validateJobBlock = [regex]::Match(
+            $script:authoringWorkflow,
+            '(?ms)^  validate:\r?\n.*?(?=^  author:\r?\n)'
+        ).Value
+        $script:authorJobBlock = [regex]::Match(
+            $script:authoringWorkflow,
+            '(?ms)^  author:\r?\n.*$'
+        ).Value
+
+        if ([string]::IsNullOrWhiteSpace($script:validateJobBlock)) {
+            throw 'Unable to locate validate job in authoring workflow.'
+        }
+
+        if ([string]::IsNullOrWhiteSpace($script:authorJobBlock)) {
+            throw 'Unable to locate author job in authoring workflow.'
+        }
     }
 
     It 'does not invoke az or pac when dot-sourced' {
@@ -4522,13 +4538,12 @@ function pac { throw 'pac was called' }
         & ([scriptblock]::Create($text))
     }
 
-    It 'allows manual dispatch only with exact top-level permissions' {
+    It 'allows manual dispatch only with minimal top-level permissions' {
         $script:authoringWorkflow | Should -Match (
             '(?ms)^on:\r?\n' +
             '\s+workflow_dispatch:\s*\{\}\s*\r?\n' +
             '\r?\npermissions:\r?\n' +
             '\s+contents:\s+read\r?\n' +
-            '\s+id-token:\s+write\r?\n' +
             '\r?\njobs:\r?\n'
         )
         $script:authoringWorkflow | Should -Not -Match (
@@ -4537,22 +4552,58 @@ function pac { throw 'pac was called' }
         )
     }
 
-    It 'pins the authoring job to ubuntu-latest in the dev environment' {
-        $script:authoringWorkflow | Should -Match (
-            '(?ms)jobs:\r?\n' +
-            '\s+author:\r?\n' +
+    It 'runs validate on ubuntu-latest without environment or cloud access' {
+        $script:validateJobBlock | Should -Match (
+            '(?ms)^  validate:\r?\n' +
             '\s+runs-on:\s+ubuntu-latest\r?\n' +
-            '\s+environment:\s+dev\r?\n'
+            '\s+permissions:\r?\n' +
+            '\s+contents:\s+read\r?\n'
+        )
+        $script:validateJobBlock | Should -Not -Match '(?m)^\s+environment:\s+'
+        $script:validateJobBlock | Should -Not -Match '(?m)^\s+env:\s*$'
+        $script:validateJobBlock | Should -Not -Match 'id-token:\s+write'
+        $script:validateJobBlock | Should -Not -Match 'azure/login@'
+        $script:validateJobBlock | Should -Not -Match 'powerplatform-actions/actions-install@'
+        $script:validateJobBlock | Should -Not -Match (
+            'Authenticate Power Platform CLI|auth create'
+        )
+        $script:validateJobBlock | Should -Not -Match (
+            'AZURE_CLIENT_ID|AZURE_TENANT_ID|POWER_PLATFORM_ENV_URL'
         )
     }
 
-    It 'checks out the reviewed commit without persisting credentials' {
-        $script:authoringWorkflow | Should -Match (
+    It 'runs author on ubuntu-latest in the dev environment only after validate with OIDC' {
+        $script:authorJobBlock | Should -Match (
+            '(?ms)^  author:\r?\n' +
+            '\s+needs:\s+validate\r?\n' +
+            '\s+runs-on:\s+ubuntu-latest\r?\n' +
+            '\s+environment:\s+dev\r?\n' +
+            '\s+permissions:\r?\n' +
+            '\s+contents:\s+read\r?\n' +
+            '\s+id-token:\s+write\r?\n'
+        )
+        $script:authorJobBlock | Should -Match (
+            [regex]::Escape('AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}')
+        )
+        $script:authorJobBlock | Should -Match (
+            [regex]::Escape('AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}')
+        )
+        $script:authorJobBlock | Should -Match (
+            [regex]::Escape(
+                'POWER_PLATFORM_ENV_URL: ${{ vars.POWER_PLATFORM_ENV_URL }}'
+            )
+        )
+    }
+
+    It 'checks out the reviewed commit without persisting credentials in both jobs' {
+        $checkoutMatches = [regex]::Matches(
+            $script:authoringWorkflow,
             '(?ms)- name: Check out reviewed commit\r?\n' +
             '\s+uses: actions/checkout@[0-9a-f]{40}\s+#\s+v[0-9][^\r\n]*\r?\n' +
             '\s+with:\r?\n' +
             '\s+persist-credentials:\s+false\r?\n'
         )
+        $checkoutMatches.Count | Should -Be 2
     }
 
     It 'pins every external action to a full commit SHA with a version comment' {
@@ -4561,7 +4612,7 @@ function pac { throw 'pac was called' }
             '(?m)^\s+uses:\s+(?<action>[^@\s#]+)@(?<ref>[^\s#]+)(?:\s+#\s+(?<comment>[^\r\n]+))?\s*$'
         )
 
-        $usesMatches.Count | Should -Be 4
+        $usesMatches.Count | Should -Be 5
         foreach ($match in $usesMatches) {
             $match.Groups['ref'].Value | Should -Match '^[0-9a-f]{40}$'
             $match.Groups['comment'].Value | Should -Match '^v[0-9]'
@@ -4572,24 +4623,34 @@ function pac { throw 'pac was called' }
         )
     }
 
-    It 'runs offline authoring suites before PAC authentication and any mutation' {
-        $tests = $script:authoringWorkflow.IndexOf(
+    It 'installs Pester only in validate from PSGallery without publisher bypass or trust mutation' {
+        $script:validateJobBlock | Should -Match '- name: Install Pester 6\.0\.1'
+        $script:validateJobBlock | Should -Match (
+            'Install-Module Pester -RequiredVersion 6\.0\.1 -Repository PSGallery -Scope CurrentUser -Force'
+        )
+        $script:authorJobBlock | Should -Not -Match (
+            'Install Pester 6\.0\.1|Install-Module Pester|Import-Module Pester'
+        )
+        $script:authoringWorkflow | Should -Not -Match (
+            'Set-PSRepository\s+-Name\s+PSGallery\s+-InstallationPolicy\s+Trusted'
+        )
+        $script:authoringWorkflow | Should -Not -Match '-SkipPublisherCheck'
+    }
+
+    It 'runs offline authoring suites only in validate before privileged authoring starts' {
+        $install = $script:validateJobBlock.IndexOf(
+            '- name: Install Pester 6.0.1'
+        )
+        $tests = $script:validateJobBlock.IndexOf(
             '- name: Run offline authoring contract tests'
         )
-        $pacAuth = $script:authoringWorkflow.IndexOf(
-            '- name: Authenticate Power Platform CLI'
-        )
-        $preflight = $script:authoringWorkflow.IndexOf(
-            '- name: Run authoring preflight'
-        )
-        $languages = $script:authoringWorkflow.IndexOf(
-            '- name: Reconcile Dataverse languages'
-        )
+        $install | Should -BeGreaterOrEqual 0
         $tests | Should -BeGreaterOrEqual 0
-        $tests | Should -BeLessThan $pacAuth
-        $pacAuth | Should -BeLessThan $preflight
-        $preflight | Should -BeLessThan $languages
-        $tests | Should -BeLessThan $languages
+        $install | Should -BeLessThan $tests
+        $script:validateJobBlock | Should -Match 'Invoke-Pester'
+        $script:authorJobBlock | Should -Not -Match (
+            'Invoke-Pester|Run offline authoring contract tests'
+        )
     }
 
     It 'includes the required targeted offline suites and then the full solution suite' {
@@ -4606,55 +4667,72 @@ function pac { throw 'pac was called' }
         )
 
         foreach ($suite in $expectedSuites) {
-            $script:authoringWorkflow | Should -Match ([regex]::Escape($suite))
+            $script:validateJobBlock | Should -Match ([regex]::Escape($suite))
         }
 
-        $targeted = $script:authoringWorkflow.IndexOf('-Path @(')
-        $full = $script:authoringWorkflow.IndexOf(
+        $targeted = $script:validateJobBlock.IndexOf('-Path @(')
+        $full = $script:validateJobBlock.IndexOf(
             "Invoke-Pester -Path (Join-Path `$root 'scripts/solution/tests')"
         )
         $targeted | Should -BeGreaterOrEqual 0
         $full | Should -BeGreaterThan $targeted
     }
 
-    It 'authenticates Azure and PAC with workload federation only' {
-        $script:authoringWorkflow | Should -Match (
+    It 'authenticates Azure and PAC with workload federation only after validate' {
+        $azureLogin = $script:authorJobBlock.IndexOf(
+            '- name: Sign in with workload identity'
+        )
+        $cliInstall = $script:authorJobBlock.IndexOf(
+            '- name: Install Power Platform CLI'
+        )
+        $pacAuth = $script:authorJobBlock.IndexOf(
+            '- name: Authenticate Power Platform CLI'
+        )
+        $preflight = $script:authorJobBlock.IndexOf(
+            '- name: Run authoring preflight'
+        )
+
+        $azureLogin | Should -BeGreaterOrEqual 0
+        $azureLogin | Should -BeLessThan $cliInstall
+        $cliInstall | Should -BeLessThan $pacAuth
+        $pacAuth | Should -BeLessThan $preflight
+        $script:authorJobBlock | Should -Match (
             [regex]::Escape('client-id: ${{ env.AZURE_CLIENT_ID }}')
         )
-        $script:authoringWorkflow | Should -Match (
+        $script:authorJobBlock | Should -Match (
             [regex]::Escape('tenant-id: ${{ env.AZURE_TENANT_ID }}')
         )
-        $script:authoringWorkflow | Should -Match 'allow-no-subscriptions:\s+true'
-        $script:authoringWorkflow | Should -Match '--githubFederated'
-        $script:authoringWorkflow | Should -Match '--applicationId \$env:AZURE_CLIENT_ID'
-        $script:authoringWorkflow | Should -Match '--tenant \$env:AZURE_TENANT_ID'
-        $script:authoringWorkflow | Should -Not -Match 'client-secret|creds:|password'
-        $script:authoringWorkflow | Should -Not -Match '\${{\s*secrets\.'
+        $script:authorJobBlock | Should -Match 'allow-no-subscriptions:\s+true'
+        $script:authorJobBlock | Should -Match '--githubFederated'
+        $script:authorJobBlock | Should -Match '--applicationId \$env:AZURE_CLIENT_ID'
+        $script:authorJobBlock | Should -Match '--tenant \$env:AZURE_TENANT_ID'
+        $script:authorJobBlock | Should -Not -Match 'client-secret|creds:|password'
+        $script:authorJobBlock | Should -Not -Match '\${{\s*secrets\.'
     }
 
     It 'captures, sanitizes, and classifies preflight diagnostics before mutation' {
-        $preflight = $script:authoringWorkflow.IndexOf(
+        $preflight = $script:authorJobBlock.IndexOf(
             '- name: Run authoring preflight'
         )
-        $languages = $script:authoringWorkflow.IndexOf(
+        $languages = $script:authorJobBlock.IndexOf(
             '- name: Reconcile Dataverse languages'
         )
-        $metadata = $script:authoringWorkflow.IndexOf(
+        $metadata = $script:authorJobBlock.IndexOf(
             '- name: Reconcile demo-safe metadata'
         )
-        $capture = $script:authoringWorkflow.IndexOf(
+        $capture = $script:authorJobBlock.IndexOf(
             '$preflightJsonLines = & $pwsh'
         )
-        $exitCapture = $script:authoringWorkflow.IndexOf(
+        $exitCapture = $script:authorJobBlock.IndexOf(
             '$exitCode = $LASTEXITCODE'
         )
-        $sanitize = $script:authoringWorkflow.IndexOf(
+        $sanitize = $script:authorJobBlock.IndexOf(
             '$preflightDiagnostics = Get-InsuranceAuthoringPreflightDiagnosticSummary'
         )
-        $logDiagnostics = $script:authoringWorkflow.IndexOf(
+        $logDiagnostics = $script:authorJobBlock.IndexOf(
             'Write-Host $preflightDiagnostics'
         )
-        $failure = $script:authoringWorkflow.IndexOf(
+        $failure = $script:authorJobBlock.IndexOf(
             'throw (Get-InsuranceAuthoringPreflightFailureMessage'
         )
 
@@ -4666,69 +4744,69 @@ function pac { throw 'pac was called' }
         $exitCapture | Should -BeLessThan $sanitize
         $sanitize | Should -BeLessThan $logDiagnostics
         $logDiagnostics | Should -BeLessThan $failure
-        $script:authoringWorkflow | Should -Match 'Test-InsuranceAuthoringPreflight\.ps1'
-        $script:authoringWorkflow | Should -Match (
+        $script:authorJobBlock | Should -Match 'Test-InsuranceAuthoringPreflight\.ps1'
+        $script:authorJobBlock | Should -Match (
             'Get-InsuranceAuthoringPreflightFailureMessage\.ps1'
         )
-        $script:authoringWorkflow | Should -Match (
+        $script:authorJobBlock | Should -Match (
             'Get-InsuranceAuthoringPreflightDiagnosticSummary'
         )
-        $script:authoringWorkflow | Should -Match (
+        $script:authorJobBlock | Should -Match (
             'Write-Host \$preflightDiagnostics'
         )
-        $script:authoringWorkflow | Should -Not -Match 'Write-Host \$preflightJson'
-        $script:authoringWorkflow | Should -Match (
+        $script:authorJobBlock | Should -Not -Match 'Write-Host \$preflightJson'
+        $script:authorJobBlock | Should -Match (
             'throw \(Get-InsuranceAuthoringPreflightFailureMessage'
         )
     }
 
     It 'reconciles only demo-safe metadata and never requests full or role authoring' {
-        $script:authoringWorkflow | Should -Match '- name: Reconcile demo-safe metadata'
-        $script:authoringWorkflow | Should -Match '-Scope Demo'
-        $script:authoringWorkflow | Should -Not -Match '-Scope (?:All|SecurityRoles)'
+        $script:authorJobBlock | Should -Match '- name: Reconcile demo-safe metadata'
+        $script:authorJobBlock | Should -Match '-Scope Demo'
+        $script:authorJobBlock | Should -Not -Match '-Scope (?:All|SecurityRoles)'
     }
 
     It 'validates convergence before exporting and uses the tested export script only' {
-        $validation = $script:authoringWorkflow.IndexOf(
+        $validation = $script:authorJobBlock.IndexOf(
             '- name: Validate complete demo convergence'
         )
-        $export = $script:authoringWorkflow.IndexOf(
+        $export = $script:authorJobBlock.IndexOf(
             '- name: Export managed and unmanaged solutions'
         )
 
         $validation | Should -BeGreaterOrEqual 0
         $validation | Should -BeLessThan $export
-        $script:authoringWorkflow | Should -Match (
+        $script:authorJobBlock | Should -Match (
             'Test-InsuranceFoundationConvergence\.ps1'
         )
-        $script:authoringWorkflow | Should -Match (
+        $script:authorJobBlock | Should -Match (
             'Export-InsuranceFoundationPackages\.ps1'
         )
-        $script:authoringWorkflow | Should -Not -Match 'pac solution export'
-        $script:authoringWorkflow | Should -Not -Match 'Verify exact authored package set'
+        $script:authorJobBlock | Should -Not -Match 'pac solution export'
+        $script:authorJobBlock | Should -Not -Match 'Verify exact authored package set'
     }
 
     It 'uploads the exact export directory after export with immutable retention' {
-        $export = $script:authoringWorkflow.IndexOf(
+        $export = $script:authorJobBlock.IndexOf(
             '- name: Export managed and unmanaged solutions'
         )
-        $upload = $script:authoringWorkflow.IndexOf(
+        $upload = $script:authorJobBlock.IndexOf(
             '- name: Upload authored solution packages'
         )
 
         $upload | Should -BeGreaterThan $export
-        $script:authoringWorkflow | Should -Match (
+        $script:authorJobBlock | Should -Match (
             [regex]::Escape(
                 'path: ${{ runner.temp }}/insurance-foundation-authoring'
             )
         )
-        $script:authoringWorkflow | Should -Not -Match (
+        $script:authorJobBlock | Should -Not -Match (
             [regex]::Escape(
                 'path: ${{ runner.temp }}/insurance-foundation-authoring/*.zip'
             )
         )
-        $script:authoringWorkflow | Should -Match 'if-no-files-found:\s+error'
-        $script:authoringWorkflow | Should -Match 'retention-days:\s+14'
+        $script:authorJobBlock | Should -Match 'if-no-files-found:\s+error'
+        $script:authorJobBlock | Should -Match 'retention-days:\s+14'
     }
 
     It 'avoids dangerous triggers, event interpolation, and credential inputs' {
