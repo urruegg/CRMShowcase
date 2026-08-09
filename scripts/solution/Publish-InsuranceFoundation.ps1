@@ -387,6 +387,7 @@ function Get-AlternateKeyRequest {
         Method = 'POST'
         Path = "/EntityDefinitions(LogicalName='$TableLogicalName')/Keys"
         Solution = 'crmshow_DataModel'
+        SolutionComponentType = 14
         Body = @{
             SchemaName = $SchemaName
             DisplayName = if ($Metadata) {
@@ -757,7 +758,12 @@ function Get-MergeLabelHeaders {
 }
 
 function Assert-SolutionOwnership {
-    param($Existing, [string]$Expected, [string]$Component)
+    param(
+        $Existing,
+        [string]$Expected,
+        [string]$Component,
+        [Nullable[int]]$RepairComponentType
+    )
     if ($Existing.PSObject.Properties.Name -contains 'SolutionUniqueName' -and
         $Existing.SolutionUniqueName -and $Existing.SolutionUniqueName -ne $Expected) {
         throw "Structural ownership conflict for '$Component': expected '$Expected', found '$($Existing.SolutionUniqueName)'."
@@ -778,7 +784,27 @@ function Assert-SolutionOwnership {
             if ($_.solutionid) { $_.solutionid.uniquename }
         })
         if ($Expected -notin $solutionNames) {
-            throw "Structural ownership conflict for '$Component': component is not in '$Expected'."
+            if ($null -eq $RepairComponentType) {
+                throw "Structural ownership conflict for '$Component': component is not in '$Expected'."
+            }
+            Invoke-DataverseRequest -Method POST -Path '/AddSolutionComponent' -Body @{
+                ComponentId = $componentId
+                ComponentType = [int]$RepairComponentType
+                SolutionUniqueName = $Expected
+                AddRequiredComponents = $false
+                DoNotIncludeSubcomponents = $true
+            } -Headers (Get-DataverseHeaders $Expected) | Out-Null
+            $membership = Invoke-DataverseRequest -Method GET -Path (
+                "/solutioncomponents?`$select=solutioncomponentid&" +
+                "`$filter=objectid eq $componentId&" +
+                "`$expand=solutionid(`$select=uniquename)"
+            )
+            $solutionNames = @($membership.value | ForEach-Object {
+                if ($_.solutionid) { $_.solutionid.uniquename }
+            })
+            if ($Expected -notin $solutionNames) {
+                throw "Structural ownership conflict for '$Component': repair did not add the component to '$Expected'."
+            }
         }
     }
     if ($Existing._solutionid_value) {
@@ -1077,7 +1103,8 @@ function Invoke-ChildRequestIfMissing {
         Set-RecordLocalizedFields -Request $Request -CreatedRecord $created
         Write-Output "$Component`: Created"
     } else {
-        Assert-SolutionOwnership $existing $Request.Solution $Component
+        Assert-SolutionOwnership $existing $Request.Solution $Component `
+            -RepairComponentType $Request.SolutionComponentType
         if ($AssertCompatible) { & $AssertCompatible $existing }
         if ($Request.LocalizedFields) {
             # savedquery/systemform localization cannot be expanded reliably
