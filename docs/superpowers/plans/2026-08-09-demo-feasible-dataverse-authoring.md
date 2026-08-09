@@ -29,7 +29,7 @@ The administrator role prerequisite is intentionally a gate:
 
 | Path | Responsibility |
 | --- | --- |
-| `docs/adr/ADR-0022-demo-feasible-dataverse-bootstrap.md` | Records demo boundary and target bootstrap hypothesis |
+| `docs/adr/ADR-0023-demo-feasible-dataverse-bootstrap.md` | Records demo boundary and target bootstrap hypothesis |
 | `docs/BACKLOG.md` | Updates US-702/US-708 scope and issue links |
 | `scripts/solution/Test-InsuranceAuthoringPreflight.ps1` | Read-only environment, role, solution, and phase feasibility checks |
 | `scripts/solution/tests/Test-InsuranceAuthoringPreflight.Tests.ps1` | Preflight result and no-mutation tests |
@@ -48,16 +48,16 @@ The administrator role prerequisite is intentionally a gate:
 ### Task 1: Record the demo boundary and bootstrap hypothesis
 
 **Files:**
-- Create: `docs/adr/ADR-0022-demo-feasible-dataverse-bootstrap.md`
+- Create: `docs/adr/ADR-0023-demo-feasible-dataverse-bootstrap.md`
 - Modify: `docs/BACKLOG.md`
 - Modify: `docs/superpowers/specs/2026-08-08-insurance-foundation-design.md`
 
 - [ ] **Step 1: Write the ADR**
 
-Create `docs/adr/ADR-0022-demo-feasible-dataverse-bootstrap.md`:
+Create `docs/adr/ADR-0023-demo-feasible-dataverse-bootstrap.md`:
 
 ```markdown
-# ADR-0022 - Demo-feasible Dataverse bootstrap and steady-state identities
+# ADR-0023 - Demo-feasible Dataverse bootstrap and steady-state identities
 
 | Field | Value |
 | --- | --- |
@@ -153,7 +153,7 @@ Add this note after the Outcome section in
 > security roles. The approved demo scope and administrator prerequisite are
 > defined in
 > [Demo-Feasible Dataverse Authoring and Bootstrap](./2026-08-09-demo-feasible-dataverse-authoring-design.md)
-> and ADR-0022. Managed TEST promotion remains a separate sprint.
+> and ADR-0023. Managed TEST promotion remains a separate sprint.
 ```
 
 - [ ] **Step 4: Validate documentation**
@@ -162,7 +162,7 @@ Run:
 
 ```powershell
 git diff --check
-rg "TBD|TODO|placeholder" docs/adr/ADR-0022-demo-feasible-dataverse-bootstrap.md
+rg "TBD|TODO|placeholder" docs/adr/ADR-0023-demo-feasible-dataverse-bootstrap.md
 ```
 
 Expected: `git diff --check` exits 0 and `rg` returns no matches.
@@ -170,7 +170,7 @@ Expected: `git diff --check` exits 0 and `rg` returns no matches.
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add docs/adr/ADR-0022-demo-feasible-dataverse-bootstrap.md docs/BACKLOG.md docs/superpowers/specs/2026-08-08-insurance-foundation-design.md
+git add docs/adr/ADR-0023-demo-feasible-dataverse-bootstrap.md docs/BACKLOG.md docs/superpowers/specs/2026-08-08-insurance-foundation-design.md
 git commit -m "docs(sprint-3): scope demo-feasible Dataverse bootstrap (US-702)"
 ```
 
@@ -1463,7 +1463,7 @@ git push -u origin HEAD
 gh pr create `
   --base main `
   --title "feat(dataverse): add demo-feasible DEV authoring gates" `
-  --body "Implements US-702 and US-708 under ADR-0022. Adds read-only preflight, demo-safe authoring, bounded metadata convergence, manual role bootstrap verification, and exact export gating. Relates to #8 and #40."
+  --body "Implements US-702 and US-708 under ADR-0023. Adds read-only preflight, demo-safe authoring, bounded metadata convergence, manual role bootstrap verification, and exact export gating. Relates to #8 and #40."
 gh pr checks --watch
 ```
 
@@ -1580,7 +1580,7 @@ completed DEV authoring/export steps and add:
 ```markdown
 Managed TEST promotion, fixtures, and persona security smoke tests remain
 separate follow-up work. Sprint 3 demo evidence is limited to the approved
-DEV package-authoring boundary in ADR-0022.
+DEV package-authoring boundary in ADR-0023.
 ```
 
 - [ ] **Step 10: Commit evidence documentation**

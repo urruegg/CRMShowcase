@@ -97,13 +97,13 @@ and the
 | ID | Story | Status |
 | --- | --- | --- |
 | US-701 | Reconcile EN/DE/FR/IT environment languages as IaC desired state | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
-| US-702 | Deliver shared insurance choices and security roles | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
+| US-702 | Deliver shared insurance choices; create security roles through the approved DEV administrator prerequisite and verify them in CI | In progress - [#8](https://github.com/urruegg/CRMShowcase/issues/8), [#40](https://github.com/urruegg/CRMShowcase/issues/40) |
 | US-703 | Extend Account and Contact | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
 | US-704 | Deliver effective-dated AccountContactRole | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
 | US-705 | Deliver Account-owned PolicyProjection | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
 | US-706 | Deliver effective-dated PolicyPartyRole | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
 | US-707 | Validate schema and multilingual semantic metadata | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
-| US-708 | Deploy unmanaged to DEV and managed to TEST | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
+| US-708 | Author and export unmanaged/managed packages from DEV; managed TEST promotion is a separate solution-versioning sprint | In progress - [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
 | US-709 | Load synthetic fixtures and publish smoke evidence | Planned — [#8](https://github.com/urruegg/CRMShowcase/issues/8) |
 | US-710 | Enforce effective-date integrity across every Dataverse write path | Deferred — [#9](https://github.com/urruegg/CRMShowcase/issues/9) · [OR-001](./requirements/OR-001-effective-date-integrity.md) |
 
