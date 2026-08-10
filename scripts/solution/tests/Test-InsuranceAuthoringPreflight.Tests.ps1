@@ -1,6 +1,7 @@
 BeforeAll {
     $script:repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../../..')).Path
     $script:contractPath = Join-Path $script:repoRoot 'solution/schema/insurance-foundation.json'
+    $script:manifestPath = Join-Path $script:repoRoot 'solution/manifest.json'
     $script:preflightPath = Join-Path $script:repoRoot 'scripts/solution/Test-InsuranceAuthoringPreflight.ps1'
     $script:childPowerShellPath = if (Get-Command pwsh -ErrorAction SilentlyContinue) {
         (Get-Command pwsh -ErrorAction Stop).Source
@@ -8,8 +9,13 @@ BeforeAll {
     else {
         (Get-Command powershell -ErrorAction Stop).Source
     }
-    . $script:preflightPath -EnvironmentUrl 'https://unit.crm.dynamics.com' -ContractPath $script:contractPath
+    . $script:preflightPath `
+        -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+        -ContractPath $script:contractPath `
+        -ManifestPath $script:manifestPath
     $script:contract = Get-Content -LiteralPath $script:contractPath -Raw -Encoding UTF8 |
+        ConvertFrom-Json
+    $script:manifest = Get-Content -LiteralPath $script:manifestPath -Raw -Encoding UTF8 |
         ConvertFrom-Json
 
     function script:Assert-SafeDiagnosticLine {
@@ -26,37 +32,169 @@ BeforeAll {
         $Text.Length | Should -BeLessThan ($MaxLength + 1)
     }
 
-function script:New-PreflightEntryContract {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]
-        [string]$RootPath
-    )
-
-    $contract = [ordered]@{
-        languages = @(1033, 1031, 1036, 1040)
-        solutions = @('crmshow_Foundation', 'crmshow_DataModel')
-        roles     = @(
-            [ordered]@{ name = 'CRM Showcase Insurance Reader' },
-            [ordered]@{ name = 'CRM Showcase Insurance Data Steward' }
+    function script:Clone-Object {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            $InputObject
         )
+
+        return $InputObject | ConvertTo-Json -Depth 100 | ConvertFrom-Json
     }
 
-    $path = Join-Path $RootPath 'insurance-authoring-entry-contract.json'
-    Set-Content -LiteralPath $path -Value ($contract | ConvertTo-Json -Depth 10) -Encoding UTF8
-    return $path
-}
+    function script:New-PreflightSolutionRecord {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [string]$SolutionId,
 
-function script:New-PreflightAzShim {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]
-        [string]$RootPath
-    )
-    $shimScriptPath = Join-Path $RootPath 'az.ps1'
-    $shimCommandPath = Join-Path $RootPath 'az'
+            [Parameter(Mandatory)]
+            [string]$UniqueName,
 
-    $shimScript = @'
+            [Parameter(Mandatory)]
+            [string]$PublisherUniqueName,
+
+            [Parameter(Mandatory)]
+            [string]$CustomizationPrefix,
+
+            [Parameter(Mandatory)]
+            [int]$CustomizationOptionValuePrefix
+        )
+
+        return [pscustomobject]@{
+            solutionid = $SolutionId
+            uniquename = $UniqueName
+            publisherid = [pscustomobject]@{
+                uniquename                    = $PublisherUniqueName
+                customizationprefix           = $CustomizationPrefix
+                customizationoptionvalueprefix = $CustomizationOptionValuePrefix
+            }
+        }
+    }
+
+    function script:New-RoleVerificationResult {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [string]$Role,
+
+            [Parameter(Mandatory)]
+            [ValidateSet('Ready', 'ManualPrerequisite', 'ContractConflict')]
+            [string]$State,
+
+            [AllowNull()]
+            [object[]]$Details = @()
+        )
+
+        return [pscustomobject]@{
+            Role = $Role
+            State = $State
+            Missing = @()
+            Unexpected = @()
+            WrongDepth = @()
+            DuplicateExpected = @()
+            DuplicateActual = @()
+            Details = @($Details)
+        }
+    }
+
+    function script:New-RoleVerificationSummary {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [ValidateSet('Ready', 'ManualPrerequisite', 'ContractConflict')]
+            [string]$State,
+
+            [AllowNull()]
+            [object[]]$Results = @()
+        )
+
+        return [pscustomobject]@{
+            State = $State
+            MutationOccurred = $false
+            Results = @($Results)
+        }
+    }
+
+    function script:New-PreflightEntryContract {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [string]$RootPath
+        )
+
+        $contract = [ordered]@{
+            languages = @(1033, 1031, 1036, 1040)
+            solutions = @('crmshow_Foundation', 'crmshow_DataModel')
+            tables = @(
+                [ordered]@{
+                    logicalName = 'crmshow_policyprojection'
+                    schemaName = 'crmshow_PolicyProjection'
+                }
+            )
+            roles = @(
+                [ordered]@{
+                    name = 'CRM Showcase Insurance Reader'
+                    solution = 'crmshow_Foundation'
+                    tablePrivileges = @(
+                        [ordered]@{
+                            table = 'account'
+                            depth = 'Organization'
+                            privileges = @('Read')
+                        },
+                        [ordered]@{
+                            table = 'crmshow_policyprojection'
+                            depth = 'Organization'
+                            privileges = @('Read')
+                        }
+                    )
+                    deniedPrivileges = @(
+                        'Delete', 'Assign', 'Share', 'Customize',
+                        'SecurityAdministration', 'BulkDelete',
+                        'AuditAdministration'
+                    )
+                },
+                [ordered]@{
+                    name = 'CRM Showcase Insurance Data Steward'
+                    solution = 'crmshow_Foundation'
+                    tablePrivileges = @(
+                        [ordered]@{
+                            table = 'account'
+                            depth = 'Organization'
+                            privileges = @('Read')
+                        },
+                        [ordered]@{
+                            table = 'crmshow_policyprojection'
+                            depth = 'Organization'
+                            privileges = @('Create', 'Read', 'Write')
+                        }
+                    )
+                    deniedPrivileges = @(
+                        'Delete', 'Assign', 'Share', 'Customize',
+                        'SecurityAdministration', 'BulkDelete',
+                        'AuditAdministration'
+                    )
+                }
+            )
+        }
+
+        $path = Join-Path $RootPath 'insurance-authoring-entry-contract.json'
+        Set-Content -LiteralPath $path `
+            -Value ($contract | ConvertTo-Json -Depth 20) `
+            -Encoding UTF8
+        return $path
+    }
+
+    function script:New-PreflightAzShim {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [string]$RootPath
+        )
+        $shimScriptPath = Join-Path $RootPath 'az.ps1'
+        $shimCommandPath = Join-Path $RootPath 'az'
+
+        $shimScript = @'
 #!/usr/bin/env pwsh
 param(
     [Parameter(ValueFromRemainingArguments = $true)]
@@ -90,7 +228,19 @@ function Write-Json {
         $Value
     )
 
-    $Value | ConvertTo-Json -Compress -Depth 10
+    $Value | ConvertTo-Json -Compress -Depth 20
+}
+
+$method = Get-ArgumentValue -InputArguments $Arguments -Name '--method'
+if ($method -cne 'get') {
+    Write-Error "Unexpected method: $method"
+    exit 1
+}
+
+$resource = Get-ArgumentValue -InputArguments $Arguments -Name '--resource'
+if ($resource -cne 'https://unit.crm.dynamics.com/') {
+    Write-Error "Unexpected resource URL: $resource"
+    exit 1
 }
 
 $url = Get-ArgumentValue -InputArguments $Arguments -Name '--url'
@@ -112,27 +262,167 @@ if ($env:TEST_INSURANCE_PREFLIGHT_SCENARIO -eq 'TransportFailure') {
     exit 9
 }
 
-$roles = @(
-    [pscustomobject]@{
-        roleid = '00000000-0000-0000-0000-000000000001'
-        name   = 'CRM Showcase Insurance Reader'
-    }
-)
-if ($env:TEST_INSURANCE_PREFLIGHT_SCENARIO -ne 'MissingRoles') {
-    $roles += [pscustomobject]@{
-        roleid = '00000000-0000-0000-0000-000000000002'
-        name   = 'CRM Showcase Insurance Data Steward'
+$readerRoleId = '11111111-1111-1111-1111-111111111111'
+$stewardRoleId = '22222222-2222-2222-2222-222222222222'
+$foundationPublisher = [pscustomobject]@{
+    uniquename = 'CRMShowcase'
+    customizationprefix = 'crmshow'
+    customizationoptionvalueprefix = 10000
+}
+$dataModelPublisher = [pscustomobject]@{
+    uniquename = 'CRMShowcase'
+    customizationprefix = 'crmshow'
+    customizationoptionvalueprefix = 10000
+}
+if ($env:TEST_INSURANCE_PREFLIGHT_SCENARIO -eq 'WrongPublisher') {
+    $dataModelPublisher = [pscustomobject]@{
+        uniquename = 'Contoso'
+        customizationprefix = 'crmshow'
+        customizationoptionvalueprefix = 10000
     }
 }
 
 switch ($path) {
-    '/WhoAmI' {
+    '/solutions?$select=solutionid,uniquename&$expand=publisherid($select=uniquename,customizationprefix,customizationoptionvalueprefix)&$filter=uniquename eq ''crmshow_Foundation'' or uniquename eq ''crmshow_DataModel''' {
         Write-Json ([pscustomobject]@{
-                UserId = '11111111-1111-1111-1111-111111111111'
+                value = @(
+                    [pscustomobject]@{
+                        solutionid = '33333333-3333-3333-3333-333333333333'
+                        uniquename = 'crmshow_Foundation'
+                        publisherid = $foundationPublisher
+                    },
+                    [pscustomobject]@{
+                        solutionid = '44444444-4444-4444-4444-444444444444'
+                        uniquename = 'crmshow_DataModel'
+                        publisherid = $dataModelPublisher
+                    }
+                )
             })
         exit 0
     }
-    '/systemusers(11111111-1111-1111-1111-111111111111)/systemuserroles_association?$select=name' {
+    "/roles?`$select=roleid,name&`$filter=_parentrootroleid_value eq null and name eq 'CRM Showcase Insurance Reader'" {
+        Write-Json ([pscustomobject]@{
+                value = @([pscustomobject]@{
+                        roleid = $readerRoleId
+                        name = 'CRM Showcase Insurance Reader'
+                    })
+            })
+        exit 0
+    }
+    "/roles?`$select=roleid,name&`$filter=_parentrootroleid_value eq null and name eq 'CRM Showcase Insurance Data Steward'" {
+        $roles = @()
+        if ($env:TEST_INSURANCE_PREFLIGHT_SCENARIO -ne 'MissingRoles') {
+            $roles += [pscustomobject]@{
+                roleid = $stewardRoleId
+                name = 'CRM Showcase Insurance Data Steward'
+            }
+        }
+        Write-Json ([pscustomobject]@{ value = @($roles) })
+        exit 0
+    }
+    "/solutioncomponents?`$select=solutioncomponentid&`$filter=objectid eq $readerRoleId&`$expand=solutionid(`$select=uniquename)" {
+        Write-Json ([pscustomobject]@{
+                value = @([pscustomobject]@{
+                        solutionid = [pscustomobject]@{
+                            uniquename = 'crmshow_Foundation'
+                        }
+                    })
+            })
+        exit 0
+    }
+    "/solutioncomponents?`$select=solutioncomponentid&`$filter=objectid eq $stewardRoleId&`$expand=solutionid(`$select=uniquename)" {
+        Write-Json ([pscustomobject]@{
+                value = @([pscustomobject]@{
+                        solutionid = [pscustomobject]@{
+                            uniquename = 'crmshow_Foundation'
+                        }
+                    })
+            })
+        exit 0
+    }
+    "/EntityDefinitions(LogicalName='account')?`$select=LogicalName,SchemaName,Privileges" {
+        Write-Json ([pscustomobject]@{
+                LogicalName = 'account'
+                SchemaName = 'Account'
+                Privileges = @([pscustomobject]@{
+                        Name = 'prvReadAccount'
+                        PrivilegeId = 'account-read'
+                    })
+            })
+        exit 0
+    }
+    "/EntityDefinitions(LogicalName='crmshow_policyprojection')?`$select=LogicalName,SchemaName,Privileges" {
+        Write-Json ([pscustomobject]@{
+                LogicalName = 'crmshow_policyprojection'
+                SchemaName = 'crmshow_PolicyProjection'
+                Privileges = @(
+                    [pscustomobject]@{
+                        Name = 'prvCreatecrmshow_PolicyProjection'
+                        PrivilegeId = 'policy-create'
+                    },
+                    [pscustomobject]@{
+                        Name = 'prvReadcrmshow_PolicyProjection'
+                        PrivilegeId = 'policy-read'
+                    },
+                    [pscustomobject]@{
+                        Name = 'prvWritecrmshow_PolicyProjection'
+                        PrivilegeId = 'policy-write'
+                    }
+                )
+            })
+        exit 0
+    }
+    "/RetrieveRolePrivilegesRole(RoleId=$readerRoleId)" {
+        Write-Json ([pscustomobject]@{
+                RolePrivileges = @(
+                    [pscustomobject]@{
+                        PrivilegeName = 'prvReadAccount'
+                        PrivilegeId = 'account-read'
+                        Depth = 'Global'
+                    },
+                    [pscustomobject]@{
+                        PrivilegeName = 'prvReadcrmshow_PolicyProjection'
+                        PrivilegeId = 'policy-read'
+                        Depth = 'Global'
+                    }
+                )
+            })
+        exit 0
+    }
+    "/RetrieveRolePrivilegesRole(RoleId=$stewardRoleId)" {
+        Write-Json ([pscustomobject]@{
+                RolePrivileges = @(
+                    [pscustomobject]@{
+                        PrivilegeName = 'prvReadAccount'
+                        PrivilegeId = 'account-read'
+                        Depth = 'Global'
+                    },
+                    [pscustomobject]@{
+                        PrivilegeName = 'prvCreatecrmshow_PolicyProjection'
+                        PrivilegeId = 'policy-create'
+                        Depth = 'Global'
+                    },
+                    [pscustomobject]@{
+                        PrivilegeName = 'prvReadcrmshow_PolicyProjection'
+                        PrivilegeId = 'policy-read'
+                        Depth = 'Global'
+                    },
+                    [pscustomobject]@{
+                        PrivilegeName = 'prvWritecrmshow_PolicyProjection'
+                        PrivilegeId = 'policy-write'
+                        Depth = 'Global'
+                    }
+                )
+            })
+        exit 0
+    }
+    '/WhoAmI' {
+        Write-Json ([pscustomobject]@{
+                UserId = '55555555-5555-5555-5555-555555555555'
+            })
+        exit 0
+    }
+    '/systemusers(55555555-5555-5555-5555-555555555555)/systemuserroles_association?$select=name' {
         Write-Json ([pscustomobject]@{
                 value = @(
                     [pscustomobject]@{ name = 'System Customizer' }
@@ -146,21 +436,6 @@ switch ($path) {
             })
         exit 0
     }
-    '/solutions?$select=uniquename&$filter=uniquename eq ''crmshow_Foundation'' or uniquename eq ''crmshow_DataModel''' {
-        Write-Json ([pscustomobject]@{
-                value = @(
-                    [pscustomobject]@{ uniquename = 'crmshow_Foundation' },
-                    [pscustomobject]@{ uniquename = 'crmshow_DataModel' }
-                )
-            })
-        exit 0
-    }
-    '/roles?$select=roleid,name&$filter=_parentrootroleid_value eq null and (name eq ''CRM Showcase Insurance Reader'' or name eq ''CRM Showcase Insurance Data Steward'')' {
-        Write-Json ([pscustomobject]@{
-                value = @($roles)
-            })
-        exit 0
-    }
     default {
         Write-Error "Unexpected az rest URL: $url"
         exit 1
@@ -168,81 +443,81 @@ switch ($path) {
 }
 '@
 
-    $shimScript = $shimScript -replace "`r`n", "`n"
-    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        $shimScript = $shimScript -replace "`r`n", "`n"
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
-    [System.IO.File]::WriteAllText($shimScriptPath, $shimScript, $utf8NoBom)
-    [System.IO.File]::WriteAllText($shimCommandPath, $shimScript, $utf8NoBom)
+        [System.IO.File]::WriteAllText($shimScriptPath, $shimScript, $utf8NoBom)
+        [System.IO.File]::WriteAllText($shimCommandPath, $shimScript, $utf8NoBom)
 
-    if ([System.IO.Path]::DirectorySeparatorChar -eq '/') {
-        & chmod +x -- $shimCommandPath
-        if ($LASTEXITCODE -ne 0) {
-            throw "Failed to make az shim executable: $shimCommandPath"
+        if ([System.IO.Path]::DirectorySeparatorChar -eq '/') {
+            & chmod +x -- $shimCommandPath
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to make az shim executable: $shimCommandPath"
+            }
         }
     }
-}
 
-function script:Invoke-PreflightEntryScript {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]
-        [ValidateSet('Ready', 'MissingRoles', 'TransportFailure')]
-        [string]$Scenario
-    )
+    function script:Invoke-PreflightEntryScript {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [ValidateSet('Ready', 'MissingRoles', 'WrongPublisher', 'TransportFailure')]
+            [string]$Scenario
+        )
 
-    $testRoot = Join-Path (Get-PSDrive -Name TestDrive).Root ([guid]::NewGuid().Guid)
-    $null = New-Item -ItemType Directory -Path $testRoot -Force
+        $testRoot = Join-Path (Get-PSDrive -Name TestDrive).Root ([guid]::NewGuid().Guid)
+        $null = New-Item -ItemType Directory -Path $testRoot -Force
 
-    $contractPath = script:New-PreflightEntryContract -RootPath $testRoot
-    script:New-PreflightAzShim -RootPath $testRoot
+        $contractPath = script:New-PreflightEntryContract -RootPath $testRoot
+        script:New-PreflightAzShim -RootPath $testRoot
 
-    $previousPath = $env:PATH
-    $previousScenario = [Environment]::GetEnvironmentVariable(
-        'TEST_INSURANCE_PREFLIGHT_SCENARIO',
-        'Process'
-    )
+        $previousPath = $env:PATH
+        $previousScenario = [Environment]::GetEnvironmentVariable(
+            'TEST_INSURANCE_PREFLIGHT_SCENARIO',
+            'Process'
+        )
 
-    try {
-        $pathSeparator = [System.IO.Path]::PathSeparator
-        $env:PATH = if ([string]::IsNullOrEmpty($previousPath)) {
-            $testRoot
-        }
-        else {
-            "$testRoot$pathSeparator$previousPath"
-        }
-        $env:TEST_INSURANCE_PREFLIGHT_SCENARIO = $Scenario
-
-        $previousErrorActionPreference = $ErrorActionPreference
-        $ErrorActionPreference = 'Continue'
         try {
-            $output = & $script:childPowerShellPath `
-                -NoLogo `
-                -NoProfile `
-                -NonInteractive `
-                -File $script:preflightPath `
-                -EnvironmentUrl 'https://unit.crm.dynamics.com' `
-                -ContractPath $contractPath 2>&1
-            $exitCode = $LASTEXITCODE
+            $pathSeparator = [System.IO.Path]::PathSeparator
+            $env:PATH = if ([string]::IsNullOrEmpty($previousPath)) {
+                $testRoot
+            }
+            else {
+                "$testRoot$pathSeparator$previousPath"
+            }
+            $env:TEST_INSURANCE_PREFLIGHT_SCENARIO = $Scenario
+
+            $previousErrorActionPreference = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            try {
+                $output = & $script:childPowerShellPath `
+                    -NoLogo `
+                    -NoProfile `
+                    -NonInteractive `
+                    -File $script:preflightPath `
+                    -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+                    -ContractPath $contractPath 2>&1
+                $exitCode = $LASTEXITCODE
+            }
+            finally {
+                $ErrorActionPreference = $previousErrorActionPreference
+            }
         }
         finally {
-            $ErrorActionPreference = $previousErrorActionPreference
+            $env:PATH = $previousPath
+            if ($null -eq $previousScenario) {
+                Remove-Item Env:TEST_INSURANCE_PREFLIGHT_SCENARIO -ErrorAction SilentlyContinue
+            }
+            else {
+                $env:TEST_INSURANCE_PREFLIGHT_SCENARIO = $previousScenario
+            }
         }
-    }
-    finally {
-        $env:PATH = $previousPath
-        if ($null -eq $previousScenario) {
-            Remove-Item Env:TEST_INSURANCE_PREFLIGHT_SCENARIO -ErrorAction SilentlyContinue
-        }
-        else {
-            $env:TEST_INSURANCE_PREFLIGHT_SCENARIO = $previousScenario
-        }
-    }
 
-    return [pscustomobject]@{
-        ExitCode = $exitCode
-        Output   = (@($output | ForEach-Object { $_.ToString() }) -join [Environment]::NewLine).Trim()
+        return [pscustomobject]@{
+            ExitCode = $exitCode
+            Output   = (@($output | ForEach-Object { $_.ToString() }) -join [Environment]::NewLine).Trim()
+        }
     }
-}
 }
 
 Describe 'New-PreflightAzShim' {
@@ -303,8 +578,18 @@ else {
 }
 
 Describe 'Get-InsuranceAuthoringPhaseState' {
+    It 'returns ContractConflict ahead of every later non-ready state' {
+        Get-InsuranceAuthoringPhaseState `
+            -HasContractConflict $true `
+            -SchemaFeasible $false `
+            -SolutionsReady $false `
+            -RolesReady $false |
+            Should -Be 'ContractConflict'
+    }
+
     It 'returns UnsupportedInTenant when schema capability is not proven' {
         Get-InsuranceAuthoringPhaseState `
+            -HasContractConflict $false `
             -SolutionsReady $false `
             -SchemaFeasible $false `
             -RolesReady $false |
@@ -313,6 +598,7 @@ Describe 'Get-InsuranceAuthoringPhaseState' {
 
     It 'returns Precondition when required solutions are absent' {
         Get-InsuranceAuthoringPhaseState `
+            -HasContractConflict $false `
             -SolutionsReady $false `
             -SchemaFeasible $true `
             -RolesReady $true |
@@ -321,6 +607,7 @@ Describe 'Get-InsuranceAuthoringPhaseState' {
 
     It 'returns ManualPrerequisite when a reviewed custom role is absent' {
         Get-InsuranceAuthoringPhaseState `
+            -HasContractConflict $false `
             -SolutionsReady $true `
             -SchemaFeasible $true `
             -RolesReady $false |
@@ -329,10 +616,24 @@ Describe 'Get-InsuranceAuthoringPhaseState' {
 
     It 'returns Ready when schema, solutions and roles are ready' {
         Get-InsuranceAuthoringPhaseState `
+            -HasContractConflict $false `
             -SolutionsReady $true `
             -SchemaFeasible $true `
             -RolesReady $true |
             Should -Be 'Ready'
+    }
+}
+
+Describe 'Get-RequiredSolutionsPath' {
+    It 'selects reviewed solution identity and expanded publisher ownership' {
+        Get-RequiredSolutionsPath -SolutionUniqueName @(
+            'crmshow_Foundation',
+            'crmshow_DataModel'
+        ) | Should -Be (
+            "/solutions?`$select=solutionid,uniquename&" +
+            "`$expand=publisherid(`$select=uniquename,customizationprefix,customizationoptionvalueprefix)&" +
+            "`$filter=uniquename eq 'crmshow_Foundation' or uniquename eq 'crmshow_DataModel'"
+        )
     }
 }
 
@@ -354,13 +655,16 @@ Describe 'Get-LanguagePreflightAction' {
 
 Describe 'Test-DemoSchemaAuthoringCapability' {
     It 'accepts System Customizer' {
-        Test-DemoSchemaAuthoringCapability -AssignedRoleNames @('Basic User', 'System Customizer') |
-            Should -BeTrue
+        Test-DemoSchemaAuthoringCapability -AssignedRoleNames @(
+            'Basic User',
+            'System Customizer'
+        ) | Should -BeTrue
     }
 
     It 'accepts System Administrator' {
-        Test-DemoSchemaAuthoringCapability -AssignedRoleNames @('System Administrator') |
-            Should -BeTrue
+        Test-DemoSchemaAuthoringCapability -AssignedRoleNames @(
+            'System Administrator'
+        ) | Should -BeTrue
     }
 
     It 'rejects unproven roles such as Basic User' {
@@ -443,17 +747,178 @@ Describe 'Invoke-PreflightDataverseRequest' {
     }
 }
 
+Describe 'Test-InsuranceAuthoringPreflightSolutions' {
+    BeforeEach {
+        $script:solutionsPath = (
+            "/solutions?`$select=solutionid,uniquename&" +
+            "`$expand=publisherid(`$select=uniquename,customizationprefix,customizationoptionvalueprefix)&" +
+            "`$filter=uniquename eq 'crmshow_Foundation' or uniquename eq 'crmshow_DataModel'"
+        )
+        $script:solutionItems = @(
+            (
+                script:New-PreflightSolutionRecord `
+                    -SolutionId '33333333-3333-3333-3333-333333333333' `
+                    -UniqueName 'crmshow_Foundation' `
+                    -PublisherUniqueName 'CRMShowcase' `
+                    -CustomizationPrefix 'crmshow' `
+                    -CustomizationOptionValuePrefix 10000
+            ),
+            (
+                script:New-PreflightSolutionRecord `
+                    -SolutionId '44444444-4444-4444-4444-444444444444' `
+                    -UniqueName 'crmshow_DataModel' `
+                    -PublisherUniqueName 'CRMShowcase' `
+                    -CustomizationPrefix 'crmshow' `
+                    -CustomizationOptionValuePrefix 10000
+            )
+        )
+
+        Mock Invoke-PreflightDataverseRequest {
+            param($EnvironmentUrl, $Method, $Path)
+
+            if ($Method -ne 'GET') {
+                throw "Unexpected method: $Method"
+            }
+            if ($Path -ne $script:solutionsPath) {
+                throw "Unexpected solution path: $Path"
+            }
+
+            return [pscustomobject]@{
+                value = @($script:solutionItems)
+            }
+        }
+    }
+
+    It 'returns Ready when every contract solution exists once with the manifest publisher' {
+        $result = Test-InsuranceAuthoringPreflightSolutions `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Contract $script:contract `
+            -Manifest $script:manifest
+
+        $result.State | Should -Be 'Ready'
+        @($result.MissingSolutions) | Should -Be @()
+        @($result.SolutionConflicts) | Should -Be @()
+        Should -Invoke Invoke-PreflightDataverseRequest -Times 1 -Exactly -ParameterFilter {
+            $Method -eq 'GET' -and $Path -eq $script:solutionsPath
+        }
+    }
+
+    It 'returns ContractConflict when a reviewed solution publisher differs from the manifest' {
+        $script:solutionItems = @(
+            (
+                script:New-PreflightSolutionRecord `
+                    -SolutionId '33333333-3333-3333-3333-333333333333' `
+                    -UniqueName 'crmshow_Foundation' `
+                    -PublisherUniqueName 'CRMShowcase' `
+                    -CustomizationPrefix 'crmshow' `
+                    -CustomizationOptionValuePrefix 10000
+            ),
+            (
+                script:New-PreflightSolutionRecord `
+                    -SolutionId '44444444-4444-4444-4444-444444444444' `
+                    -UniqueName 'crmshow_DataModel' `
+                    -PublisherUniqueName 'Contoso' `
+                    -CustomizationPrefix 'crmshow' `
+                    -CustomizationOptionValuePrefix 10000
+            )
+        )
+
+        $result = Test-InsuranceAuthoringPreflightSolutions `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Contract $script:contract `
+            -Manifest $script:manifest
+
+        $result.State | Should -Be 'ContractConflict'
+        @($result.MissingSolutions) | Should -Be @()
+        @($result.SolutionConflicts).Count | Should -Be 1
+        @($result.SolutionConflicts) | Should -Contain (
+            "Solution 'crmshow_DataModel' publisher metadata does not match solution/manifest.json: publisher.uniquename expected 'CRMShowcase' but was 'Contoso'."
+        )
+    }
+
+    It 'returns ContractConflict when a reviewed solution unique name is duplicated' {
+        $script:solutionItems = @(
+            (
+                script:New-PreflightSolutionRecord `
+                    -SolutionId '33333333-3333-3333-3333-333333333333' `
+                    -UniqueName 'crmshow_Foundation' `
+                    -PublisherUniqueName 'CRMShowcase' `
+                    -CustomizationPrefix 'crmshow' `
+                    -CustomizationOptionValuePrefix 10000
+            ),
+            (
+                script:New-PreflightSolutionRecord `
+                    -SolutionId '99999999-9999-9999-9999-999999999999' `
+                    -UniqueName 'crmshow_Foundation' `
+                    -PublisherUniqueName 'CRMShowcase' `
+                    -CustomizationPrefix 'crmshow' `
+                    -CustomizationOptionValuePrefix 10000
+            ),
+            (
+                script:New-PreflightSolutionRecord `
+                    -SolutionId '44444444-4444-4444-4444-444444444444' `
+                    -UniqueName 'crmshow_DataModel' `
+                    -PublisherUniqueName 'CRMShowcase' `
+                    -CustomizationPrefix 'crmshow' `
+                    -CustomizationOptionValuePrefix 10000
+            )
+        )
+
+        $result = Test-InsuranceAuthoringPreflightSolutions `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Contract $script:contract `
+            -Manifest $script:manifest
+
+        $result.State | Should -Be 'ContractConflict'
+        @($result.SolutionConflicts) | Should -Contain (
+            "Solution 'crmshow_Foundation' returned 2 records; expected exactly one reviewed solution."
+        )
+    }
+}
+
 Describe 'Invoke-InsuranceAuthoringPreflight' {
     BeforeEach {
         $script:calls = [System.Collections.Generic.List[object]]::new()
         $script:userId = '11111111-1111-1111-1111-111111111111'
         $script:assignedRoleNames = @('System Customizer')
         $script:provisionedLanguages = @(1033, 1031, 1036, 1040)
-        $script:availableSolutions = @('crmshow_Foundation', 'crmshow_DataModel')
-        $script:availableRoles = @(
-            'CRM Showcase Insurance Reader',
-            'CRM Showcase Insurance Data Steward'
+        $script:solutionsPath = (
+            "/solutions?`$select=solutionid,uniquename&" +
+            "`$expand=publisherid(`$select=uniquename,customizationprefix,customizationoptionvalueprefix)&" +
+            "`$filter=uniquename eq 'crmshow_Foundation' or uniquename eq 'crmshow_DataModel'"
         )
+        $script:solutionItems = @(
+            (
+                script:New-PreflightSolutionRecord `
+                    -SolutionId '33333333-3333-3333-3333-333333333333' `
+                    -UniqueName 'crmshow_Foundation' `
+                    -PublisherUniqueName 'CRMShowcase' `
+                    -CustomizationPrefix 'crmshow' `
+                    -CustomizationOptionValuePrefix 10000
+            ),
+            (
+                script:New-PreflightSolutionRecord `
+                    -SolutionId '44444444-4444-4444-4444-444444444444' `
+                    -UniqueName 'crmshow_DataModel' `
+                    -PublisherUniqueName 'CRMShowcase' `
+                    -CustomizationPrefix 'crmshow' `
+                    -CustomizationOptionValuePrefix 10000
+            )
+        )
+        $script:roleVerification = script:New-RoleVerificationSummary `
+            -State 'Ready' `
+            -Results @(
+                (
+                    script:New-RoleVerificationResult `
+                        -Role 'CRM Showcase Insurance Reader' `
+                        -State 'Ready'
+                ),
+                (
+                    script:New-RoleVerificationResult `
+                        -Role 'CRM Showcase Insurance Data Steward' `
+                        -State 'Ready'
+                )
+            )
 
         Mock Invoke-PreflightDataverseRequest {
             param($EnvironmentUrl, $Method, $Path)
@@ -465,6 +930,11 @@ Describe 'Invoke-InsuranceAuthoringPreflight' {
                 })
 
             switch ($Path) {
+                $script:solutionsPath {
+                    return [pscustomobject]@{
+                        value = @($script:solutionItems)
+                    }
+                }
                 '/WhoAmI' {
                     return [pscustomobject]@{ UserId = $script:userId }
                 }
@@ -480,109 +950,134 @@ Describe 'Invoke-InsuranceAuthoringPreflight' {
                         RetrieveProvisionedLanguages = @($script:provisionedLanguages)
                     }
                 }
-                "/solutions?`$select=uniquename&`$filter=uniquename eq 'crmshow_Foundation' or uniquename eq 'crmshow_DataModel'" {
-                    return [pscustomobject]@{
-                        value = @($script:availableSolutions | ForEach-Object {
-                                [pscustomobject]@{ uniquename = $_ }
-                            })
-                    }
-                }
-                "/roles?`$select=roleid,name&`$filter=_parentrootroleid_value eq null and (name eq 'CRM Showcase Insurance Reader' or name eq 'CRM Showcase Insurance Data Steward')" {
-                    $index = 0
-                    return [pscustomobject]@{
-                        value = @($script:availableRoles | ForEach-Object {
-                                $index++
-                                [pscustomobject]@{
-                                    roleid = '00000000-0000-0000-0000-{0:D12}' -f $index
-                                    name   = $_
-                                }
-                            })
-                    }
-                }
                 default {
                     throw "Unexpected mocked preflight path: $Path"
                 }
             }
         }
+
+        Mock Invoke-InsuranceSecurityRoleVerification {
+            param($EnvironmentUrl, $Contract)
+
+            return $script:roleVerification
+        }
     }
 
-    It 'returns a ready result with GET-only transport and no mutation' {
+    It 'returns a ready result with GET-only transport, manifest ownership, and no mutation' {
         $result = Invoke-InsuranceAuthoringPreflight `
             -EnvironmentUrl 'https://unit.crm.dynamics.com' `
-            -Contract $script:contract
+            -Contract $script:contract `
+            -Manifest $script:manifest
 
         $result.State | Should -Be 'Ready'
         $result.UserId | Should -Be $script:userId
         $result.SolutionsReady | Should -BeTrue
+        @($result.MissingSolutions) | Should -Be @()
+        @($result.SolutionConflicts) | Should -Be @()
         $result.LanguagesReady | Should -BeTrue
         $result.LanguageAction | Should -Be 'None'
         $result.RolesReady | Should -BeTrue
         @($result.AssignedRoleNames) | Should -Be @('System Customizer')
         @($result.MissingRoles) | Should -Be @()
+        @($result.RoleConflicts) | Should -Be @()
         $result.MutationOccurred | Should -BeFalse
 
-        Should -Invoke Invoke-PreflightDataverseRequest -Times 5 -Exactly `
+        Should -Invoke Invoke-PreflightDataverseRequest -Times 4 -Exactly `
             -ParameterFilter { $Method -eq 'GET' }
         Should -Invoke Invoke-PreflightDataverseRequest -Times 0 -Exactly `
             -ParameterFilter { $Method -ne 'GET' }
+        Should -Invoke Invoke-InsuranceSecurityRoleVerification -Times 1 -Exactly
         @($script:calls.Path) | Should -Be @(
+            $script:solutionsPath,
             '/WhoAmI',
             "/systemusers(11111111-1111-1111-1111-111111111111)/systemuserroles_association?`$select=name",
-            '/RetrieveProvisionedLanguages()',
-            "/solutions?`$select=uniquename&`$filter=uniquename eq 'crmshow_Foundation' or uniquename eq 'crmshow_DataModel'",
-            "/roles?`$select=roleid,name&`$filter=_parentrootroleid_value eq null and (name eq 'CRM Showcase Insurance Reader' or name eq 'CRM Showcase Insurance Data Steward')"
+            '/RetrieveProvisionedLanguages()'
         )
     }
 
-    It 'keeps matching mocked root-role endpoint paths with escaped role names' {
-        $script:availableRoles = @('CRM Showcase Insurance Reader', 'CRM Showcase Insurance Data Steward')
-
-        $result = Invoke-InsuranceAuthoringPreflight `
-            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
-            -Contract $script:contract
-
-        $result.RolesReady | Should -BeTrue
-        Should -Invoke Invoke-PreflightDataverseRequest -Times 1 -Exactly -ParameterFilter {
-            $Path -eq "/roles?`$select=roleid,name&`$filter=_parentrootroleid_value eq null and (name eq 'CRM Showcase Insurance Reader' or name eq 'CRM Showcase Insurance Data Steward')"
-        }
-    }
-
     It 'classifies a missing solution as Precondition' {
-        $script:availableSolutions = @('crmshow_Foundation')
+        $script:solutionItems = @(
+            script:New-PreflightSolutionRecord `
+                -SolutionId '33333333-3333-3333-3333-333333333333' `
+                -UniqueName 'crmshow_Foundation' `
+                -PublisherUniqueName 'CRMShowcase' `
+                -CustomizationPrefix 'crmshow' `
+                -CustomizationOptionValuePrefix 10000
+        )
 
         $result = Invoke-InsuranceAuthoringPreflight `
             -EnvironmentUrl 'https://unit.crm.dynamics.com' `
-            -Contract $script:contract
+            -Contract $script:contract `
+            -Manifest $script:manifest
 
         $result.State | Should -Be 'Precondition'
         $result.SolutionsReady | Should -BeFalse
+        @($result.MissingSolutions) | Should -Be @('crmshow_DataModel')
     }
 
     It 'classifies a missing reviewed role as ManualPrerequisite and reports MissingRoles' {
-        $script:availableRoles = @('CRM Showcase Insurance Reader')
+        $script:roleVerification = script:New-RoleVerificationSummary `
+            -State 'ManualPrerequisite' `
+            -Results @(
+                (
+                    script:New-RoleVerificationResult `
+                        -Role 'CRM Showcase Insurance Reader' `
+                        -State 'Ready'
+                ),
+                (
+                    script:New-RoleVerificationResult `
+                        -Role 'CRM Showcase Insurance Data Steward' `
+                        -State 'ManualPrerequisite' `
+                        -Details @(
+                            "Root security role 'CRM Showcase Insurance Data Steward' was not found."
+                        )
+                )
+            )
 
         $result = Invoke-InsuranceAuthoringPreflight `
             -EnvironmentUrl 'https://unit.crm.dynamics.com' `
-            -Contract $script:contract
+            -Contract $script:contract `
+            -Manifest $script:manifest
 
         $result.State | Should -Be 'ManualPrerequisite'
         $result.RolesReady | Should -BeFalse
         @($result.MissingRoles) | Should -Be @('CRM Showcase Insurance Data Steward')
+        @($result.RoleConflicts) | Should -Be @()
     }
 
     It 'classifies Basic User as UnsupportedInTenant even when reviewed roles are absent' {
         $script:assignedRoleNames = @('Basic User')
-        $script:availableRoles = @()
+        $script:roleVerification = script:New-RoleVerificationSummary `
+            -State 'ManualPrerequisite' `
+            -Results @(
+                (
+                    script:New-RoleVerificationResult `
+                        -Role 'CRM Showcase Insurance Reader' `
+                        -State 'ManualPrerequisite' `
+                        -Details @(
+                            "Root security role 'CRM Showcase Insurance Reader' was not found."
+                        )
+                ),
+                (
+                    script:New-RoleVerificationResult `
+                        -Role 'CRM Showcase Insurance Data Steward' `
+                        -State 'ManualPrerequisite' `
+                        -Details @(
+                            "Root security role 'CRM Showcase Insurance Data Steward' was not found."
+                        )
+                )
+            )
 
         $result = Invoke-InsuranceAuthoringPreflight `
             -EnvironmentUrl 'https://unit.crm.dynamics.com' `
-            -Contract $script:contract
+            -Contract $script:contract `
+            -Manifest $script:manifest
 
         $result.State | Should -Be 'UnsupportedInTenant'
         $result.RolesReady | Should -BeFalse
         @($result.MissingRoles) | Should -Be @(
-            'CRM Showcase Insurance Reader',
-            'CRM Showcase Insurance Data Steward'
+            'CRM Showcase Insurance Data Steward',
+            'CRM Showcase Insurance Reader'
         )
     }
 
@@ -591,12 +1086,89 @@ Describe 'Invoke-InsuranceAuthoringPreflight' {
 
         $result = Invoke-InsuranceAuthoringPreflight `
             -EnvironmentUrl 'https://unit.crm.dynamics.com' `
-            -Contract $script:contract
+            -Contract $script:contract `
+            -Manifest $script:manifest
 
         $result.State | Should -Be 'Ready'
         $result.LanguagesReady | Should -BeFalse
         $result.LanguageAction | Should -Be 'Reconcile'
         $result.MutationOccurred | Should -BeFalse
+    }
+
+    It 'returns ContractConflict and stops before schema or language checks on publisher mismatch' {
+        $script:solutionItems = @(
+            (
+                script:New-PreflightSolutionRecord `
+                    -SolutionId '33333333-3333-3333-3333-333333333333' `
+                    -UniqueName 'crmshow_Foundation' `
+                    -PublisherUniqueName 'CRMShowcase' `
+                    -CustomizationPrefix 'crmshow' `
+                    -CustomizationOptionValuePrefix 10000
+            ),
+            (
+                script:New-PreflightSolutionRecord `
+                    -SolutionId '44444444-4444-4444-4444-444444444444' `
+                    -UniqueName 'crmshow_DataModel' `
+                    -PublisherUniqueName 'Contoso' `
+                    -CustomizationPrefix 'crmshow' `
+                    -CustomizationOptionValuePrefix 10000
+            )
+        )
+
+        $result = Invoke-InsuranceAuthoringPreflight `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Contract $script:contract `
+            -Manifest $script:manifest
+
+        $result.State | Should -Be 'ContractConflict'
+        @($result.SolutionConflicts) | Should -Contain (
+            "Solution 'crmshow_DataModel' publisher metadata does not match solution/manifest.json: publisher.uniquename expected 'CRMShowcase' but was 'Contoso'."
+        )
+        @($result.AssignedRoleNames) | Should -Be @()
+        $result.LanguageAction | Should -Be 'Skipped'
+        Should -Invoke Invoke-PreflightDataverseRequest -Times 0 -Exactly -ParameterFilter {
+            $Path -eq '/WhoAmI'
+        }
+        Should -Invoke Invoke-PreflightDataverseRequest -Times 0 -Exactly -ParameterFilter {
+            $Path -eq '/RetrieveProvisionedLanguages()'
+        }
+    }
+
+    It 'returns ContractConflict and exposes role conflict details before schema or language checks' {
+        $script:roleVerification = script:New-RoleVerificationSummary `
+            -State 'ContractConflict' `
+            -Results @(
+                (
+                    script:New-RoleVerificationResult `
+                        -Role 'CRM Showcase Insurance Reader' `
+                        -State 'Ready'
+                ),
+                (
+                    script:New-RoleVerificationResult `
+                        -Role 'CRM Showcase Insurance Data Steward' `
+                        -State 'ContractConflict' `
+                        -Details @(
+                            "Role 'CRM Showcase Insurance Data Steward' reviewed-solution membership expected 'crmshow_Foundation'; actual reviewed membership was 'crmshow_Foundation, crmshow_DataModel'."
+                        )
+                )
+            )
+
+        $result = Invoke-InsuranceAuthoringPreflight `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Contract $script:contract `
+            -Manifest $script:manifest
+
+        $result.State | Should -Be 'ContractConflict'
+        $result.RolesReady | Should -BeFalse
+        @($result.RoleConflicts) | Should -Be @(
+            "Role 'CRM Showcase Insurance Data Steward': Role 'CRM Showcase Insurance Data Steward' reviewed-solution membership expected 'crmshow_Foundation'; actual reviewed membership was 'crmshow_Foundation, crmshow_DataModel'."
+        )
+        Should -Invoke Invoke-PreflightDataverseRequest -Times 0 -Exactly -ParameterFilter {
+            $Path -eq '/WhoAmI'
+        }
+        Should -Invoke Invoke-PreflightDataverseRequest -Times 0 -Exactly -ParameterFilter {
+            $Path -eq '/RetrieveProvisionedLanguages()'
+        }
     }
 }
 
@@ -624,13 +1196,25 @@ Describe 'Preflight direct entry point' {
         @($result.MissingRoles) | Should -Be @('CRM Showcase Insurance Data Steward')
     }
 
+    It 'emits classified conflict JSON and exits three on reviewed publisher conflict' {
+        $invocation = script:Invoke-PreflightEntryScript -Scenario WrongPublisher
+
+        $invocation.ExitCode | Should -Be 3
+        { $invocation.Output | ConvertFrom-Json -ErrorAction Stop } | Should -Not -Throw
+
+        $result = $invocation.Output | ConvertFrom-Json -ErrorAction Stop
+        $result.State | Should -Be 'ContractConflict'
+        $result.MutationOccurred | Should -BeFalse
+        @($result.SolutionConflicts).Count | Should -Be 1
+    }
+
     It 'emits a single safe error line and exits one on hostile az transport failure' {
         $invocation = script:Invoke-PreflightEntryScript -Scenario TransportFailure
 
         $invocation.ExitCode | Should -Be 1
-        script:Assert-SafeDiagnosticLine -Text $invocation.Output -MaxLength 450
+        script:Assert-SafeDiagnosticLine -Text $invocation.Output -MaxLength 500
         $invocation.Output | Should -Match 'Dataverse preflight transport failed'
-        $invocation.Output | Should -Match ([regex]::Escape('/WhoAmI'))
+        $invocation.Output | Should -Match '/solutions\?\$select=solutionid,uniquename'
         $invocation.Output | Should -Match (
             [regex]::Escape(
                 "'::warning::preflight transport Permission denied blocked"
@@ -644,9 +1228,10 @@ Describe 'Preflight entry point safety' {
     It 'does not invoke az when dot-sourced with unit arguments' {
         $text = @'
 function az { throw 'az was called' }
-. '__SCRIPT__' -EnvironmentUrl 'https://unit.crm.dynamics.com' -ContractPath '__CONTRACT__'
+. '__SCRIPT__' -EnvironmentUrl 'https://unit.crm.dynamics.com' -ContractPath '__CONTRACT__' -ManifestPath '__MANIFEST__'
 '@.Replace('__SCRIPT__', $script:preflightPath.Replace("'", "''")).
-            Replace('__CONTRACT__', $script:contractPath.Replace("'", "''"))
+            Replace('__CONTRACT__', $script:contractPath.Replace("'", "''")).
+            Replace('__MANIFEST__', $script:manifestPath.Replace("'", "''"))
 
         & ([scriptblock]::Create($text))
     }

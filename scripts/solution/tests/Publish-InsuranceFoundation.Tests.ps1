@@ -218,6 +218,67 @@ BeforeAll {
     }
 }
 
+Describe 'Test-InsuranceFoundationContract' {
+    AfterEach {
+        Remove-Item Function:\python -ErrorAction SilentlyContinue
+    }
+
+    It 'requires Python plus jsonschema when Test-Json is unavailable' {
+        Mock Get-Command { $null } -ParameterFilter { $Name -eq 'Test-Json' }
+        Mock Get-Command { $null } -ParameterFilter { $Name -eq 'python' }
+
+        {
+            Test-InsuranceFoundationContract -Path $script:contractPath
+        } | Should -Throw '*Python*jsonschema*Test-Json*unavailable*'
+    }
+
+    It 'sanitizes a failing Python jsonschema prerequisite probe' {
+        function global:python {
+            param(
+                [Parameter(ValueFromRemainingArguments = $true)]
+                [string[]]$Arguments
+            )
+
+            $escape = [char]27
+            if (@($Arguments).Count -ge 2 -and
+                $Arguments[0] -ceq '-c' -and
+                $Arguments[1] -ceq 'import jsonschema') {
+                Write-Error (
+                    "::warning::jsonschema missing`r`nNo module named jsonschema`t" +
+                    "$escape[31mblocked$escape[0m"
+                ) -ErrorAction Continue
+                $global:LASTEXITCODE = 1
+                return
+            }
+
+            throw "Unexpected python invocation: $($Arguments -join ' ')"
+        }
+
+        Mock Get-Command { $null } -ParameterFilter { $Name -eq 'Test-Json' }
+        Mock Get-Command {
+            [pscustomobject]@{
+                Name = 'python'
+                Source = 'python'
+            }
+        } -ParameterFilter { $Name -eq 'python' }
+
+        $message = $null
+        try {
+            Test-InsuranceFoundationContract -Path $script:contractPath
+            throw 'Expected Python prerequisite failure.'
+        }
+        catch {
+            $message = $_.Exception.Message
+        }
+
+        script:Assert-SafeDiagnosticLine -Text $message -MaxLength 450
+        $message | Should -Match 'Python \+ jsonschema prerequisite check failed'
+        $message | Should -Match 'warning::jsonschema missing'
+        $message | Should -Match 'No module named jsonschema blocked'
+        $message | Should -Not -Match 'At line:|Traceback|File "<string>"'
+    }
+}
+
 Describe 'Insurance Foundation request builders' {
     It 'uses the owning solution and duplicate-detection headers' {
         $headers = Get-DataverseHeaders -SolutionUniqueName 'crmshow_DataModel'

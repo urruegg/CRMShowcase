@@ -81,6 +81,43 @@ function Get-InsuranceSecurityRoleSolutionMembershipPath {
     )
 }
 
+function Get-InsuranceRoleActualReviewedMembership {
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        $Membership,
+
+        [Parameter(Mandatory)]
+        [object[]]$ReviewedSolutions
+    )
+
+    $solutionNames = @(Get-UniqueExactStrings -Value @($Membership.value | ForEach-Object {
+                if ($_.solutionid) {
+                    [string]$_.solutionid.uniquename
+                }
+            }))
+    return @($ReviewedSolutions | Where-Object {
+            Test-ContainsExactString `
+                -Value $solutionNames `
+                -Expected ([string]$_)
+        })
+}
+
+function Get-InsuranceRoleReviewedMembershipDisplayText {
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [object[]]$SolutionUniqueNames
+    )
+
+    $resolved = @(Get-UniqueExactStrings -Value $SolutionUniqueNames)
+    if ($resolved.Count -eq 0) {
+        return '<none>'
+    }
+
+    return ($resolved -join ', ')
+}
+
 function Get-InsuranceRoleEntityPrivilegesPath {
     [CmdletBinding()]
     param(
@@ -625,17 +662,31 @@ function Test-InsuranceSecurityRole {
         -Method GET `
         -EnvironmentUrl $EnvironmentUrl `
         -Path (Get-InsuranceSecurityRoleSolutionMembershipPath -RoleId $roleId)
-    $solutionNames = foreach ($entry in @($membershipResponse.value)) {
-        if ($null -ne $entry -and $entry.solutionid) {
-            [string]$entry.solutionid.uniquename
-        }
-    }
-    if (-not (Test-ContainsExactString -Value $solutionNames -Expected ([string]$Role.solution))) {
+    $expectedReviewedMembership = @([string]$Role.solution)
+    $actualReviewedMembership = @(Get-InsuranceRoleActualReviewedMembership `
+            -Membership $membershipResponse `
+            -ReviewedSolutions @($Contract.solutions))
+    $missingReviewedMembership = @($expectedReviewedMembership | Where-Object {
+            -not (Test-ContainsExactString `
+                -Value $actualReviewedMembership `
+                -Expected ([string]$_))
+        })
+    $unexpectedReviewedMembership = @($actualReviewedMembership | Where-Object {
+            -not (Test-ContainsExactString `
+                -Value $expectedReviewedMembership `
+                -Expected ([string]$_))
+        })
+    if ($missingReviewedMembership.Count -gt 0 -or
+        $unexpectedReviewedMembership.Count -gt 0) {
+        $expectedReviewedMembershipText = Get-InsuranceRoleReviewedMembershipDisplayText `
+            -SolutionUniqueNames $expectedReviewedMembership
+        $actualReviewedMembershipText = Get-InsuranceRoleReviewedMembershipDisplayText `
+            -SolutionUniqueNames $actualReviewedMembership
         return New-InsuranceSecurityRoleResult `
             -Role $roleName `
             -State 'ContractConflict' `
             -Details @(
-                "Role '$roleName' is not a member of solution '$([string]$Role.solution)'."
+                "Role '$roleName' reviewed-solution membership expected '$expectedReviewedMembershipText'; actual reviewed membership was '$actualReviewedMembershipText'."
             )
     }
 

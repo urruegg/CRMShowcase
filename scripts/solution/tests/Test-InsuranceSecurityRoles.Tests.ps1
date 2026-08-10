@@ -153,6 +153,7 @@ BeforeAll {
         )
 
         $contract = [ordered]@{
+            solutions = @('crmshow_Foundation', 'crmshow_DataModel')
             tables = @(
                 [ordered]@{
                     logicalName = 'crmshow_policyprojection'
@@ -837,7 +838,7 @@ Describe 'Test-InsuranceSecurityRole' {
         )
     }
 
-    It 'returns ContractConflict when the role is not owned by its declared solution' {
+    It 'returns ContractConflict when the expected reviewed solution membership is missing' {
         $script:solutionNames = @('crmshow_DataModel')
 
         $result = Test-InsuranceSecurityRole `
@@ -847,7 +848,21 @@ Describe 'Test-InsuranceSecurityRole' {
 
         $result.State | Should -Be 'ContractConflict'
         @($result.Details) | Should -Contain (
-            "Role '$($script:role.name)' is not a member of solution '$($script:role.solution)'."
+            "Role '$($script:role.name)' reviewed-solution membership expected '$($script:role.solution)'; actual reviewed membership was 'crmshow_DataModel'."
+        )
+    }
+
+    It 'returns ContractConflict when the role is in an extra reviewed solution' {
+        $script:solutionNames = @('crmshow_Foundation', 'crmshow_DataModel')
+
+        $result = Test-InsuranceSecurityRole `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Role $script:role `
+            -Contract $script:contract
+
+        $result.State | Should -Be 'ContractConflict'
+        @($result.Details) | Should -Contain (
+            "Role '$($script:role.name)' reviewed-solution membership expected '$($script:role.solution)'; actual reviewed membership was 'crmshow_Foundation, crmshow_DataModel'."
         )
     }
 

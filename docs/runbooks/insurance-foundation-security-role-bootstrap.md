@@ -19,6 +19,10 @@ Customizer` application user.
 - Authorized Power Platform administrator.
 - DEV only: `https://crmshowdev.crm.dynamics.com`.
 - Reviewed contract: `solution/schema/insurance-foundation.json`.
+- If you run the publisher from Windows PowerShell 5.1 instead of PowerShell 7,
+  local `python` and the `jsonschema` package are already present, and both
+  `python --version` and `python -c "import jsonschema"` succeed. PowerShell 7
+  uses `Test-Json` and does not require this fallback.
 - Approved delivery tracking: issue [#40](https://github.com/urruegg/CRMShowcase/issues/40).
 - No credentials or access tokens are copied into GitHub, the repository, or
   workflow inputs.
@@ -44,7 +48,20 @@ any other change, stop and escalate under administrator review.
    az login --tenant b829e4ef-1a9f-45ba-80e5-48408aa421a9 --allow-no-subscriptions
    ```
 
-2. Run the reviewed publisher locally with the explicit privileged scope:
+2. If you are running Windows PowerShell 5.1, verify the local JSON Schema
+   fallback prerequisite first. If either command fails, stop and correct the
+   local prerequisite before continuing. Do not install packages automatically
+   as part of this run.
+
+   ```powershell
+   python --version
+   python -c "import jsonschema"
+   ```
+
+   If you are running PowerShell 7, skip this step because `Test-Json` handles
+   the schema validation path.
+
+3. Run the reviewed publisher locally with the explicit privileged scope:
 
    ```powershell
    .\scripts\solution\Publish-InsuranceFoundation.ps1 `
@@ -54,10 +71,10 @@ any other change, stop and escalate under administrator review.
      -Confirm
    ```
 
-3. Review every `ShouldProcess` confirmation before accepting it. The run is
+4. Review every `ShouldProcess` confirmation before accepting it. The run is
    bounded to the permitted changes listed above.
 
-4. Run the GET-only, read-only verifier:
+5. Run the GET-only, read-only verifier:
 
    ```powershell
    .\scripts\solution\Test-InsuranceSecurityRoles.ps1 `
@@ -65,7 +82,7 @@ any other change, stop and escalate under administrator review.
      -ContractPath '.\solution\schema\insurance-foundation.json'
    ```
 
-5. Confirm the verifier reports:
+6. Confirm the verifier reports:
    - overall `State` = `Ready`;
    - one `Ready` result for each reviewed role;
    - `MutationOccurred` = `false`.
@@ -75,14 +92,14 @@ any other change, stop and escalate under administrator review.
    - exact declared privileges and Dataverse depth;
    - no mutation during verification.
 
-6. For localized English (`1033`), German (`1031`), French (`1036`), and
+7. For localized English (`1033`), German (`1031`), French (`1036`), and
    Italian (`1040`) role labels/descriptions, capture the reviewed
-   `ShouldProcess`/publisher output from step 2 and inspect the role
+   `ShouldProcess`/publisher output from step 3 and inspect the role
    translations in Power Platform before attaching evidence. This is a manual
    evidence item because the current GET-only verifier does not retrieve
    localized role labels/descriptions.
 
-7. Attach the verifier JSON output and the manual localization evidence to
+8. Attach the verifier JSON output and the manual localization evidence to
    issue #40, then trigger **Author insurance foundation in DEV**.
 
 ## Failure and rollback

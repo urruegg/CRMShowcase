@@ -132,6 +132,36 @@ Describe 'Get-InsuranceAuthoringPreflightFailureMessage' {
         )
     }
 
+    It 'reports ContractConflict ownership guidance on exit three without bootstrap instructions' {
+        $json = [ordered]@{
+            State             = 'ContractConflict'
+            MissingSolutions  = @('crmshow_DataModel')
+            SolutionConflicts = @(
+                "Solution 'crmshow_Foundation' publisher metadata does not match solution/manifest.json: publisher.uniquename expected 'CRMShowcase' but was 'Contoso'."
+            )
+            RoleConflicts     = @(
+                "Role 'CRM Showcase Insurance Reader': Role 'CRM Showcase Insurance Reader' reviewed-solution membership expected 'crmshow_Foundation'; actual reviewed membership was 'crmshow_Foundation, crmshow_DataModel'."
+            )
+        } | ConvertTo-Json -Depth 10
+
+        $message = Get-InsuranceAuthoringPreflightFailureMessage `
+            -ExitCode 3 `
+            -JsonText $json
+
+        Assert-SafeDiagnosticLine -Text $message -MaxLength 600
+        $message | Should -Match 'ContractConflict'
+        $message | Should -Match (
+            'Reviewed publisher or role ownership differs from the contract'
+        )
+        $message | Should -Match (
+            [regex]::Escape('MissingSolutions=["crmshow_DataModel"]')
+        )
+        $message | Should -Match 'No mutation was performed'
+        $message | Should -Not -Match (
+            'insurance-foundation-security-role-bootstrap'
+        )
+    }
+
     It 'sanitizes hostile ManualPrerequisite names to a single safe line' {
         $json = [ordered]@{
             State        = 'ManualPrerequisite'
@@ -178,6 +208,33 @@ Describe 'Get-InsuranceAuthoringPreflightFailureMessage' {
 }
 
 Describe 'Get-InsuranceAuthoringPreflightDiagnosticSummary' {
+    It 'builds a compact sanitized contract-conflict workflow summary' {
+        $json = [ordered]@{
+            State             = 'ContractConflict'
+            MissingSolutions  = @("crmshow_DataModel`n::warning::owned")
+            SolutionConflicts = @(
+                "Solution`r`tpublisher$([char]0x85) mismatch"
+            )
+            RoleConflicts     = @(
+                "Role`n::warning::conflict`t$([char]1)"
+            )
+        } | ConvertTo-Json -Depth 10
+
+        $summary = Get-InsuranceAuthoringPreflightDiagnosticSummary `
+            -JsonText $json
+
+        Assert-SafeDiagnosticLine -Text $summary -MaxLength 500
+        $summary | Should -Match (
+            [regex]::Escape(
+                'Authoring preflight diagnostics: State="ContractConflict";'
+            )
+        )
+        $summary | Should -Match 'SolutionConflicts='
+        $summary | Should -Match 'RoleConflicts='
+        $summary | Should -Match 'warning::owned'
+        $summary | Should -Match 'warning::conflict'
+    }
+
     It 'builds a compact sanitized workflow summary from parsed diagnostics' {
         $json = [ordered]@{
             State               = 'Precondition'

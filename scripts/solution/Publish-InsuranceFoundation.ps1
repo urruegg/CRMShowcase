@@ -712,6 +712,52 @@ function Assert-InsuranceFoundationIntegrity {
     }
 }
 
+function Resolve-PythonJsonSchemaCommand {
+    [CmdletBinding()]
+    param()
+
+    $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+    if ($null -eq $pythonCommand) {
+        throw (
+            "Python with the 'jsonschema' package is required for JSON Schema validation when Test-Json is unavailable."
+        )
+    }
+
+    foreach ($propertyName in @('Source', 'Path', 'Name')) {
+        $property = $pythonCommand.PSObject.Properties[$propertyName]
+        if ($null -eq $property) {
+            continue
+        }
+
+        $value = [string]$property.Value
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            return $value
+        }
+    }
+
+    throw (
+        "Python with the 'jsonschema' package is required for JSON Schema validation when Test-Json is unavailable."
+    )
+}
+
+function Assert-PythonJsonSchemaPrerequisite {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$PythonCommand
+    )
+
+    $output = & $PythonCommand -c 'import jsonschema' 2>&1
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -ne 0) {
+        $detail = ConvertTo-SafeCliDiagnosticLine -Value $output
+        throw (
+            'Python + jsonschema prerequisite check failed for JSON Schema ' +
+            "validation when Test-Json is unavailable. Output: $detail"
+        )
+    }
+}
+
 function Test-InsuranceFoundationContract {
     [CmdletBinding()]
     param([Parameter(Mandatory)] [string]$Path)
@@ -728,6 +774,8 @@ function Test-InsuranceFoundationContract {
                 throw 'JSON Schema validation returned false.'
             }
         } else {
+            $pythonCommand = Resolve-PythonJsonSchemaCommand
+            Assert-PythonJsonSchemaPrerequisite -PythonCommand $pythonCommand
             $validator = @'
 import json, sys
 from jsonschema import Draft202012Validator
@@ -739,7 +787,7 @@ Draft202012Validator.check_schema(schema)
 errors = list(Draft202012Validator(schema).iter_errors(instance))
 sys.exit(1 if errors else 0)
 '@
-            & python -c $validator $resolved $schemaPath
+            & $pythonCommand -c $validator $resolved $schemaPath
             if ($LASTEXITCODE -ne 0) {
                 throw 'Draft 2020-12 JSON Schema validation returned false.'
             }

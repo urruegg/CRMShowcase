@@ -160,6 +160,18 @@ function Get-InsuranceAuthoringPreflightDiagnosticSummary {
 
     $stateText = Format-InsuranceAuthoringPreflightValue -Value $result.State
     switch ([string]$result.State) {
+        'ContractConflict' {
+            $missingSolutions = Format-InsuranceAuthoringPreflightList -Value @(
+                $result.MissingSolutions
+            )
+            $solutionConflicts = Format-InsuranceAuthoringPreflightList -Value @(
+                $result.SolutionConflicts
+            )
+            $roleConflicts = Format-InsuranceAuthoringPreflightList -Value @(
+                $result.RoleConflicts
+            )
+            return "Authoring preflight diagnostics: State=$stateText; MissingSolutions=$missingSolutions; SolutionConflicts=$solutionConflicts; RoleConflicts=$roleConflicts."
+        }
         'ManualPrerequisite' {
             $missingRoles = Format-InsuranceAuthoringPreflightList -Value @(
                 $result.MissingRoles
@@ -200,7 +212,7 @@ function Get-InsuranceAuthoringPreflightFailureMessage {
         [string]$JsonText
     )
 
-    if ($ExitCode -ne 2) {
+    if ($ExitCode -ne 2 -and $ExitCode -ne 3) {
         return 'Authoring preflight transport or execution failed. Review the error output above.'
     }
 
@@ -208,7 +220,24 @@ function Get-InsuranceAuthoringPreflightFailureMessage {
         $result = $JsonText | ConvertFrom-Json -ErrorAction Stop
     }
     catch {
+        if ($ExitCode -eq 3) {
+            return 'Authoring preflight reported ContractConflict. Review the preflight diagnostics above for the reviewed contract conflict details. No mutation was performed.'
+        }
         return 'Authoring preflight reported a non-ready state. Review the preflight diagnostics above for details.'
+    }
+
+    if ($ExitCode -eq 3) {
+        $missingSolutions = Format-InsuranceAuthoringPreflightList -Value @(
+            $result.MissingSolutions
+        )
+        $solutionConflicts = Format-InsuranceAuthoringPreflightList -Value @(
+            $result.SolutionConflicts
+        )
+        $roleConflicts = Format-InsuranceAuthoringPreflightList -Value @(
+            $result.RoleConflicts
+        )
+
+        return "Authoring preflight reported ContractConflict. Reviewed publisher or role ownership differs from the contract. MissingSolutions=$missingSolutions. SolutionConflicts=$solutionConflicts. RoleConflicts=$roleConflicts. Review the preflight diagnostics above. No mutation was performed."
     }
 
     switch ([string]$result.State) {
