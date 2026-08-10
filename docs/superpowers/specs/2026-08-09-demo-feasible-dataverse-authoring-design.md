@@ -177,6 +177,12 @@ dedicated automated bootstrap identity as the target-state hypothesis.
 | TEST promotion | Deferred to the solution-versioning sprint | Managed install/update/upgrade with approvals and rollback |
 | Fixtures and persona security smoke tests | Deferred until custom roles exist and are exported | Automated after managed deployment |
 
+**DEV evidence amendment (2026-08-10).** Dataverse root-role records use a
+self-reference in `_parentrootroleid_value`, not `null`. Security-role
+`name` rejects `SetLocLabels` with `0x80044198`; therefore the demo delivers
+canonical English role names/descriptions and records DE/FR/IT role wording as
+target-state terminology rather than claiming unsupported native localization.
+
 ## 6. Workflow architecture
 
 ### 6.1 Read-only preflight

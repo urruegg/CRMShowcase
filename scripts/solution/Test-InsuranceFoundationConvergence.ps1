@@ -873,7 +873,7 @@ function Get-ConvergenceRootInsuranceRolesPath {
     $escapedRolePrefix = ConvertTo-ODataKeyString $RolePrefix
     return (
         "/roles?`$select=roleid,name,_parentrootroleid_value&" +
-        "`$filter=_parentrootroleid_value eq null and startswith(name,'$escapedRolePrefix')"
+        "`$filter=startswith(name,'$escapedRolePrefix')"
     )
 }
 
@@ -3313,7 +3313,10 @@ function Test-InsuranceFoundationUnexpectedMetadata {
             -Details @($_.Exception.Message)
     }
 
-    foreach ($role in @($rootRoles.value | Sort-Object name, roleid)) {
+    foreach ($role in @($rootRoles.value | Where-Object {
+                -not [string]::IsNullOrWhiteSpace([string]$_.roleid) -and
+                [string]$_.roleid -eq [string]$_._parentrootroleid_value
+            } | Sort-Object name, roleid)) {
         $roleName = [string]$role.name
         if (-not (Test-ConvergenceStartsWithPrefix `
                     -Value $roleName `

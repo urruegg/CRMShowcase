@@ -61,8 +61,8 @@ function Get-InsuranceSecurityRolePath {
 
     $escapedName = ConvertTo-ODataStringLiteral -Value $RoleName
     return (
-        "/roles?`$select=roleid,name&" +
-        "`$filter=_parentrootroleid_value eq null and name eq '$escapedName'"
+        "/roles?`$select=roleid,name,_parentrootroleid_value&" +
+        "`$filter=name eq '$escapedName'"
     )
 }
 
@@ -621,7 +621,10 @@ function Test-InsuranceSecurityRole {
         -Path (Get-InsuranceSecurityRolePath -RoleName $roleName)
     $matches = @()
     if ($null -ne $roleResponse) {
-        $matches = @($roleResponse.value)
+        $matches = @($roleResponse.value | Where-Object {
+                -not [string]::IsNullOrWhiteSpace([string]$_.roleid) -and
+                [string]$_.roleid -eq [string]$_._parentrootroleid_value
+            })
     }
 
     if ($matches.Count -eq 0) {

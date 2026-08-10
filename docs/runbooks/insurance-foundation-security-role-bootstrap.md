@@ -33,12 +33,18 @@ This bootstrap may change only:
 
 - `CRM Showcase Insurance Reader`;
 - `CRM Showcase Insurance Data Steward`;
-- localized English (`1033`), German (`1031`), French (`1036`), and Italian
-  (`1040`) role labels and descriptions;
+- the canonical English role names and descriptions;
 - only the privileges declared by the reviewed contract.
 
 If the local confirmation text or resulting structural verifier output implies
 any other change, stop and escalate under administrator review.
+
+> **Platform limitation confirmed in DEV (2026-08-10).** Dataverse root roles
+> identify themselves through `_parentrootroleid_value`; it is not `null`.
+> The role `name` attribute rejects `SetLocLabels` with `0x80044198` because it
+> does not support localized labels. The contract retains DE/FR/IT role text as
+> target-state terminology, but this bootstrap must not claim or attempt native
+> multilingual role names or descriptions.
 
 ## Procedure
 
@@ -92,14 +98,12 @@ any other change, stop and escalate under administrator review.
    - exact declared privileges and Dataverse depth;
    - no mutation during verification.
 
-7. For localized English (`1033`), German (`1031`), French (`1036`), and
-   Italian (`1040`) role labels/descriptions, capture the reviewed
-   `ShouldProcess`/publisher output from step 3 and inspect the role
-   translations in Power Platform before attaching evidence. This is a manual
-   evidence item because the current GET-only verifier does not retrieve
-   localized role labels/descriptions.
+7. Confirm Power Platform displays the canonical English role names and
+   descriptions. Native role-label translation is not a delivered demo
+   capability because the Dataverse role `name` attribute does not support
+   `SetLocLabels`.
 
-8. Attach the verifier JSON output and the manual localization evidence to
+8. Attach the verifier JSON output and the platform-limitation evidence to
    issue #40, then trigger **Author insurance foundation in DEV**.
 
 ## Failure and rollback
@@ -107,8 +111,6 @@ any other change, stop and escalate under administrator review.
 - Stop immediately if verification reports an exact-name mismatch, unexpected
   privileges, wrong solution ownership, duplicate root roles, unsupported
   depth, or any other `ContractConflict`.
-- Stop immediately if the manual Power Platform review shows incorrect
-  EN/DE/FR/IT role labels or descriptions.
 - Do **not** delete either role.
 - Do **not** elevate normal GitHub CI beyond the approved `System Customizer`
   role.
@@ -120,10 +122,8 @@ any other change, stop and escalate under administrator review.
 ## Evidence and sign-out
 
 - Keep the local terminal transcript, reviewed `ShouldProcess`/publisher
-  output, Power Platform translation review screenshots/notes, and pasted
-  verifier JSON as administrator evidence for issue #40.
-- Localized label/description evidence remains manual because the current
-  GET-only verifier does not retrieve localized role labels/descriptions.
+  output, canonical English role review, the `0x80044198` platform-limitation
+  evidence, and pasted verifier JSON as administrator evidence for issue #40.
 - After the verified DEV bootstrap is complete, sign out locally:
 
   ```powershell

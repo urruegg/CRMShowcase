@@ -959,8 +959,13 @@ security-role administration.
 3. Review each `ShouldProcess` confirmation. The run may change only:
    - `CRM Showcase Insurance Reader`;
    - `CRM Showcase Insurance Data Steward`;
-   - their localized labels/descriptions;
+   - their canonical English names/descriptions;
    - privileges declared by the reviewed contract.
+
+   DEV evidence later confirmed that root roles self-reference
+   `_parentrootroleid_value` and that role `name` rejects `SetLocLabels` with
+   `0x80044198`. DE/FR/IT role wording remains target-state terminology rather
+   than a delivered native role-label capability.
 4. Run read-only verification:
 
    ```powershell

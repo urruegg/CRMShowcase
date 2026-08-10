@@ -295,16 +295,17 @@ $readerRoleId = '11111111-1111-1111-1111-111111111111'
 $stewardRoleId = '22222222-2222-2222-2222-222222222222'
 
 switch ($path) {
-    "/roles?`$select=roleid,name&`$filter=_parentrootroleid_value eq null and name eq 'CRM Showcase Insurance Reader'" {
+    "/roles?`$select=roleid,name,_parentrootroleid_value&`$filter=name eq 'CRM Showcase Insurance Reader'" {
         Write-Json ([pscustomobject]@{
                 value = @([pscustomobject]@{
                         roleid = $readerRoleId
                         name = 'CRM Showcase Insurance Reader'
+                        _parentrootroleid_value = $readerRoleId
                     })
             })
         exit 0
     }
-    "/roles?`$select=roleid,name&`$filter=_parentrootroleid_value eq null and name eq 'CRM Showcase Insurance Data Steward'" {
+    "/roles?`$select=roleid,name,_parentrootroleid_value&`$filter=name eq 'CRM Showcase Insurance Data Steward'" {
         $roles = @()
         if ($env:TEST_INSURANCE_SECURITY_ROLES_SCENARIO -ne 'MissingRole') {
             $resolvedRoleName = if ($env:TEST_INSURANCE_SECURITY_ROLES_SCENARIO -eq 'LowerCaseRoleName') {
@@ -316,6 +317,7 @@ switch ($path) {
             $roles += [pscustomobject]@{
                 roleid = $stewardRoleId
                 name = $resolvedRoleName
+                _parentrootroleid_value = $stewardRoleId
             }
         }
         Write-Json ([pscustomobject]@{ value = @($roles) })
@@ -681,11 +683,11 @@ Describe 'Compare-InsuranceRolePrivileges' {
 }
 
 Describe 'OData query helpers' {
-    It 'escapes root role names and enforces the root-role predicate' {
+    It 'escapes role names and retrieves parent-root identity for client-side root filtering' {
         Get-InsuranceSecurityRolePath -RoleName "Reader's Role" |
             Should -Be (
-                "/roles?`$select=roleid,name&" +
-                "`$filter=_parentrootroleid_value eq null and name eq 'Reader''s Role'"
+                "/roles?`$select=roleid,name,_parentrootroleid_value&" +
+                "`$filter=name eq 'Reader''s Role'"
             )
     }
 
@@ -711,6 +713,7 @@ Describe 'Test-InsuranceSecurityRole' {
         $script:rootRoleItems = @([pscustomobject]@{
                 roleid = $script:roleId
                 name = $script:role.name
+                _parentrootroleid_value = $script:roleId
             })
         $script:solutionNames = @($script:role.solution)
 
@@ -784,6 +787,31 @@ Describe 'Test-InsuranceSecurityRole' {
             }) | Should -BeNullOrEmpty
     }
 
+    It 'ignores child business-unit copies and verifies the self-parented root role' {
+        $script:rootRoleItems = @(
+            [pscustomobject]@{
+                roleid = '33333333-3333-3333-3333-333333333333'
+                name = $script:role.name
+                _parentrootroleid_value = $script:roleId
+            },
+            [pscustomobject]@{
+                roleid = $script:roleId
+                name = $script:role.name
+                _parentrootroleid_value = $script:roleId
+            }
+        )
+
+        $result = Test-InsuranceSecurityRole `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Role $script:role `
+            -Contract $script:contract
+
+        $result.State | Should -Be 'Ready'
+        @($script:calls.Path) | Should -Contain (
+            "/RetrieveRolePrivilegesRole(RoleId=$($script:roleId))"
+        )
+    }
+
     It 'returns ManualPrerequisite when the root role is missing' {
         $script:rootRoleItems = @()
 
@@ -803,8 +831,14 @@ Describe 'Test-InsuranceSecurityRole' {
 
     It 'returns ContractConflict when multiple root roles match the same name' {
         $script:rootRoleItems = @(
-            [pscustomobject]@{ roleid = '1'; name = $script:role.name },
-            [pscustomobject]@{ roleid = '2'; name = $script:role.name }
+            [pscustomobject]@{
+                roleid = '1'; name = $script:role.name
+                _parentrootroleid_value = '1'
+            },
+            [pscustomobject]@{
+                roleid = '2'; name = $script:role.name
+                _parentrootroleid_value = '2'
+            }
         )
 
         $result = Test-InsuranceSecurityRole `
@@ -823,6 +857,7 @@ Describe 'Test-InsuranceSecurityRole' {
         $script:rootRoleItems = @([pscustomobject]@{
                 roleid = $script:roleId
                 name = $resolvedRoleName
+                _parentrootroleid_value = $script:roleId
             })
 
         $result = Test-InsuranceSecurityRole `

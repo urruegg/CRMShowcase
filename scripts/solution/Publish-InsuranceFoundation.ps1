@@ -2349,7 +2349,18 @@ function Invoke-RoleReconciliation {
         }
     }
     $escapedName = $Role.name.Replace("'", "''")
-    $existing = Get-One "/roles?`$select=roleid,name,description,_businessunitid_value&`$filter=name eq '$escapedName' and _parentrootroleid_value eq null"
+    $roleResponse = Invoke-DataverseRequest -Method GET -Path (
+        "/roles?`$select=roleid,name,description,_businessunitid_value," +
+        "_parentrootroleid_value&`$filter=name eq '$escapedName'"
+    )
+    $rootRoles = @($roleResponse.value | Where-Object {
+            -not [string]::IsNullOrWhiteSpace([string]$_.roleid) -and
+            [string]$_.roleid -eq [string]$_._parentrootroleid_value
+        })
+    if ($rootRoles.Count -gt 1) {
+        throw "Metadata resolution was ambiguous for root role '$($Role.name)'."
+    }
+    $existing = if ($rootRoles.Count -eq 1) { $rootRoles[0] } else { $null }
     if ($null -eq $existing) {
         $businessUnit = Get-One "/businessunits?`$select=businessunitid&`$filter=parentbusinessunitid eq null"
         if ($null -eq $businessUnit -or -not $businessUnit.businessunitid) {
@@ -2358,11 +2369,6 @@ function Invoke-RoleReconciliation {
         $businessUnitId = $businessUnit.businessunitid
         $request = [pscustomobject]@{
             Method = 'POST'; Path = '/roles'; Solution = $Role.solution
-            EntityLogicalName = 'role'; IdProperty = 'roleid'
-            LocalizedFields = @{
-                name = $Role.metadata.label
-                description = $Role.metadata.description
-            }
             Body = @{
                 name = $Role.name
                 description = [string]$Role.metadata.description.'1033'
@@ -2370,7 +2376,6 @@ function Invoke-RoleReconciliation {
             }
         }
         $existing = Invoke-PlannedRequest $request
-        Set-RecordLocalizedFields -Request $request -CreatedRecord $existing
         if ($null -eq $existing -or -not $existing.roleid) {
             throw "Created role '$($Role.name)' did not return its role ID."
         }
@@ -2379,17 +2384,8 @@ function Invoke-RoleReconciliation {
         Assert-SolutionOwnership $existing $Role.solution $Role.name
         $request = [pscustomobject]@{
             Solution = $Role.solution
-            EntityLogicalName = 'role'
-            IdProperty = 'roleid'
-            LocalizedFields = @{
-                name = $Role.metadata.label
-                description = $Role.metadata.description
-            }
         }
-        # Role localized labels are not exposed as a complete language set by
-        # the record query. Idempotently repair every language on each run.
-        Set-RecordLocalizedFields -Request $request -CreatedRecord $existing
-        Write-Output "$($Role.name): Updated"
+        Write-Output "$($Role.name): Unchanged"
     }
 
     $wanted = foreach ($tablePrivilege in $Role.tablePrivileges) {

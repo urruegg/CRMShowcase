@@ -939,6 +939,7 @@ BeforeAll {
                     value = @([pscustomobject]@{
                             roleid = $roleId
                             name   = $roleName
+                            _parentrootroleid_value = $roleId
                         })
                 }
             $responses[(Get-InsuranceSecurityRoleSolutionMembershipPath -RoleId $roleId)] =
@@ -952,12 +953,12 @@ BeforeAll {
             $responses[(Get-ConvergenceRoleByIdPath -RoleId $roleId)] = [pscustomobject]@{
                 roleid = $roleId
                 name   = $roleName
-                _parentrootroleid_value = $null
+                _parentrootroleid_value = $roleId
             }
             [void]$rootRoles.Add([pscustomobject]@{
                     roleid = $roleId
                     name = $roleName
-                    _parentrootroleid_value = $null
+                    _parentrootroleid_value = $roleId
                 })
         }
 
@@ -1430,7 +1431,7 @@ Describe 'Convergence path builders' {
         Get-ConvergenceRootInsuranceRolesPath -RolePrefix 'CRM Showcase Insurance ' |
             Should -Be (
                 "/roles?`$select=roleid,name,_parentrootroleid_value&" +
-                "`$filter=_parentrootroleid_value eq null and startswith(name,'CRM Showcase Insurance ')"
+                "`$filter=startswith(name,'CRM Showcase Insurance ')"
             )
     }
 }
@@ -2446,13 +2447,13 @@ Describe 'Unexpected metadata reverse inventory' {
             [pscustomobject]@{
                 roleid = $roleId
                 name = 'CRM Showcase Insurance Escalation'
-                _parentrootroleid_value = $null
+                _parentrootroleid_value = $roleId
             }
         )
         $fixture.Responses[(Get-ConvergenceRoleByIdPath -RoleId $roleId)] = [pscustomobject]@{
             roleid = $roleId
             name = 'CRM Showcase Insurance Escalation'
-            _parentrootroleid_value = $null
+            _parentrootroleid_value = $roleId
         }
         $fixture.Responses[(Get-ConvergenceSolutionMembershipPath -ComponentId $roleId)] =
             script:New-SolutionMembershipResponse -SolutionUniqueName 'crmshow_Foundation'
@@ -2479,13 +2480,13 @@ Describe 'Unexpected metadata reverse inventory' {
             [pscustomobject]@{
                 roleid = $roleId
                 name = 'CRM Showcase Insurance DataModel Reviewer'
-                _parentrootroleid_value = $null
+                _parentrootroleid_value = $roleId
             }
         )
         $fixture.Responses[(Get-ConvergenceRoleByIdPath -RoleId $roleId)] = [pscustomobject]@{
             roleid = $roleId
             name = 'CRM Showcase Insurance DataModel Reviewer'
-            _parentrootroleid_value = $null
+            _parentrootroleid_value = $roleId
         }
         $fixture.Responses[(Get-ConvergenceSolutionMembershipPath -ComponentId $roleId)] =
             script:New-SolutionMembershipResponse -SolutionUniqueName 'crmshow_DataModel'
@@ -2532,12 +2533,12 @@ Describe 'Unexpected metadata reverse inventory' {
             [pscustomobject]@{
                 roleid = script:New-FakeGuid -Index 9706
                 name = 'System Administrator'
-                _parentrootroleid_value = $null
+                _parentrootroleid_value = script:New-FakeGuid -Index 9706
             } +
             [pscustomobject]@{
                 roleid = script:New-FakeGuid -Index 9714
                 name = 'CRM Showcase Insurance Archive'
-                _parentrootroleid_value = $null
+                _parentrootroleid_value = script:New-FakeGuid -Index 9714
             }
         )
         $fixture.Responses[(Get-ConvergenceSolutionMembershipPath -ComponentId (script:New-FakeGuid -Index 9714))] =

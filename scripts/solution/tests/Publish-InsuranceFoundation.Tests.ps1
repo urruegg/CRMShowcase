@@ -1635,9 +1635,9 @@ Describe 'Insurance Foundation reconciliation' {
             '/savedqueries','/SetLocLabels','/SetLocLabels',
             '/savedqueries','/SetLocLabels','/SetLocLabels',
             '/systemforms','/SetLocLabels','/SetLocLabels',
-            '/roles','/SetLocLabels','/SetLocLabels',
+            '/roles',
             '/roles(new-role)/Microsoft.Dynamics.CRM.AddPrivilegesRole',
-            '/roles','/SetLocLabels','/SetLocLabels',
+            '/roles',
             '/roles(new-role)/Microsoft.Dynamics.CRM.AddPrivilegesRole',
             '/PublishAllXml'
         )
@@ -2395,6 +2395,7 @@ Describe 'Insurance Foundation reconciliation' {
             if ($Method -eq 'GET' -and $Path -like '/roles?*') {
                 return [pscustomobject]@{ value = @([pscustomobject]@{
                     roleid=$roleId; name=$role.name
+                    _parentrootroleid_value=$roleId
                     description=[string]$role.metadata.description.'1033'
                 }) }
             }
@@ -2442,13 +2443,8 @@ Describe 'Insurance Foundation reconciliation' {
         }) | Should -BeNullOrEmpty
         @($script:calls | Where-Object Path -like '/roleprivileges*') |
             Should -BeNullOrEmpty
-        $localizationRepairs = @($script:calls |
-            Where-Object Path -eq '/SetLocLabels')
-        $localizationRepairs.Count | Should -Be 2
-        foreach ($repair in $localizationRepairs) {
-            @($repair.Body.Labels.LanguageCode) |
-                Should -Be @(1033, 1031, 1036, 1040)
-        }
+        @($script:calls | Where-Object Path -eq '/SetLocLabels') |
+            Should -BeNullOrEmpty
         $wantedNames | Should -Contain 'prvReadcrmshow_PolicyProjection'
         ($wantedNames -ccontains 'prvReadcrmshow_policyprojection') |
             Should -BeFalse
@@ -2471,6 +2467,7 @@ Describe 'Insurance Foundation reconciliation' {
             if ($Method -eq 'GET' -and $Path -like '/roles?*') {
                 return [pscustomobject]@{ value = @([pscustomobject]@{
                     roleid=$roleId; name=$role.name
+                    _parentrootroleid_value=$roleId
                     description=[string]$role.metadata.description.'1033'
                 }) }
             }
