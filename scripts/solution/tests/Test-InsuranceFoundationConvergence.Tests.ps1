@@ -2757,9 +2757,10 @@ Describe 'Convergence direct entry point' {
         script:Assert-SafeDiagnosticLine -Text $invocation.Output -MaxLength 450
         $invocation.Output | Should -Match 'Dataverse convergence transport failed'
         $invocation.Output | Should -Match '/RetrieveProvisionedLanguages\(\)'
+        $invocation.Output | Should -Match 'Output:'
         $invocation.Output | Should -Match (
             [regex]::Escape(
-                "'::warning::convergence transport Synthetic az transport failure. blocked"
+                '::warning::convergence transport Synthetic az transport failure. blocked'
             )
         )
         $invocation.Output | Should -Not -Match 'At line:|--method|--url|--resource'

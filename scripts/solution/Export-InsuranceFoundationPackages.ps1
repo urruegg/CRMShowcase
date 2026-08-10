@@ -90,6 +90,31 @@ function Get-InsuranceFoundationPackageNameCounts {
     return $counts
 }
 
+function Get-InsuranceFoundationOrdinalSortedStrings {
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [object[]]$Values
+    )
+
+    $items = [System.Collections.Generic.List[string]]::new()
+    foreach ($value in @($Values)) {
+        if ($null -eq $value) {
+            $items.Add($null) | Out-Null
+            continue
+        }
+
+        $items.Add([string]$value) | Out-Null
+    }
+
+    $sorted = $items.ToArray()
+    if ($sorted.Length -gt 1) {
+        [Array]::Sort($sorted, [System.StringComparer]::Ordinal)
+    }
+
+    return $sorted
+}
+
 function Format-InsuranceFoundationPackageList {
     [CmdletBinding()]
     param(
@@ -118,7 +143,7 @@ function Format-InsuranceFoundationPackageList {
         return '<none>'
     }
 
-    return (@($values | Sort-Object) -join ', ')
+    return (@(Get-InsuranceFoundationOrdinalSortedStrings -Values $values) -join ', ')
 }
 
 function Assert-InsuranceFoundationPackageSet {
@@ -151,7 +176,7 @@ function Assert-InsuranceFoundationPackageSet {
     $extra = New-Object 'System.Collections.Generic.List[string]'
     $duplicates = New-Object 'System.Collections.Generic.List[string]'
 
-    foreach ($name in @($allNames | Sort-Object)) {
+    foreach ($name in @(Get-InsuranceFoundationOrdinalSortedStrings -Values @($allNames))) {
         $expectedCount = 0
         if ($expectedCounts.ContainsKey($name)) {
             $expectedCount = $expectedCounts[$name]

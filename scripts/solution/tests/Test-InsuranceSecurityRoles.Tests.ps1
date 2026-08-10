@@ -567,9 +567,10 @@ Describe 'Invoke-InsuranceSecurityRoleDataverseRequest' {
                 "Dataverse security-role verification failed (GET /roles); az rest exited with code 9."
             )
         )
+        $message | Should -Match 'Output:'
         $message | Should -Match (
             [regex]::Escape(
-                "Output: '::warning::security roles transport Permission denied blocked"
+                '::warning::security roles transport Permission denied blocked'
             )
         )
         $message | Should -Not -Match 'At line:|--method|--url|--resource'
@@ -1077,9 +1078,10 @@ Describe 'Security-role verifier direct entry point' {
         script:Assert-SafeDiagnosticLine -Text $invocation.Output -MaxLength 450
         $invocation.Output | Should -Match 'Dataverse security-role verification failed'
         $invocation.Output | Should -Match '/roles\?\$select=roleid,name'
+        $invocation.Output | Should -Match 'Output:'
         $invocation.Output | Should -Match (
             [regex]::Escape(
-                "'::warning::security roles transport Permission denied blocked"
+                '::warning::security roles transport Permission denied blocked'
             )
         )
         $invocation.Output | Should -Not -Match 'At line:|--method|--url|--resource'

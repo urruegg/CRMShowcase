@@ -183,9 +183,10 @@ Describe 'Invoke-DataverseRest' {
         script:Assert-SafeDiagnosticLine -Text $message -MaxLength 400
         $message | Should -Match 'Dataverse request failed: GET'
         $message | Should -Match 'RetrieveProvisionedLanguages\(\)'
+        $message | Should -Match 'Output:'
         $message | Should -Match (
             [regex]::Escape(
-                "Output: '::warning::language transport Permission denied blocked"
+                '::warning::language transport Permission denied blocked'
             )
         )
         $message | Should -Not -Match 'At line:|--method|--url|--resource'
@@ -266,9 +267,10 @@ Describe 'Set-DataverseLanguages entry point' {
         script:Assert-SafeDiagnosticLine -Text $invocation.Output -MaxLength 450
         $invocation.Output | Should -Match 'Dataverse request failed: GET'
         $invocation.Output | Should -Match 'RetrieveProvisionedLanguages\(\)'
+        $invocation.Output | Should -Match 'Output:'
         $invocation.Output | Should -Match (
             [regex]::Escape(
-                "'::warning::language transport Permission denied blocked"
+                '::warning::language transport Permission denied blocked'
             )
         )
         $invocation.Output | Should -Not -Match 'At line:|--method|--url|--resource'

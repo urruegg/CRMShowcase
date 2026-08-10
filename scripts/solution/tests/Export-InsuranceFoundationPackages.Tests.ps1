@@ -26,6 +26,31 @@ BeforeAll {
         $Text.Length | Should -BeLessThan ($MaxLength + 1)
     }
 
+    function script:Get-OrdinalSortedStrings {
+        [CmdletBinding()]
+        param(
+            [AllowNull()]
+            [object[]]$Values
+        )
+
+        $items = [System.Collections.Generic.List[string]]::new()
+        foreach ($value in @($Values)) {
+            if ($null -eq $value) {
+                $items.Add($null) | Out-Null
+                continue
+            }
+
+            $items.Add([string]$value) | Out-Null
+        }
+
+        $sorted = $items.ToArray()
+        if ($sorted.Length -gt 1) {
+            [Array]::Sort($sorted, [System.StringComparer]::Ordinal)
+        }
+
+        return $sorted
+    }
+
     function script:New-ExportTestContext {
         [CmdletBinding()]
         param()
@@ -165,9 +190,10 @@ exit 0
         }
 
         return @(
-            Get-ChildItem -LiteralPath $Context.RootPath -Directory -Force |
-                ForEach-Object { $_.FullName } |
-                Sort-Object
+            script:Get-OrdinalSortedStrings -Values @(
+                Get-ChildItem -LiteralPath $Context.RootPath -Directory -Force |
+                    ForEach-Object { $_.FullName }
+            )
         )
     }
 
@@ -183,9 +209,10 @@ exit 0
         }
 
         return @(
-            Get-ChildItem -LiteralPath $Path -File -Force |
-                ForEach-Object { $_.Name } |
-                Sort-Object
+            script:Get-OrdinalSortedStrings -Values @(
+                Get-ChildItem -LiteralPath $Path -File -Force |
+                    ForEach-Object { $_.Name }
+            )
         )
     }
 
@@ -196,12 +223,20 @@ exit 0
             [object[]]$Invocations
         )
 
-        return @(
-            @($Invocations) |
-                Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.Path) } |
-                ForEach-Object { Split-Path -Path ([string]$_.Path) -Parent } |
-                Sort-Object -Unique
+        $paths = New-Object 'System.Collections.Generic.HashSet[string]' (
+            [System.StringComparer]::Ordinal
         )
+
+        foreach ($invocation in @($Invocations)) {
+            $path = [string]$invocation.Path
+            if ([string]::IsNullOrWhiteSpace($path)) {
+                continue
+            }
+
+            $null = $paths.Add((Split-Path -Path $path -Parent))
+        }
+
+        return @(script:Get-OrdinalSortedStrings -Values @($paths))
     }
 
     function script:Invoke-ExportEntryScript {
@@ -354,13 +389,12 @@ exit 0
 
 Describe 'Get-InsuranceFoundationExports' {
     It 'returns exactly the four reviewed package definitions' {
-        $definitions = @(
+        $definitions = @(script:Get-OrdinalSortedStrings -Values @(
             Get-InsuranceFoundationExports |
-                Sort-Object File |
                 ForEach-Object {
                     '{0}|{1}|{2}' -f $_.Name, $_.Managed.ToString().ToLowerInvariant(), $_.File
                 }
-        )
+        ))
 
         $definitions | Should -Be @(
             'crmshow_DataModel|false|crmshow_DataModel.zip',
@@ -548,13 +582,12 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
         (Split-Path -Path $stagingDirectory -Parent) |
             Should -Be (Split-Path -Path $context.OutputDirectory -Parent)
 
-        $actual = @(
+        $actual = @(script:Get-OrdinalSortedStrings -Values @(
             $invocations |
-                Sort-Object Path |
                 ForEach-Object { @($_.Arguments) -join '|' }
-        )
+        ))
 
-        $expected = @(
+        $expected = @(script:Get-OrdinalSortedStrings -Values @(
             (@(
                     'solution', 'export',
                     '--environment', 'https://unit.crm.dynamics.com',
@@ -587,7 +620,7 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
                     '--managed', 'true',
                     '--overwrite'
                 ) -join '|')
-        ) | Sort-Object
+        ))
 
         $actual | Should -Be $expected
     }
@@ -711,9 +744,10 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
         @($invocation.Invocations).Count | Should -Be 0
 
         $existingItems = @(
-            Get-ChildItem -LiteralPath $context.OutputDirectory -Force |
-                ForEach-Object { $_.Name } |
-                Sort-Object
+            script:Get-OrdinalSortedStrings -Values @(
+                Get-ChildItem -LiteralPath $context.OutputDirectory -Force |
+                    ForEach-Object { $_.Name }
+            )
         )
         $existingItems.Count | Should -Be 2
         $existingItems | Should -Contain 'keep.txt'
@@ -783,9 +817,10 @@ Describe 'Export-InsuranceFoundationPackages entry point' {
         script:Assert-SafeDiagnosticLine -Text $invocation.Output -MaxLength 450
         $invocation.Output | Should -Match 'pac solution export failed'
         $invocation.Output | Should -Match 'crmshow_DataModel_managed\.zip'
+        $invocation.Output | Should -Match 'Output:'
         $invocation.Output | Should -Match (
             [regex]::Escape(
-                "Output: '::warning::export transport Permission denied blocked"
+                '::warning::export transport Permission denied blocked'
             )
         )
         $invocation.Output | Should -Not -Match 'At line:|--environment|--name|--path'

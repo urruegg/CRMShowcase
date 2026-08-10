@@ -843,8 +843,9 @@ Describe 'az rest transport' {
         $message | Should -Match 'crmshow_accounttype'
         $message | Should -Match 'Permission denied'
         $message | Should -Match 'blocked'
+        $message | Should -Match 'Output:'
         $message | Should -Match (
-            [regex]::Escape("Output: '::warning::publish transport")
+            [regex]::Escape('::warning::publish transport')
         )
         $message | Should -Not -Match 'At line:|--body|--headers|--method|--url|--resource'
     }

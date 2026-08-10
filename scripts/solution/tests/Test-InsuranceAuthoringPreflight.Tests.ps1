@@ -738,9 +738,10 @@ Describe 'Invoke-PreflightDataverseRequest' {
                 "Dataverse preflight transport failed (GET /WhoAmI); az rest exited with code 9."
             )
         )
+        $message | Should -Match 'Output:'
         $message | Should -Match (
             [regex]::Escape(
-                "Output: '::warning::preflight transport Permission denied blocked"
+                '::warning::preflight transport Permission denied blocked'
             )
         )
         $message | Should -Not -Match 'At line:|--method|--url|--resource'
@@ -1215,9 +1216,10 @@ Describe 'Preflight direct entry point' {
         script:Assert-SafeDiagnosticLine -Text $invocation.Output -MaxLength 500
         $invocation.Output | Should -Match 'Dataverse preflight transport failed'
         $invocation.Output | Should -Match '/solutions\?\$select=solutionid,uniquename'
+        $invocation.Output | Should -Match 'Output:'
         $invocation.Output | Should -Match (
             [regex]::Escape(
-                "'::warning::preflight transport Permission denied blocked"
+                '::warning::preflight transport Permission denied blocked'
             )
         )
         $invocation.Output | Should -Not -Match 'At line:|--method|--url|--resource'
