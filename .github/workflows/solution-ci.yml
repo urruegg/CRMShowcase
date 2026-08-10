@@ -1,11 +1,7 @@
 name: Solution CI
 
 on:
-  pull_request:
-    paths:
-      - 'solution/**'
-      - 'scripts/solution/**'
-      - '.github/workflows/solution-*.yml'
+  pull_request: {}
   # Also fire on branch pushes so this workflow starts validating as soon as it
   # lands on a feature branch — the `pull_request` trigger only picks up the
   # workflow file version that lives on the PR's base branch (main), so a
@@ -28,7 +24,6 @@ permissions:
 jobs:
   gate1:
     runs-on: ubuntu-latest
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-solution-ci')"
     steps:
       - uses: actions/checkout@v4
         with:

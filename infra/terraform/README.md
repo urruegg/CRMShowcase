@@ -14,38 +14,86 @@ Design: [../../docs/adr/ADR-0003-terraform-as-iac-toolchain.md](../../docs/adr/A
 | `outputs.tf` | Useful outputs (env URLs, IDs). |
 | `terraform.tfvars.example` | **Committed placeholder** values. |
 | `terraform.tfvars` | **GIT-IGNORED** real values (create locally). |
+| `modules/entra/` | Entra app registrations + federated credentials for CI. |
+| `modules/github/` | GitHub Environments, deployment policies, variables, and branch protection. |
 | `modules/powerplatform/` | Power Platform environments + tenant settings. |
 
 ## Bootstrap on the current tenant (ABSx demo)
 
 The two showcase environments already exist and were renamed to the anonymised
-`crmshowdev` / `crmshowtest` slot names. To bring them under Terraform management
-without recreating them:
+`crmshowdev` / `crmshowtest` slot names. The GitHub repository also already has
+live Environment objects. Start from a clean local state, import the existing
+live objects, then inspect the first plan before any apply. `../../infra/scripts/bootstrap-import.ps1`
+only imports the Power Platform environments; the GitHub reviewed-ref controls
+stay explicit in the runbook below.
+
+### Auth prerequisites
+
+```powershell
+# Azure / Power Platform provider auth
+az login --tenant <TENANT_ID> --use-device-code --allow-no-subscriptions
+
+# GitHub CLI session for operator checks
+gh auth status
+
+# GitHub provider auth for Terraform (do not paste tokens into files)
+$env:GH_TOKEN = (gh auth token)
+$env:GITHUB_TOKEN = $env:GH_TOKEN
+```
+
+Use a GitHub session or token that can administer this repository's
+environments, deployment policies, and branch protection. Do not store it in
+`terraform.tfvars`, shell profile files, or any committed artifact.
+
+### Existing-tenant bootstrap sequence
 
 ```powershell
 # 1. Copy the example to the git-ignored real tfvars
 Copy-Item terraform.tfvars.example terraform.tfvars
 # 2. Fill in real tenant_id, github_owner, environment id GUIDs, security_group_id
-# 3. Sign in to the demo tenant if not already
-az login --tenant <TENANT_ID> --use-device-code --allow-no-subscriptions
-# 4. Initialise Terraform
+# 3. Initialise Terraform
 terraform init
-# 5. Import existing envs (uses the id values from terraform.tfvars)
+# 4. Import existing Power Platform envs (uses the id values from terraform.tfvars)
 ../../infra/scripts/bootstrap-import.ps1
-# 6. Review the plan carefully
+# 5. Import existing GitHub Environments (import ID format: <repo>:<environment>)
+terraform import 'module.github.github_repository_environment.envs["dev"]' 'CRMShowcase:dev'
+terraform import 'module.github.github_repository_environment.envs["test"]' 'CRMShowcase:test'
+# 6. Import the existing live DEV + TEST main deployment policies
+#    (IDs captured from live evidence on 2026-08-10; re-check if either GitHub Environment is recreated)
+terraform import 'module.github.github_repository_environment_deployment_policy.allowed_branches["dev:main"]' 'CRMShowcase:dev:56913774'
+terraform import 'module.github.github_repository_environment_deployment_policy.allowed_branches["test:main"]' 'CRMShowcase:test:56680080'
+# 7. Import the existing live main branch protection
+terraform import 'module.github.github_branch_protection.main' 'CRMShowcase:main'
+# 8. Review the plan carefully
 terraform plan
-# 7. Only if the plan shows exactly the intended changes:
+# 9. Only if the plan shows exactly the intended changes:
 terraform apply
-# 8. Add the two CI service principals as Dataverse application users
+# 10. Add the two CI service principals as Dataverse application users
 #    (Terraform provider does not yet support this — see ADR-0005)
 ../../infra/scripts/add-ci-app-users.ps1 -Slot all
-# 9. Reconcile required languages before importing multilingual solutions
+# 11. Reconcile required languages before importing multilingual solutions
 ../../infra/scripts/Set-DataverseLanguages.ps1 `
   -EnvironmentUrl https://crmshowdev.crm.dynamics.com `
   -LocaleId 1033,1031,1036,1040
-# 10. Import solutions only after language reconciliation reports every LCID Active
+# 12. Import solutions only after language reconciliation reports every LCID Active
 ../../scripts/solution/Import-Solution.ps1 -ZipFile <SOLUTION_ZIP>
 ```
+
+Before `terraform apply`, confirm all of the following in the plan:
+
+- `module.github.github_repository_environment.envs["test"]` retains reviewer
+  user ID `46865858`; there must be **no reviewer removal**.
+- `module.github.github_repository_environment.envs["test"]` keeps
+  `prevent_self_review = false`.
+- `module.github.github_repository_environment_deployment_policy.allowed_branches["dev:main"]`
+  and `["test:main"]` both remain imported from live state. At time of
+  evidence, the live policy IDs are `56913774` for `dev:main` and `56680080`
+  for `test:main`; if either GitHub Environment is recreated, re-check the
+  current live policy ID before re-importing Terraform state.
+- `module.github.github_branch_protection.main` remains imported from live
+  state and shows `required_linear_history = true`,
+  `dismiss_stale_reviews = true`, `required_approving_review_count = 0`, and
+  `contexts = ["gate1"]` with no unexpected replacement.
 
 ## Bootstrap on a fresh tenant
 
@@ -54,14 +102,24 @@ For "deploy to any tenant" reproducibility:
 ```powershell
 # 1. Sign in to the new tenant
 az login --tenant <NEW_TENANT_ID> --use-device-code --allow-no-subscriptions
-# 2. Copy the example, set id = "" for each environment (so they get created)
+# 2. Provide GitHub provider auth in the current shell
+gh auth status
+$env:GH_TOKEN = (gh auth token)
+$env:GITHUB_TOKEN = $env:GH_TOKEN
+# 3. Copy the example, set id = "" for each environment (so they get created)
 Copy-Item terraform.tfvars.example terraform.tfvars
-# 3. Fill in tenant_id, github_owner, github_repository, security_group_id
-# 4. Initialise + apply
+# 4. Fill in tenant_id, github_owner, github_repository, security_group_id
+# 5. Initialise + apply
 terraform init
 terraform plan
 terraform apply
 ```
+
+On a fresh tenant, Terraform creates the Power Platform environments. The GitHub
+module also creates the repository environments, `dev:main` and `test:main`
+deployment policies, and the desired `main` branch protection rule unless those
+objects already exist in the live repo. If the repo is not fresh, import the
+existing GitHub objects first instead of applying over unmanaged state.
 
 For both existing and fresh environments, deployment ordering is strict:
 Dataverse application users first, language reconciliation second, and solution
@@ -76,9 +134,12 @@ The reconciler only activates desired languages and never disables languages.
 - Providers use CLI-based auth by default (`az login` locally). In CI, the same
   providers use OIDC via workload identity federation per
   [ADR-0002](../../docs/adr/ADR-0002-oidc-federation-for-github-actions-to-entra.md).
-- The Entra (`azuread`) and GitHub (`integrations/github`) provider blocks are wired
-  in `providers.tf` but their resources are **not scaffolded yet** — coming in the
-  next milestone (Entra app registrations + federated credentials).
+- The GitHub provider also needs authenticated repo-admin access in the current
+  shell (`GITHUB_TOKEN`; `GH_TOKEN` if you are using `gh` CLI helpers). Never
+  write that token to disk.
+- The Entra (`azuread`) and GitHub (`integrations/github`) resources in this
+  directory are active, not scaffold-only. On any repo or tenant with existing
+  live objects, import first and only then review the plan.
 - `powerplatform_tenant_settings` is a singleton per tenant; managing it here means
   changes to tenant-wide settings become PR-reviewable and reversible.
 

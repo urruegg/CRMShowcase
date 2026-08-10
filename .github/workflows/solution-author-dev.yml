@@ -5,35 +5,22 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
-  author:
+  validate:
     runs-on: ubuntu-latest
-    environment: dev
-    env:
-      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
-      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
-      POWER_PLATFORM_ENV_URL: ${{ vars.POWER_PLATFORM_ENV_URL }}
+    permissions:
+      contents: read
     steps:
       - name: Check out reviewed commit
-        uses: actions/checkout@v4
-
-      - name: Sign in with workload identity
-        uses: azure/login@v2
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          client-id: ${{ env.AZURE_CLIENT_ID }}
-          tenant-id: ${{ env.AZURE_TENANT_ID }}
-          allow-no-subscriptions: true
-
-      - name: Install Power Platform CLI
-        uses: microsoft/powerplatform-actions/actions-install@v1
+          persist-credentials: false
 
       - name: Install Pester 6.0.1
         shell: pwsh
         run: |
-          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-          Install-Module Pester -RequiredVersion 6.0.1 -Scope CurrentUser -Force -SkipPublisherCheck
+          Install-Module Pester -RequiredVersion 6.0.1 -Repository PSGallery -Scope CurrentUser -Force
 
       - name: Run offline authoring contract tests
         shell: pwsh
@@ -43,12 +30,45 @@ jobs:
           $targeted = Invoke-Pester -Path @(
             (Join-Path $root 'scripts/solution/tests/InsuranceFoundationContract.Tests.ps1'),
             (Join-Path $root 'scripts/solution/tests/Publish-InsuranceFoundation.Tests.ps1'),
+            (Join-Path $root 'scripts/solution/tests/ConvertTo-SafeCliDiagnosticLine.Tests.ps1'),
+            (Join-Path $root 'scripts/solution/tests/Get-InsuranceAuthoringPreflightFailureMessage.Tests.ps1'),
+            (Join-Path $root 'scripts/solution/tests/Test-InsuranceAuthoringPreflight.Tests.ps1'),
+            (Join-Path $root 'scripts/solution/tests/Test-InsuranceSecurityRoles.Tests.ps1'),
+            (Join-Path $root 'scripts/solution/tests/Test-InsuranceFoundationConvergence.Tests.ps1'),
+            (Join-Path $root 'scripts/solution/tests/Export-InsuranceFoundationPackages.Tests.ps1'),
             (Join-Path $root 'infra/scripts/tests/Set-DataverseLanguages.Tests.ps1')
           ) -PassThru -Output Detailed
           if ($targeted.Result -ne 'Passed') { throw 'Targeted authoring tests failed.' }
           $full = Invoke-Pester -Path (Join-Path $root 'scripts/solution/tests') `
             -PassThru -Output Detailed
           if ($full.Result -ne 'Passed') { throw 'Full solution test suite failed.' }
+
+  author:
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      POWER_PLATFORM_ENV_URL: ${{ vars.POWER_PLATFORM_ENV_URL }}
+    steps:
+      - name: Check out reviewed commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Sign in with workload identity
+        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2.3.1
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Install Power Platform CLI
+        uses: microsoft/powerplatform-actions/actions-install@59c0b2abadc26618ca914c689ab9dc399da4d6bb # v1.9.2
 
       - name: Authenticate Power Platform CLI
         shell: pwsh
@@ -63,67 +83,89 @@ jobs:
             --environment $env:POWER_PLATFORM_ENV_URL
           if ($LASTEXITCODE -ne 0) { throw 'PAC federated authentication failed.' }
 
+      - name: Run authoring preflight
+        shell: pwsh
+        run: |
+          $root = $env:GITHUB_WORKSPACE
+          . (Join-Path $root 'scripts/solution/Get-InsuranceAuthoringPreflightFailureMessage.ps1')
+          $pwsh = (Get-Command pwsh -ErrorAction Stop).Source
+          $preflightScript = Join-Path $root 'scripts/solution/Test-InsuranceAuthoringPreflight.ps1'
+          $contractPath = Join-Path $root 'solution/schema/insurance-foundation.json'
+          $preflightJsonLines = & $pwsh `
+            -NoLogo `
+            -NoProfile `
+            -NonInteractive `
+            -File $preflightScript `
+            -EnvironmentUrl $env:POWER_PLATFORM_ENV_URL `
+            -ContractPath $contractPath
+          $exitCode = $LASTEXITCODE
+          $preflightJson = (@($preflightJsonLines | ForEach-Object {
+                $_.ToString()
+              }) -join [Environment]::NewLine).Trim()
+          $preflightDiagnostics = Get-InsuranceAuthoringPreflightDiagnosticSummary `
+            -JsonText $preflightJson
+          if (-not [string]::IsNullOrWhiteSpace($preflightDiagnostics)) {
+            Write-Host $preflightDiagnostics
+          }
+          if ($exitCode -ne 0) {
+            throw (Get-InsuranceAuthoringPreflightFailureMessage `
+              -ExitCode $exitCode `
+              -JsonText $preflightJson)
+          }
+
       - name: Reconcile Dataverse languages
         shell: pwsh
         run: |
           $root = $env:GITHUB_WORKSPACE
           & (Join-Path $root 'infra/scripts/Set-DataverseLanguages.ps1') `
             -EnvironmentUrl $env:POWER_PLATFORM_ENV_URL `
-            -LocaleId 1033,1031,1036,1040
+            -LocaleId 1033,1031,1036,1040 `
+            -Confirm:$false
           if ($LASTEXITCODE -ne 0) { throw 'Language reconciliation failed.' }
 
-      - name: Reconcile insurance metadata
+      - name: Reconcile demo-safe metadata
         shell: pwsh
         run: |
           $root = $env:GITHUB_WORKSPACE
           & (Join-Path $root 'scripts/solution/Publish-InsuranceFoundation.ps1') `
             -EnvironmentUrl $env:POWER_PLATFORM_ENV_URL `
             -ContractPath (Join-Path $root 'solution/schema/insurance-foundation.json') `
-            -Scope All `
+            -Scope Demo `
             -Confirm:$false
-          if ($LASTEXITCODE -ne 0) { throw 'Insurance metadata reconciliation failed.' }
+          if ($LASTEXITCODE -ne 0) { throw 'Demo-safe metadata reconciliation failed.' }
+
+      - name: Validate complete demo convergence
+        shell: pwsh
+        run: |
+          $root = $env:GITHUB_WORKSPACE
+          $pwsh = (Get-Command pwsh -ErrorAction Stop).Source
+          $convergenceScript = Join-Path $root 'scripts/solution/Test-InsuranceFoundationConvergence.ps1'
+          $contractPath = Join-Path $root 'solution/schema/insurance-foundation.json'
+          & $pwsh `
+            -NoLogo `
+            -NoProfile `
+            -NonInteractive `
+            -File $convergenceScript `
+            -EnvironmentUrl $env:POWER_PLATFORM_ENV_URL `
+            -ContractPath $contractPath
+          $exitCode = $LASTEXITCODE
+          if ($exitCode -ne 0) { throw 'Demo convergence validation failed.' }
 
       - name: Export managed and unmanaged solutions
         shell: pwsh
         run: |
+          $root = $env:GITHUB_WORKSPACE
           $artifact = Join-Path $env:RUNNER_TEMP 'insurance-foundation-authoring'
-          New-Item -ItemType Directory -Path $artifact -Force | Out-Null
-          $exports = @(
-            @{ Name = 'crmshow_Foundation'; Managed = 'false'; File = 'crmshow_Foundation.zip' },
-            @{ Name = 'crmshow_Foundation'; Managed = 'true'; File = 'crmshow_Foundation_managed.zip' },
-            @{ Name = 'crmshow_DataModel'; Managed = 'false'; File = 'crmshow_DataModel.zip' },
-            @{ Name = 'crmshow_DataModel'; Managed = 'true'; File = 'crmshow_DataModel_managed.zip' }
-          )
-          foreach ($export in $exports) {
-            pac solution export `
-              --environment $env:POWER_PLATFORM_ENV_URL `
-              --name $export.Name `
-              --path (Join-Path $artifact $export.File) `
-              --managed $export.Managed `
-              --overwrite
-            if ($LASTEXITCODE -ne 0) { throw "Export failed for $($export.File)." }
-          }
-
-      - name: Verify exact authored package set
-        shell: pwsh
-        run: |
-          $artifact = Join-Path $env:RUNNER_TEMP 'insurance-foundation-authoring'
-          $expected = @(
-            'crmshow_DataModel.zip',
-            'crmshow_DataModel_managed.zip',
-            'crmshow_Foundation.zip',
-            'crmshow_Foundation_managed.zip'
-          )
-          $actual = @(Get-ChildItem -LiteralPath $artifact -File |
-            Sort-Object Name | ForEach-Object Name)
-          if (($actual -join '|') -ne ($expected -join '|')) {
-            throw "Unexpected authored package set: $($actual -join ', ')."
-          }
+          & (Join-Path $root 'scripts/solution/Export-InsuranceFoundationPackages.ps1') `
+            -EnvironmentUrl $env:POWER_PLATFORM_ENV_URL `
+            -OutputDirectory $artifact `
+            -Confirm:$false
+          if ($LASTEXITCODE -ne 0) { throw 'Solution package export failed.' }
 
       - name: Upload authored solution packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: insurance-foundation-authoring
-          path: ${{ runner.temp }}/insurance-foundation-authoring/*.zip
+          path: ${{ runner.temp }}/insurance-foundation-authoring
           if-no-files-found: error
           retention-days: 14
