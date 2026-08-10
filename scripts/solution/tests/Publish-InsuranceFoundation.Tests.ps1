@@ -2373,7 +2373,7 @@ Describe 'Insurance Foundation reconciliation' {
         }
     }
 
-    It 'retrieves and parses role privileges through the documented function' {
+    It 'converges canonical role fields before parsing privileges through the documented function' {
         $role = $script:contract.roles[0]
         $roleId = '11111111-1111-1111-1111-111111111111'
         $expectedPath = "/RetrieveRolePrivilegesRole(RoleId=$roleId)"
@@ -2396,7 +2396,7 @@ Describe 'Insurance Foundation reconciliation' {
                 return [pscustomobject]@{ value = @([pscustomobject]@{
                     roleid=$roleId; name=$role.name
                     _parentrootroleid_value=$roleId
-                    description=[string]$role.metadata.description.'1033'
+                    description='Stale role description'
                 }) }
             }
             if ($Method -eq 'GET' -and $Path -like '/solutioncomponents?*') {
@@ -2438,6 +2438,13 @@ Describe 'Insurance Foundation reconciliation' {
         @($script:calls | Where-Object {
             $_.Method -eq 'GET' -and $_.Path -eq $expectedPath
         }).Count | Should -Be 1
+        $roleUpdate = @($script:calls | Where-Object {
+                $_.Method -eq 'PATCH' -and $_.Path -eq "/roles($roleId)"
+            })
+        $roleUpdate.Count | Should -Be 1
+        $roleUpdate[0].Body.name | Should -Be $role.name
+        $roleUpdate[0].Body.description |
+            Should -Be ([string]$role.metadata.description.'1033')
         @($script:calls | Where-Object {
             $_.Path -match '(?:Add|Replace)PrivilegesRole$'
         }) | Should -BeNullOrEmpty

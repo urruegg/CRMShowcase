@@ -2382,10 +2382,24 @@ function Invoke-RoleReconciliation {
         Write-Output "$($Role.name): Created"
     } else {
         Assert-SolutionOwnership $existing $Role.solution $Role.name
-        $request = [pscustomobject]@{
-            Solution = $Role.solution
+        $canonicalDescription = [string]$Role.metadata.description.'1033'
+        if ([string]$existing.name -cne [string]$Role.name -or
+            [string]$existing.description -cne $canonicalDescription) {
+            $request = [pscustomobject]@{
+                Method = 'PATCH'
+                Path = "/roles($($existing.roleid))"
+                Solution = $Role.solution
+                Body = @{
+                    name = [string]$Role.name
+                    description = $canonicalDescription
+                }
+            }
+            Invoke-PlannedRequest $request | Out-Null
+            Write-Output "$($Role.name): Updated"
         }
-        Write-Output "$($Role.name): Unchanged"
+        else {
+            Write-Output "$($Role.name): Unchanged"
+        }
     }
 
     $wanted = foreach ($tablePrivilege in $Role.tablePrivileges) {
