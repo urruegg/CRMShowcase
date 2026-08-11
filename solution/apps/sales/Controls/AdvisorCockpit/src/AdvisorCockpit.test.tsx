@@ -134,6 +134,31 @@ describe('<AdvisorCockpit />', () => {
     expect(screen.getAllByText('Fokus-Lead').length).toBeGreaterThan(0);
   });
 
+  it('shows the Cockpit two panes and promotes a queue lead into focus', () => {
+    renderCockpit();
+    fireEvent.click(screen.getByRole('tab', { name: 'Meine Leads' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cockpit' }));
+    expect(screen.getByText('Priorisierte Warteschlange')).toBeInTheDocument();
+    expect(screen.getByText('Hausrat-Offerte fortsetzen')).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: 'In Fokus' })[0]);
+    expect(screen.getByRole('button', { name: 'Anrufen' })).toBeInTheDocument();
+  });
+
+  it('sorts the Offene Fälle grid by a column header', () => {
+    renderCockpit();
+    fireEvent.click(screen.getByRole('tab', { name: 'Offene Fälle' }));
+    const kunde = screen.getByRole('columnheader', { name: /Kunde/ });
+    fireEvent.click(within(kunde).getByRole('button'));
+    expect(kunde).toHaveAttribute('aria-sort', 'ascending');
+  });
+
+  it('creates a Termin via the + Termin action (demo)', () => {
+    renderCockpit();
+    fireEvent.click(screen.getByRole('tab', { name: 'Termine & Aufgaben' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Termin' }));
+    expect(screen.getByText(/Neuen Termin anlegen/)).toBeInTheDocument();
+  });
+
   it('reveals the full NBA list with a disclosure on every card under the Copilot tab', () => {
     renderCockpit();
     fireEvent.click(screen.getByRole('tab', { name: 'Copilot' }));

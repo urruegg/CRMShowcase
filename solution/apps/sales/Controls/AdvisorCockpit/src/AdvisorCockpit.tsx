@@ -13,13 +13,12 @@ import {
   DialogContent,
   DialogActions,
 } from '@fluentui/react-components';
-import type { CockpitData, ClaimRecord, LeadRecord, NbaRecord } from './types';
+import type { ActivityRecord, CockpitData, ClaimRecord, LeadRecord, NbaRecord } from './types';
 import { badge, font, nbaAccent, palette, priority, provenance, provenanceLabel } from './tokens';
 import { appointments, boardBuckets, buildAccountIndex, filterLeads, groupLeads, openTasks, sortLeads, sortedNba } from './selectors';
 import type { LeadSortKey } from './selectors';
 import {
   arbeitsvorratSummary,
-  disclaimer,
   empfohlenerFokus,
   focusHero,
   kpiCards,
@@ -336,10 +335,26 @@ const useStyles = makeStyles({
   splitBtn: { marginLeft: 'auto' },
   boardEmpty: { color: palette.n60, fontSize: '12px', ...shorthands.padding('8px', '4px') },
   provWrap: { ...shorthands.borderRadius('4px'), ...shorthands.padding('4px', '10px') },
-  legend: { display: 'flex', alignItems: 'center', ...shorthands.gap('14px'), flexWrap: 'wrap', marginTop: '10px', fontSize: '11px', color: palette.n130 },
+  legend: { display: 'flex', alignItems: 'center', ...shorthands.gap('14px'), flexWrap: 'wrap', marginTop: '4px', paddingTop: '12px', ...shorthands.borderTop('1px', 'solid', palette.n30), fontSize: '11px', color: palette.n130 },
   legendTitle: { fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' },
   legendItem: { display: 'inline-flex', alignItems: 'center', ...shorthands.gap('6px') },
   legendSwatch: { width: '12px', height: '12px', ...shorthands.borderRadius('3px'), ...shorthands.border('1px', 'solid', palette.n60), display: 'inline-block' },
+  cockpitPanes: { display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)', ...shorthands.gap('12px'), alignItems: 'start' },
+  cockpitFocus: { backgroundColor: palette.n0, ...shorthands.border('1px', 'solid', palette.brand), ...shorthands.borderRadius('10px'), ...shorthands.padding('14px') },
+  cockpitQueue: { backgroundColor: palette.n0, ...shorthands.border('1px', 'solid', palette.n30), ...shorthands.borderRadius('10px'), ...shorthands.padding('14px') },
+  cockpitPaneHead: { display: 'flex', alignItems: 'center', ...shorthands.gap('8px'), fontWeight: 700, fontSize: '11px', letterSpacing: '0.04em', textTransform: 'uppercase', color: palette.n160, marginBottom: '10px' },
+  focusBody: { display: 'flex', flexDirection: 'column', ...shorthands.gap('10px') },
+  focusTopline: { display: 'flex', alignItems: 'center', ...shorthands.gap('8px') },
+  focusTopic: { fontWeight: 700, fontSize: '15px' },
+  focusScore: { marginLeft: 'auto', fontWeight: 700, fontSize: '15px' },
+  focusAccount: { fontSize: '13px' },
+  focusGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', ...shorthands.gap('8px', '14px'), ...shorthands.padding('10px', 0), ...shorthands.borderTop('1px', 'solid', palette.n20), ...shorthands.borderBottom('1px', 'solid', palette.n20) },
+  fLabel: { fontSize: '10px', color: palette.n130, textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: '2px' },
+  queueBody: { display: 'flex', flexDirection: 'column', ...shorthands.gap('2px') },
+  queueItem: { display: 'flex', alignItems: 'center', ...shorthands.gap('10px'), ...shorthands.padding('8px', '2px'), ...shorthands.borderTop('1px', 'solid', palette.n20) },
+  queueScore: { fontWeight: 700, minWidth: '26px' },
+  queueMain: { display: 'flex', flexDirection: 'column', minWidth: 0, flexGrow: 1 },
+  queueTopic: { fontWeight: 600, fontSize: '13px' },
 });
 
 function Badge({ kind, children }: { kind: keyof typeof badge; children: React.ReactNode }) {
@@ -365,6 +380,24 @@ function statusBadgeKind(status: string): keyof typeof badge {
   return 'grey';
 }
 
+interface SortState {
+  key: string;
+  dir: 'asc' | 'desc';
+}
+
+// Generic column sort shared by the non-lead grids (Aufgaben, Fälle) so every
+// grid in the control sorts the same way.
+function sortRows<T>(rows: T[], sort: SortState, val: (r: T, key: string) => string | number): T[] {
+  const sign = sort.dir === 'asc' ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    const va = val(a, sort.key);
+    const vb = val(b, sort.key);
+    if (va < vb) return -1 * sign;
+    if (va > vb) return 1 * sign;
+    return 0;
+  });
+}
+
 export interface AdvisorCockpitProps {
   data: CockpitData;
 }
@@ -386,6 +419,10 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
   const [collapsed, setCollapsed] = React.useState<Set<string>>(() => new Set());
   const [splitClusters, setSplitClusters] = React.useState<Set<string>>(() => new Set());
   const [autoGroup, setAutoGroup] = React.useState(true);
+  const [activityNote, setActivityNote] = React.useState<string | null>(null);
+  const [taskSort, setTaskSort] = React.useState<SortState>({ key: 'faellig', dir: 'asc' });
+  const [claimSort, setClaimSort] = React.useState<SortState>({ key: 'sla', dir: 'asc' });
+  const [focusKey, setFocusKey] = React.useState<string | null>(null);
   const accounts = React.useMemo(() => buildAccountIndex(data.accountsContacts), [data]);
   const filteredLeads = React.useMemo(
     () => filterLeads(data.leads, { customer: fCustomer, channel: fChannel, status: fStatus, source: fSource }, (k) => accounts.get(k) ?? k),
@@ -401,6 +438,14 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
   );
   const leadGroups = React.useMemo(() => groupLeads(displayLeads), [displayLeads]);
   const boards = React.useMemo(() => boardBuckets(leadGroups), [leadGroups]);
+  const cockpitQueue = React.useMemo(() => sortLeads(filteredLeads, 'score', 'desc', (k) => accounts.get(k) ?? k), [filteredLeads, accounts]);
+  const cockpitFocus = React.useMemo(() => cockpitQueue.find((l) => l.key === focusKey) ?? cockpitQueue[0] ?? null, [cockpitQueue, focusKey]);
+  const cockpitRest = React.useMemo(() => cockpitQueue.filter((l) => l.key !== cockpitFocus?.key), [cockpitQueue, cockpitFocus]);
+  const focusCluster = React.useMemo(() => {
+    if (!cockpitFocus?.leadCluster) return null;
+    const leads = filteredLeads.filter((l) => l.leadCluster === cockpitFocus.leadCluster);
+    return leads.length > 1 ? { clusterName: cockpitFocus.leadCluster, leads } : null;
+  }, [cockpitFocus, filteredLeads]);
   const nba = React.useMemo(() => sortedNba(data.nba), [data]);
   const appts = React.useMemo(() => appointments(data.activities), [data]);
   const tasks = React.useMemo(() => openTasks(data.activities), [data]);
@@ -460,6 +505,52 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
     setSplitClusters((prev) => new Set(prev).add(name));
     setAssignNote(`Gruppe „${name}" aufgelöst · Leads einzeln bearbeitbar (Demo — Schreibzugriff über die Aktionsschicht, DEV-gated).`);
   };
+  const saveView = () => {
+    try {
+      window.localStorage?.setItem('advisorcockpit.meineleads.view', JSON.stringify({ leadView, sortKey, sortDir, fCustomer, fChannel, fStatus, fSource }));
+    } catch { /* localStorage unavailable */ }
+    setAssignNote('Ansicht als persönliche Ansicht gespeichert · in Dynamics als persönliche Ansicht/Personal View (DEV-gated Demo).');
+  };
+  const applyTop10 = () => {
+    setLeadView('list');
+    setSortKey('score');
+    setSortDir('desc');
+    setAssignNote('Top 10 nach Priorität · Liste nach KI-Score sortiert (Preset).');
+  };
+  React.useEffect(() => {
+    try {
+      const raw = window.localStorage?.getItem('advisorcockpit.meineleads.view');
+      if (!raw) return;
+      const v = JSON.parse(raw) as Partial<{ leadView: 'list' | 'board' | 'cockpit'; sortKey: LeadSortKey; sortDir: 'asc' | 'desc'; fCustomer: string; fChannel: string; fStatus: string; fSource: string }>;
+      if (v.leadView) setLeadView(v.leadView);
+      if (v.sortKey) setSortKey(v.sortKey);
+      if (v.sortDir) setSortDir(v.sortDir);
+      if (typeof v.fCustomer === 'string') setFCustomer(v.fCustomer);
+      if (v.fChannel) setFChannel(v.fChannel);
+      if (v.fStatus) setFStatus(v.fStatus);
+      if (v.fSource) setFSource(v.fSource);
+    } catch { /* ignore malformed saved view */ }
+  }, []);
+  const arrowFor = (st: SortState, key: string) => (st.key === key ? (st.dir === 'asc' ? ' ▲' : ' ▼') : '');
+  const ariaSortFor = (st: SortState, key: string): 'ascending' | 'descending' | 'none' =>
+    st.key === key ? (st.dir === 'asc' ? 'ascending' : 'descending') : 'none';
+  const toggleRowSort = (set: React.Dispatch<React.SetStateAction<SortState>>, key: string) =>
+    set((prev) => (prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
+  const taskVal = (t: ActivityRecord, key: string): string =>
+    key === 'bezug' ? accountName(t.accountKey).toLowerCase() : key === 'faellig' ? (t.due ?? t.status ?? '') : t.subject.toLowerCase();
+  const sortedTasks = React.useMemo(() => sortRows(tasks, taskSort, taskVal), [tasks, taskSort]);
+  const claimVal = (c: ClaimRecord, key: string): string | number => {
+    switch (key) {
+      case 'typ': return c.caseType.toLowerCase();
+      case 'kunde': return accountName(c.accountKey).toLowerCase();
+      case 'betreff': return c.title.toLowerCase();
+      case 'kanal': return c.channel.toLowerCase();
+      case 'status': return c.status.toLowerCase();
+      case 'sla': return c.slaHours ?? 0;
+      default: return c.externalId.toLowerCase();
+    }
+  };
+  const sortedClaims = React.useMemo(() => sortRows(data.claims, claimSort, claimVal), [data.claims, claimSort]);
 
   const renderLead = (lead: LeadRecord, child: boolean) => (
     <tr key={lead.key} className={child ? s.childRow : undefined}>
@@ -549,13 +640,6 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
               </div>
             ))}
           </div>
-          <div className={s.legend}>
-            <span className={s.legendTitle}>Datenquelle</span>
-            <span className={s.legendItem}><span className={s.legendSwatch} style={{ backgroundColor: palette.n0 }} />{provenanceLabel.crm}</span>
-            <span className={s.legendItem}><span className={s.legendSwatch} style={{ backgroundColor: provenance.dbx }} />{provenanceLabel.dbx}</span>
-            <span className={s.legendItem}><span className={s.legendSwatch} style={{ backgroundColor: provenance.unmapped }} />{provenanceLabel.unmapped}</span>
-          </div>
-          <div className={s.disclaimerLine}>{disclaimer}</div>
         </section>
 
         <div>
@@ -641,8 +725,8 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                     ))}
                   </div>
                   <div className={s.vtActions}>
-                    <Button size="small" appearance="secondary">Top 10 nach Priorität</Button>
-                    <Button size="small" appearance="secondary">Ansicht speichern</Button>
+                    <Button size="small" appearance="secondary" onClick={applyTop10}>Top 10 nach Priorität</Button>
+                    <Button size="small" appearance="secondary" onClick={saveView}>Ansicht speichern</Button>
                   </div>
                 </div>
 
@@ -808,41 +892,55 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                 )}
 
                 {leadView === 'cockpit' && leadGroups.length > 0 && (
-                  <div className={s.cockpitGrid}>
-                    {leadGroups.map((group) => (
-                      <div key={group.clusterName ?? group.leads[0].key} className={s.clusterCard}>
-                        <div className={s.clusterHead}>
-                          <span className={s.link}>{group.isCluster ? group.clusterName : accountName(group.leads[0].accountKey)}</span>
-                          {group.isCluster && <Badge kind="amber">Auto-Gruppe · {group.leads.length}</Badge>}
+                  <div className={s.cockpitPanes}>
+                    <section className={s.cockpitFocus}>
+                      <div className={s.cockpitPaneHead}>Fokus-Lead</div>
+                      {cockpitFocus ? (
+                        <div className={s.focusBody}>
+                          <div className={s.focusTopline}>
+                            <span className={s.dot} style={{ backgroundColor: priority[priorityKind(cockpitFocus.priority)] }} />
+                            <span className={s.focusTopic}>{cockpitFocus.topic}</span>
+                            <span className={s.focusScore} style={{ color: cockpitFocus.score >= 90 ? palette.green : palette.n190 }}>{cockpitFocus.score}</span>
+                          </div>
+                          <div className={s.focusAccount}><span className={s.link}>{accountName(cockpitFocus.accountKey)}</span></div>
+                          <div className={s.focusGrid}>
+                            <div><div className={s.fLabel}>Kanal</div><div>{cockpitFocus.channel}</div></div>
+                            <div><div className={s.fLabel}>Urgency</div><div>{cockpitFocus.priority}</div></div>
+                            <div><div className={s.fLabel}>SLA</div><div>{cockpitFocus.sla}</div></div>
+                            <div><div className={s.fLabel}>Status</div><div><Badge kind={statusBadgeKind(cockpitFocus.status)}>{cockpitFocus.status}</Badge></div></div>
+                          </div>
+                          {focusCluster && (
+                            <div className={s.muted}>Teil der Auto-Gruppe „{focusCluster.clusterName}" · wirkt auf {focusCluster.leads.length} Leads</div>
+                          )}
+                          <div className={s.fokusActions}>
+                            <Button size="small" appearance="primary" style={{ backgroundColor: palette.brand }} onClick={() => setAssignNote(`Click-to-call: ${accountName(cockpitFocus.accountKey)} — ${cockpitFocus.topic} (DEV-gated Demo).`)}>Anrufen</Button>
+                            <Button size="small" appearance="secondary" onClick={() => setAssignNote(`Gespräch vorbereitet für „${cockpitFocus.topic}" (DEV-gated Demo).`)}>Vorbereiten</Button>
+                            {focusCluster && <Button size="small" appearance="secondary" onClick={() => setBundle({ title: focusCluster.clusterName ?? 'Gruppe', leads: focusCluster.leads })}>Leads bündeln</Button>}
+                            <Button size="small" appearance="secondary" onClick={() => setAssignNote(`360°-Kundenkontext „${accountName(cockpitFocus.accountKey)}" öffnen · Navigation zur Dynamics-Kontaktform (DEV-gated).`)}>360° öffnen</Button>
+                            <Button size="small" appearance="subtle" disabled={cockpitRest.length === 0} onClick={() => setFocusKey(cockpitRest[0]?.key ?? null)}>Nächster Lead →</Button>
+                          </div>
                         </div>
-                        <div className={s.muted}>Wirkt auf: {group.leads.length} Lead{group.leads.length > 1 ? 's' : ''}</div>
-                        {group.leads.map((l) => (
-                          <div key={l.key} className={s.miniLead}>
+                      ) : (
+                        <div className={s.emptyNote}>Kein Lead in der Auswahl.</div>
+                      )}
+                    </section>
+                    <section className={s.cockpitQueue}>
+                      <div className={s.cockpitPaneHead}>Priorisierte Warteschlange <span className={s.boardColCount}>{cockpitRest.length}</span></div>
+                      <div className={s.queueBody}>
+                        {cockpitRest.map((l) => (
+                          <div key={l.key} className={s.queueItem}>
                             <span className={s.dot} style={{ backgroundColor: priority[priorityKind(l.priority)] }} />
-                            <span>{l.topic}</span>
-                            {l.score === Math.max(...group.leads.map((x) => x.score)) && <Badge kind="blue">Fokus-Lead</Badge>}
-                            <span className={s.miniScore} style={{ color: l.score >= 90 ? palette.green : palette.n190 }}>{l.score}</span>
+                            <span className={s.queueScore} style={{ color: l.score >= 90 ? palette.green : palette.n190 }}>{l.score}</span>
+                            <div className={s.queueMain}>
+                              <div className={s.queueTopic}>{l.topic}</div>
+                              <div className={s.muted}>{accountName(l.accountKey)} · {l.channel}</div>
+                            </div>
+                            <Button size="small" appearance="secondary" onClick={() => setFocusKey(l.key)}>In Fokus</Button>
                           </div>
                         ))}
-                        <div className={s.fokusActions}>
-                          <Button
-                            size="small"
-                            appearance="primary"
-                            style={{ backgroundColor: palette.brand }}
-                            onClick={() => setBundle({ title: group.isCluster ? (group.clusterName ?? 'Gruppe') : accountName(group.leads[0].accountKey), leads: group.leads })}
-                          >
-                            Leads bündeln
-                          </Button>
-                          <Button
-                            size="small"
-                            appearance="secondary"
-                            onClick={() => setAssignNote(`360°-Kundenkontext „${group.isCluster ? group.clusterName : accountName(group.leads[0].accountKey)}" öffnen · Navigation zur Dynamics-Kontaktform (DEV-gated).`)}
-                          >
-                            360° öffnen
-                          </Button>
-                        </div>
+                        {cockpitRest.length === 0 && <div className={s.emptyNote}>Warteschlange leer.</div>}
                       </div>
-                    ))}
+                    </section>
                   </div>
                 )}
 
@@ -893,8 +991,12 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
 
             {tab === 'termine' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {activityNote && <div className={s.demoNote}>{activityNote}</div>}
                 <section className={s.card}>
-                  <div className={s.cardHead}>Termine heute</div>
+                  <div className={s.cardHead}>
+                    <span>Termine heute</span>
+                    <Button size="small" appearance="primary" style={{ marginLeft: 'auto', backgroundColor: palette.brand }} onClick={() => setActivityNote('Neuen Termin anlegen · Dynamics-Terminformular (DEV-gated Demo).')}>+ Termin</Button>
+                  </div>
                   <div className={s.cardBody}>
                     {appts.map((a) => (
                       <div key={a.key} className={s.agendaItem}>
@@ -908,18 +1010,21 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                   </div>
                 </section>
                 <section className={s.card}>
-                  <div className={s.cardHead}>Offene Aufgaben</div>
+                  <div className={s.cardHead}>
+                    <span>Offene Aufgaben</span>
+                    <Button size="small" appearance="secondary" style={{ marginLeft: 'auto' }} onClick={() => setActivityNote('Neue Aufgabe anlegen · Dynamics-Aufgabenformular (DEV-gated Demo).')}>+ Aufgabe</Button>
+                  </div>
                   <div className={s.cardBody}>
                     <table className={s.table}>
                       <thead>
                         <tr>
-                          <th className={s.th}>Aufgabe</th>
-                          <th className={s.th}>Bezug</th>
-                          <th className={s.th}>Fällig</th>
+                          <th className={s.th} aria-sort={ariaSortFor(taskSort, 'aufgabe')}><button type="button" className={s.sortBtn} onClick={() => toggleRowSort(setTaskSort, 'aufgabe')}>Aufgabe{arrowFor(taskSort, 'aufgabe')}</button></th>
+                          <th className={s.th} aria-sort={ariaSortFor(taskSort, 'bezug')}><button type="button" className={s.sortBtn} onClick={() => toggleRowSort(setTaskSort, 'bezug')}>Bezug{arrowFor(taskSort, 'bezug')}</button></th>
+                          <th className={s.th} aria-sort={ariaSortFor(taskSort, 'faellig')}><button type="button" className={s.sortBtn} onClick={() => toggleRowSort(setTaskSort, 'faellig')}>Fällig{arrowFor(taskSort, 'faellig')}</button></th>
                         </tr>
                       </thead>
                       <tbody>
-                        {tasks.map((t) => (
+                        {sortedTasks.map((t) => (
                           <tr key={t.key}>
                             <td className={s.td}>{t.subject}</td>
                             <td className={s.td}><span className={s.link}>{accountName(t.accountKey)}</span></td>
@@ -940,17 +1045,17 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                   <table className={s.table}>
                     <thead>
                       <tr>
-                        <th className={s.th}>Fall-ID</th>
-                        <th className={s.th}>Typ</th>
-                        <th className={s.th}>Kunde</th>
-                        <th className={s.th}>Betreff</th>
-                        <th className={s.th}>Kanal</th>
-                        <th className={s.th}>Status</th>
-                        <th className={s.th}>SLA</th>
+                        <th className={s.th} aria-sort={ariaSortFor(claimSort, 'fallid')}><button type="button" className={s.sortBtn} onClick={() => toggleRowSort(setClaimSort, 'fallid')}>Fall-ID{arrowFor(claimSort, 'fallid')}</button></th>
+                        <th className={s.th} aria-sort={ariaSortFor(claimSort, 'typ')}><button type="button" className={s.sortBtn} onClick={() => toggleRowSort(setClaimSort, 'typ')}>Typ{arrowFor(claimSort, 'typ')}</button></th>
+                        <th className={s.th} aria-sort={ariaSortFor(claimSort, 'kunde')}><button type="button" className={s.sortBtn} onClick={() => toggleRowSort(setClaimSort, 'kunde')}>Kunde{arrowFor(claimSort, 'kunde')}</button></th>
+                        <th className={s.th} aria-sort={ariaSortFor(claimSort, 'betreff')}><button type="button" className={s.sortBtn} onClick={() => toggleRowSort(setClaimSort, 'betreff')}>Betreff{arrowFor(claimSort, 'betreff')}</button></th>
+                        <th className={s.th} aria-sort={ariaSortFor(claimSort, 'kanal')}><button type="button" className={s.sortBtn} onClick={() => toggleRowSort(setClaimSort, 'kanal')}>Kanal{arrowFor(claimSort, 'kanal')}</button></th>
+                        <th className={s.th} aria-sort={ariaSortFor(claimSort, 'status')}><button type="button" className={s.sortBtn} onClick={() => toggleRowSort(setClaimSort, 'status')}>Status{arrowFor(claimSort, 'status')}</button></th>
+                        <th className={s.th} aria-sort={ariaSortFor(claimSort, 'sla')}><button type="button" className={s.sortBtn} onClick={() => toggleRowSort(setClaimSort, 'sla')}>SLA{arrowFor(claimSort, 'sla')}</button></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {data.claims.map((c) => (
+                      {sortedClaims.map((c) => (
                         <tr key={c.key}>
                           <td className={s.td}><span className={s.link}>{c.externalId}</span></td>
                           <td className={s.td}><Badge kind={caseTypeKind(c.caseType)}>{c.caseType}</Badge></td>
@@ -991,6 +1096,13 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
               </div>
             )}
           </div>
+        </div>
+
+        <div className={s.legend}>
+          <span className={s.legendTitle}>Datenquelle</span>
+          <span className={s.legendItem}><span className={s.legendSwatch} style={{ backgroundColor: palette.n0 }} />{provenanceLabel.crm}</span>
+          <span className={s.legendItem}><span className={s.legendSwatch} style={{ backgroundColor: provenance.dbx }} />{provenanceLabel.dbx}</span>
+          <span className={s.legendItem}><span className={s.legendSwatch} style={{ backgroundColor: provenance.unmapped }} />{provenanceLabel.unmapped}</span>
         </div>
       </div>
     </div>
