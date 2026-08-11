@@ -23,3 +23,32 @@ See the [charter](./sprint.md) and the
   workflow on the default branch (confirmed HTTP 404 pre-merge). After PR #50
   merges, run `solution-promote-test.yml` and approve the `test` protected
   environment; link the run + version + smoke evidence here.
+
+## Live promotion evidence
+
+**Run 1 — [31485409186](https://github.com/urruegg/CRMShowcase/actions/runs/31485409186) (main, after PR #50 merge).**
+
+| Step | Result |
+| --- | --- |
+| Sign in with workload identity (DEV) | ✅ OIDC federation works; `dev` env wired |
+| Offline promotion contract tests | ✅ green in CI |
+| Authenticate Power Platform CLI (DEV) | ✅ |
+| Export managed solutions (Foundation + DataModel) | ✅ DEV is authored; managed export succeeds |
+| Assert excluded components absent | ❌ **defect found** |
+| Import to TEST | ⏭️ not reached |
+
+**Finding (defect caught by the live run).** The exclusion-gate step ran
+`pac solution unpack` **without `--packagetype`**, which defaults to *unmanaged*
+and cannot unpack the managed export: `Error: Solution package type did not
+match requested type`. This failed the step *and* would have masked a
+false-clean (nothing unpacked to scan). Auth, export and the offline contract
+were all healthy — only the assertion step was defective.
+
+**Fix (branch `fix/promote-unpack-managed`).** Unpack with
+`--packagetype Managed` and add an explicit `$LASTEXITCODE` guard so an unpack
+failure throws instead of reporting a false clean.
+
+**Next.** After the fix merges to `main`, re-run `solution-promote-test.yml`; the
+`import-to-test` job then imports the managed slice under the `test`
+protected-environment approval (the human gate), and the smoke evaluator records
+the TEST result here.
