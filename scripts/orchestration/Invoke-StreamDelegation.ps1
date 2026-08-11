@@ -40,15 +40,19 @@ function Invoke-StreamDelegation {
 
     # EXECUTION-ONLY -> headless autopilot with deny-list
     $denies = @("--deny-tool='shell(git push)'", "--deny-tool='shell(rm)'", "--deny-tool='shell(git reset)'")
-    $command = "copilot -p `"@$($packet.Path)`" --allow-all-tools $($denies -join ' ') --add-dir `"$($packet.Worktree)`""
+    $prompt = Get-Content -Raw -LiteralPath $packet.Path
+    $command = "copilot -p <contents of $($packet.Stream) packet> --allow-all-tools $($denies -join ' ') --add-dir `"$($packet.Worktree)`""
     $result = [pscustomobject]@{
         Mode    = 'Headless'
         Command = $command
+        Prompt  = $prompt
         Packet  = $packet
     }
     if (-not $DryRun) {
         Push-Location -LiteralPath $packet.Worktree
-        try { Invoke-Expression $command } finally { Pop-Location }
+        try {
+            & copilot -p $prompt --allow-all-tools --deny-tool='shell(git push)' --deny-tool='shell(rm)' --deny-tool='shell(git reset)' --add-dir $packet.Worktree
+        } finally { Pop-Location }
     }
     return $result
 }
