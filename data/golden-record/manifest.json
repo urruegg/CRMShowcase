@@ -1,0 +1,50 @@
+{
+  "$schema": "./manifest.schema.json",
+  "name": "contoso-book",
+  "title": "Contoso Insurance — golden-record master dataset",
+  "description": "The canonical, synthetic master data record set (the 'golden record') that validates the CRM Frontier Firm Showcase controls. Single source of truth is the typed fixtures under data/scenarios/advisor-cockpit/; this manifest declares the record set, load order, keys, relationships and publish targets. No real customer data (ADR-0026, copilot-instructions §3).",
+  "version": "1.0.0",
+  "classification": "synthetic-demo",
+  "source": "data/scenarios/advisor-cockpit",
+  "goldenThread": "Household Brunner relocation across jurisdictions (UC-01)",
+  "publishTargets": ["DEV", "SIT"],
+  "publishPaths": [
+    {
+      "id": "az-rest-upsert",
+      "tool": "scripts/solution/seed-advisor-cockpit.ps1",
+      "mechanism": "Idempotent Web API upsert by alternate key via az rest (OIDC, no secrets).",
+      "use": "CI + DEV pipeline seed (Phase 5.3). Re-runnable; converges to the golden state.",
+      "gated": "DEV — target tables authored by Phases 1-3."
+    },
+    {
+      "id": "cmt-data-package",
+      "tool": "scripts/solution/Build-GoldenRecordPackage.ps1 (planned)",
+      "mechanism": "Power Platform Configuration Migration data package (data.zip = data_schema.xml + data.xml + [Content_Types].xml), imported via Package Deployer / CMT / pac.",
+      "use": "Portable, reviewable sample-data package promoted through DEV -> SIT with the solution, one artifact per environment ring.",
+      "gated": "DEV/SIT — import validated once the DEV tables land."
+    }
+  ],
+  "loadOrder": [
+    { "step": 1, "entity": "accounts-contacts", "reason": "party root; everything references the household/business Account" },
+    { "step": 2, "entity": "policies", "reason": "Account-owned externally-referenced projection" },
+    { "step": 3, "entity": "claims", "reason": "Account-owned externally-referenced projection" },
+    { "step": 4, "entity": "leads", "reason": "interest on an existing person/account (ADR-0009); parents must exist" },
+    { "step": 5, "entity": "activities", "reason": "appointments/tasks reference Account" },
+    { "step": 6, "entity": "nba", "reason": "references leads + accounts (rank-1 = Brunner)" },
+    { "step": 7, "entity": "measures", "reason": "Databricks measure projection; scoped to GA/account (ADR-0026)" }
+  ],
+  "entities": [
+    { "id": "accounts-contacts", "fixture": "accounts-contacts.json", "targetEntitySet": "accounts | contacts", "key": ["crmshow_seedkey"], "records": 12, "lookups": [] },
+    { "id": "policies", "fixture": "policies.json", "targetEntitySet": "crmshow_policyprojections", "key": ["crmshow_externalid"], "records": 5, "lookups": ["accountKey -> account"] },
+    { "id": "claims", "fixture": "claims.json", "targetEntitySet": "crmshow_claimprojections", "key": ["crmshow_externalid"], "records": 2, "lookups": ["accountKey -> account"] },
+    { "id": "leads", "fixture": "leads.json", "targetEntitySet": "leads", "key": ["crmshow_seedkey"], "records": 7, "lookups": ["accountKey -> account", "contactKey -> contact", "leadCluster -> LeadCluster"] },
+    { "id": "activities", "fixture": "activities.json", "targetEntitySet": "activitypointers", "key": ["crmshow_seedkey"], "records": 8, "lookups": ["accountKey -> account"] },
+    { "id": "nba", "fixture": "nba.json", "targetEntitySet": "crmshow_nextbestactions", "key": ["crmshow_seedkey"], "records": 6, "lookups": ["accountKey -> account", "leadKey -> lead"] },
+    { "id": "measures", "fixture": "measures.json", "targetEntitySet": "crmshow_measuresnapshots", "key": ["crmshow_subject", "crmshow_metric", "crmshow_asofdate"], "records": 20, "lookups": [] }
+  ],
+  "notes": [
+    "Keys are alternate keys so both publish paths upsert idempotently (no duplicate golden records on re-run).",
+    "Non-analytics table/column logical names are provisional until Phases 1-3 land in DEV; the measure snapshot is contract-stable (Phase 4, ADR-0026).",
+    "This manifest is the machine-readable index; the executable CMT package builder is the first task in the implementation plan."
+  ]
+}
