@@ -23,3 +23,4 @@ issue number so the run is auditable end to end. See the
   trunk branch; toolchain worktree retired.
 - **Gated next:** create sprint-charter + stream issues, dispatch the smoke
   stream end to end, open the proof-#1 PR to `main`.
+- smoke stream executed via real headless copilot dispatch on 2026-08-11 (issue #44).
