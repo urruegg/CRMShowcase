@@ -69,8 +69,9 @@ jobs:
           $out = Join-Path $env:RUNNER_TEMP 'promote'
           $contract = Get-PromotionComponents -SchemaPath ./solution/schema/insurance-foundation.json
           $unpacked = Join-Path $env:RUNNER_TEMP 'unpacked'
-          & $pac solution unpack --zipfile (Join-Path $out 'crmshow_DataModel_managed.zip') --folder $unpacked --allowDelete
-          $names = (Get-ChildItem -Recurse -File $unpacked | Select-String -SimpleMatch -Pattern $contract.ExcludedComponents) 
+          & $pac solution unpack --zipfile (Join-Path $out 'crmshow_DataModel_managed.zip') --folder $unpacked --packagetype Managed --allowDelete
+          if ($LASTEXITCODE -ne 0) { throw "pac solution unpack failed (exit $LASTEXITCODE)." }
+          $names = (Get-ChildItem -Recurse -File $unpacked | Select-String -SimpleMatch -Pattern $contract.ExcludedComponents)
           if ($names) { throw "Excluded effective-date components present in package: $($names.Pattern -join ', ')" }
           Write-Host 'Package excludes all effective-date components.'
       - name: Upload managed artifacts
