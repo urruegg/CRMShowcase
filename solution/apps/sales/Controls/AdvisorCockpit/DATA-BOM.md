@@ -167,3 +167,30 @@ How each tab lets the advisor *shape* the data (view modes, filters, bulk action
 5. **Contract note.** Advisor-scoped measures need a `subjectType` the measure-snapshot contract doesn't have (`advisor`/`user`); today it stops at `ga`. Either add `advisor` to the contract enum or scope advisor KPIs under `ga` + a sub-key.
 6. **Interaction layer not wired.** Every action button renders but is a no-op in the harness. Real effects (NAV via `Xrm`, WRITE via the schema-validated action layer) are DEV-gated. The accept / edit / dismiss branches on the NBA are the learning-loop signal (ADR-0014) and must never be autonomous. Also missing vs the mockup: inline lead-status dropdown, Bündeln, add-activity buttons, KPI drill, and the meeting-prep drawer.
 7. **Presentation / view modes — Meine Leads done, Copilot pending.** **Meine Leads** now ships all three view modes (Liste / Board / Cockpit), the 4 column filters, the bulk-selection + *Zuweisen an* reassign bar, and the **Live-Bündelung** modal (assign/bundle writes are DEV-gated demos; *Top 10* / *Ansicht speichern* and Board drag/drop + *Splitten* remain no-ops). **Copilot** is still missing the alert row + Tageszusammenfassung — the largest remaining presentation gap.
+
+## PCF Review conformance (rubric v1.1)
+
+Scored against [pcf-review-and-ux-standardization](../../../../../docs/superpowers/patterns/pcf-review-and-ux-standardization.md)
+(ux-designer-ratified). ✅ pass · ⚠ partial/deviation · ❌ gap.
+
+| #  | Category                | Result | Note |
+|----|-------------------------|--------|------|
+| 1  | Theming & tokens        | ⚠ | Single `tokens.ts`, brand accent-only, no literal hex in components, kicker via `text-transform`. Deviation: tokens are a parallel set, **not** a Fluent `BrandVariants` ramp (see §9). |
+| 2  | Data-source provenance  | ⚠ | Closed `prov` enum, legend + per-tile `title`. Gap: provenance is **colour + hover only** — needs per-source icon+label + focus/accessible-name + localized legend. |
+| 3  | Layout, cards & states  | ⚠ | One card primitive, eyebrow/title/summary, empty "—" states. Gap: no loading/error/permission states; AI badge not yet a shared component. |
+| 4  | Grids (CRM parity)      | ⚠ | Shared sort util + `aria-sort` across all 3 grids, parent/child collapse+connector, select-all + selection bar. Gap: no roving-tabindex keyboard model; *Ansicht speichern* is `localStorage` (labelled demo); no `aria-live` counts. Pro-code justified (page-level cockpit, ADR-0027). |
+| 5  | Actions & icons         | ✅ | Per-icon Fluent `react-icons` (tree-shaken) on every action; consistent appearance vocab; one `primary` CTA per action row. Follow-up: extract the verb→icon map to a shared artifact. |
+| 6  | HITL & write safety     | ✅ | No direct Dataverse writes; customer-facing acts are advisory DEV-gated demo notes; ✦ disclosure + provenance rows on AI output (ADR-0014). |
+| 7  | Accessibility           | ⚠ | `aria-label`/`aria-sort` on icon/checkbox/sort controls; Fluent focus kept. Gap: forced-colors/HC, non-text 3:1 audit, reflow 320px/400%, `aria-live`, modal focus-trap verification. |
+| 8  | Testing & build         | ⚠ | `tsc` clean, 23 vitest+RTL, selectors unit-tested. Gap: no jest-axe, no bundle-budget CI number, no visual-regression. |
+| 9  | Host-theme bridging     | ❌ | Light-only; no `FluentProvider` host-theme inheritance / dark / high-contrast. **Top remediation** (lands in the PCF-wrap/bind phase). |
+| 10 | States/responsive/perf  | ⚠ | Responsive grids. Gap: no list **virtualization** (lead book / queue / NBA), no skeleton/loading. |
+| 11 | Localization & content  | ⚠ | Consistent Sie-form German. Gap: 1033 base + DE/FR/IT strings and `context.userSettings` number/date/currency formatting (lands at bind). |
+
+**Remediation backlog (filed):** (9) BrandVariants ramp + host-theme bridging ·
+(2) non-colour provenance (icon+label, focus, localized) · (7/8) jest-axe +
+forced-colors + `aria-live` + modal focus trap + bundle budget · (10)
+virtualization + loading states · (11) localization + `userSettings` formatting.
+Structural items land in the **PCF-wrap/bind phase** (DEV-gated), not the local
+harness; quick wins (provenance legend icons, one-primary-CTA) are inlined.
+
