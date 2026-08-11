@@ -1,39 +1,56 @@
-// Palette ported verbatim from the ground-truth web resource
-// (intake/mobiliar/source/WebResources/cr7e8_sharedpage01advisorcockpit) so the
-// control matches pixel-for-pixel. Fluent v9 components provide structure + a11y;
-// these tokens drive the exact colors/spacing.
+// Design tokens adopted from the corporate brand kit (docs/brandkit/tokens/design-tokens.json):
+// deep-red accent (accent-only, never status), warm neutrals, muted semantic colours.
+// Values are ported under neutral names (no customer name/logo) per the public-repo
+// no-customer-branding guardrail; fully adopting a customer-derived CD is ADR-worthy.
+// The licensed brand webfont is unverified, so `font` uses the kit's safe Arial fallback.
 
 export const palette = {
-  brand: '#0078d4',
-  brandDark: '#005a9e',
-  // Neutral ramp n0..n190
+  brand: '#B80010',      // brand-60 — accessible accent for buttons/links/accents
+  brandDark: '#920000',  // brand-40 — hover / emphasis
+  // Neutral ramp n0..n190 (warm-tinted, from the brand kit)
   n0: '#ffffff',
-  n10: '#faf9f8',
-  n20: '#f3f2f1',
-  n30: '#edebe9',
-  n60: '#c8c6c4',
-  n90: '#a19f9d',
-  n130: '#605e5c',
-  n160: '#323130',
-  n190: '#201f1e',
-  green: '#107c10',
-  amber: '#9c5700',
-  red: '#a4262c',
+  n10: '#fbfaf8',        // paper1 — app background
+  n20: '#f6f5f2',        // paper2 — subtle fills
+  n30: '#e4e1db',        // hairline / card borders
+  n60: '#bcbbb9',        // neutral-76 — input borders
+  n90: '#91918f',        // neutral-60 — muted
+  n130: '#605e5e',       // neutral-40 — secondary text
+  n160: '#323030',       // neutral-20
+  n190: '#171717',       // ink — primary text
+  green: '#0e6c41',      // success
+  amber: '#8a6100',      // warning
+  red: '#a4262c',        // danger
   purple: '#6b2fa0',
-  teal: '#038387',
+  teal: '#2b5b8c',       // info
 } as const;
 
-// Semantic badge colors (fill + text) mirroring the mockup .badge classes.
+// Semantic badge colors (fill + text) from the brand kit tint pairs.
 export const badge = {
-  blue: { bg: '#deecf9', fg: '#005a9e' },
-  green: { bg: '#dff6dd', fg: '#107c10' },
-  amber: { bg: '#fff4ce', fg: '#9c5700' },
-  red: { bg: '#fde7e9', fg: '#a4262c' },
-  grey: { bg: '#f3f2f1', fg: '#605e5c' },
+  blue: { bg: '#f0f5fa', fg: '#2b5b8c' },
+  green: { bg: '#eff7f1', fg: '#0e6c41' },
+  amber: { bg: '#fdf6e3', fg: '#8a6100' },
+  red: { bg: '#fdf3f4', fg: '#a4262c' },
+  grey: { bg: '#f6f5f2', fg: '#605e5e' },
 } as const;
+
+// Data-source provenance tints (per request): CRM = standard (no tint),
+// Databricks (mockup Dataverse) = light grey, not-yet-mapped = light yellow.
+export const provenance = {
+  crm: 'transparent',
+  dbx: '#eeedea',
+  unmapped: '#fcf4d6',
+} as const;
+
+export type ProvenanceKind = keyof typeof provenance;
+
+export const provenanceLabel: Record<ProvenanceKind, string> = {
+  crm: 'CRM (Dataverse)',
+  dbx: 'Databricks (Mock)',
+  unmapped: 'Noch nicht gemappt',
+};
 
 export const font =
-  "'Segoe UI', -apple-system, BlinkMacSystemFont, system-ui, sans-serif";
+  "Arial, 'Helvetica Neue', Helvetica, 'Segoe UI', system-ui, sans-serif";
 
 // Priority dot colors
 export const priority = {
