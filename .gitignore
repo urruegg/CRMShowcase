@@ -88,6 +88,9 @@ project.fragment.lock.json
 artifacts/
 .artifacts/
 
+# Superpowers brainstorm visual-companion artifacts (local only)
+.superpowers/
+
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
 
