@@ -14,7 +14,7 @@ import {
   DialogActions,
 } from '@fluentui/react-components';
 import type { CockpitData, ClaimRecord, LeadRecord, NbaRecord } from './types';
-import { badge, font, nbaAccent, palette, priority } from './tokens';
+import { badge, font, nbaAccent, palette, priority, provenance, provenanceLabel } from './tokens';
 import { appointments, boardBuckets, buildAccountIndex, filterLeads, groupLeads, openTasks, sortLeads, sortedNba } from './selectors';
 import type { LeadSortKey } from './selectors';
 import {
@@ -335,6 +335,11 @@ const useStyles = makeStyles({
   boardClusterHead: { display: 'flex', alignItems: 'center', ...shorthands.gap('7px'), fontWeight: 700, fontSize: '13px', flexWrap: 'wrap' },
   splitBtn: { marginLeft: 'auto' },
   boardEmpty: { color: palette.n60, fontSize: '12px', ...shorthands.padding('8px', '4px') },
+  provWrap: { ...shorthands.borderRadius('4px'), ...shorthands.padding('4px', '10px') },
+  legend: { display: 'flex', alignItems: 'center', ...shorthands.gap('14px'), flexWrap: 'wrap', marginTop: '10px', fontSize: '11px', color: palette.n130 },
+  legendTitle: { fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' },
+  legendItem: { display: 'inline-flex', alignItems: 'center', ...shorthands.gap('6px') },
+  legendSwatch: { width: '12px', height: '12px', ...shorthands.borderRadius('3px'), ...shorthands.border('1px', 'solid', palette.n60), display: 'inline-block' },
 });
 
 function Badge({ kind, children }: { kind: keyof typeof badge; children: React.ReactNode }) {
@@ -507,7 +512,7 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
           </div>
           <div className={s.heroStats}>
             {focusHero.stats.map((st) => (
-              <div key={st.label}>
+              <div key={st.label} className={s.provWrap} style={st.prov !== 'crm' ? { backgroundColor: provenance[st.prov] } : undefined} title={provenanceLabel[st.prov]}>
                 <div className={s.heroStatValue}>{st.value}</div>
                 <div className={s.heroStatLabel}>{st.label}</div>
               </div>
@@ -522,7 +527,7 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
           </div>
           <div className={s.kpiGrid}>
             {kpiCards.map((c) => (
-              <div key={c.label} className={s.tile}>
+              <div key={c.label} className={s.tile} style={c.prov !== 'crm' ? { backgroundColor: provenance[c.prov] } : undefined} title={provenanceLabel[c.prov]}>
                 <div className={s.tileLabel}>{c.label}</div>
                 <div className={s.tileValue}>{c.value}</div>
                 <div className={`${s.tileSub} ${c.warn ? s.tileSubWarn : ''}`}>{c.sub}</div>
@@ -531,7 +536,7 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
           </div>
           <div className={s.progressGrid}>
             {progressCards.map((c) => (
-              <div key={c.label} className={s.tile}>
+              <div key={c.label} className={s.tile} style={c.prov !== 'crm' ? { backgroundColor: provenance[c.prov] } : undefined} title={provenanceLabel[c.prov]}>
                 <div className={s.tileLabel}>{c.label}</div>
                 <div className={s.barRow}>
                   <span className={s.barValue}>{c.current}</span>
@@ -543,6 +548,12 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                 <div className={s.tileSub}>{c.sub}</div>
               </div>
             ))}
+          </div>
+          <div className={s.legend}>
+            <span className={s.legendTitle}>Datenquelle</span>
+            <span className={s.legendItem}><span className={s.legendSwatch} style={{ backgroundColor: palette.n0 }} />{provenanceLabel.crm}</span>
+            <span className={s.legendItem}><span className={s.legendSwatch} style={{ backgroundColor: provenance.dbx }} />{provenanceLabel.dbx}</span>
+            <span className={s.legendItem}><span className={s.legendSwatch} style={{ backgroundColor: provenance.unmapped }} />{provenanceLabel.unmapped}</span>
           </div>
           <div className={s.disclaimerLine}>{disclaimer}</div>
         </section>
@@ -562,11 +573,11 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                 <div className={s.tpHead}>{tagesplan.title}</div>
                 <p className={s.tpBody}>{tagesplan.body}</p>
                 <div className={s.tpStats}>
-                  <div>
+                  <div className={s.provWrap} title={provenanceLabel.crm}>
                     <div className={s.tpStatValue}>{tagesplan.plannedActivities}</div>
                     <div className={s.tpStatLabel}>Geplante Aktivitäten</div>
                   </div>
-                  <div>
+                  <div className={s.provWrap} style={{ backgroundColor: provenance.dbx }} title={provenanceLabel.dbx}>
                     <div className={s.tpStatValue}>{tagesplan.estimatedConversion}</div>
                     <div className={s.tpStatLabel}>erwartete Abschlüsse (Prognose)</div>
                   </div>
