@@ -17,6 +17,9 @@ See the [charter](./sprint.md) and the
 - Streams B and C delegated to fresh implementer subagents (TDD, commit-per-task),
   each control-plane verified and two-stage reviewed.
 - Full solution Pester suite: **139 passed, 0 failed**.
-- **Gated next:** create sprint-charter + stream issues; trigger the live DEV→TEST
-  managed promotion under the `test` protected-environment approval; open the
-  proof-#2 PR to `main`.
+- Proof #1 (PR #45) merged to `main`; Proof #2 rebased onto `main` (clean 7 commits).
+- Sprint-charter **#46** and stream issues **#47/#48/#49** created; proof-#2 **PR #50** opened to `main`.
+- **Live TEST promotion is a post-merge step:** `workflow_dispatch` requires the
+  workflow on the default branch (confirmed HTTP 404 pre-merge). After PR #50
+  merges, run `solution-promote-test.yml` and approve the `test` protected
+  environment; link the run + version + smoke evidence here.
