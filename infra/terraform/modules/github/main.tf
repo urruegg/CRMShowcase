@@ -1,3 +1,25 @@
+data "github_repository" "self" {
+  name = var.repository
+}
+
+locals {
+  environment_deployment_policies = tomap({
+    for policy in flatten([
+      for environment_name, environment in var.environments : [
+        for branch_pattern in environment.allowed_branch_patterns : {
+          key            = "${environment_name}:${branch_pattern}"
+          environment    = environment_name
+          branch_pattern = branch_pattern
+        }
+      ]
+    ]) :
+    policy.key => {
+      environment    = policy.environment
+      branch_pattern = policy.branch_pattern
+    }
+  })
+}
+
 resource "github_repository_environment" "envs" {
   for_each = var.environments
 
@@ -5,6 +27,28 @@ resource "github_repository_environment" "envs" {
   repository          = var.repository
   can_admins_bypass   = each.value.can_admins_bypass
   prevent_self_review = each.value.prevent_self_review
+
+  dynamic "reviewers" {
+    for_each = length(each.value.reviewer_user_ids) + length(each.value.reviewer_team_ids) > 0 ? [each.value] : []
+
+    content {
+      users = length(reviewers.value.reviewer_user_ids) == 0 ? null : reviewers.value.reviewer_user_ids
+      teams = length(reviewers.value.reviewer_team_ids) == 0 ? null : reviewers.value.reviewer_team_ids
+    }
+  }
+
+  deployment_branch_policy {
+    protected_branches     = false
+    custom_branch_policies = true
+  }
+}
+
+resource "github_repository_environment_deployment_policy" "allowed_branches" {
+  for_each = local.environment_deployment_policies
+
+  repository     = var.repository
+  environment    = github_repository_environment.envs[each.value.environment].environment
+  branch_pattern = each.value.branch_pattern
 }
 
 # Non-secret variables the CI workflow reads to authenticate + target the right env.
@@ -45,4 +89,27 @@ resource "github_actions_environment_variable" "pp_env_url" {
   environment   = github_repository_environment.envs[each.key].environment
   variable_name = "POWER_PLATFORM_ENV_URL"
   value         = each.value.powerplatform_env_url
+}
+
+resource "github_branch_protection" "main" {
+  repository_id = data.github_repository.self.node_id
+  pattern       = "main"
+
+  enforce_admins                  = true
+  required_linear_history         = true
+  allows_force_pushes             = false
+  force_push_bypassers            = []
+  allows_deletions                = false
+  require_conversation_resolution = true
+
+  required_status_checks {
+    strict   = true
+    contexts = ["gate1"]
+  }
+
+  required_pull_request_reviews {
+    dismiss_stale_reviews           = true
+    required_approving_review_count = 0
+    pull_request_bypassers          = []
+  }
 }

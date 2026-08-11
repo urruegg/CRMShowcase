@@ -46,16 +46,38 @@ that surface the identifiers to CI as **non-secret variables**.
 
 ### GitHub Environments
 
-| Environment | Purpose | Variables set |
-| --- | --- | --- |
-| `dev`  | CI targeting `crmshowdev`  | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `POWER_PLATFORM_ENV_ID`, `POWER_PLATFORM_ENV_URL` |
-| `test` | CI targeting `crmshowtest` | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `POWER_PLATFORM_ENV_ID`, `POWER_PLATFORM_ENV_URL` |
+| Environment | Purpose | Variables set | Current live reviewer posture |
+| --- | --- | --- | --- |
+| `dev`  | CI targeting `crmshowdev`  | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `POWER_PLATFORM_ENV_ID`, `POWER_PLATFORM_ENV_URL` | No required reviewers yet. |
+| `test` | CI targeting `crmshowtest` | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `POWER_PLATFORM_ENV_ID`, `POWER_PLATFORM_ENV_URL` | Required reviewer is the repo owner `urruegg` (GitHub user ID `46865858`). |
 
-- `prevent_self_review = true` — a maintainer opening a PR cannot approve their
-  own deployment to that environment.
 - `can_admins_bypass = false` — even repo admins go through the environment gate.
-- No `required_reviewers` yet — repo has one collaborator. Add reviewers once
-  a second maintainer joins.
+- `prevent_self_review = false` on `test` is a deliberate **demo constraint**.
+  This personal repo currently has one dependable maintainer, so disallowing
+  self-review would deadlock the TEST gate. Customer target state is stricter:
+  use independent required reviewers and remove the owner-as-reviewer exception.
+
+### Reviewed-ref controls: live evidence captured 2026-08-10
+
+Evidence captured on 2026-08-10 from the live demo repo shows the reviewed-ref
+controls are now active:
+
+- `dev` deploys only from `main` via live deployment policy ID `56913774`.
+- `test` deploys only from `main` via live deployment policy ID `56680080`.
+- `test` keeps required reviewer `urruegg` (GitHub user ID `46865858`);
+  `prevent_self_review = false` remains the deliberate single-maintainer demo
+  exception.
+- `main` branch protection is live and enforces pull-request flow, the `gate1`
+  status check, conversation resolution, `required_linear_history = true`,
+  `dismiss_stale_reviews = true`, `allows_force_pushes = false`,
+  `allows_deletions = false`, and `required_approving_review_count = 0`.
+- Deployment policy IDs are environment-scoped live identifiers. If either
+  GitHub Environment is recreated, re-check the current policy ID before
+  re-importing Terraform state.
+
+Customer target state remains stricter: use independent required reviewers on
+`test` and raise `required_approving_review_count` on `main` to at least one
+independent approver once the repo is no longer single-maintainer.
 
 ### CI workflow
 
@@ -99,7 +121,7 @@ that surface the identifiers to CI as **non-secret variables**.
 **Follow-ups**
 - **ADR-0005** — Power Platform env-user assignment for the CI SPs.
 - **ADR-0006** — Remote state backend choice.
-- Add `required_reviewers` on the `test` environment once a second maintainer
-  joins.
-- Add branch protection on `main` requiring at least one review + the `validate`
-  workflow to pass, once the org / collaborators exist.
+- Replace the demo owner-reviewer exception on `test` with independent required
+  reviewers once a second maintainer or customer approver exists.
+- Raise `required_approving_review_count` above zero for customer repos while
+  preserving imported live evidence for the demo repo.

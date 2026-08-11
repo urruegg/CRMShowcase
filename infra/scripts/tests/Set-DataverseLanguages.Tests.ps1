@@ -1,6 +1,108 @@
 BeforeAll {
-    $scriptPath = Join-Path $PSScriptRoot '..\Set-DataverseLanguages.ps1'
-    . $scriptPath -EnvironmentUrl 'https://crmshowdev.crm.dynamics.com' -LocaleId 1033
+    $script:scriptPath = Join-Path $PSScriptRoot '..\Set-DataverseLanguages.ps1'
+    $script:childPowerShellPath = if (Get-Command pwsh -ErrorAction SilentlyContinue) {
+        (Get-Command pwsh -ErrorAction Stop).Source
+    }
+    else {
+        (Get-Command powershell -ErrorAction Stop).Source
+    }
+    . $script:scriptPath -EnvironmentUrl 'https://crmshowdev.crm.dynamics.com' -LocaleId 1033
+
+    function script:Assert-SafeDiagnosticLine {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [string]$Text,
+
+            [int]$MaxLength = 600
+        )
+
+        $Text | Should -Not -Match '[\x00-\x1F\x7F-\x9F]'
+        $Text | Should -Not -Match '(^|[\r\n])::'
+        $Text.Length | Should -BeLessThan ($MaxLength + 1)
+    }
+
+    function script:New-LanguageAzShim {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [string]$RootPath
+        )
+
+        $shimScriptPath = Join-Path $RootPath 'az.ps1'
+        $shimCommandPath = Join-Path $RootPath 'az'
+        $shimScript = @'
+#!/usr/bin/env pwsh
+param(
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$Arguments
+)
+
+$ErrorActionPreference = 'Stop'
+$escape = [char]27
+Write-Error (
+    "::warning::language transport`r`nPermission denied`t" +
+    "$escape[31mblocked$escape[0m"
+) -ErrorAction Continue
+exit 23
+'@
+
+        $shimScript = $shimScript -replace "`r`n", "`n"
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($shimScriptPath, $shimScript, $utf8NoBom)
+        [System.IO.File]::WriteAllText($shimCommandPath, $shimScript, $utf8NoBom)
+
+        if ([System.IO.Path]::DirectorySeparatorChar -eq '/') {
+            & chmod +x -- $shimCommandPath
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to make az shim executable: $shimCommandPath"
+            }
+        }
+    }
+
+    function script:Invoke-LanguageEntryScript {
+        [CmdletBinding()]
+        param()
+
+        $testRoot = Join-Path (Get-PSDrive -Name TestDrive).Root ([guid]::NewGuid().Guid)
+        $null = New-Item -ItemType Directory -Path $testRoot -Force
+        script:New-LanguageAzShim -RootPath $testRoot
+
+        $previousPath = $env:PATH
+        try {
+            $pathSeparator = [System.IO.Path]::PathSeparator
+            $env:PATH = if ([string]::IsNullOrEmpty($previousPath)) {
+                $testRoot
+            }
+            else {
+                "$testRoot$pathSeparator$previousPath"
+            }
+
+            $previousErrorActionPreference = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            try {
+                $output = & $script:childPowerShellPath `
+                    -NoLogo `
+                    -NoProfile `
+                    -NonInteractive `
+                    -File $script:scriptPath `
+                    -EnvironmentUrl 'https://crmshowdev.crm.dynamics.com' `
+                    -LocaleId 1033 2>&1
+                $exitCode = $LASTEXITCODE
+            }
+            finally {
+                $ErrorActionPreference = $previousErrorActionPreference
+            }
+        }
+        finally {
+            $env:PATH = $previousPath
+        }
+
+        return [pscustomobject]@{
+            ExitCode = $exitCode
+            Output   = (@($output | ForEach-Object { $_.ToString() }) -join [Environment]::NewLine).Trim()
+        }
+    }
 }
 
 Describe 'Get-NormalizedLocaleIds' {
@@ -48,6 +150,46 @@ Describe 'Wait-DataverseLanguage' {
 
         Should -Invoke Get-ProvisionedLocaleIds -Times 1 -Exactly
         Should -Invoke Start-Sleep -Times 0 -Exactly
+    }
+}
+
+Describe 'Invoke-DataverseRest' {
+    AfterEach {
+        Remove-Item Function:\az -ErrorAction SilentlyContinue
+    }
+
+    It 'sanitizes hostile az output on transport failure' {
+        $escape = [char]27
+        function global:az {
+            Write-Error (
+                "::warning::language transport`r`nPermission denied`t" +
+                "$escape[31mblocked$escape[0m"
+            ) -ErrorAction Continue
+            $global:LASTEXITCODE = 23
+        }
+
+        $message = $null
+        try {
+            Invoke-DataverseRest `
+                -Method GET `
+                -Url 'https://crmshowdev.crm.dynamics.com/api/data/v9.2/RetrieveProvisionedLanguages()' |
+                Out-Null
+            throw 'Expected transport failure.'
+        }
+        catch {
+            $message = $_.Exception.Message
+        }
+
+        script:Assert-SafeDiagnosticLine -Text $message -MaxLength 400
+        $message | Should -Match 'Dataverse request failed: GET'
+        $message | Should -Match 'RetrieveProvisionedLanguages\(\)'
+        $message | Should -Match 'Output:'
+        $message | Should -Match (
+            [regex]::Escape(
+                '::warning::language transport Permission denied blocked'
+            )
+        )
+        $message | Should -Not -Match 'At line:|--method|--url|--resource'
     }
 }
 
@@ -114,5 +256,23 @@ Describe 'Invoke-DataverseLanguageReconciliation' {
         Should -Invoke Wait-DataverseLanguage -Times 0 -Exactly
         $evidence.LocaleId | Should -Be @(1031, 1033)
         $evidence.State | Should -Be @('Planned', 'Active')
+    }
+}
+
+Describe 'Set-DataverseLanguages entry point' {
+    It 'emits a single safe error line when az transport fails' {
+        $invocation = script:Invoke-LanguageEntryScript
+
+        $invocation.ExitCode | Should -Be 1
+        script:Assert-SafeDiagnosticLine -Text $invocation.Output -MaxLength 450
+        $invocation.Output | Should -Match 'Dataverse request failed: GET'
+        $invocation.Output | Should -Match 'RetrieveProvisionedLanguages\(\)'
+        $invocation.Output | Should -Match 'Output:'
+        $invocation.Output | Should -Match (
+            [regex]::Escape(
+                '::warning::language transport Permission denied blocked'
+            )
+        )
+        $invocation.Output | Should -Not -Match 'At line:|--method|--url|--resource'
     }
 }
