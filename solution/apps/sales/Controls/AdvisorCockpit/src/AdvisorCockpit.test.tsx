@@ -73,6 +73,26 @@ describe('<AdvisorCockpit />', () => {
     expect(screen.queryByText('Hausrat-Offerte fortsetzen')).not.toBeInTheDocument();
   });
 
+  it('selects a lead and shows a demo reassignment note', () => {
+    renderCockpit();
+    fireEvent.click(screen.getByRole('tab', { name: 'Meine Leads' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Lead Frau Keller — Vorsorge 3a auswählen' }));
+    expect(screen.getByText(/ausgewählt/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Zuweisen an'), { target: { value: 'Thomas Vogt' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Zuweisen' }));
+    expect(screen.getByText(/an Thomas Vogt zugewiesen/)).toBeInTheDocument();
+  });
+
+  it('opens the Live-Bündelung modal from the Cockpit view and confirms', () => {
+    renderCockpit();
+    fireEvent.click(screen.getByRole('tab', { name: 'Meine Leads' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cockpit' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Leads bündeln' })[0]);
+    expect(screen.getByText(/Live-Bündelung/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Bündelung bestätigen' }));
+    expect(screen.getByText(/gebündelt/)).toBeInTheDocument();
+  });
+
   it('reveals the full NBA list with a disclosure on every card under the Copilot tab', () => {
     renderCockpit();
     fireEvent.click(screen.getByRole('tab', { name: 'Copilot' }));

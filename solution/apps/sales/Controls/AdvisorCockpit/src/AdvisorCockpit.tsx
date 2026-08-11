@@ -1,5 +1,18 @@
 import * as React from 'react';
-import { makeStyles, shorthands, Button, Tab, TabList } from '@fluentui/react-components';
+import {
+  makeStyles,
+  shorthands,
+  Button,
+  Tab,
+  TabList,
+  Checkbox,
+  Dialog,
+  DialogSurface,
+  DialogBody,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from '@fluentui/react-components';
 import type { CockpitData, ClaimRecord, LeadRecord, NbaRecord } from './types';
 import { badge, font, nbaAccent, palette, priority } from './tokens';
 import { appointments, buildAccountIndex, filterLeads, groupLeads, openTasks, sortedNba } from './selectors';
@@ -276,6 +289,34 @@ const useStyles = makeStyles({
   miniLead: { display: 'flex', alignItems: 'center', ...shorthands.gap('8px'), ...shorthands.padding('6px', 0), ...shorthands.borderTop('1px', 'solid', palette.n20) },
   miniScore: { marginLeft: 'auto', fontWeight: 700 },
   emptyNote: { ...shorthands.padding('16px'), color: palette.n130, fontSize: '13px' },
+  tdCheck: { ...shorthands.padding('7px', '4px', '7px', '10px'), width: '34px', verticalAlign: 'top' },
+  thCheck: { ...shorthands.padding('9px', '4px', '9px', '10px'), width: '34px', textAlign: 'left', ...shorthands.borderBottom('1px', 'solid', palette.n30) },
+  selBar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    ...shorthands.gap('12px'),
+    flexWrap: 'wrap',
+    ...shorthands.padding('8px', '12px'),
+    marginBottom: '10px',
+    backgroundColor: '#eff6fc',
+    ...shorthands.border('1px', 'solid', palette.brand),
+    ...shorthands.borderRadius('8px'),
+  },
+  selInfo: { fontWeight: 600, fontSize: '13px', color: palette.brandDark },
+  selActions: { display: 'flex', alignItems: 'center', ...shorthands.gap('8px'), flexWrap: 'wrap' },
+  demoNote: {
+    ...shorthands.padding('8px', '12px'),
+    marginBottom: '10px',
+    backgroundColor: '#fff8e6',
+    ...shorthands.border('1px', 'solid', palette.amber),
+    ...shorthands.borderRadius('6px'),
+    fontSize: '12px',
+    color: palette.n160,
+  },
+  modalLead: { fontSize: '13px', color: palette.n130, ...shorthands.margin(0, 0, '12px') },
+  modalList: { display: 'flex', flexDirection: 'column', ...shorthands.gap('2px'), marginBottom: '12px' },
+  modalItem: { display: 'flex', alignItems: 'center', ...shorthands.gap('8px'), ...shorthands.padding('6px', 0), ...shorthands.borderTop('1px', 'solid', palette.n20) },
 });
 
 function Badge({ kind, children }: { kind: keyof typeof badge; children: React.ReactNode }) {
@@ -291,6 +332,7 @@ function priorityKind(p: LeadRecord['priority']): keyof typeof priority {
 const CHANNEL_OPTIONS = ['Alle Kanäle', 'Online', 'Telefon', 'Termin', 'Kampagne'];
 const STATUS_OPTIONS = ['Alle Status', 'Neu', 'In Arbeit', 'Qualifiziert', 'Gebündelt', 'Geplant', 'Geschlossen'];
 const SOURCE_OPTIONS = ['Alle Quellen', 'Online-Offerte', 'Vertragsablauf', 'Advisory Appointment', 'Vorsorge 25'];
+const OWNER_OPTIONS = ['Rahel Moser', 'Thomas Vogt', 'Sina Keller', 'Pool (Round-Robin)', 'Makler-Desk'];
 
 function statusBadgeKind(status: string): keyof typeof badge {
   if (/Überfällig|Risiko/i.test(status)) return 'red';
@@ -312,6 +354,10 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
   const [fChannel, setFChannel] = React.useState('Alle Kanäle');
   const [fStatus, setFStatus] = React.useState('Alle Status');
   const [fSource, setFSource] = React.useState('Alle Quellen');
+  const [selected, setSelected] = React.useState<Set<string>>(() => new Set());
+  const [assignTo, setAssignTo] = React.useState('');
+  const [assignNote, setAssignNote] = React.useState<string | null>(null);
+  const [bundle, setBundle] = React.useState<{ title: string; leads: LeadRecord[] } | null>(null);
   const accounts = React.useMemo(() => buildAccountIndex(data.accountsContacts), [data]);
   const filteredLeads = React.useMemo(
     () => filterLeads(data.leads, { customer: fCustomer, channel: fChannel, status: fStatus, source: fSource }, (k) => accounts.get(k) ?? k),
@@ -324,8 +370,34 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
   const accountName = (key: string) => accounts.get(key) ?? key;
   const today = new Date().toLocaleDateString('de-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
+  const visibleKeys = React.useMemo(() => filteredLeads.map((l) => l.key), [filteredLeads]);
+  const allSelected = visibleKeys.length > 0 && visibleKeys.every((k) => selected.has(k));
+  const selectedLeads = React.useMemo(() => filteredLeads.filter((l) => selected.has(l.key)), [filteredLeads, selected]);
+  const toggleLead = (key: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  const toggleAll = () => setSelected((prev) => (visibleKeys.every((k) => prev.has(k)) ? new Set<string>() : new Set(visibleKeys)));
+  const clearSelection = () => {
+    setSelected(new Set());
+    setAssignNote(null);
+  };
+  const applyAssignment = () => {
+    if (!assignTo || selected.size === 0) return;
+    const n = selected.size;
+    setAssignNote(`${n} Lead${n > 1 ? 's' : ''} an ${assignTo} zugewiesen · Demo — Schreibzugriff über die Aktionsschicht (DEV-gated).`);
+    setSelected(new Set());
+    setAssignTo('');
+  };
+
   const renderLead = (lead: LeadRecord, child: boolean) => (
     <tr key={lead.key} className={child ? s.childRow : undefined}>
+      <td className={s.tdCheck}>
+        <Checkbox checked={selected.has(lead.key)} onChange={() => toggleLead(lead.key)} aria-label={`Lead ${lead.topic} auswählen`} />
+      </td>
       <td className={s.td}>
         <span className={s.dot} style={{ backgroundColor: priority[priorityKind(lead.priority)] }} />
         <span className={s.score} style={{ color: lead.score >= 90 ? palette.green : palette.n190 }}>{lead.score}</span>
@@ -511,6 +583,23 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                   </div>
                 </div>
 
+                {selected.size > 0 && (
+                  <div className={s.selBar}>
+                    <div className={s.selInfo}>{selected.size} Lead{selected.size > 1 ? 's' : ''} ausgewählt</div>
+                    <div className={s.selActions}>
+                      <label className={s.filterLabel} htmlFor="assign-to">Zuweisen an</label>
+                      <select id="assign-to" className={s.filterInput} value={assignTo} onChange={(e) => setAssignTo(e.target.value)}>
+                        <option value="">Bearbeiter/in wählen …</option>
+                        {OWNER_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+                      </select>
+                      <Button size="small" appearance="primary" style={{ backgroundColor: palette.brand }} disabled={!assignTo} onClick={applyAssignment}>Zuweisen</Button>
+                      <Button size="small" appearance="secondary" disabled={selected.size < 2} onClick={() => setBundle({ title: 'Ausgewählte Leads', leads: selectedLeads })}>Bündeln</Button>
+                      <Button size="small" appearance="transparent" onClick={clearSelection}>Auswahl aufheben</Button>
+                    </div>
+                  </div>
+                )}
+                {assignNote && <div className={s.demoNote}>{assignNote}</div>}
+
                 {leadGroups.length === 0 && <div className={s.emptyNote}>Keine Leads für die aktuelle Filterung.</div>}
 
                 {leadView === 'list' && leadGroups.length > 0 && (
@@ -519,6 +608,9 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                       <table className={s.table}>
                         <thead>
                           <tr>
+                            <th className={s.thCheck}>
+                              <Checkbox checked={allSelected} onChange={toggleAll} aria-label="Alle Leads auswählen" />
+                            </th>
                             <th className={s.th}>Priorität</th>
                             <th className={s.th}>Lead</th>
                             <th className={s.th}>Kunde</th>
@@ -533,7 +625,7 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                             group.isCluster ? (
                               <React.Fragment key={group.clusterName ?? ''}>
                                 <tr className={s.clusterRow}>
-                                  <td className={s.td} colSpan={7}>
+                                  <td className={s.td} colSpan={8}>
                                     <span className={s.link}>{group.clusterName}</span>{' '}
                                     <Badge kind="amber">Auto-Gruppe · {group.leads.length}</Badge>
                                     <div className={s.muted}>Redundanz vermeiden: ein Gespräch statt {group.leads.length} Kontakte</div>
@@ -596,13 +688,63 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                           </div>
                         ))}
                         <div className={s.fokusActions}>
-                          <Button size="small" appearance="primary" style={{ backgroundColor: palette.brand }}>Leads bündeln</Button>
+                          <Button
+                            size="small"
+                            appearance="primary"
+                            style={{ backgroundColor: palette.brand }}
+                            onClick={() => setBundle({ title: group.isCluster ? (group.clusterName ?? 'Gruppe') : accountName(group.leads[0].accountKey), leads: group.leads })}
+                          >
+                            Leads bündeln
+                          </Button>
                           <Button size="small" appearance="secondary">360° öffnen</Button>
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
+
+                <Dialog open={bundle !== null} onOpenChange={(_, d) => { if (!d.open) setBundle(null); }}>
+                  <DialogSurface>
+                    <DialogBody>
+                      <DialogTitle>Live-Bündelung — {bundle?.title}</DialogTitle>
+                      <DialogContent>
+                        <p className={s.modalLead}>
+                          Ein vorbereitetes Gespräch statt {bundle?.leads.length ?? 0} Einzelkontakten. Die Leads werden zu
+                          einem gebündelten Kontaktvorschlag zusammengefasst — Sie entscheiden, ob Sie ihn übernehmen.
+                        </p>
+                        <div className={s.modalList}>
+                          {bundle?.leads.map((l) => (
+                            <div key={l.key} className={s.modalItem}>
+                              <span className={s.dot} style={{ backgroundColor: priority[priorityKind(l.priority)] }} />
+                              <span>{l.topic}</span>
+                              <span className={s.miniScore} style={{ color: l.score >= 90 ? palette.green : palette.n190 }}>{l.score}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className={s.demoNote}>
+                          Hinweis: Die Bündelung wird über die Aktionsschicht geschrieben (DEV-gated). In dieser lokalen
+                          Ansicht ist der Schritt eine Demonstration.
+                        </div>
+                      </DialogContent>
+                      <DialogActions>
+                        <Button appearance="secondary" onClick={() => setBundle(null)}>Abbrechen</Button>
+                        <Button
+                          appearance="primary"
+                          style={{ backgroundColor: palette.brand }}
+                          onClick={() => {
+                            const n = bundle?.leads.length ?? 0;
+                            const t = bundle?.title ?? '';
+                            setAssignNote(`${n} Leads gebündelt · ${t} · Demo — Schreibzugriff über die Aktionsschicht (DEV-gated).`);
+                            setBundle(null);
+                            setSelected(new Set());
+                          }}
+                        >
+                          Bündelung bestätigen
+                        </Button>
+                      </DialogActions>
+                    </DialogBody>
+                  </DialogSurface>
+                </Dialog>
               </div>
             )}
 
