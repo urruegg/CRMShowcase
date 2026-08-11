@@ -96,6 +96,38 @@ Status: ✅ bound to the correct source · ⚠ **presentation placeholder** in `
 | NBA cards (category / title / rationale / disclosure / action) | NBA | `crmshow_nextbestaction` (+ provenance) | ✅ `nba.json` |
 | Score behind card | **DBX** | propensity | ✅ `nba.json.score` |
 
+## Interactions & write-backs
+
+> Effect: **NAV** navigate/open (read-only) · **READ** fetch/generate context · **WRITE** mutate via the schema-validated action layer (free-text model output never writes to Dataverse directly — [docs/AI.md](../../../../docs/AI.md)) · **LOCAL** UI-only state.
+> Guardrail: *agents recommend, humans decide* ([ADR-0014](../../../../docs/adr/ADR-0014-agents-advisory-by-design.md)). Accept / edit / dismiss **is** the learning signal. No autonomous outbound send; human approval before external comms, quote/pricing, or case close.
+
+### Empfohlener Fokus — Haushalt Brunner (the flagship decision point)
+
+| Button | What it does | Effect | Data operation | HITL / guardrail |
+| --- | --- | --- | --- | --- |
+| **Anrufen** (accept · Kanal = Click-to-call) | Acts on the recommendation — starts the call | NAV+WRITE | telephony click-to-call + log a `phonecall` activity on the Lead/Contact | human places the call; no auto-send |
+| **Vorbereiten** (primary) | Opens the 360° meeting-prep brief for the call | READ/NAV | read Account/Lead/Policy/Claim 360; optional AI prep summary (grounded + disclosed) | prep only, no mutation |
+| **Anpassen** | Edit the proposal (channel, timing, scope) before acting | WRITE (on confirm) | update `crmshow_nextbestaction` (edited) — the **edit** branch | human edits before commit |
+| **Kundenkontext öffnen** | Navigate to the household 360 | NAV | `Xrm.Navigation` → Account (Haushalt Brunner) | read-only |
+| **Später planen** | Snooze / schedule for later | WRITE | `crmshow_nextbestaction.status = Snoozed` (+ snoozeUntil) or create a follow-up `task` | defers, not dismiss |
+| **Vorschlag verwerfen** | Dismiss the recommendation | WRITE | `crmshow_nextbestaction.status = Dismissed` (+ reason) — the **dismiss** branch → learning signal | explicit human rejection |
+
+_Harness state:_ all five render but are **no-ops** — the NAV/WRITE targets are DEV-gated on the Dataverse action layer + `Xrm` context.
+
+### Other interactive elements
+
+| Element | Action | Effect | Data operation | Harness state |
+| --- | --- | --- | --- | --- |
+| Tabs (5) | switch view | LOCAL | selected-tab state | ✅ works |
+| Meine Leads · lead / customer link | open record | NAV | Lead form / Household 360 | ⚠ styled link, no nav |
+| Meine Leads · status | change lead status | WRITE | `lead.statuscode` via action layer | ⚠ shown as badge (mockup = inline dropdown) |
+| Meine Leads · Bündeln | bundle the 3 Brunner leads into one conversation | WRITE | LeadCluster link | ⚠ not implemented (mockup has it) |
+| Termine · Vorbereiten | open meeting prep | READ/NAV | appointment 360 | ⚠ button renders, no-op |
+| Termine / Aufgaben · Add | create activity | WRITE | create `appointment` / `task` | ⚠ not implemented |
+| Offene Fälle · Fall-ID link | open case | NAV | `crmshow_claimprojection` / incident | ⚠ styled link, no nav |
+| Copilot card · Anrufen / Termin öffnen / Öffnen | act on NBA | NAV+WRITE | call / open / navigate | ⚠ button renders, no-op |
+| KPI & progress cards · drill | drill to detail | NAV | leads / measure detail | ⚠ static (mockup drills) |
+
 ## Parity gaps (to close before Dataverse binding)
 
 1. **CRM-derived counts are hardcoded.** Arbeitsvorrat KPIs 1–3, "Geplante Aktivitäten" should be **derived from the CRM fixtures** (`leads`/`activities`) via selectors — same pattern as `headerKpis` — not literals in `kpis.ts`.
@@ -103,3 +135,4 @@ Status: ✅ bound to the correct source · ⚠ **presentation placeholder** in `
 3. **Empfohlener Fokus is hand-authored.** The flagship card should be sourced from the **top-ranked `crmshow_nextbestaction`** (`nba.json` rank 1 = Brunner) + its `crmshow_nbaprovenance`, not `kpis.empfohlenerFokus`.
 4. **No Quote/Opportunity fixture.** "Angebote nachfassen (4)" needs a Quote/Opportunity source that does not exist in the Phase-5 fixtures yet.
 5. **Contract note.** Advisor-scoped measures need a `subjectType` the measure-snapshot contract doesn't have (`advisor`/`user`); today it stops at `ga`. Either add `advisor` to the contract enum or scope advisor KPIs under `ga` + a sub-key.
+6. **Interaction layer not wired.** Every action button renders but is a no-op in the harness. Real effects (NAV via `Xrm`, WRITE via the schema-validated action layer) are DEV-gated. The accept / edit / dismiss branches on the NBA are the learning-loop signal (ADR-0014) and must never be autonomous. Also missing vs the mockup: inline lead-status dropdown, Bündeln, add-activity buttons, KPI drill, and the meeting-prep drawer.
