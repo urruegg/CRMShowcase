@@ -486,6 +486,13 @@ criterion. It is tracked as
 [OR-001](../../requirements/OR-001-effective-date-integrity.md) and
 [feature #9](https://github.com/urruegg/CRMShowcase/issues/9).
 
+> **Proof #2 scope refinement (2026-08-11).** The managed TEST promotion in
+> [2026-08-11-insurance-foundation-promotion-design.md](./2026-08-11-insurance-foundation-promotion-design.md)
+> **excludes** the effective-date `businessRules` and the `OverlapReporting` /
+> `InvalidDateReporting` views from the promoted package (they stay in DEV,
+> unmanaged). The effective-date enforcement decision and its options are
+> recorded in [ADR-0024](../../adr/ADR-0024-effective-date-integrity-options.md).
+
 ## 13. Follow-up sequence
 
 The next sprint/work after Sprint 3 consumes the exported packages for managed

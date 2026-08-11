@@ -1,0 +1,128 @@
+name: Promote insurance foundation to TEST
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Import mode
+        type: choice
+        options: [InstallOrUpdate, StageForUpgrade]
+        default: InstallOrUpdate
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  export-from-dev:
+    runs-on: ubuntu-latest
+    environment: dev
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      POWER_PLATFORM_ENV_URL: ${{ vars.POWER_PLATFORM_ENV_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sign in with workload identity
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: Install Power Platform CLI
+        uses: microsoft/powerplatform-actions/actions-install@v1
+      - name: Install Pester 6.0.1
+        shell: pwsh
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module Pester -RequiredVersion 6.0.1 -Scope CurrentUser -Force -SkipPublisherCheck
+      - name: Offline promotion contract tests
+        shell: pwsh
+        run: |
+          $r = Invoke-Pester -Path @(
+            './scripts/solution/tests/Get-PromotionComponents.Tests.ps1',
+            './scripts/solution/tests/Get-PromotionSmokeResult.Tests.ps1'
+          ) -PassThru -Output Detailed
+          if ($r.Result -ne 'Passed') { throw 'Offline promotion tests failed.' }
+      - name: Authenticate Power Platform CLI (DEV)
+        shell: pwsh
+        run: |
+          . ./scripts/solution/Resolve-PacCommand.ps1
+          $pac = Resolve-PacCommand
+          & $pac auth create --name promote-dev --githubFederated `
+            --applicationId $env:AZURE_CLIENT_ID --tenant $env:AZURE_TENANT_ID `
+            --environment $env:POWER_PLATFORM_ENV_URL
+          if ($LASTEXITCODE -ne 0) { throw 'PAC federated authentication failed.' }
+      - name: Export managed solutions
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP 'promote'
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          ./scripts/solution/Export-Solution.ps1 -SolutionName crmshow_Foundation -OutFile (Join-Path $out 'crmshow_Foundation_managed.zip') -Managed
+          ./scripts/solution/Export-Solution.ps1 -SolutionName crmshow_DataModel  -OutFile (Join-Path $out 'crmshow_DataModel_managed.zip')  -Managed
+      - name: Assert excluded components are absent from the package
+        shell: pwsh
+        run: |
+          . ./scripts/solution/Resolve-PacCommand.ps1
+          . ./scripts/solution/Get-PromotionComponents.ps1
+          $pac = Resolve-PacCommand
+          $out = Join-Path $env:RUNNER_TEMP 'promote'
+          $contract = Get-PromotionComponents -SchemaPath ./solution/schema/insurance-foundation.json
+          $unpacked = Join-Path $env:RUNNER_TEMP 'unpacked'
+          & $pac solution unpack --zipfile (Join-Path $out 'crmshow_DataModel_managed.zip') --folder $unpacked --allowDelete
+          $names = (Get-ChildItem -Recurse -File $unpacked | Select-String -SimpleMatch -Pattern $contract.ExcludedComponents) 
+          if ($names) { throw "Excluded effective-date components present in package: $($names.Pattern -join ', ')" }
+          Write-Host 'Package excludes all effective-date components.'
+      - name: Upload managed artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: managed-solutions
+          path: ${{ runner.temp }}/promote/*.zip
+
+  import-to-test:
+    runs-on: ubuntu-latest
+    needs: export-from-dev
+    environment: test
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      POWER_PLATFORM_ENV_URL: ${{ vars.POWER_PLATFORM_ENV_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sign in with workload identity
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: Install Power Platform CLI
+        uses: microsoft/powerplatform-actions/actions-install@v1
+      - name: Download managed artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: managed-solutions
+          path: ${{ runner.temp }}/promote
+      - name: Authenticate Power Platform CLI (TEST)
+        shell: pwsh
+        run: |
+          . ./scripts/solution/Resolve-PacCommand.ps1
+          $pac = Resolve-PacCommand
+          & $pac auth create --name promote-test --githubFederated `
+            --applicationId $env:AZURE_CLIENT_ID --tenant $env:AZURE_TENANT_ID `
+            --environment $env:POWER_PLATFORM_ENV_URL
+          if ($LASTEXITCODE -ne 0) { throw 'PAC federated authentication failed.' }
+      - name: Preflight languages
+        shell: pwsh
+        run: |
+          & ./infra/scripts/Set-DataverseLanguages.ps1 -EnvironmentUrl $env:POWER_PLATFORM_ENV_URL -LocaleId 1033,1031,1036,1040
+          if ($LASTEXITCODE -ne 0) { throw 'TEST language preflight failed.' }
+      - name: Import managed (Foundation then DataModel)
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP 'promote'
+          ./scripts/solution/Import-Solution.ps1 -ZipFile (Join-Path $out 'crmshow_Foundation_managed.zip') -Mode ${{ inputs.mode }} -PublishChanges
+          ./scripts/solution/Import-Solution.ps1 -ZipFile (Join-Path $out 'crmshow_DataModel_managed.zip')  -Mode ${{ inputs.mode }} -PublishChanges
+      - name: Smoke evidence
+        shell: pwsh
+        run: |
+          Write-Host 'Managed import complete; run Get-PromotionSmokeResult against TEST facts here.'

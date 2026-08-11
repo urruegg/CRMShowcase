@@ -6,6 +6,7 @@
 | **Feature** | [GitHub issue #9](https://github.com/urruegg/CRMShowcase/issues/9) |
 | **Related sprint** | [Sprint 3 — Insurance Foundation](../superpowers/specs/2026-08-08-insurance-foundation-design.md) |
 | **Decision authority** | Enterprise Architect |
+| **Decision record** | [ADR-0024 — Effective-date integrity options](../adr/ADR-0024-effective-date-integrity-options.md) |
 | **Licence** | 🧩 own build / configuration; final mechanism not selected |
 | **Upgrade impact** | To be declared by the selecting ADR |
 
@@ -41,6 +42,11 @@ These controls detect bad data but do not claim universal server-side
 enforcement for every Dataverse write path.
 
 ## Options for the later feature
+
+The decision record and the trade-off analysis for these options now live in
+[ADR-0024](../adr/ADR-0024-effective-date-integrity-options.md). Proof #2
+excludes all effective-date enforcement and reporting from the promoted managed
+slice; no option below is built yet.
 
 1. Add a synchronous validation plug-in in `crmshow_Integration`.
 2. Author supported table-scoped business rules in Maker Studio and capture
