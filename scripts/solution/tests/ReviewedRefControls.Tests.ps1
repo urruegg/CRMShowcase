@@ -11,7 +11,7 @@ BeforeAll {
     $script:adr0004 = Get-Content (Join-Path $script:repoRoot `
         'docs/adr/ADR-0004-ci-plane-app-registrations-and-github-environments.md') -Raw
     $script:solutionCiWorkflow = Get-Content (Join-Path $script:repoRoot `
-        '.github/workflows/solution-ci.yml') -Raw
+        '.github/workflows/ci-solution.yml') -Raw
 }
 
 Describe 'GitHub environment reviewed-ref policies' {

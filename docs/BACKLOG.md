@@ -51,7 +51,7 @@ household relocates across a jurisdiction boundary. See
 | US-401 | Every licensing flag resolved ([LICENSING.md](./LICENSING.md)) | `[TBD]` |
 | US-402 | Every AI maturity verified ([AI.md](./AI.md)) | `[TBD]` |
 | US-403 | Regression suite green on the eight curveballs ([TEST.md](./TEST.md)) | `[TBD]` |
-| US-404 | `.github/workflows/terraform.yml` extended with `plan` on real remote state | `[TBD]` |
+| US-404 | `.github/workflows/cd-infra.yml` extended with `plan` on real remote state | `[TBD]` |
 
 ## Epic 5 — Solution containers (Sprint 1)
 
@@ -64,9 +64,9 @@ Traces to spec [`docs/superpowers/specs/2026-08-06-solution-containers-design.md
 | US-503 | solution/manifest.json + schema + parser | `[TBD]` |
 | US-504 | Scaffold six empty solutions in DEV, export, unpack, commit | `[TBD]` |
 | US-505 | scripts/solution/*.ps1 (export, unpack, pack, import, bump-version) | `[TBD]` |
-| US-506 | .github/workflows/solution-ci.yml (Gate 1) | `[TBD]` |
-| US-507 | .github/workflows/solution-deploy-dev.yml | `[TBD]` |
-| US-508 | GitHub Environment test reviewers + solution-deploy-test.yml | `[TBD]` |
+| US-506 | .github/workflows/ci-solution.yml (Gate 1) | `[TBD]` |
+| US-507 | .github/workflows/cd-solution-dev.yml | `[TBD]` |
+| US-508 | GitHub Environment test reviewers + cd-solution-test.yml | `[TBD]` |
 | US-509 | solution-intake-on-demand.yml + solution-intake-drift.yml | `[TBD]` |
 | US-510 | ADR-0019 solution versioning strategy | `[TBD]` |
 | US-511 | Extend .github/CODEOWNERS with folder-scoped rules | `[TBD]` |

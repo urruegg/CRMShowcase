@@ -75,7 +75,7 @@ README.md   AGENTS.md   SUPERPOWERS_CONTRACT.md   CONTRIBUTING.md
    chatmodes/*.chatmode.md     matching chatmodes
    instructions/               path-scoped rules
    prompts/                    reusable prompts
-   workflows/                  CI: Terraform + eventual solution build
+   workflows/                  ci-solution · cd-infra · cd-solution-dev/test
    ISSUE_TEMPLATE/             governance escalation etc.
    pull_request_template.md
 docs/

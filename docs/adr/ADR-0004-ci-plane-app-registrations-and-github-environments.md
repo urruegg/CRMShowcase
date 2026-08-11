@@ -81,7 +81,7 @@ independent approver once the repo is no longer single-maintainer.
 
 ### CI workflow
 
-[`.github/workflows/terraform.yml`](../../.github/workflows/terraform.yml).
+[`.github/workflows/cd-infra.yml`](../../.github/workflows/cd-infra.yml).
 
 - **PR trigger.** `terraform fmt -check`, `terraform init -backend=false`,
   `terraform validate`. Never touches the tenant.
