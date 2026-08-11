@@ -128,6 +128,35 @@ _Harness state:_ all five render but are **no-ops** — the NAV/WRITE targets ar
 | Copilot card · Anrufen / Termin öffnen / Öffnen | act on NBA | NAV+WRITE | call / open / navigate | ⚠ button renders, no-op |
 | KPI & progress cards · drill | drill to detail | NAV | leads / measure detail | ⚠ static (mockup drills) |
 
+## Per-tab presentation & view modes
+
+How each tab lets the advisor *shape* the data (view modes, filters, bulk actions) — from the mockup ground truth. Only **Meine Leads** has multiple view modes.
+
+### Tagesplan (KI) — single view
+- Content: "Ihr steuerbarer Tagesplan" + 2 stats + **Empfohlener Fokus** card. (Older mockup also had a drag-to-reorder ranked plan table.)
+- My PCF: ✅ Empfohlener Fokus · ⚠ no ranked plan table / reorder.
+
+### Meine Leads — 3 view modes + filters + bulk (the rich tab)
+- **View switch** (segmented): **Liste** (table) · **Board** (kanban grouped by household cluster; drag/drop; *Splitten* / *Live-Bündelung*) · **Cockpit** (cluster-form cards: mini-lead list + *Wirkt auf* + *Leads bündeln* / *360° öffnen*).
+- **View actions**: *Top 10 nach Priorität* (top-N by AI score) · *Ansicht speichern* (persist personal view: auto-grouping + column filters).
+- **Column filters** (4): Kunde / Konto (text → account) · Kanal (Online/Telefon/Termin/Kampagne → `lead.channel`) · Status (Neu/In Arbeit/Qualifiziert/Gebündelt/Geplant/Geschlossen → `lead.statuscode`) · Kampagne / Quelle (Online-Offerte/Vertragsablauf/Advisory Appointment/Vorsorge 25 → `lead` source/campaign).
+- **Selection / bulk bar**: multi-select → *Zuweisen an* (Rahel Moser / Thomas Vogt / Sina Keller / Pool Round-Robin / Makler-Desk) → *Zuweisen* (WRITE `lead.ownerid`) · *Auswahl aufheben*.
+- **Live-Bündelung modal**: the “wow” moment — KI groups related leads in real time and suppresses double-contacts (LeadCluster).
+- Data: CRM (Lead + LeadCluster + Account) + DBX (AI score).
+- My PCF: ✅ **Liste** only (table + cluster). ⚠ missing Board, Cockpit, view-actions, 4 filters, bulk-reassign, Live-Bündelung.
+
+### Termine & Aufgaben — single view
+- Content: *Termine heute* (appointment list + *Vorbereiten* + add) · *Offene Aufgaben* (task table).
+- My PCF: ✅ both lists · ⚠ no add-activity buttons, no meeting-prep drawer.
+
+### Offene Fälle — single view
+- Content: *Anliegen & Schäden* table (Fall-ID / Typ / Kunde / Betreff / Kanal / Status / SLA).
+- My PCF: ✅ table · ⚠ no type filter / drill.
+
+### Copilot — single view
+- Content: NBA cards (Dringend/Risiko/Chance/Retention/Insight) + **alert row** (−Pp / überfällig / Top-Lead) + **Tageszusammenfassung** (day summary).
+- My PCF: ✅ NBA cards · ⚠ no alert row, no day summary.
+
 ## Parity gaps (to close before Dataverse binding)
 
 1. **CRM-derived counts are hardcoded.** Arbeitsvorrat KPIs 1–3, "Geplante Aktivitäten" should be **derived from the CRM fixtures** (`leads`/`activities`) via selectors — same pattern as `headerKpis` — not literals in `kpis.ts`.
@@ -136,3 +165,4 @@ _Harness state:_ all five render but are **no-ops** — the NAV/WRITE targets ar
 4. **No Quote/Opportunity fixture.** "Angebote nachfassen (4)" needs a Quote/Opportunity source that does not exist in the Phase-5 fixtures yet.
 5. **Contract note.** Advisor-scoped measures need a `subjectType` the measure-snapshot contract doesn't have (`advisor`/`user`); today it stops at `ga`. Either add `advisor` to the contract enum or scope advisor KPIs under `ga` + a sub-key.
 6. **Interaction layer not wired.** Every action button renders but is a no-op in the harness. Real effects (NAV via `Xrm`, WRITE via the schema-validated action layer) are DEV-gated. The accept / edit / dismiss branches on the NBA are the learning-loop signal (ADR-0014) and must never be autonomous. Also missing vs the mockup: inline lead-status dropdown, Bündeln, add-activity buttons, KPI drill, and the meeting-prep drawer.
+7. **Presentation / view modes not built.** **Meine Leads** ships only the Liste — the Board + Cockpit view modes, the 4 column filters, *Top 10 / Ansicht speichern*, the bulk-reassign selection bar, and the Live-Bündelung modal are missing. **Copilot** is missing the alert row + Tageszusammenfassung. These are the biggest remaining fidelity items.
