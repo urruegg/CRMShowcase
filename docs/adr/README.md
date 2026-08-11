@@ -24,7 +24,7 @@ Copy [ADR-TEMPLATE.md](./ADR-TEMPLATE.md) and edit — do not invent a new shape
 
 `ADR-####-kebab-case-title.md`, four-digit sequence, no gaps.
 
-`0023` is the latest allocated sequence; use `0024` for the next ADR.
+`0027` is the latest allocated sequence; use `0028` for the next ADR.
 
 ## Index
 
@@ -53,6 +53,10 @@ Copy [ADR-TEMPLATE.md](./ADR-TEMPLATE.md) and edit — do not invent a new shape
 | [0021](./ADR-0021-multilingual-semantic-dataverse-metadata.md) | Multilingual semantic Dataverse metadata | A2 · A4 · A6 · A8 | Accepted |
 | [0022](./ADR-0022-curated-external-copilot-capability-packs.md) | Curated external Copilot capability packs | A4 · A6 · A8 | Accepted |
 | [0023](./ADR-0023-demo-feasible-dataverse-bootstrap.md) | Demo-feasible Dataverse bootstrap and steady-state identities | A8 | Proposed hypothesis |
+| [0024](./ADR-0024-effective-date-integrity-options.md) | Effective-date integrity options | A8 | Accepted |
+| [0025](./ADR-0025-cicd-workflow-naming-convention.md) | CI/CD workflow naming convention | A8 | Accepted |
+| [0026](./ADR-0026-inbound-analytics-projection-pattern.md) | Inbound analytics projection pattern (data platform → CRM) | A3 · A7 | Accepted |
+| [0027](./ADR-0027-page-level-pcf-and-local-first-polish-loop.md) | Page-level PCF + the PCF Local-First Polish Loop | A4 | Accepted |
 
 ADRs 0011, 0012, 0013, 0017, 0018, 0019, 0020, and 0023 remain proposed until
 confirmed with customer architecture in the next review.
