@@ -62,6 +62,32 @@ export function sortedNba(nba: NbaRecord[]): NbaRecord[] {
   return [...nba].sort((a, b) => a.rank - b.rank);
 }
 
+export interface LeadFilters {
+  customer: string;
+  channel: string; // 'Alle Kanäle' means no channel filter
+  status: string; // 'Alle Status' means no status filter
+  source: string; // 'Alle Quellen' means no source filter
+}
+
+// Applies the Meine-Leads column filters. Channel/source use a tolerant contains match
+// because a lead's channel/source is finer-grained than the coarse filter vocabulary.
+export function filterLeads(
+  leads: LeadRecord[],
+  f: LeadFilters,
+  accountName: (key: string) => string,
+): LeadRecord[] {
+  const cust = f.customer.trim().toLowerCase();
+  return leads.filter((l) => {
+    if (cust && !accountName(l.accountKey).toLowerCase().includes(cust) && !l.topic.toLowerCase().includes(cust)) {
+      return false;
+    }
+    if (f.channel !== 'Alle Kanäle' && !l.channel.toLowerCase().includes(f.channel.toLowerCase())) return false;
+    if (f.status !== 'Alle Status' && l.status !== f.status) return false;
+    if (f.source !== 'Alle Quellen' && !l.source.toLowerCase().includes(f.source.toLowerCase())) return false;
+    return true;
+  });
+}
+
 export interface HeaderKpis {
   appointmentsToday: number;
   openTasks: number;

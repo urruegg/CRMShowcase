@@ -2,7 +2,7 @@ import * as React from 'react';
 import { makeStyles, shorthands, Button, Tab, TabList } from '@fluentui/react-components';
 import type { CockpitData, ClaimRecord, LeadRecord, NbaRecord } from './types';
 import { badge, font, nbaAccent, palette, priority } from './tokens';
-import { appointments, buildAccountIndex, groupLeads, openTasks, sortedNba } from './selectors';
+import { appointments, buildAccountIndex, filterLeads, groupLeads, openTasks, sortedNba } from './selectors';
 import {
   arbeitsvorratSummary,
   disclaimer,
@@ -237,6 +237,45 @@ const useStyles = makeStyles({
   },
   copTitle: { fontSize: '14px', fontWeight: 600, ...shorthands.margin('4px', 0, '4px', 0) },
   copText: { fontSize: '12px', color: palette.n130, lineHeight: 1.5 },
+  // Meine Leads — view switch + filters + board/cockpit
+  viewTools: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...shorthands.gap('12px'), flexWrap: 'wrap', marginBottom: '12px' },
+  viewSwitch: { display: 'inline-flex', ...shorthands.border('1px', 'solid', palette.n30), ...shorthands.borderRadius('8px'), ...shorthands.overflow('hidden') },
+  viewBtn: {
+    ...shorthands.padding('6px', '14px'),
+    backgroundColor: palette.n0,
+    ...shorthands.borderWidth('0'),
+    ...shorthands.borderRight('1px', 'solid', palette.n30),
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: 600,
+    color: palette.n130,
+    fontFamily: font,
+  },
+  viewBtnActive: { backgroundColor: palette.brand, color: palette.n0 },
+  vtActions: { display: 'flex', ...shorthands.gap('8px'), flexWrap: 'wrap' },
+  filters: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))', ...shorthands.gap('10px'), marginBottom: '12px' },
+  filterField: { display: 'flex', flexDirection: 'column', ...shorthands.gap('4px') },
+  filterLabel: { fontSize: '11px', color: palette.n130, fontWeight: 600 },
+  filterInput: {
+    ...shorthands.padding('6px', '8px'),
+    ...shorthands.border('1px', 'solid', palette.n60),
+    ...shorthands.borderRadius('6px'),
+    fontSize: '13px',
+    fontFamily: font,
+    backgroundColor: palette.n0,
+  },
+  boardGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', ...shorthands.gap('12px'), alignItems: 'start' },
+  boardGroup: { ...shorthands.border('1px', 'solid', palette.brand), ...shorthands.borderRadius('8px'), backgroundColor: '#eff6fc', ...shorthands.padding('8px') },
+  boardGroupHead: { display: 'flex', alignItems: 'center', ...shorthands.gap('7px'), fontWeight: 700, fontSize: '13px', marginBottom: '8px', flexWrap: 'wrap' },
+  boardGroupBody: { display: 'flex', flexDirection: 'column', ...shorthands.gap('8px') },
+  boardCard: { backgroundColor: palette.n0, ...shorthands.border('1px', 'solid', palette.n30), ...shorthands.borderRadius('6px'), ...shorthands.padding('8px', '10px') },
+  boardCardTitle: { fontWeight: 600, fontSize: '13px' },
+  cockpitGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', ...shorthands.gap('12px'), alignItems: 'start' },
+  clusterCard: { backgroundColor: palette.n0, ...shorthands.border('1px', 'solid', palette.n30), ...shorthands.borderRadius('10px'), ...shorthands.padding('12px', '14px') },
+  clusterHead: { display: 'flex', alignItems: 'center', ...shorthands.gap('8px'), fontWeight: 600, marginBottom: '8px', flexWrap: 'wrap' },
+  miniLead: { display: 'flex', alignItems: 'center', ...shorthands.gap('8px'), ...shorthands.padding('6px', 0), ...shorthands.borderTop('1px', 'solid', palette.n20) },
+  miniScore: { marginLeft: 'auto', fontWeight: 700 },
+  emptyNote: { ...shorthands.padding('16px'), color: palette.n130, fontSize: '13px' },
 });
 
 function Badge({ kind, children }: { kind: keyof typeof badge; children: React.ReactNode }) {
@@ -248,6 +287,10 @@ function Badge({ kind, children }: { kind: keyof typeof badge; children: React.R
 function priorityKind(p: LeadRecord['priority']): keyof typeof priority {
   return p === 'Hoch' ? 'high' : p === 'Mittel' ? 'med' : 'low';
 }
+
+const CHANNEL_OPTIONS = ['Alle Kanäle', 'Online', 'Telefon', 'Termin', 'Kampagne'];
+const STATUS_OPTIONS = ['Alle Status', 'Neu', 'In Arbeit', 'Qualifiziert', 'Gebündelt', 'Geplant', 'Geschlossen'];
+const SOURCE_OPTIONS = ['Alle Quellen', 'Online-Offerte', 'Vertragsablauf', 'Advisory Appointment', 'Vorsorge 25'];
 
 function statusBadgeKind(status: string): keyof typeof badge {
   if (/Überfällig|Risiko/i.test(status)) return 'red';
@@ -264,8 +307,17 @@ export interface AdvisorCockpitProps {
 export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
   const s = useStyles();
   const [tab, setTab] = React.useState<string>('tagesplan');
+  const [leadView, setLeadView] = React.useState<'list' | 'board' | 'cockpit'>('list');
+  const [fCustomer, setFCustomer] = React.useState('');
+  const [fChannel, setFChannel] = React.useState('Alle Kanäle');
+  const [fStatus, setFStatus] = React.useState('Alle Status');
+  const [fSource, setFSource] = React.useState('Alle Quellen');
   const accounts = React.useMemo(() => buildAccountIndex(data.accountsContacts), [data]);
-  const leadGroups = React.useMemo(() => groupLeads(data.leads), [data]);
+  const filteredLeads = React.useMemo(
+    () => filterLeads(data.leads, { customer: fCustomer, channel: fChannel, status: fStatus, source: fSource }, (k) => accounts.get(k) ?? k),
+    [data, fCustomer, fChannel, fStatus, fSource, accounts],
+  );
+  const leadGroups = React.useMemo(() => groupLeads(filteredLeads), [filteredLeads]);
   const nba = React.useMemo(() => sortedNba(data.nba), [data]);
   const appts = React.useMemo(() => appointments(data.activities), [data]);
   const tasks = React.useMemo(() => openTasks(data.activities), [data]);
@@ -413,42 +465,145 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
             )}
 
             {tab === 'leads' && (
-              <section className={s.card}>
-                <div className={s.cardHead}>Meine Leads · Priorität (KI)</div>
-                <div className={s.cardBody}>
-                  <table className={s.table}>
-                    <thead>
-                      <tr>
-                        <th className={s.th}>Priorität</th>
-                        <th className={s.th}>Lead</th>
-                        <th className={s.th}>Kunde</th>
-                        <th className={s.th}>Kanal</th>
-                        <th className={s.th}>Urgency</th>
-                        <th className={s.th}>SLA</th>
-                        <th className={s.th}>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {leadGroups.map((group) =>
-                        group.isCluster ? (
-                          <React.Fragment key={group.clusterName ?? ''}>
-                            <tr className={s.clusterRow}>
-                              <td className={s.td} colSpan={7}>
-                                <span className={s.link}>{group.clusterName}</span>{' '}
-                                <Badge kind="amber">Auto-Gruppe · {group.leads.length}</Badge>
-                                <div className={s.muted}>Redundanz vermeiden: ein Gespräch statt {group.leads.length} Kontakte</div>
-                              </td>
-                            </tr>
-                            {group.leads.map((l) => renderLead(l, true))}
-                          </React.Fragment>
-                        ) : (
-                          renderLead(group.leads[0], false)
-                        ),
-                      )}
-                    </tbody>
-                  </table>
+              <div>
+                <div className={s.viewTools}>
+                  <div className={s.viewSwitch} role="group" aria-label="Lead-Ansicht">
+                    {(['list', 'board', 'cockpit'] as const).map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        className={`${s.viewBtn} ${leadView === v ? s.viewBtnActive : ''}`}
+                        aria-pressed={leadView === v}
+                        onClick={() => setLeadView(v)}
+                      >
+                        {v === 'list' ? 'Liste' : v === 'board' ? 'Board' : 'Cockpit'}
+                      </button>
+                    ))}
+                  </div>
+                  <div className={s.vtActions}>
+                    <Button size="small" appearance="secondary">Top 10 nach Priorität</Button>
+                    <Button size="small" appearance="secondary">Ansicht speichern</Button>
+                  </div>
                 </div>
-              </section>
+
+                <div className={s.filters}>
+                  <div className={s.filterField}>
+                    <label className={s.filterLabel} htmlFor="f-customer">Kunde / Konto</label>
+                    <input id="f-customer" className={s.filterInput} placeholder="z.B. Haushalt Brunner" value={fCustomer} onChange={(e) => setFCustomer(e.target.value)} />
+                  </div>
+                  <div className={s.filterField}>
+                    <label className={s.filterLabel} htmlFor="f-channel">Kanal</label>
+                    <select id="f-channel" className={s.filterInput} value={fChannel} onChange={(e) => setFChannel(e.target.value)}>
+                      {CHANNEL_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+                    </select>
+                  </div>
+                  <div className={s.filterField}>
+                    <label className={s.filterLabel} htmlFor="f-status">Status</label>
+                    <select id="f-status" className={s.filterInput} value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
+                      {STATUS_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+                    </select>
+                  </div>
+                  <div className={s.filterField}>
+                    <label className={s.filterLabel} htmlFor="f-source">Kampagne / Quelle</label>
+                    <select id="f-source" className={s.filterInput} value={fSource} onChange={(e) => setFSource(e.target.value)}>
+                      {SOURCE_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {leadGroups.length === 0 && <div className={s.emptyNote}>Keine Leads für die aktuelle Filterung.</div>}
+
+                {leadView === 'list' && leadGroups.length > 0 && (
+                  <section className={s.card}>
+                    <div className={s.cardBody}>
+                      <table className={s.table}>
+                        <thead>
+                          <tr>
+                            <th className={s.th}>Priorität</th>
+                            <th className={s.th}>Lead</th>
+                            <th className={s.th}>Kunde</th>
+                            <th className={s.th}>Kanal</th>
+                            <th className={s.th}>Urgency</th>
+                            <th className={s.th}>SLA</th>
+                            <th className={s.th}>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {leadGroups.map((group) =>
+                            group.isCluster ? (
+                              <React.Fragment key={group.clusterName ?? ''}>
+                                <tr className={s.clusterRow}>
+                                  <td className={s.td} colSpan={7}>
+                                    <span className={s.link}>{group.clusterName}</span>{' '}
+                                    <Badge kind="amber">Auto-Gruppe · {group.leads.length}</Badge>
+                                    <div className={s.muted}>Redundanz vermeiden: ein Gespräch statt {group.leads.length} Kontakte</div>
+                                  </td>
+                                </tr>
+                                {group.leads.map((l) => renderLead(l, true))}
+                              </React.Fragment>
+                            ) : (
+                              renderLead(group.leads[0], false)
+                            ),
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+                )}
+
+                {leadView === 'board' && leadGroups.length > 0 && (
+                  <div className={s.boardGrid}>
+                    {leadGroups.map((group) =>
+                      group.isCluster ? (
+                        <div key={group.clusterName ?? ''} className={s.boardGroup}>
+                          <div className={s.boardGroupHead}>
+                            <span>{group.clusterName}</span>
+                            <Badge kind="amber">Auto-Gruppe · {group.leads.length}</Badge>
+                          </div>
+                          <div className={s.boardGroupBody}>
+                            {group.leads.map((l) => (
+                              <div key={l.key} className={s.boardCard}>
+                                <div className={s.boardCardTitle}>{l.topic}</div>
+                                <div className={s.muted}>{l.source} · Score {l.score}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div key={group.leads[0].key} className={s.boardCard}>
+                          <div className={s.boardCardTitle}>{group.leads[0].topic}</div>
+                          <div className={s.muted}>{accountName(group.leads[0].accountKey)} · Score {group.leads[0].score}</div>
+                        </div>
+                      ),
+                    )}
+                  </div>
+                )}
+
+                {leadView === 'cockpit' && leadGroups.length > 0 && (
+                  <div className={s.cockpitGrid}>
+                    {leadGroups.map((group) => (
+                      <div key={group.clusterName ?? group.leads[0].key} className={s.clusterCard}>
+                        <div className={s.clusterHead}>
+                          <span className={s.link}>{group.isCluster ? group.clusterName : accountName(group.leads[0].accountKey)}</span>
+                          {group.isCluster && <Badge kind="amber">Auto-Gruppe · {group.leads.length}</Badge>}
+                        </div>
+                        <div className={s.muted}>Wirkt auf: {group.leads.length} Lead{group.leads.length > 1 ? 's' : ''}</div>
+                        {group.leads.map((l) => (
+                          <div key={l.key} className={s.miniLead}>
+                            <span className={s.dot} style={{ backgroundColor: priority[priorityKind(l.priority)] }} />
+                            <span>{l.topic}</span>
+                            <span className={s.miniScore} style={{ color: l.score >= 90 ? palette.green : palette.n190 }}>{l.score}</span>
+                          </div>
+                        ))}
+                        <div className={s.fokusActions}>
+                          <Button size="small" appearance="primary" style={{ backgroundColor: palette.brand }}>Leads bündeln</Button>
+                          <Button size="small" appearance="secondary">360° öffnen</Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
 
             {tab === 'termine' && (

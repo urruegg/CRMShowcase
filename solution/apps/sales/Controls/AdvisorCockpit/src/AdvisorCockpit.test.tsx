@@ -55,6 +55,24 @@ describe('<AdvisorCockpit />', () => {
     expect(screen.getByText('Hausrat-Offerte fortsetzen')).toBeInTheDocument();
   });
 
+  it('switches Meine Leads between Liste, Board and Cockpit views', () => {
+    renderCockpit();
+    fireEvent.click(screen.getByRole('tab', { name: 'Meine Leads' }));
+    expect(screen.getByText('Hausrat-Offerte fortsetzen')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Board' }));
+    expect(screen.getAllByText(/Haushalt Brunner/).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Cockpit' }));
+    expect(screen.getAllByText('Leads bündeln').length).toBeGreaterThan(0);
+  });
+
+  it('filters the lead list by customer', () => {
+    renderCockpit();
+    fireEvent.click(screen.getByRole('tab', { name: 'Meine Leads' }));
+    fireEvent.change(screen.getByLabelText('Kunde / Konto'), { target: { value: 'Stucki' } });
+    expect(screen.getByText('Bäckerei Stucki — Betriebshaftpflicht')).toBeInTheDocument();
+    expect(screen.queryByText('Hausrat-Offerte fortsetzen')).not.toBeInTheDocument();
+  });
+
   it('reveals the full NBA list with a disclosure on every card under the Copilot tab', () => {
     renderCockpit();
     fireEvent.click(screen.getByRole('tab', { name: 'Copilot' }));

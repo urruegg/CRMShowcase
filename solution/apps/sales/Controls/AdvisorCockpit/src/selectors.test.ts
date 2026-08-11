@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cockpitFixtures } from './fixtures';
-import { appointments, groupLeads, headerKpis, openTasks, sortedNba } from './selectors';
+import { appointments, buildAccountIndex, filterLeads, groupLeads, headerKpis, openTasks, sortedNba } from './selectors';
 
 describe('cockpit selectors', () => {
   it('groups the Brunner household leads into one cluster and keeps singles standalone', () => {
@@ -22,5 +22,16 @@ describe('cockpit selectors', () => {
     const nba = sortedNba(cockpitFixtures.nba);
     expect(nba[0].rank).toBe(1);
     expect(nba[0].title).toContain('Brunner');
+  });
+
+  it('filters leads by customer, channel, status and source', () => {
+    const idx = buildAccountIndex(cockpitFixtures.accountsContacts);
+    const name = (k: string) => idx.get(k) ?? k;
+    const none = { customer: '', channel: 'Alle Kanäle', status: 'Alle Status', source: 'Alle Quellen' };
+    expect(filterLeads(cockpitFixtures.leads, none, name).length).toBe(cockpitFixtures.leads.length);
+    expect(filterLeads(cockpitFixtures.leads, { ...none, customer: 'Brunner' }, name).length).toBe(3);
+    expect(filterLeads(cockpitFixtures.leads, { ...none, channel: 'Kampagne' }, name).length).toBe(1);
+    expect(filterLeads(cockpitFixtures.leads, { ...none, status: 'Neu' }, name).length).toBe(2);
+    expect(filterLeads(cockpitFixtures.leads, { ...none, source: 'Vorsorge 25' }, name).length).toBe(1);
   });
 });
