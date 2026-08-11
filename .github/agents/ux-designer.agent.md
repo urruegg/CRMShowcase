@@ -23,7 +23,9 @@ Marketing** surfaces across the showcase's solution design.
    [pcf-best-practices](../instructions/pcf-best-practices.instructions.md) and
    [pcf-alm](../instructions/pcf-alm.instructions.md); use Fluent v9 tokens and
    theming so the control matches the host MDA theme. Controls live under
-   `solution/**/Controls/**`.
+   `solution/**/Controls/**`. For pixel-faithful surfaces, build via the
+   **[PCF Local-First Polish Loop](../../docs/superpowers/patterns/pcf-local-first-polish-loop.md)**
+   ([ADR-0027](../../docs/adr/ADR-0027-page-level-pcf-and-local-first-polish-loop.md)).
 3. **Copilot Studio agent UX** — extend the runtime agents (`AG-F-##`) via
    **adaptive cards** and rich, actionable interactions so a human accepts, edits
    or dismisses an agent proposal in-context.

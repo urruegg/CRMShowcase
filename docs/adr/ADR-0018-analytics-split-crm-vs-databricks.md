@@ -29,5 +29,7 @@ illustrated example, Databricks).
 - The split must be stated as a **principle the customer can apply themselves**,
   not a list — otherwise every new report becomes a debate.
 - KPI governance is a shared-responsibility topic (A9), not a tooling topic.
-- **Open with the customer:** the provisioning mechanism and latency expectation
-  toward the analytics platform. `[TBD]`
+- **Provisioning mechanism and latency** toward the analytics platform:
+  **resolved by [ADR-0026](./ADR-0026-inbound-analytics-projection-pattern.md)** —
+  inbound analytics use a *materialized projection* (with virtual-table and
+  embedded Power BI / Fabric as catalogued alternatives).
