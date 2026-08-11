@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { FluentProvider, webLightTheme } from '@fluentui/react-components';
 import { AdvisorCockpit } from './AdvisorCockpit';
 import { cockpitFixtures } from './fixtures';
@@ -13,20 +13,45 @@ function renderCockpit() {
 }
 
 describe('<AdvisorCockpit />', () => {
-  it('greets the advisor and shows the Copilot NBA panel', () => {
+  it('greets the advisor and shows the Fokus-heute hero', () => {
     renderCockpit();
     expect(screen.getByText(/Guten Morgen, Rahel Moser/)).toBeInTheDocument();
-    expect(screen.getByText('Contoso Copilot')).toBeInTheDocument();
+    expect(screen.getByText('Mehr Zeit für vorbereitete Kundengespräche')).toBeInTheDocument();
   });
 
-  it('renders the Brunner top lead and its NBA card', () => {
+  it('renders the Arbeitsvorrat KPI grid', () => {
     renderCockpit();
+    expect(screen.getByText('Arbeitsvorrat & persönliche Ziele')).toBeInTheDocument();
+    expect(screen.getByText('Leads heute kontaktieren')).toBeInTheDocument();
+    expect(screen.getByText('Neugeschäftsvolumen (Q2)')).toBeInTheDocument();
+  });
+
+  it('shows the Empfohlener Fokus recommendation for Brunner on the default Tagesplan tab', () => {
+    renderCockpit();
+    expect(screen.getByText(/Empfohlener Fokus/)).toBeInTheDocument();
+    expect(screen.getByText(/Warum jetzt:/)).toBeInTheDocument();
+    expect(screen.getByText('Woher stammt das?')).toBeInTheDocument();
+    expect(screen.getAllByText(/KI-unterstützt/).length).toBeGreaterThan(0);
+  });
+
+  it('lists the Brunner lead cluster under the Meine Leads tab', () => {
+    renderCockpit();
+    fireEvent.click(screen.getByRole('tab', { name: 'Meine Leads' }));
     expect(screen.getAllByText(/Haushalt Brunner/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/4h-Fenster läuft/)).toBeInTheDocument();
+    expect(screen.getByText('Hausrat-Offerte fortsetzen')).toBeInTheDocument();
   });
 
-  it('discloses AI-assisted provenance on every NBA card', () => {
+  it('reveals the full NBA list with a disclosure on every card under the Copilot tab', () => {
     renderCockpit();
+    fireEvent.click(screen.getByRole('tab', { name: 'Copilot' }));
+    expect(screen.getByText(/4h-Fenster läuft/)).toBeInTheDocument();
     expect(screen.getAllByText(/KI-unterstützt/).length).toBe(cockpitFixtures.nba.length);
+  });
+
+  it('shows Anliegen & Schäden under the Offene Fälle tab', () => {
+    renderCockpit();
+    fireEvent.click(screen.getByRole('tab', { name: 'Offene Fälle' }));
+    expect(screen.getByText('SCH-77310')).toBeInTheDocument();
+    expect(screen.getByText('Adressänderung')).toBeInTheDocument();
   });
 });
