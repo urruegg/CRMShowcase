@@ -161,6 +161,13 @@ Treat as constraints:
 
 - [SUPERPOWERS_CONTRACT.md](../SUPERPOWERS_CONTRACT.md) — the binding
   operating contract.
+- [docs/superpowers/SPRINT-OPERATING-MODEL.md](../docs/superpowers/SPRINT-OPERATING-MODEL.md)
+  — **the default way to run any sprint or multi-stream build**: brainstorm and
+  design on the trunk → Sprint Charter issue + one handover packet per stream
+  (each with an autonomy class) → isolated `wt/` worktrees via
+  `scripts/orchestration/*` → PR intake (never self-merge) → human merge. Do
+  **not** improvise a milestone/epic/branch flow. Sprint index + live status:
+  [docs/superpowers/sprints/](../docs/superpowers/sprints/).
 - [AGENTS.md](../AGENTS.md) — 6 runtime agents (`AG-F-##`) + 10 engineering
   agents (`AG-E-##`).
 - [.github/agents/](./agents/) — one Markdown file per custom agent Copilot
