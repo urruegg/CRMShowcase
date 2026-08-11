@@ -1,0 +1,15 @@
+[
+  { "recordType": "account", "key": "ACC-BRUNNER", "name": "Haushalt Brunner", "accountType": "Household", "segment": "Privat", "region": "Mittelland", "owner": "Rahel Moser", "city": "Bern", "postalCode": "3011" },
+  { "recordType": "account", "key": "ACC-AEBISCHER", "name": "Schreinerei Aebischer AG", "accountType": "Business", "segment": "KMU", "region": "Mittelland", "owner": "Rahel Moser", "city": "Köniz", "postalCode": "3098" },
+  { "recordType": "account", "key": "ACC-KELLER", "name": "Haushalt Keller", "accountType": "Household", "segment": "Privat", "region": "Mittelland", "owner": "Rahel Moser", "city": "Ostermundigen", "postalCode": "3072" },
+  { "recordType": "account", "key": "ACC-STUCKI", "name": "Bäckerei Stucki GmbH", "accountType": "Business", "segment": "KMU", "region": "Mittelland", "owner": "Rahel Moser", "city": "Belp", "postalCode": "3123" },
+  { "recordType": "account", "key": "ACC-IMHOF", "name": "Haushalt Imhof", "accountType": "Household", "segment": "Privat", "region": "Mittelland", "owner": "Rahel Moser", "city": "Münsingen", "postalCode": "3110" },
+  { "recordType": "account", "key": "ACC-ROTH", "name": "Haushalt Roth", "accountType": "Household", "segment": "Privat", "region": "Mittelland", "owner": "Rahel Moser", "city": "Worb", "postalCode": "3076" },
+
+  { "recordType": "contact", "key": "CON-BRUNNER-A", "accountKey": "ACC-BRUNNER", "firstName": "Andrea", "lastName": "Brunner", "role": "Haushaltvorstand", "email": "andrea.brunner@contoso.example", "phone": "+41 44 555 0142", "consentEmail": true, "consentPhone": true },
+  { "recordType": "contact", "key": "CON-AEBISCHER-M", "accountKey": "ACC-AEBISCHER", "firstName": "Marc", "lastName": "Aebischer", "role": "Geschäftsführer", "email": "marc.aebischer@contoso.example", "phone": "+41 44 555 0177", "consentEmail": true, "consentPhone": false },
+  { "recordType": "contact", "key": "CON-KELLER-N", "accountKey": "ACC-KELLER", "firstName": "Nadia", "lastName": "Keller", "role": "Haushaltvorstand", "email": "nadia.keller@contoso.example", "phone": "+41 44 555 0193", "consentEmail": true, "consentPhone": true },
+  { "recordType": "contact", "key": "CON-STUCKI-P", "accountKey": "ACC-STUCKI", "firstName": "Peter", "lastName": "Stucki", "role": "Inhaber", "email": "peter.stucki@contoso.example", "phone": "+41 44 555 0108", "consentEmail": false, "consentPhone": true },
+  { "recordType": "contact", "key": "CON-IMHOF-B", "accountKey": "ACC-IMHOF", "firstName": "Beat", "lastName": "Imhof", "role": "Haushaltvorstand", "email": "beat.imhof@contoso.example", "phone": "+41 44 555 0125", "consentEmail": true, "consentPhone": true },
+  { "recordType": "contact", "key": "CON-ROTH-C", "accountKey": "ACC-ROTH", "firstName": "Claudia", "lastName": "Roth", "role": "Haushaltvorstand", "email": "claudia.roth@contoso.example", "phone": "+41 44 555 0164", "consentEmail": true, "consentPhone": false }
+]

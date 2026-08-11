@@ -1,0 +1,4 @@
+[
+  { "key": "SCH-77310", "externalId": "SCH-77310", "caseType": "Schaden", "accountKey": "ACC-AEBISCHER", "productLine": "MotorVehicle", "title": "Glasbruch Lieferwagen", "channel": "Contoso Assist", "status": "In Bearbeitung", "openedDate": "2026-05-27", "externalSystem": "claims-admin-mock" },
+  { "key": "ANL-204902", "externalId": "ANL-204902", "caseType": "Anliegen", "accountKey": "ACC-BRUNNER", "productLine": "HouseholdContents", "title": "Adressänderung", "channel": "Portal", "status": "Offen", "openedDate": "2026-05-31", "slaHours": 26, "externalSystem": "claims-admin-mock" }
+]

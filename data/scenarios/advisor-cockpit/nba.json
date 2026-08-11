@@ -1,0 +1,104 @@
+[
+  {
+    "key": "NBA-BRUNNER-4H",
+    "rank": 1,
+    "category": "Dringend",
+    "title": "Brunner: 4h-Fenster läuft",
+    "accountKey": "ACC-BRUNNER",
+    "leadKey": "LEAD-BRUNNER-HR",
+    "channel": "Anruf",
+    "score": 99,
+    "status": "Active",
+    "disclosure": "KI-unterstützt",
+    "rationale": "Abgebrochene Hausrat-Offerte mit AI-Score 99. Kontakt vor 13:00 hält die Conversion-Wahrscheinlichkeit über 90%.",
+    "provenance": [
+      { "source": "lead", "ref": "LEAD-BRUNNER-HR" },
+      { "source": "measure", "ref": "GA-Bern-Mittelland|Conversion|2026-06-30" }
+    ]
+  },
+  {
+    "key": "NBA-OVERDUE-TASKS",
+    "rank": 2,
+    "category": "Risiko",
+    "title": "2 überfällige Aufgaben",
+    "accountKey": "ACC-AEBISCHER",
+    "leadKey": null,
+    "channel": "Aufgabe",
+    "score": 74,
+    "status": "Active",
+    "disclosure": "KI-unterstützt",
+    "rationale": "Nachfass Aebischer-Offerte und Roth-Dokumente sind überfällig. Roth-Vertrag läuft in 38 Tagen aus.",
+    "provenance": [
+      { "source": "task", "ref": "TASK-AEBISCHER-NACHFASS" },
+      { "source": "task", "ref": "TASK-ROTH-DOKUMENTE" },
+      { "source": "policy", "ref": "POL-RS-ROTH" }
+    ]
+  },
+  {
+    "key": "NBA-AEBISCHER-CROSSSELL",
+    "rank": 3,
+    "category": "Chance",
+    "title": "Cross-Sell aus Schadenfall",
+    "accountKey": "ACC-AEBISCHER",
+    "leadKey": "LEAD-AEBISCHER-FLOTTE",
+    "channel": "Termin",
+    "score": 88,
+    "status": "Active",
+    "disclosure": "KI-unterstützt",
+    "rationale": "Glasbruch-Schaden SCH-77310 deutet auf Flottenbedarf — geschätztes Potenzial CHF 8'400 Jahresprämie.",
+    "provenance": [
+      { "source": "claim", "ref": "SCH-77310" },
+      { "source": "lead", "ref": "LEAD-AEBISCHER-FLOTTE" }
+    ]
+  },
+  {
+    "key": "NBA-KELLER-VORSORGE",
+    "rank": 4,
+    "category": "Chance",
+    "title": "Frau Keller: Vorsorge 3a",
+    "accountKey": "ACC-KELLER",
+    "leadKey": "LEAD-KELLER-VORSORGE",
+    "channel": "Termin",
+    "score": 85,
+    "status": "Active",
+    "disclosure": "KI-unterstützt",
+    "rationale": "Lebensereignis erkannt — passend zur Kampagne «Vorsorge 25». Erstgespräch heute 14:00 vorbereitet.",
+    "provenance": [
+      { "source": "lead", "ref": "LEAD-KELLER-VORSORGE" },
+      { "source": "activity", "ref": "APPT-KELLER-1400" }
+    ]
+  },
+  {
+    "key": "NBA-ROTH-RETENTION",
+    "rank": 5,
+    "category": "Retention",
+    "title": "Haushalt Roth: Ablauf in 38 Tagen",
+    "accountKey": "ACC-ROTH",
+    "leadKey": null,
+    "channel": "Aufgabe",
+    "score": 70,
+    "status": "Active",
+    "disclosure": "KI-unterstützt",
+    "rationale": "Vertrag Rechtsschutz läuft aus — proaktiver Retention-Kontakt empfohlen, bevor der Wettbewerb anfragt.",
+    "provenance": [
+      { "source": "policy", "ref": "POL-RS-ROTH" }
+    ]
+  },
+  {
+    "key": "NBA-ROUTE-OPTIMIZE",
+    "rank": 6,
+    "category": "Insight",
+    "title": "Tagesplanung optimiert",
+    "accountKey": "ACC-STUCKI",
+    "leadKey": "LEAD-STUCKI-BHP",
+    "channel": "Insight",
+    "score": 60,
+    "status": "Active",
+    "disclosure": "KI-unterstützt",
+    "rationale": "Route Bern-Mittelland: Brunner und Stucki liegen 1.2 km auseinander — Termine zusammenlegen spart 35 Min.",
+    "provenance": [
+      { "source": "activity", "ref": "APPT-BRUNNER-0930" },
+      { "source": "lead", "ref": "LEAD-STUCKI-BHP" }
+    ]
+  }
+]
