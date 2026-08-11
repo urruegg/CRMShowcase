@@ -1,0 +1,25 @@
+[
+  { "subject": "GA-Bern-Mittelland", "subjectType": "ga", "metric": "GoalAttainment", "region": "Mittelland", "productLine": null, "asOfDate": "2026-06-30", "value": 96, "unit": "percent", "externalSystem": "databricks-mock" },
+  { "subject": "GA-Bern-Mittelland", "subjectType": "ga", "metric": "GrowthYoY", "region": "Mittelland", "productLine": null, "asOfDate": "2026-06-30", "value": 7.2, "unit": "percent", "externalSystem": "databricks-mock" },
+  { "subject": "GA-Bern-Mittelland", "subjectType": "ga", "metric": "NPS", "region": "Mittelland", "productLine": null, "asOfDate": "2026-06-30", "value": 42, "unit": "nps", "externalSystem": "databricks-mock" },
+  { "subject": "GA-Bern-Mittelland", "subjectType": "ga", "metric": "Automation", "region": "Mittelland", "productLine": null, "asOfDate": "2026-06-30", "value": 72, "unit": "percent", "externalSystem": "databricks-mock" },
+  { "subject": "GA-Bern-Mittelland", "subjectType": "ga", "metric": "Conversion", "region": "Mittelland", "productLine": null, "asOfDate": "2026-06-30", "value": 28, "unit": "percent", "externalSystem": "databricks-mock" },
+
+  { "subject": "GA-Bern-Mittelland", "subjectType": "ga", "metric": "Forecast", "region": "Mittelland", "productLine": null, "asOfDate": "2026-01-31", "value": 320, "unit": "chf_thousands", "externalSystem": "databricks-mock" },
+  { "subject": "GA-Bern-Mittelland", "subjectType": "ga", "metric": "Forecast", "region": "Mittelland", "productLine": null, "asOfDate": "2026-02-28", "value": 342, "unit": "chf_thousands", "externalSystem": "databricks-mock" },
+  { "subject": "GA-Bern-Mittelland", "subjectType": "ga", "metric": "Forecast", "region": "Mittelland", "productLine": null, "asOfDate": "2026-03-31", "value": 365, "unit": "chf_thousands", "externalSystem": "databricks-mock" },
+  { "subject": "GA-Bern-Mittelland", "subjectType": "ga", "metric": "Forecast", "region": "Mittelland", "productLine": null, "asOfDate": "2026-04-30", "value": 388, "unit": "chf_thousands", "externalSystem": "databricks-mock" },
+  { "subject": "GA-Bern-Mittelland", "subjectType": "ga", "metric": "Forecast", "region": "Mittelland", "productLine": null, "asOfDate": "2026-05-31", "value": 405, "unit": "chf_thousands", "externalSystem": "databricks-mock" },
+  { "subject": "GA-Bern-Mittelland", "subjectType": "ga", "metric": "Forecast", "region": "Mittelland", "productLine": null, "asOfDate": "2026-06-30", "value": 412, "unit": "chf_thousands", "externalSystem": "databricks-mock" },
+
+  { "subject": "Mittelland", "subjectType": "region", "metric": "GrowthYoY", "region": "Mittelland", "productLine": null, "asOfDate": "2026-06-30", "value": 7.2, "unit": "percent", "externalSystem": "databricks-mock" },
+  { "subject": "Zürich", "subjectType": "region", "metric": "GrowthYoY", "region": "Zurich", "productLine": null, "asOfDate": "2026-06-30", "value": 5.1, "unit": "percent", "externalSystem": "databricks-mock" },
+  { "subject": "Romandie", "subjectType": "region", "metric": "GrowthYoY", "region": "Romandie", "productLine": null, "asOfDate": "2026-06-30", "value": 3.8, "unit": "percent", "externalSystem": "databricks-mock" },
+  { "subject": "Tessin", "subjectType": "region", "metric": "GrowthYoY", "region": "Ticino", "productLine": null, "asOfDate": "2026-06-30", "value": 1.2, "unit": "percent", "externalSystem": "databricks-mock" },
+
+  { "subject": "Motorfahrzeug", "subjectType": "product", "metric": "Forecast", "region": "Mittelland", "productLine": "MotorVehicle", "asOfDate": "2026-06-30", "value": 148, "unit": "chf_thousands", "externalSystem": "databricks-mock" },
+  { "subject": "Hausrat", "subjectType": "product", "metric": "Forecast", "region": "Mittelland", "productLine": "HouseholdContents", "asOfDate": "2026-06-30", "value": 108, "unit": "chf_thousands", "externalSystem": "databricks-mock" },
+  { "subject": "Gewerbe", "subjectType": "product", "metric": "Forecast", "region": "Mittelland", "productLine": "CommercialProperty", "asOfDate": "2026-06-30", "value": 89, "unit": "chf_thousands", "externalSystem": "databricks-mock" },
+  { "subject": "Vorsorge", "subjectType": "product", "metric": "Forecast", "region": "Mittelland", "productLine": "Pension3a", "asOfDate": "2026-06-30", "value": 79, "unit": "chf_thousands", "externalSystem": "databricks-mock" },
+  { "subject": "Rechtsschutz", "subjectType": "product", "metric": "Forecast", "region": "Mittelland", "productLine": "LegalProtection", "asOfDate": "2026-06-30", "value": 69, "unit": "chf_thousands", "externalSystem": "databricks-mock" }
+]

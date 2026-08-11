@@ -202,21 +202,25 @@ It 'sample validates against the measure-snapshot contract' {
 ### Task 5.1: Synthetic seed fixtures
 **Files:** Create `data/scenarios/advisor-cockpit/measures.json`, `leads.json`, `activities.json`, `nba.json`, `policies.json`, `claims.json`, `accounts-contacts.json`
 
-- [ ] **Step 1:** Author fixtures reproducing the **exact** German labels + KPI numbers from the two mockups (Contoso Insurance · GA Bern-Mittelland · Rahel Moser · Haushalt Brunner; measures: Zielerreichung 96, GrowthYoY 7.2, NPS 42, Automation 72, product-line Motorfahrzeug 148 / Hausrat 108 / Gewerbe 89 / Vorsorge 79 / Rechtsschutz 69; regions Mittelland +7.2 / Zürich +5.1 / Romandie +3.8 / Tessin +1.2; forecast 320→430 Jan–Jun). `measures.json` must validate against the Phase-4 contract. All clearly synthetic; no real data.
-- [ ] **Step 2:** Add a Pester test asserting `measures.json` validates against `measure-snapshot.schema.json` and contains no real-looking emails/phones (regex guard).
-- [ ] **Step 3: Commit** (`feat(data): advisor-cockpit synthetic seed fixtures`).
+- [x] **Step 1:** Author fixtures reproducing the **exact** German labels + KPI numbers from the two mockups (Contoso Insurance · GA Bern-Mittelland · Rahel Moser · Haushalt Brunner; measures: Zielerreichung 96, GrowthYoY 7.2, NPS 42, Automation 72, product-line Motorfahrzeug 148 / Hausrat 108 / Gewerbe 89 / Vorsorge 79 / Rechtsschutz 69; regions Mittelland +7.2 / Zürich +5.1 / Romandie +3.8 / Tessin +1.2; forecast 320→430 Jan–Jun). `measures.json` must validate against the Phase-4 contract. All clearly synthetic; no real data.
+- [x] **Step 2:** Add a Pester test asserting `measures.json` validates against `measure-snapshot.schema.json` and contains no real-looking emails/phones (regex guard).
+- [x] **Step 3: Commit** (`feat(data): advisor-cockpit synthetic seed fixtures`).
 
 ### Task 5.2: Seed loader script (Pester-tested)
 **Files:** Create `scripts/solution/seed-advisor-cockpit.ps1`, `scripts/solution/tests/SeedAdvisorCockpit.Tests.ps1`
 
-- [ ] **Step 1: Failing test** — dot-source the script (non-mandatory top-level `param()` per repo convention), assert `Get-SeedPlan` returns one upsert group per fixture keyed by alternate key.
-- [ ] **Step 2: Run, verify fails.**
-- [ ] **Step 3: Implement** `seed-advisor-cockpit.ps1` — reads fixtures, builds idempotent upsert requests against the Web API using the alternate keys (measure snapshot, NBA+provenance, projections, accounts/contacts/leads/activities). Auth via the CI service principal (OIDC); no connection strings. Include `[CmdletBinding()]`, `Get-SeedPlan` function, trailing auto-invoke guard.
-- [ ] **Step 4: Run tests, verify pass.**
-- [ ] **Step 5: Commit** (`feat(scripts): idempotent advisor-cockpit seed loader`).
+- [x] **Step 1: Failing test** — dot-source the script (non-mandatory top-level `param()` per repo convention), assert `Get-SeedPlan` returns one upsert group per fixture keyed by alternate key.
+- [x] **Step 2: Run, verify fails.**
+- [x] **Step 3: Implement** `seed-advisor-cockpit.ps1` — reads fixtures, builds idempotent upsert requests against the Web API using the alternate keys (measure snapshot, NBA+provenance, projections, accounts/contacts/leads/activities). Auth via the CI service principal (OIDC); no connection strings. Include `[CmdletBinding()]`, `Get-SeedPlan` function, trailing auto-invoke guard.
+- [x] **Step 4: Run tests, verify pass.**
+- [x] **Step 5: Commit** (`feat(scripts): idempotent advisor-cockpit seed loader`).
+
+> **Scope note (Phase 5 PR):** Steps 5.1 + 5.2 land the fixtures, the loader, and the plan/request builders (fully unit-tested, 13 assertions, no live env). Live execution of the non-analytics upserts binds friendly fixture fields to their Dataverse logical names and is DEV-gated on Phases 1–3 authoring the tables — it lands with Task 5.3.
 
 ### Task 5.3: Wire seed into the pipeline
 **Files:** Modify `.github/workflows/cd-solution-dev.yml` and `cd-solution-test.yml`
+
+> **DEV-gated — deferred.** This task edits the protected CD workflows and its smoke assertions require the `crmshow_measuresnapshot` / `crmshow_nextbestaction` tables to exist in DEV (Phases 1–3). It lands together with, or immediately after, those tables so the seed step and smoke can actually pass. Not part of the Phase 5.1/5.2 PR.
 
 - [ ] **Step 1:** Add a post-import "Seed advisor-cockpit scenario" step that runs `seed-advisor-cockpit.ps1` after the solutions import (guarded by an input/flag so other sprints are unaffected).
 - [ ] **Step 2:** Extend the smoke step to assert `crmshow_measuresnapshot` row count > 0 and at least one `crmshow_nextbestaction` exists.

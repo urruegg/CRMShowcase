@@ -1,0 +1,7 @@
+[
+  { "key": "POL-HR-BRUNNER", "externalId": "POL-HR-BRUNNER", "accountKey": "ACC-BRUNNER", "productLine": "HouseholdContents", "product": "Hausrat", "status": "Aktiv", "premiumChf": 640, "startDate": "2022-04-01", "endDate": "2027-03-31", "externalSystem": "policy-admin-mock" },
+  { "key": "POL-RS-ROTH", "externalId": "POL-RS-ROTH", "accountKey": "ACC-ROTH", "productLine": "LegalProtection", "product": "Rechtsschutz", "status": "Ablauf", "premiumChf": 310, "startDate": "2021-07-09", "endDate": "2026-07-09", "externalSystem": "policy-admin-mock" },
+  { "key": "POL-MF-AEBISCHER", "externalId": "POL-MF-AEBISCHER", "accountKey": "ACC-AEBISCHER", "productLine": "MotorVehicle", "product": "Motorfahrzeug Flotte", "status": "Aktiv", "premiumChf": 5200, "startDate": "2020-01-01", "endDate": "2026-12-31", "externalSystem": "policy-admin-mock" },
+  { "key": "POL-BH-STUCKI", "externalId": "POL-BH-STUCKI", "accountKey": "ACC-STUCKI", "productLine": "CommercialProperty", "product": "Betriebshaftpflicht", "status": "Aktiv", "premiumChf": 1180, "startDate": "2023-05-15", "endDate": "2027-05-14", "externalSystem": "policy-admin-mock" },
+  { "key": "POL-MF-IMHOF", "externalId": "POL-MF-IMHOF", "accountKey": "ACC-IMHOF", "productLine": "MotorVehicle", "product": "Motorfahrzeug", "status": "Aktiv", "premiumChf": 890, "startDate": "2024-02-01", "endDate": "2027-01-31", "externalSystem": "policy-admin-mock" }
+]

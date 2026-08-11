@@ -1,0 +1,11 @@
+[
+  { "key": "APPT-BRUNNER-0930", "activityType": "appointment", "subject": "Familie Brunner — Hausrat-Beratung", "accountKey": "ACC-BRUNNER", "start": "2026-06-01T09:30:00", "location": "vor Ort", "channel": "Termin", "status": "Geplant", "owner": "Rahel Moser" },
+  { "key": "APPT-AEBISCHER-1100", "activityType": "appointment", "subject": "Schreinerei Aebischer AG — Flottenofferte besprechen", "accountKey": "ACC-AEBISCHER", "start": "2026-06-01T11:00:00", "location": "Telefon", "channel": "Telefon", "status": "Geplant", "owner": "Rahel Moser" },
+  { "key": "APPT-KELLER-1400", "activityType": "appointment", "subject": "Frau Keller — Erstgespräch Vorsorge 3a", "accountKey": "ACC-KELLER", "start": "2026-06-01T14:00:00", "location": "Online", "channel": "Termin", "status": "Geplant", "owner": "Rahel Moser" },
+
+  { "key": "TASK-AEBISCHER-NACHFASS", "activityType": "task", "subject": "Offerte nachfassen", "accountKey": "ACC-AEBISCHER", "due": "2026-05-29", "status": "Überfällig", "channel": "E-Mail", "owner": "Rahel Moser" },
+  { "key": "TASK-ROTH-DOKUMENTE", "activityType": "task", "subject": "Police-Dokumente prüfen", "accountKey": "ACC-ROTH", "due": "2026-05-30", "status": "Überfällig", "channel": "CRM", "owner": "Rahel Moser" },
+  { "key": "TASK-KELLER-BESTAETIGEN", "activityType": "task", "subject": "Vorsorge-Termin bestätigen", "accountKey": "ACC-KELLER", "due": "2026-06-01", "status": "Offen", "channel": "Telefon", "owner": "Rahel Moser" },
+  { "key": "TASK-AEBISCHER-OFFERTE", "activityType": "task", "subject": "Flottenofferte erstellen", "accountKey": "ACC-AEBISCHER", "due": "2026-06-01", "status": "Offen", "channel": "CRM", "owner": "Rahel Moser" },
+  { "key": "TASK-STUCKI-ROUTE", "activityType": "task", "subject": "Vor-Ort-Termin mit Brunner-Route bündeln", "accountKey": "ACC-STUCKI", "due": "2026-06-01", "status": "Offen", "channel": "CRM", "owner": "Rahel Moser" }
+]
