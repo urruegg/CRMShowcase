@@ -119,9 +119,10 @@ _Harness state:_ all five render but are **no-ops** — the NAV/WRITE targets ar
 | Element | Action | Effect | Data operation | Harness state |
 | --- | --- | --- | --- | --- |
 | Tabs (5) | switch view | LOCAL | selected-tab state | ✅ works |
-| Meine Leads · lead / customer link | open record | NAV | Lead form / Household 360 | ⚠ styled link, no nav |
+| Meine Leads · lead / customer link | open record | NAV | Lead form / Household 360 | ⚠ styled link, no nav (DEV-gated) |
 | Meine Leads · status | change lead status | WRITE | `lead.statuscode` via action layer | ⚠ shown as badge (mockup = inline dropdown) |
-| Meine Leads · Bündeln | bundle the 3 Brunner leads into one conversation | WRITE | LeadCluster link | ⚠ not implemented (mockup has it) |
+| Meine Leads · Bündeln / Live-Bündelung | bundle related leads into one conversation | WRITE | LeadCluster link | ✅ modal built (confirm = DEV-gated demo) |
+| Meine Leads · Zuweisen an | reassign selected leads | WRITE | `lead.ownerid` via action layer | ✅ selection bar built (assign = DEV-gated demo) |
 | Termine · Vorbereiten | open meeting prep | READ/NAV | appointment 360 | ⚠ button renders, no-op |
 | Termine / Aufgaben · Add | create activity | WRITE | create `appointment` / `task` | ⚠ not implemented |
 | Offene Fälle · Fall-ID link | open case | NAV | `crmshow_claimprojection` / incident | ⚠ styled link, no nav |
@@ -143,7 +144,7 @@ How each tab lets the advisor *shape* the data (view modes, filters, bulk action
 - **Selection / bulk bar**: multi-select → *Zuweisen an* (Rahel Moser / Thomas Vogt / Sina Keller / Pool Round-Robin / Makler-Desk) → *Zuweisen* (WRITE `lead.ownerid`) · *Auswahl aufheben*.
 - **Live-Bündelung modal**: the “wow” moment — KI groups related leads in real time and suppresses double-contacts (LeadCluster).
 - Data: CRM (Lead + LeadCluster + Account) + DBX (AI score).
-- My PCF: ✅ **Liste** only (table + cluster). ⚠ missing Board, Cockpit, view-actions, 4 filters, bulk-reassign, Live-Bündelung.
+- My PCF: ✅ **Liste** (table + cluster) · ✅ **Board** (household-cluster group + single cards) · ✅ **Cockpit** (cluster cards + *Leads bündeln* / *360° öffnen*) · ✅ 4 column filters · ✅ bulk-selection + *Zuweisen an* reassign bar · ✅ **Live-Bündelung** modal. ⚠ view-actions (*Top 10* / *Ansicht speichern*) render as no-ops; drag/drop + *Splitten* on Board not built; assign/bundle writes are DEV-gated demos.
 
 ### Termine & Aufgaben — single view
 - Content: *Termine heute* (appointment list + *Vorbereiten* + add) · *Offene Aufgaben* (task table).
@@ -165,4 +166,4 @@ How each tab lets the advisor *shape* the data (view modes, filters, bulk action
 4. **No Quote/Opportunity fixture.** "Angebote nachfassen (4)" needs a Quote/Opportunity source that does not exist in the Phase-5 fixtures yet.
 5. **Contract note.** Advisor-scoped measures need a `subjectType` the measure-snapshot contract doesn't have (`advisor`/`user`); today it stops at `ga`. Either add `advisor` to the contract enum or scope advisor KPIs under `ga` + a sub-key.
 6. **Interaction layer not wired.** Every action button renders but is a no-op in the harness. Real effects (NAV via `Xrm`, WRITE via the schema-validated action layer) are DEV-gated. The accept / edit / dismiss branches on the NBA are the learning-loop signal (ADR-0014) and must never be autonomous. Also missing vs the mockup: inline lead-status dropdown, Bündeln, add-activity buttons, KPI drill, and the meeting-prep drawer.
-7. **Presentation / view modes not built.** **Meine Leads** ships only the Liste — the Board + Cockpit view modes, the 4 column filters, *Top 10 / Ansicht speichern*, the bulk-reassign selection bar, and the Live-Bündelung modal are missing. **Copilot** is missing the alert row + Tageszusammenfassung. These are the biggest remaining fidelity items.
+7. **Presentation / view modes — Meine Leads done, Copilot pending.** **Meine Leads** now ships all three view modes (Liste / Board / Cockpit), the 4 column filters, the bulk-selection + *Zuweisen an* reassign bar, and the **Live-Bündelung** modal (assign/bundle writes are DEV-gated demos; *Top 10* / *Ansicht speichern* and Board drag/drop + *Splitten* remain no-ops). **Copilot** is still missing the alert row + Tageszusammenfassung — the largest remaining presentation gap.

@@ -62,6 +62,63 @@ export function sortedNba(nba: NbaRecord[]): NbaRecord[] {
   return [...nba].sort((a, b) => a.rank - b.rank);
 }
 
+export type LeadSortKey = 'score' | 'topic' | 'customer' | 'channel' | 'priority' | 'sla' | 'status';
+
+const PRIORITY_RANK: Record<string, number> = { Hoch: 3, Mittel: 2, Tief: 1 };
+
+// Sorts leads by a column. Cluster grouping is applied afterwards on the sorted list,
+// so children stay ordered and each cluster floats to its strongest child's position.
+export function sortLeads(
+  leads: LeadRecord[],
+  key: LeadSortKey,
+  dir: 'asc' | 'desc',
+  accountName: (k: string) => string,
+): LeadRecord[] {
+  const sign = dir === 'asc' ? 1 : -1;
+  const val = (l: LeadRecord): number | string => {
+    switch (key) {
+      case 'score': return l.score;
+      case 'priority': return PRIORITY_RANK[l.priority] ?? 0;
+      case 'customer': return accountName(l.accountKey).toLowerCase();
+      case 'channel': return l.channel.toLowerCase();
+      case 'sla': return l.sla.toLowerCase();
+      case 'status': return l.status.toLowerCase();
+      default: return l.topic.toLowerCase();
+    }
+  };
+  return [...leads].sort((a, b) => {
+    const va = val(a);
+    const vb = val(b);
+    if (va < vb) return -1 * sign;
+    if (va > vb) return 1 * sign;
+    return b.score - a.score;
+  });
+}
+
+export interface BoardBuckets {
+  neu: LeadRecord[];
+  inArbeit: LeadRecord[];
+  gebuendeltClusters: LeadGroup[];
+  gebuendeltSingles: LeadRecord[];
+}
+
+// Buckets leads into the three board pipeline columns. Clusters always live in
+// Gebündelt / Geplant; single leads fall into a column by their status.
+export function boardBuckets(groups: LeadGroup[]): BoardBuckets {
+  const b: BoardBuckets = { neu: [], inArbeit: [], gebuendeltClusters: [], gebuendeltSingles: [] };
+  for (const g of groups) {
+    if (g.isCluster) {
+      b.gebuendeltClusters.push(g);
+      continue;
+    }
+    const l = g.leads[0];
+    if (/gebündelt|geplant/i.test(l.status)) b.gebuendeltSingles.push(l);
+    else if (/^neu$/i.test(l.status)) b.neu.push(l);
+    else b.inArbeit.push(l);
+  }
+  return b;
+}
+
 export interface LeadFilters {
   customer: string;
   channel: string; // 'Alle Kanäle' means no channel filter

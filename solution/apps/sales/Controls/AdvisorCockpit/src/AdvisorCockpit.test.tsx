@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { FluentProvider, webLightTheme } from '@fluentui/react-components';
 import { AdvisorCockpit } from './AdvisorCockpit';
 import { cockpitFixtures } from './fixtures';
@@ -91,6 +91,47 @@ describe('<AdvisorCockpit />', () => {
     expect(screen.getByText(/Live-Bündelung/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Bündelung bestätigen' }));
     expect(screen.getByText(/gebündelt/)).toBeInTheDocument();
+  });
+
+  it('sorts the lead list when a column header is clicked', () => {
+    renderCockpit();
+    fireEvent.click(screen.getByRole('tab', { name: 'Meine Leads' }));
+    const kunde = screen.getByRole('columnheader', { name: /Kunde/ });
+    fireEvent.click(within(kunde).getByRole('button'));
+    expect(kunde).toHaveAttribute('aria-sort', 'ascending');
+  });
+
+  it('shows the three status columns in the Board view', () => {
+    renderCockpit();
+    fireEvent.click(screen.getByRole('tab', { name: 'Meine Leads' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Board' }));
+    expect(screen.getByText('Gebündelt / Geplant')).toBeInTheDocument();
+    expect(screen.getByText('Karten hierher ziehen, um Status zu ändern')).toBeInTheDocument();
+    expect(screen.getByText('Gebündelte Leads bleiben verknüpft')).toBeInTheDocument();
+  });
+
+  it('selects a Board card and reveals the reassignment bar', () => {
+    renderCockpit();
+    fireEvent.click(screen.getByRole('tab', { name: 'Meine Leads' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Board' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Lead Frau Keller — Vorsorge 3a auswählen' }));
+    expect(screen.getByText(/ausgewählt/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Zuweisen an')).toBeInTheDocument();
+  });
+
+  it('splits a bundled group from the Board view', () => {
+    renderCockpit();
+    fireEvent.click(screen.getByRole('tab', { name: 'Meine Leads' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Board' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Splitten' }));
+    expect(screen.getByText(/aufgelöst/)).toBeInTheDocument();
+  });
+
+  it('marks the Fokus-Lead in the Cockpit view', () => {
+    renderCockpit();
+    fireEvent.click(screen.getByRole('tab', { name: 'Meine Leads' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cockpit' }));
+    expect(screen.getAllByText('Fokus-Lead').length).toBeGreaterThan(0);
   });
 
   it('reveals the full NBA list with a disclosure on every card under the Copilot tab', () => {

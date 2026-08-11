@@ -15,7 +15,8 @@ import {
 } from '@fluentui/react-components';
 import type { CockpitData, ClaimRecord, LeadRecord, NbaRecord } from './types';
 import { badge, font, nbaAccent, palette, priority } from './tokens';
-import { appointments, buildAccountIndex, filterLeads, groupLeads, openTasks, sortedNba } from './selectors';
+import { appointments, boardBuckets, buildAccountIndex, filterLeads, groupLeads, openTasks, sortLeads, sortedNba } from './selectors';
+import type { LeadSortKey } from './selectors';
 import {
   arbeitsvorratSummary,
   disclaimer,
@@ -317,6 +318,23 @@ const useStyles = makeStyles({
   modalLead: { fontSize: '13px', color: palette.n130, ...shorthands.margin(0, 0, '12px') },
   modalList: { display: 'flex', flexDirection: 'column', ...shorthands.gap('2px'), marginBottom: '12px' },
   modalItem: { display: 'flex', alignItems: 'center', ...shorthands.gap('8px'), ...shorthands.padding('6px', 0), ...shorthands.borderTop('1px', 'solid', palette.n20) },
+  sortBtn: { backgroundColor: 'transparent', ...shorthands.borderWidth('0'), ...shorthands.padding('0'), cursor: 'pointer', fontFamily: font, fontSize: '11px', fontWeight: 600, color: palette.n130, display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' },
+  chevron: { backgroundColor: 'transparent', ...shorthands.borderWidth('0'), cursor: 'pointer', fontSize: '12px', color: palette.n130, ...shorthands.padding('0', '6px', '0', '0'), fontFamily: font },
+  connector: { color: palette.n60, marginRight: '2px' },
+  boardToolbar: { display: 'flex', alignItems: 'center', ...shorthands.gap('8px'), flexWrap: 'wrap', marginBottom: '10px' },
+  boardHint: { fontSize: '11px', color: palette.n130 },
+  boardColumns: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', ...shorthands.gap('12px'), alignItems: 'start' },
+  boardCol: { backgroundColor: palette.n10, ...shorthands.border('1px', 'solid', palette.n30), ...shorthands.borderRadius('8px'), ...shorthands.padding('10px') },
+  boardColHead: { display: 'flex', alignItems: 'center', ...shorthands.gap('6px'), fontWeight: 700, fontSize: '11px', letterSpacing: '0.04em', textTransform: 'uppercase', color: palette.n160 },
+  boardColCount: { backgroundColor: palette.n30, color: palette.n160, ...shorthands.borderRadius('10px'), ...shorthands.padding('0', '7px'), fontSize: '11px' },
+  boardColHint: { fontSize: '11px', color: palette.n130, marginTop: '2px', marginBottom: '10px' },
+  boardColBody: { display: 'flex', flexDirection: 'column', ...shorthands.gap('8px') },
+  boardCardTop: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' },
+  boardCardSel: { boxShadow: `0 0 0 2px ${palette.brand}` },
+  boardClusterCard: { ...shorthands.border('1px', 'solid', palette.brand), ...shorthands.borderRadius('8px'), backgroundColor: '#eff6fc', ...shorthands.padding('8px'), display: 'flex', flexDirection: 'column', ...shorthands.gap('8px') },
+  boardClusterHead: { display: 'flex', alignItems: 'center', ...shorthands.gap('7px'), fontWeight: 700, fontSize: '13px', flexWrap: 'wrap' },
+  splitBtn: { marginLeft: 'auto' },
+  boardEmpty: { color: palette.n60, fontSize: '12px', ...shorthands.padding('8px', '4px') },
 });
 
 function Badge({ kind, children }: { kind: keyof typeof badge; children: React.ReactNode }) {
@@ -358,12 +376,26 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
   const [assignTo, setAssignTo] = React.useState('');
   const [assignNote, setAssignNote] = React.useState<string | null>(null);
   const [bundle, setBundle] = React.useState<{ title: string; leads: LeadRecord[] } | null>(null);
+  const [sortKey, setSortKey] = React.useState<LeadSortKey>('score');
+  const [sortDir, setSortDir] = React.useState<'asc' | 'desc'>('desc');
+  const [collapsed, setCollapsed] = React.useState<Set<string>>(() => new Set());
+  const [splitClusters, setSplitClusters] = React.useState<Set<string>>(() => new Set());
+  const [autoGroup, setAutoGroup] = React.useState(true);
   const accounts = React.useMemo(() => buildAccountIndex(data.accountsContacts), [data]);
   const filteredLeads = React.useMemo(
     () => filterLeads(data.leads, { customer: fCustomer, channel: fChannel, status: fStatus, source: fSource }, (k) => accounts.get(k) ?? k),
     [data, fCustomer, fChannel, fStatus, fSource, accounts],
   );
-  const leadGroups = React.useMemo(() => groupLeads(filteredLeads), [filteredLeads]);
+  const sortedLeads = React.useMemo(
+    () => sortLeads(filteredLeads, sortKey, sortDir, (k) => accounts.get(k) ?? k),
+    [filteredLeads, sortKey, sortDir, accounts],
+  );
+  const displayLeads = React.useMemo(
+    () => sortedLeads.map((l) => (l.leadCluster && (!autoGroup || splitClusters.has(l.leadCluster)) ? { ...l, leadCluster: null } : l)),
+    [sortedLeads, autoGroup, splitClusters],
+  );
+  const leadGroups = React.useMemo(() => groupLeads(displayLeads), [displayLeads]);
+  const boards = React.useMemo(() => boardBuckets(leadGroups), [leadGroups]);
   const nba = React.useMemo(() => sortedNba(data.nba), [data]);
   const appts = React.useMemo(() => appointments(data.activities), [data]);
   const tasks = React.useMemo(() => openTasks(data.activities), [data]);
@@ -392,6 +424,37 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
     setSelected(new Set());
     setAssignTo('');
   };
+  const toggleGroup = (leads: LeadRecord[]) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      const allIn = leads.every((l) => next.has(l.key));
+      for (const l of leads) {
+        if (allIn) next.delete(l.key);
+        else next.add(l.key);
+      }
+      return next;
+    });
+  const toggleSort = (key: LeadSortKey) => {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSortKey(key);
+      setSortDir(key === 'score' || key === 'priority' ? 'desc' : 'asc');
+    }
+  };
+  const ariaSort = (key: LeadSortKey): 'ascending' | 'descending' | 'none' =>
+    sortKey === key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none';
+  const sortArrow = (key: LeadSortKey) => (sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '');
+  const toggleCollapse = (name: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  const splitCluster = (name: string) => {
+    setSplitClusters((prev) => new Set(prev).add(name));
+    setAssignNote(`Gruppe „${name}" aufgelöst · Leads einzeln bearbeitbar (Demo — Schreibzugriff über die Aktionsschicht, DEV-gated).`);
+  };
 
   const renderLead = (lead: LeadRecord, child: boolean) => (
     <tr key={lead.key} className={child ? s.childRow : undefined}>
@@ -402,13 +465,27 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
         <span className={s.dot} style={{ backgroundColor: priority[priorityKind(lead.priority)] }} />
         <span className={s.score} style={{ color: lead.score >= 90 ? palette.green : palette.n190 }}>{lead.score}</span>
       </td>
-      <td className={`${s.td} ${child ? s.childIndent : ''}`}><span className={s.link}>{lead.topic}</span></td>
+      <td className={`${s.td} ${child ? s.childIndent : ''}`}>
+        {child && <span className={s.connector} aria-hidden="true">↳ </span>}
+        <span className={s.link}>{lead.topic}</span>
+      </td>
       <td className={s.td}><span className={s.link}>{accountName(lead.accountKey)}</span></td>
       <td className={s.td}>{lead.channel}</td>
       <td className={s.td}>{lead.priority}</td>
       <td className={s.td}>{lead.sla}</td>
       <td className={s.td}><Badge kind={statusBadgeKind(lead.status)}>{lead.status}</Badge></td>
     </tr>
+  );
+
+  const renderBoardCard = (l: LeadRecord) => (
+    <div key={l.key} className={`${s.boardCard} ${selected.has(l.key) ? s.boardCardSel : ''}`}>
+      <div className={s.boardCardTop}>
+        <Checkbox checked={selected.has(l.key)} onChange={() => toggleLead(l.key)} label="auswählen" aria-label={`Lead ${l.topic} auswählen`} />
+        <span className={s.score} style={{ color: l.score >= 90 ? palette.green : palette.n190 }}>{l.score}</span>
+      </div>
+      <div className={s.boardCardTitle}>{l.topic}</div>
+      <div className={s.muted}>{l.source} · {l.status}</div>
+    </div>
   );
 
   const caseTypeKind = (t: ClaimRecord['caseType']): keyof typeof badge => (t === 'Schaden' ? 'amber' : 'blue');
@@ -611,13 +688,13 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                             <th className={s.thCheck}>
                               <Checkbox checked={allSelected} onChange={toggleAll} aria-label="Alle Leads auswählen" />
                             </th>
-                            <th className={s.th}>Priorität</th>
-                            <th className={s.th}>Lead</th>
-                            <th className={s.th}>Kunde</th>
-                            <th className={s.th}>Kanal</th>
-                            <th className={s.th}>Urgency</th>
-                            <th className={s.th}>SLA</th>
-                            <th className={s.th}>Status</th>
+                            <th className={s.th} aria-sort={ariaSort('score')}><button type="button" className={s.sortBtn} onClick={() => toggleSort('score')}>Priorität{sortArrow('score')}</button></th>
+                            <th className={s.th} aria-sort={ariaSort('topic')}><button type="button" className={s.sortBtn} onClick={() => toggleSort('topic')}>Lead{sortArrow('topic')}</button></th>
+                            <th className={s.th} aria-sort={ariaSort('customer')}><button type="button" className={s.sortBtn} onClick={() => toggleSort('customer')}>Kunde{sortArrow('customer')}</button></th>
+                            <th className={s.th} aria-sort={ariaSort('channel')}><button type="button" className={s.sortBtn} onClick={() => toggleSort('channel')}>Kanal{sortArrow('channel')}</button></th>
+                            <th className={s.th} aria-sort={ariaSort('priority')}><button type="button" className={s.sortBtn} onClick={() => toggleSort('priority')}>Urgency{sortArrow('priority')}</button></th>
+                            <th className={s.th} aria-sort={ariaSort('sla')}><button type="button" className={s.sortBtn} onClick={() => toggleSort('sla')}>SLA{sortArrow('sla')}</button></th>
+                            <th className={s.th} aria-sort={ariaSort('status')}><button type="button" className={s.sortBtn} onClick={() => toggleSort('status')}>Status{sortArrow('status')}</button></th>
                           </tr>
                         </thead>
                         <tbody>
@@ -625,13 +702,29 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                             group.isCluster ? (
                               <React.Fragment key={group.clusterName ?? ''}>
                                 <tr className={s.clusterRow}>
-                                  <td className={s.td} colSpan={8}>
+                                  <td className={s.tdCheck}>
+                                    <Checkbox
+                                      checked={group.leads.every((l) => selected.has(l.key))}
+                                      onChange={() => toggleGroup(group.leads)}
+                                      aria-label={`Gruppe ${group.clusterName} auswählen`}
+                                    />
+                                  </td>
+                                  <td className={s.td} colSpan={7}>
+                                    <button
+                                      type="button"
+                                      className={s.chevron}
+                                      aria-label={collapsed.has(group.clusterName ?? '') ? 'Gruppe ausklappen' : 'Gruppe einklappen'}
+                                      aria-expanded={!collapsed.has(group.clusterName ?? '')}
+                                      onClick={() => toggleCollapse(group.clusterName ?? '')}
+                                    >
+                                      {collapsed.has(group.clusterName ?? '') ? '▸' : '▾'}
+                                    </button>
                                     <span className={s.link}>{group.clusterName}</span>{' '}
                                     <Badge kind="amber">Auto-Gruppe · {group.leads.length}</Badge>
                                     <div className={s.muted}>Redundanz vermeiden: ein Gespräch statt {group.leads.length} Kontakte</div>
                                   </td>
                                 </tr>
-                                {group.leads.map((l) => renderLead(l, true))}
+                                {!collapsed.has(group.clusterName ?? '') && group.leads.map((l) => renderLead(l, true))}
                               </React.Fragment>
                             ) : (
                               renderLead(group.leads[0], false)
@@ -644,30 +737,62 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                 )}
 
                 {leadView === 'board' && leadGroups.length > 0 && (
-                  <div className={s.boardGrid}>
-                    {leadGroups.map((group) =>
-                      group.isCluster ? (
-                        <div key={group.clusterName ?? ''} className={s.boardGroup}>
-                          <div className={s.boardGroupHead}>
-                            <span>{group.clusterName}</span>
-                            <Badge kind="amber">Auto-Gruppe · {group.leads.length}</Badge>
-                          </div>
-                          <div className={s.boardGroupBody}>
-                            {group.leads.map((l) => (
-                              <div key={l.key} className={s.boardCard}>
-                                <div className={s.boardCardTitle}>{l.topic}</div>
-                                <div className={s.muted}>{l.source} · Score {l.score}</div>
+                  <div>
+                    <div className={s.boardToolbar}>
+                      <Button
+                        size="small"
+                        appearance={autoGroup ? 'primary' : 'secondary'}
+                        style={autoGroup ? { backgroundColor: palette.brand } : undefined}
+                        onClick={() => setAutoGroup((v) => !v)}
+                      >
+                        Auto-Gruppierung: {autoGroup ? 'An' : 'Aus'}
+                      </Button>
+                      <Button
+                        size="small"
+                        appearance="secondary"
+                        disabled={selected.size < 2}
+                        onClick={() => setBundle({ title: 'Ausgewählte Leads', leads: selectedLeads })}
+                      >
+                        Auswahl gruppieren
+                      </Button>
+                      <span className={s.boardHint}>Karten auswählen und gruppieren oder eine Gruppe per «Splitten» auflösen · Auswahl steuert Zuweisung &amp; Bündelung.</span>
+                    </div>
+                    <div className={s.boardColumns}>
+                      <div className={s.boardCol}>
+                        <div className={s.boardColHead}><span>Neu</span> <span className={s.boardColCount}>{boards.neu.length}</span></div>
+                        <div className={s.boardColHint}>Karten hierher ziehen, um Status zu ändern</div>
+                        <div className={s.boardColBody}>
+                          {boards.neu.map((l) => renderBoardCard(l))}
+                          {boards.neu.length === 0 && <div className={s.boardEmpty}>—</div>}
+                        </div>
+                      </div>
+                      <div className={s.boardCol}>
+                        <div className={s.boardColHead}><span>In Arbeit</span> <span className={s.boardColCount}>{boards.inArbeit.length}</span></div>
+                        <div className={s.boardColHint}>Drag &amp; Drop aktualisiert die Pipeline</div>
+                        <div className={s.boardColBody}>
+                          {boards.inArbeit.map((l) => renderBoardCard(l))}
+                          {boards.inArbeit.length === 0 && <div className={s.boardEmpty}>—</div>}
+                        </div>
+                      </div>
+                      <div className={s.boardCol}>
+                        <div className={s.boardColHead}><span>Gebündelt / Geplant</span> <span className={s.boardColCount}>{boards.gebuendeltClusters.reduce((n, g) => n + g.leads.length, 0) + boards.gebuendeltSingles.length}</span></div>
+                        <div className={s.boardColHint}>Gebündelte Leads bleiben verknüpft</div>
+                        <div className={s.boardColBody}>
+                          {boards.gebuendeltClusters.map((g) => (
+                            <div key={g.clusterName ?? ''} className={s.boardClusterCard}>
+                              <div className={s.boardClusterHead}>
+                                <span className={s.link}>{g.clusterName}</span>
+                                <Badge kind="amber">Auto-Gruppe · {g.leads.length}</Badge>
+                                <Button size="small" appearance="secondary" className={s.splitBtn} onClick={() => splitCluster(g.clusterName ?? '')}>Splitten</Button>
                               </div>
-                            ))}
-                          </div>
+                              {g.leads.map((l) => renderBoardCard(l))}
+                            </div>
+                          ))}
+                          {boards.gebuendeltSingles.map((l) => renderBoardCard(l))}
+                          {boards.gebuendeltClusters.length === 0 && boards.gebuendeltSingles.length === 0 && <div className={s.boardEmpty}>—</div>}
                         </div>
-                      ) : (
-                        <div key={group.leads[0].key} className={s.boardCard}>
-                          <div className={s.boardCardTitle}>{group.leads[0].topic}</div>
-                          <div className={s.muted}>{accountName(group.leads[0].accountKey)} · Score {group.leads[0].score}</div>
-                        </div>
-                      ),
-                    )}
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -684,6 +809,7 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                           <div key={l.key} className={s.miniLead}>
                             <span className={s.dot} style={{ backgroundColor: priority[priorityKind(l.priority)] }} />
                             <span>{l.topic}</span>
+                            {l.score === Math.max(...group.leads.map((x) => x.score)) && <Badge kind="blue">Fokus-Lead</Badge>}
                             <span className={s.miniScore} style={{ color: l.score >= 90 ? palette.green : palette.n190 }}>{l.score}</span>
                           </div>
                         ))}
@@ -696,7 +822,13 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                           >
                             Leads bündeln
                           </Button>
-                          <Button size="small" appearance="secondary">360° öffnen</Button>
+                          <Button
+                            size="small"
+                            appearance="secondary"
+                            onClick={() => setAssignNote(`360°-Kundenkontext „${group.isCluster ? group.clusterName : accountName(group.leads[0].accountKey)}" öffnen · Navigation zur Dynamics-Kontaktform (DEV-gated).`)}
+                          >
+                            360° öffnen
+                          </Button>
                         </div>
                       </div>
                     ))}
