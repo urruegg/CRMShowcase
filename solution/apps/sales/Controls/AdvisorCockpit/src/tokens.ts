@@ -49,13 +49,6 @@ export const provenanceLabel: Record<ProvenanceKind, string> = {
   unmapped: 'Noch nicht gemappt',
 };
 
-// Short non-colour provenance tag so the source is never conveyed by colour alone.
-export const provenanceTag: Record<ProvenanceKind, string> = {
-  crm: '',
-  dbx: 'DBX',
-  unmapped: 'TBD',
-};
-
 export const font =
   "Arial, 'Helvetica Neue', Helvetica, 'Segoe UI', system-ui, sans-serif";
 

@@ -32,7 +32,7 @@ import {
   TextBulletListLtrRegular,
 } from '@fluentui/react-icons';
 import type { ActivityRecord, CockpitData, ClaimRecord, LeadRecord, NbaRecord } from './types';
-import { badge, font, nbaAccent, palette, priority, provenance, provenanceLabel, provenanceTag } from './tokens';
+import { badge, font, nbaAccent, palette, priority, provenance, provenanceLabel } from './tokens';
 import { appointments, boardBuckets, buildAccountIndex, filterLeads, groupLeads, openTasks, sortLeads, sortedNba } from './selectors';
 import type { LeadSortKey } from './selectors';
 import {
@@ -374,7 +374,6 @@ const useStyles = makeStyles({
   queueMain: { display: 'flex', flexDirection: 'column', minWidth: 0, flexGrow: 1 },
   queueTopic: { fontWeight: 600, fontSize: '13px' },
   viewBtnInner: { display: 'inline-flex', alignItems: 'center', ...shorthands.gap('5px') },
-  provTag: { alignSelf: 'flex-start', display: 'inline-block', fontSize: '9px', fontWeight: 700, letterSpacing: '0.04em', color: palette.n160, backgroundColor: palette.n0, ...shorthands.border('1px', 'solid', palette.n60), ...shorthands.borderRadius('3px'), ...shorthands.padding('0', '4px'), marginBottom: '2px' },
   srOnly: { position: 'absolute', width: '1px', height: '1px', ...shorthands.overflow('hidden'), clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', ...shorthands.borderWidth('0'), ...shorthands.padding('0'), ...shorthands.margin('-1px') },
 });
 
@@ -647,7 +646,6 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
           <div className={s.heroStats}>
             {focusHero.stats.map((st) => (
               <div key={st.label} className={s.provWrap} style={st.prov !== 'crm' ? { backgroundColor: provenance[st.prov] } : undefined} title={provenanceLabel[st.prov]}>
-                {st.prov !== 'crm' && <span className={s.provTag}>{provenanceTag[st.prov]}</span>}
                 <div className={s.heroStatValue}>{st.value}</div>
                 <div className={s.heroStatLabel}>{st.label}</div>
               </div>
@@ -663,7 +661,6 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
           <div className={s.kpiGrid}>
             {kpiCards.map((c) => (
               <div key={c.label} className={s.tile} style={c.prov !== 'crm' ? { backgroundColor: provenance[c.prov] } : undefined} title={provenanceLabel[c.prov]}>
-                {c.prov !== 'crm' && <span className={s.provTag}>{provenanceTag[c.prov]}</span>}
                 <div className={s.tileLabel}>{c.label}</div>
                 <div className={s.tileValue}>{c.value}</div>
                 <div className={`${s.tileSub} ${c.warn ? s.tileSubWarn : ''}`}>{c.sub}</div>
@@ -673,7 +670,6 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
           <div className={s.progressGrid}>
             {progressCards.map((c) => (
               <div key={c.label} className={s.tile} style={c.prov !== 'crm' ? { backgroundColor: provenance[c.prov] } : undefined} title={provenanceLabel[c.prov]}>
-                {c.prov !== 'crm' && <span className={s.provTag}>{provenanceTag[c.prov]}</span>}
                 <div className={s.tileLabel}>{c.label}</div>
                 <div className={s.barRow}>
                   <span className={s.barValue}>{c.current}</span>
@@ -708,7 +704,6 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                     <div className={s.tpStatLabel}>Geplante Aktivitäten</div>
                   </div>
                   <div className={s.provWrap} style={{ backgroundColor: provenance.dbx }} title={provenanceLabel.dbx}>
-                    <span className={s.provTag}>{provenanceTag.dbx}</span>
                     <div className={s.tpStatValue}>{tagesplan.estimatedConversion}</div>
                     <div className={s.tpStatLabel}>erwartete Abschlüsse (Prognose)</div>
                   </div>

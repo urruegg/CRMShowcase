@@ -176,7 +176,7 @@ Scored against [pcf-review-and-ux-standardization](../../../../../docs/superpowe
 | #  | Category                | Result | Note |
 |----|-------------------------|--------|------|
 | 1  | Theming & tokens        | ⚠ | Single `tokens.ts`, brand accent-only, no literal hex in components, kicker via `text-transform`. Deviation: tokens are a parallel set, **not** a Fluent `BrandVariants` ramp (see §9). |
-| 2  | Data-source provenance  | ⚠ | Closed `prov` enum, legend, per-tile `title`, and a **non-colour DBX/TBD tag** on every non-CRM tile + an `aria-live` status region. Gap: legend still German-only; per-tile tooltip not yet keyboard-focusable. |
+| 2  | Data-source provenance  | ⚠ | Closed `prov` enum, surface tint, per-tile `title` (accessible name), a **persistent always-visible legend**, and an `aria-live` status region. **Per-tile "DBX"/"TBD" badges were removed (anchored decision 2026-08-11)** — tint + accessible name + legend carry provenance; badges were noise. Gap: legend still German-only; per-tile tooltip not yet keyboard-focusable. |
 | 3  | Layout, cards & states  | ⚠ | One card primitive, eyebrow/title/summary, empty "—" states. Gap: no loading/error/permission states; AI badge not yet a shared component. |
 | 4  | Grids (CRM parity)      | ⚠ | Shared sort util + `aria-sort` across all 3 grids, parent/child collapse+connector, select-all + selection bar. Gap: no roving-tabindex keyboard model; *Ansicht speichern* is `localStorage` (labelled demo); no `aria-live` counts. Pro-code justified (page-level cockpit, ADR-0027). |
 | 5  | Actions & icons         | ✅ | Per-icon Fluent `react-icons` (tree-shaken) on every action; consistent appearance vocab; one `primary` CTA per action row. Follow-up: extract the verb→icon map to a shared artifact. |
@@ -188,7 +188,8 @@ Scored against [pcf-review-and-ux-standardization](../../../../../docs/superpowe
 | 11 | Localization & content  | ⚠ | Consistent Sie-form German. Gap: 1033 base + DE/FR/IT strings and `context.userSettings` number/date/currency formatting (lands at bind). |
 
 **Remediation backlog (filed):** (9) BrandVariants ramp + host-theme bridging ·
-(2) non-colour provenance (icon+label, focus, localized) · (7/8) jest-axe +
+(2) provenance legend/tooltip: localize + make keyboard-focusable (badges
+intentionally omitted) · (7/8) jest-axe +
 forced-colors + `aria-live` + modal focus trap + bundle budget · (10)
 virtualization + loading states · (11) localization + `userSettings` formatting.
 Structural items land in the **PCF-wrap/bind phase** (DEV-gated), not the local

@@ -159,10 +159,13 @@ describe('<AdvisorCockpit />', () => {
     expect(screen.getByText(/Neuen Termin anlegen/)).toBeInTheDocument();
   });
 
-  it('marks non-CRM tiles with a non-colour provenance tag', () => {
+  it('conveys data-source provenance without per-tile badges', () => {
     renderCockpit();
-    expect(screen.getAllByText('DBX').length).toBeGreaterThan(0);
-    expect(screen.getByText('TBD')).toBeInTheDocument();
+    expect(screen.queryByText('DBX')).not.toBeInTheDocument();
+    expect(screen.queryByText('TBD')).not.toBeInTheDocument();
+    // provenance stays available via the persistent legend
+    expect(screen.getByText('Databricks (Mock)')).toBeInTheDocument();
+    expect(screen.getByText('Noch nicht gemappt')).toBeInTheDocument();
   });
 
   it('reveals the full NBA list with a disclosure on every card under the Copilot tab', () => {

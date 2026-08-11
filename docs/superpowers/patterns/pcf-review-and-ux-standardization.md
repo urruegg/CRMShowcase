@@ -61,9 +61,16 @@ Legend: **MUST** = release gate · **SHOULD** = standardize when touched.
 - **MUST** Every data-bearing tile/field is classifiable as **CRM (Dataverse)**,
   **Databricks (mock/measure)**, or **not-yet-mapped**, via a **closed enum**
   (`prov`), not a free string.
-- **MUST** Provenance is **not carried by colour alone** — each source has an
-  **icon + accessible label** (grey also reads as "disabled"; yellow fails
-  colour-blind/high-contrast). Colour is the secondary cue.
+- **MUST** Provenance is **not carried by colour alone** — every tile carries a
+  **textual/accessible cue** for its source: the tile's **accessible name
+  (`title`/tooltip)** *and* a **persistent, always-visible legend**. Colour
+  (grey / yellow) is only the secondary, at-a-glance cue.
+  - **A per-tile visible badge is OPTIONAL, not required.** Anchored project
+    decision (Advisor Cockpit, 2026-08-11): per-tile "DBX"/"TBD" badges were
+    **removed** — the surface tint + accessible name + legend already satisfy
+    the non-colour requirement, and per-tile badges added visual noise across
+    the many measure tiles. Do **not** re-introduce per-tile source badges
+    unless a control lacks a persistent legend.
 - **MUST** Provenance is reachable **without hover** — surfaced on focus and in
   the tile's **accessible name** (keyboard/touch users included).
 - **MUST** The "Datenquelle" legend and all provenance labels are **localized**
