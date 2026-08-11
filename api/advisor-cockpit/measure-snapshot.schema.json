@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://crmshowcase/api/advisor-cockpit/measure-snapshot.schema.json",
+  "title": "Advisor Cockpit — Measure Snapshot projection",
+  "description": "Versioned consumption contract for the data-platform analytics projection surfaced by the Advisor Cockpit and Sales Leader Dashboard. Producer: the enterprise data platform (Databricks), mocked in the demo by the CD pipeline seed. Consumer: the crmshow_measuresnapshot Dataverse table and the two PCF controls. Swapping the producer does not change this contract. See ADR-0026.",
+  "type": "array",
+  "items": { "$ref": "#/$defs/measureRow" },
+  "$defs": {
+    "measureRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject", "subjectType", "metric", "asOfDate", "value", "unit", "externalSystem"],
+      "properties": {
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Business key of the thing being measured (GA name, product line, region, portfolio id, or a CRM record key)."
+        },
+        "subjectType": {
+          "enum": ["lead", "account", "contact", "ga", "region", "product", "portfolio"],
+          "description": "What kind of subject the measure is about."
+        },
+        "metric": {
+          "enum": ["GoalAttainment", "GrowthYoY", "NPS", "Automation", "Forecast", "Conversion", "Efficiency", "Satisfaction", "Quality"],
+          "description": "Metric code; mirrors the crmshow_metrictype choice."
+        },
+        "region": {
+          "type": ["string", "null"],
+          "enum": ["Mittelland", "Zurich", "Romandie", "Ticino", null],
+          "description": "Optional region dimension; mirrors the crmshow_region choice."
+        },
+        "productLine": {
+          "type": ["string", "null"],
+          "enum": ["MotorVehicle", "HouseholdContents", "CommercialProperty", "Pension3a", "LegalProtection", null],
+          "description": "Optional product-line dimension; mirrors the crmshow_productline choice."
+        },
+        "asOfDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Effective date of the measure value (YYYY-MM-DD); every projected row is effective-dated."
+        },
+        "value": {
+          "type": "number",
+          "description": "The numeric measure value; unit gives the interpretation."
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Unit of the value, e.g. percent, nps, chf_thousands, count."
+        },
+        "externalSystem": {
+          "const": "databricks-mock",
+          "description": "Identifies the producing system contract. In the demo this is the mock; production would carry the real system identifier."
+        }
+      }
+    }
+  }
+}

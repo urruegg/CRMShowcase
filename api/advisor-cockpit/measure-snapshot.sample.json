@@ -1,0 +1,5 @@
+[
+  { "subject": "GA-Bern-Mittelland", "subjectType": "ga", "metric": "GoalAttainment", "region": "Mittelland", "productLine": null, "asOfDate": "2026-06-30", "value": 96, "unit": "percent", "externalSystem": "databricks-mock" },
+  { "subject": "GA-Bern-Mittelland", "subjectType": "ga", "metric": "GrowthYoY", "region": "Mittelland", "productLine": null, "asOfDate": "2026-06-30", "value": 7.2, "unit": "percent", "externalSystem": "databricks-mock" },
+  { "subject": "Motorfahrzeug", "subjectType": "product", "metric": "Forecast", "region": "Mittelland", "productLine": "MotorVehicle", "asOfDate": "2026-06-30", "value": 148, "unit": "chf_thousands", "externalSystem": "databricks-mock" }
+]
