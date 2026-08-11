@@ -256,7 +256,7 @@ It 'sample validates against the measure-snapshot contract' {
 **Files:** `src/AdvisorCockpit.tsx` + subcomponents (`FokusBanner`, `ArbeitsvorratBar`, `TabStrip`, `EmpfohlenerFokusCard`, `ProvenanceBadge`, `TagesplanTable`)
 
 - [ ] **Step 1: Jest tests first** — render each subcomponent with a fixture, assert key text/roles (e.g. NBA card shows title + provenance badge + "AI-assisted"; table renders 6 rows with AI-Score). `npm test` FAIL → implement → PASS.
-- [ ] **Step 2: Polish loop** — `npm run dev` → `open_browser_page http://localhost:5173` → `screenshot_page` → diff vs [docs/ideas/uc-01-advisor-cockpit/advisory-cockpit-html.png](../../ideas/uc-01-advisor-cockpit/advisory-cockpit-html.png); dispatch the `ux-designer` agent to tune Fluent tokens/spacing until it matches. Iterate.
+- [ ] **Step 2: Polish loop** — the **pixel ground truth is the actual HTML web resource** `intake/mobiliar/source/WebResources/cr7e8_sharedpage01advisorcockpit` (local-only). Open it in a browser page alongside the PCF harness (`npm run dev` → `open_browser_page http://localhost:5173`), `screenshot_page` both, and diff. Port the web resource's CSS variables/layout directly into Fluent v9 tokens (the mockup already uses the Fluent palette `--brand:#0078d4`, Segoe UI, `n0…n190`). Dispatch the `ux-designer` agent to tune until it matches. Iterate.
 - [ ] **Step 3:** WCAG pass (keyboard nav, roles, contrast); DE strings primary with EN/FR/IT resx.
 - [ ] **Step 4: Commit** after each stable iteration (`feat(pcf): AdvisorCockpit surface pixel-matched to mockup`).
 
@@ -274,7 +274,7 @@ It 'sample validates against the measure-snapshot contract' {
 **Files:** `src/SalesLeaderDashboard.tsx` + `LagebildBanner`, `GaugeKpis`, `NeugeschaeftLine` (Recharts LineChart + forecast), `ScorecardRadar` (RadarChart), `ProduktlinieBar` (BarChart), `RegionGrowth`
 
 - [ ] **Step 1: Jest tests** — each chart renders from a `MeasureRow[]` fixture; gauges show 96/7.2/42/72; bar has 5 product lines.
-- [ ] **Step 2: Polish loop** vs [sales-steering-cockpit-html.png](../../ideas/uc-01-advisor-cockpit/sales-steering-cockpit-html.png) with the `ux-designer` agent.
+- [ ] **Step 2: Polish loop** vs the actual HTML web resource `intake/mobiliar/source/WebResources/cr7e8_sharedpage12v2salessteeringcockpit` (local-only) rendered in a browser page; port its CSS tokens into Fluent v9 + Recharts; tune with the `ux-designer` agent.
 - [ ] **Step 3: Commit** (`feat(pcf): SalesLeaderDashboard pixel-matched to mockup`).
 
 ### Task 8.3: Bind to Dataverse
