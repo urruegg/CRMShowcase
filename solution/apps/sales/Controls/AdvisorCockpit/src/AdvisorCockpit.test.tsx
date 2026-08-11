@@ -77,7 +77,7 @@ describe('<AdvisorCockpit />', () => {
     renderCockpit();
     fireEvent.click(screen.getByRole('tab', { name: 'Meine Leads' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Lead Frau Keller — Vorsorge 3a auswählen' }));
-    expect(screen.getByText(/ausgewählt/)).toBeInTheDocument();
+    expect(screen.getAllByText(/ausgewählt/).length).toBeGreaterThan(0);
     fireEvent.change(screen.getByLabelText('Zuweisen an'), { target: { value: 'Thomas Vogt' } });
     fireEvent.click(screen.getByRole('button', { name: 'Zuweisen' }));
     expect(screen.getByText(/an Thomas Vogt zugewiesen/)).toBeInTheDocument();
@@ -115,7 +115,7 @@ describe('<AdvisorCockpit />', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Meine Leads' }));
     fireEvent.click(screen.getByRole('button', { name: 'Board' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Lead Frau Keller — Vorsorge 3a auswählen' }));
-    expect(screen.getByText(/ausgewählt/)).toBeInTheDocument();
+    expect(screen.getAllByText(/ausgewählt/).length).toBeGreaterThan(0);
     expect(screen.getByLabelText('Zuweisen an')).toBeInTheDocument();
   });
 
@@ -157,6 +157,12 @@ describe('<AdvisorCockpit />', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Termine & Aufgaben' }));
     fireEvent.click(screen.getByRole('button', { name: '+ Termin' }));
     expect(screen.getByText(/Neuen Termin anlegen/)).toBeInTheDocument();
+  });
+
+  it('marks non-CRM tiles with a non-colour provenance tag', () => {
+    renderCockpit();
+    expect(screen.getAllByText('DBX').length).toBeGreaterThan(0);
+    expect(screen.getByText('TBD')).toBeInTheDocument();
   });
 
   it('reveals the full NBA list with a disclosure on every card under the Copilot tab', () => {

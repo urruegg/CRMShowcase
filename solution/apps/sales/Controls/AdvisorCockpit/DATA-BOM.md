@@ -176,12 +176,12 @@ Scored against [pcf-review-and-ux-standardization](../../../../../docs/superpowe
 | #  | Category                | Result | Note |
 |----|-------------------------|--------|------|
 | 1  | Theming & tokens        | ⚠ | Single `tokens.ts`, brand accent-only, no literal hex in components, kicker via `text-transform`. Deviation: tokens are a parallel set, **not** a Fluent `BrandVariants` ramp (see §9). |
-| 2  | Data-source provenance  | ⚠ | Closed `prov` enum, legend + per-tile `title`. Gap: provenance is **colour + hover only** — needs per-source icon+label + focus/accessible-name + localized legend. |
+| 2  | Data-source provenance  | ⚠ | Closed `prov` enum, legend, per-tile `title`, and a **non-colour DBX/TBD tag** on every non-CRM tile + an `aria-live` status region. Gap: legend still German-only; per-tile tooltip not yet keyboard-focusable. |
 | 3  | Layout, cards & states  | ⚠ | One card primitive, eyebrow/title/summary, empty "—" states. Gap: no loading/error/permission states; AI badge not yet a shared component. |
 | 4  | Grids (CRM parity)      | ⚠ | Shared sort util + `aria-sort` across all 3 grids, parent/child collapse+connector, select-all + selection bar. Gap: no roving-tabindex keyboard model; *Ansicht speichern* is `localStorage` (labelled demo); no `aria-live` counts. Pro-code justified (page-level cockpit, ADR-0027). |
 | 5  | Actions & icons         | ✅ | Per-icon Fluent `react-icons` (tree-shaken) on every action; consistent appearance vocab; one `primary` CTA per action row. Follow-up: extract the verb→icon map to a shared artifact. |
 | 6  | HITL & write safety     | ✅ | No direct Dataverse writes; customer-facing acts are advisory DEV-gated demo notes; ✦ disclosure + provenance rows on AI output (ADR-0014). |
-| 7  | Accessibility           | ⚠ | `aria-label`/`aria-sort` on icon/checkbox/sort controls; Fluent focus kept. Gap: forced-colors/HC, non-text 3:1 audit, reflow 320px/400%, `aria-live`, modal focus-trap verification. |
+| 7  | Accessibility           | ⚠ | `aria-label`/`aria-sort` on icon/checkbox/sort controls; Fluent focus kept; **`aria-live` region announces sort / selection / focus**. Gap: forced-colors/HC, non-text 3:1 audit, reflow 320px/400%, modal focus-trap verification. |
 | 8  | Testing & build         | ⚠ | `tsc` clean, 23 vitest+RTL, selectors unit-tested. Gap: no jest-axe, no bundle-budget CI number, no visual-regression. |
 | 9  | Host-theme bridging     | ❌ | Light-only; no `FluentProvider` host-theme inheritance / dark / high-contrast. **Top remediation** (lands in the PCF-wrap/bind phase). |
 | 10 | States/responsive/perf  | ⚠ | Responsive grids. Gap: no list **virtualization** (lead book / queue / NBA), no skeleton/loading. |
