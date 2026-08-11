@@ -4571,7 +4571,7 @@ Describe 'Insurance Foundation table metadata convergence' {
 Describe 'Publisher entry point safety' {
     BeforeAll {
         $script:authoringWorkflow = Get-Content (Join-Path $script:repoRoot `
-            '.github/workflows/solution-author-dev.yml') -Raw
+            '.github/workflows/cd-solution-dev.yml') -Raw
         $script:validateJobBlock = [regex]::Match(
             $script:authoringWorkflow,
             '(?ms)^  validate:\r?\n.*?(?=^  author:\r?\n)'

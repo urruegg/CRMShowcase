@@ -1,4 +1,4 @@
-name: Solution CI
+name: CI — Solution
 
 on:
   pull_request: {}
@@ -12,7 +12,8 @@ on:
     paths:
       - 'solution/**'
       - 'scripts/solution/**'
-      - '.github/workflows/solution-*.yml'
+      - '.github/workflows/ci-solution.yml'
+      - '.github/workflows/cd-solution-*.yml'
   # Manual dispatch for on-demand runs (e.g., re-validating a branch after an
   # intake sync from make.powerapps.com).
   workflow_dispatch: {}

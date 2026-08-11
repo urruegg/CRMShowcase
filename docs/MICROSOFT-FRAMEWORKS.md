@@ -45,7 +45,7 @@ WAF drives architectural excellence across five pillars.
 | **Reliability** | [docs/OPERATIONS.md](./OPERATIONS.md) — env topology. [docs/TEST.md](./TEST.md) — layered testing, golden-thread regression. `[TBD]` for RPO/RTO on the demo tenant. |
 | **Security** | [docs/SECURITY.md](./SECURITY.md), [ADR-0002](./adr/ADR-0002-oidc-federation-for-github-actions-to-entra.md), [ADR-0004](./adr/ADR-0004-ci-plane-app-registrations-and-github-environments.md), [ADR-0005](./adr/ADR-0005-power-platform-application-users-for-ci.md). Zero Trust posture, no long-lived credentials, least-privilege CI apps. |
 | **Cost Optimization** | Terraform lets us right-size and tear down. `[TBD]` — no cost dashboard yet; demo runs on shared MCAPS trial capacity. |
-| **Operational Excellence** | [ADR-0017](./adr/ADR-0017-alm-everything-through-the-pipeline.md) — nothing reaches an environment except through the pipeline. Rollback is a pipeline action, not a manual repair. GitHub Actions workflow at [.github/workflows/terraform.yml](../.github/workflows/terraform.yml) proves the auth loop end-to-end. |
+| **Operational Excellence** | [ADR-0017](./adr/ADR-0017-alm-everything-through-the-pipeline.md) — nothing reaches an environment except through the pipeline. Rollback is a pipeline action, not a manual repair. GitHub Actions workflow at [.github/workflows/cd-infra.yml](../.github/workflows/cd-infra.yml) proves the auth loop end-to-end. |
 | **Performance Efficiency** | Native platform pillar for now. `[TBD]` — load characteristics unmeasured. |
 
 **Honest gaps.** Cost Optimization and Performance Efficiency are the two

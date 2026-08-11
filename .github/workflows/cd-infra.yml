@@ -1,4 +1,4 @@
-name: Terraform
+name: CD — Infra (Terraform)
 
 # Purpose: validate infra/terraform/ on every PR, and prove OIDC federation to the
 # demo tenant works end-to-end on merges to main / manual dispatch.
@@ -17,12 +17,12 @@ on:
   pull_request:
     paths:
       - 'infra/terraform/**'
-      - '.github/workflows/terraform.yml'
+      - '.github/workflows/cd-infra.yml'
   push:
     branches: [main]
     paths:
       - 'infra/terraform/**'
-      - '.github/workflows/terraform.yml'
+      - '.github/workflows/cd-infra.yml'
   workflow_dispatch:
     inputs:
       environment:

@@ -1,4 +1,4 @@
-name: Promote insurance foundation to TEST
+name: CD — Solution to TEST
 
 on:
   workflow_dispatch:
