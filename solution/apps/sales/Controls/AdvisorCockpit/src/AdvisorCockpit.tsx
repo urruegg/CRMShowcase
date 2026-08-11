@@ -13,6 +13,24 @@ import {
   DialogContent,
   DialogActions,
 } from '@fluentui/react-components';
+import {
+  AddRegular,
+  ArrowRightRegular,
+  ArrowSwapRegular,
+  BoardRegular,
+  BranchRegular,
+  CallRegular,
+  CheckmarkRegular,
+  ClockRegular,
+  DismissRegular,
+  EditRegular,
+  FilterRegular,
+  GridRegular,
+  LinkMultipleRegular,
+  OpenRegular,
+  SaveRegular,
+  TextBulletListLtrRegular,
+} from '@fluentui/react-icons';
 import type { ActivityRecord, CockpitData, ClaimRecord, LeadRecord, NbaRecord } from './types';
 import { badge, font, nbaAccent, palette, priority, provenance, provenanceLabel } from './tokens';
 import { appointments, boardBuckets, buildAccountIndex, filterLeads, groupLeads, openTasks, sortLeads, sortedNba } from './selectors';
@@ -355,6 +373,7 @@ const useStyles = makeStyles({
   queueScore: { fontWeight: 700, minWidth: '26px' },
   queueMain: { display: 'flex', flexDirection: 'column', minWidth: 0, flexGrow: 1 },
   queueTopic: { fontWeight: 600, fontSize: '13px' },
+  viewBtnInner: { display: 'inline-flex', alignItems: 'center', ...shorthands.gap('5px') },
 });
 
 function Badge({ kind, children }: { kind: keyof typeof badge; children: React.ReactNode }) {
@@ -371,6 +390,19 @@ const CHANNEL_OPTIONS = ['Alle Kanäle', 'Online', 'Telefon', 'Termin', 'Kampagn
 const STATUS_OPTIONS = ['Alle Status', 'Neu', 'In Arbeit', 'Qualifiziert', 'Gebündelt', 'Geplant', 'Geschlossen'];
 const SOURCE_OPTIONS = ['Alle Quellen', 'Online-Offerte', 'Vertragsablauf', 'Advisory Appointment', 'Vorsorge 25'];
 const OWNER_OPTIONS = ['Rahel Moser', 'Thomas Vogt', 'Sina Keller', 'Pool (Round-Robin)', 'Makler-Desk'];
+
+const ACTION_ICON: Record<string, React.ReactElement> = {
+  Vorbereiten: <EditRegular />,
+  Anpassen: <EditRegular />,
+  'Kundenkontext öffnen': <OpenRegular />,
+  'Später planen': <ClockRegular />,
+  'Vorschlag verwerfen': <DismissRegular />,
+};
+const VIEW_ICON: Record<'list' | 'board' | 'cockpit', React.ReactElement> = {
+  list: <TextBulletListLtrRegular />,
+  board: <BoardRegular />,
+  cockpit: <GridRegular />,
+};
 
 function statusBadgeKind(status: string): keyof typeof badge {
   if (/Überfällig|Risiko/i.test(status)) return 'red';
@@ -698,7 +730,7 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                   </div>
                   <div className={s.fokusActions}>
                     {empfohlenerFokus.actions.map((a, i) => (
-                      <Button key={a} size="small" appearance={i === 0 ? 'primary' : 'secondary'} style={i === 0 ? { backgroundColor: palette.brand } : undefined}>
+                      <Button key={a} size="small" icon={ACTION_ICON[a]} appearance={i === 0 ? 'primary' : 'secondary'} style={i === 0 ? { backgroundColor: palette.brand } : undefined}>
                         {a}
                       </Button>
                     ))}
@@ -720,13 +752,13 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                         aria-pressed={leadView === v}
                         onClick={() => setLeadView(v)}
                       >
-                        {v === 'list' ? 'Liste' : v === 'board' ? 'Board' : 'Cockpit'}
+                        {v === 'list' ? <span className={s.viewBtnInner}>{VIEW_ICON.list}Liste</span> : v === 'board' ? <span className={s.viewBtnInner}>{VIEW_ICON.board}Board</span> : <span className={s.viewBtnInner}>{VIEW_ICON.cockpit}Cockpit</span>}
                       </button>
                     ))}
                   </div>
                   <div className={s.vtActions}>
-                    <Button size="small" appearance="secondary" onClick={applyTop10}>Top 10 nach Priorität</Button>
-                    <Button size="small" appearance="secondary" onClick={saveView}>Ansicht speichern</Button>
+                    <Button size="small" icon={<FilterRegular />} appearance="secondary" onClick={applyTop10}>Top 10 nach Priorität</Button>
+                    <Button size="small" icon={<SaveRegular />} appearance="secondary" onClick={saveView}>Ansicht speichern</Button>
                   </div>
                 </div>
 
@@ -764,9 +796,9 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                         <option value="">Bearbeiter/in wählen …</option>
                         {OWNER_OPTIONS.map((o) => <option key={o}>{o}</option>)}
                       </select>
-                      <Button size="small" appearance="primary" style={{ backgroundColor: palette.brand }} disabled={!assignTo} onClick={applyAssignment}>Zuweisen</Button>
-                      <Button size="small" appearance="secondary" disabled={selected.size < 2} onClick={() => setBundle({ title: 'Ausgewählte Leads', leads: selectedLeads })}>Bündeln</Button>
-                      <Button size="small" appearance="transparent" onClick={clearSelection}>Auswahl aufheben</Button>
+                      <Button size="small" icon={<ArrowSwapRegular />} appearance="primary" style={{ backgroundColor: palette.brand }} disabled={!assignTo} onClick={applyAssignment}>Zuweisen</Button>
+                      <Button size="small" icon={<LinkMultipleRegular />} appearance="secondary" disabled={selected.size < 2} onClick={() => setBundle({ title: 'Ausgewählte Leads', leads: selectedLeads })}>Bündeln</Button>
+                      <Button size="small" icon={<DismissRegular />} appearance="transparent" onClick={clearSelection}>Auswahl aufheben</Button>
                     </div>
                   </div>
                 )}
@@ -836,6 +868,7 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                     <div className={s.boardToolbar}>
                       <Button
                         size="small"
+                        icon={<BranchRegular />}
                         appearance={autoGroup ? 'primary' : 'secondary'}
                         style={autoGroup ? { backgroundColor: palette.brand } : undefined}
                         onClick={() => setAutoGroup((v) => !v)}
@@ -844,6 +877,7 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                       </Button>
                       <Button
                         size="small"
+                        icon={<LinkMultipleRegular />}
                         appearance="secondary"
                         disabled={selected.size < 2}
                         onClick={() => setBundle({ title: 'Ausgewählte Leads', leads: selectedLeads })}
@@ -878,7 +912,7 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                               <div className={s.boardClusterHead}>
                                 <span className={s.link}>{g.clusterName}</span>
                                 <Badge kind="amber">Auto-Gruppe · {g.leads.length}</Badge>
-                                <Button size="small" appearance="secondary" className={s.splitBtn} onClick={() => splitCluster(g.clusterName ?? '')}>Splitten</Button>
+                                <Button size="small" icon={<BranchRegular />} appearance="secondary" className={s.splitBtn} onClick={() => splitCluster(g.clusterName ?? '')}>Splitten</Button>
                               </div>
                               {g.leads.map((l) => renderBoardCard(l))}
                             </div>
@@ -913,11 +947,11 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                             <div className={s.muted}>Teil der Auto-Gruppe „{focusCluster.clusterName}" · wirkt auf {focusCluster.leads.length} Leads</div>
                           )}
                           <div className={s.fokusActions}>
-                            <Button size="small" appearance="primary" style={{ backgroundColor: palette.brand }} onClick={() => setAssignNote(`Click-to-call: ${accountName(cockpitFocus.accountKey)} — ${cockpitFocus.topic} (DEV-gated Demo).`)}>Anrufen</Button>
-                            <Button size="small" appearance="secondary" onClick={() => setAssignNote(`Gespräch vorbereitet für „${cockpitFocus.topic}" (DEV-gated Demo).`)}>Vorbereiten</Button>
-                            {focusCluster && <Button size="small" appearance="secondary" onClick={() => setBundle({ title: focusCluster.clusterName ?? 'Gruppe', leads: focusCluster.leads })}>Leads bündeln</Button>}
-                            <Button size="small" appearance="secondary" onClick={() => setAssignNote(`360°-Kundenkontext „${accountName(cockpitFocus.accountKey)}" öffnen · Navigation zur Dynamics-Kontaktform (DEV-gated).`)}>360° öffnen</Button>
-                            <Button size="small" appearance="subtle" disabled={cockpitRest.length === 0} onClick={() => setFocusKey(cockpitRest[0]?.key ?? null)}>Nächster Lead →</Button>
+                            <Button size="small" icon={<CallRegular />} appearance="primary" style={{ backgroundColor: palette.brand }} onClick={() => setAssignNote(`Click-to-call: ${accountName(cockpitFocus.accountKey)} — ${cockpitFocus.topic} (DEV-gated Demo).`)}>Anrufen</Button>
+                            <Button size="small" icon={<EditRegular />} appearance="secondary" onClick={() => setAssignNote(`Gespräch vorbereitet für „${cockpitFocus.topic}" (DEV-gated Demo).`)}>Vorbereiten</Button>
+                            {focusCluster && <Button size="small" icon={<LinkMultipleRegular />} appearance="secondary" onClick={() => setBundle({ title: focusCluster.clusterName ?? 'Gruppe', leads: focusCluster.leads })}>Leads bündeln</Button>}
+                            <Button size="small" icon={<OpenRegular />} appearance="secondary" onClick={() => setAssignNote(`360°-Kundenkontext „${accountName(cockpitFocus.accountKey)}" öffnen · Navigation zur Dynamics-Kontaktform (DEV-gated).`)}>360° öffnen</Button>
+                            <Button size="small" icon={<ArrowRightRegular />} appearance="subtle" disabled={cockpitRest.length === 0} onClick={() => setFocusKey(cockpitRest[0]?.key ?? null)}>Nächster Lead →</Button>
                           </div>
                         </div>
                       ) : (
@@ -935,7 +969,7 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                               <div className={s.queueTopic}>{l.topic}</div>
                               <div className={s.muted}>{accountName(l.accountKey)} · {l.channel}</div>
                             </div>
-                            <Button size="small" appearance="secondary" onClick={() => setFocusKey(l.key)}>In Fokus</Button>
+                            <Button size="small" icon={<ArrowRightRegular />} appearance="secondary" onClick={() => setFocusKey(l.key)}>In Fokus</Button>
                           </div>
                         ))}
                         {cockpitRest.length === 0 && <div className={s.emptyNote}>Warteschlange leer.</div>}
@@ -968,8 +1002,9 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                         </div>
                       </DialogContent>
                       <DialogActions>
-                        <Button appearance="secondary" onClick={() => setBundle(null)}>Abbrechen</Button>
+                        <Button appearance="secondary" icon={<DismissRegular />} onClick={() => setBundle(null)}>Abbrechen</Button>
                         <Button
+                          icon={<CheckmarkRegular />}
                           appearance="primary"
                           style={{ backgroundColor: palette.brand }}
                           onClick={() => {
@@ -995,7 +1030,7 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                 <section className={s.card}>
                   <div className={s.cardHead}>
                     <span>Termine heute</span>
-                    <Button size="small" appearance="primary" style={{ marginLeft: 'auto', backgroundColor: palette.brand }} onClick={() => setActivityNote('Neuen Termin anlegen · Dynamics-Terminformular (DEV-gated Demo).')}>+ Termin</Button>
+                    <Button size="small" icon={<AddRegular />} appearance="primary" style={{ marginLeft: 'auto', backgroundColor: palette.brand }} onClick={() => setActivityNote('Neuen Termin anlegen · Dynamics-Terminformular (DEV-gated Demo).')}>+ Termin</Button>
                   </div>
                   <div className={s.cardBody}>
                     {appts.map((a) => (
@@ -1012,7 +1047,7 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                 <section className={s.card}>
                   <div className={s.cardHead}>
                     <span>Offene Aufgaben</span>
-                    <Button size="small" appearance="secondary" style={{ marginLeft: 'auto' }} onClick={() => setActivityNote('Neue Aufgabe anlegen · Dynamics-Aufgabenformular (DEV-gated Demo).')}>+ Aufgabe</Button>
+                    <Button size="small" icon={<AddRegular />} appearance="secondary" style={{ marginLeft: 'auto' }} onClick={() => setActivityNote('Neue Aufgabe anlegen · Dynamics-Aufgabenformular (DEV-gated Demo).')}>+ Aufgabe</Button>
                   </div>
                   <div className={s.cardBody}>
                     <table className={s.table}>
@@ -1086,7 +1121,7 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                       <div className={s.copText}>{card.rationale}</div>
                       <div className={s.disclosure} title="KI-unterstützt — im CRM-Kontext verankert">✦ {card.disclosure}</div>
                       <div style={{ marginTop: '10px' }}>
-                        <Button size="small" appearance="primary" style={{ backgroundColor: palette.brand }}>
+                        <Button size="small" icon={card.channel === 'Anruf' ? <CallRegular /> : <OpenRegular />} appearance="primary" style={{ backgroundColor: palette.brand }}>
                           {card.channel === 'Anruf' ? 'Anrufen' : card.channel === 'Termin' ? 'Termin öffnen' : 'Öffnen'}
                         </Button>
                       </div>
