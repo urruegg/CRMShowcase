@@ -54,6 +54,19 @@ The autopilot guardrail is a hard property of the toolchain, not a convention:
   `Describe`/`It`/`Should`, using `$TestDrive` for scratch files.
 - Run one test file: `Invoke-Pester -Path scripts/orchestration/tests/X.Tests.ps1`.
 
+> **Implementation corrections (applied during execution, 2026-08-11):**
+> 1. **Top-level `param()` must be non-mandatory.** Any script's *top-level*
+>    `param(...)` block keeps types/ValidateSet/defaults/switches but must NOT
+>    use `[Parameter(Mandatory)]` — otherwise Pester's `BeforeAll` dot-source
+>    prompts and hangs. Keep `[Parameter(Mandatory)]` only inside the `function`
+>    `param(...)`. This matches `scripts/solution/Get-Manifest.ps1`. Applies to
+>    the New-SprintWorktree, Invoke-StreamDelegation, Complete-StreamIntake and
+>    Remove-SprintWorktree scripts below.
+> 2. **Pester helper functions belong in `BeforeAll`.** A helper defined
+>    directly in a `Describe` body runs only at Pester's discovery phase and is
+>    invisible to `It` blocks. Define such helpers (e.g. `New-Packet` in the
+>    `Invoke-StreamDelegation` test) inside a `BeforeAll` block instead.
+
 ---
 
 ### Task 1: Record the decision (ADR-0023)
