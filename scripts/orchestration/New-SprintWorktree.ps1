@@ -11,7 +11,7 @@ param(
     [string]$StreamId,
     [int]$IssueNumber,
     [ValidateSet('EXECUTION-ONLY','DESIGN-SENSITIVE')] [string]$AutonomyClass = 'EXECUTION-ONLY',
-    [string]$RepoRoot = (Resolve-Path "$PSScriptRoot/../..").Path,
+    [string]$RepoRoot,
     [string]$WorktreeRoot = 'C:\Users\urruegg\source\urruegg\wt',
     [string]$BaseRef = 'main',
     [string]$DesignRef = 'ADR-0023',

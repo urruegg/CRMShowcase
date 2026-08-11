@@ -8,7 +8,7 @@
 [CmdletBinding()]
 param(
     [string]$WorktreeRoot = 'C:\Users\urruegg\source\urruegg\wt',
-    [string]$RepoRoot = (Resolve-Path "$PSScriptRoot/../..").Path,
+    [string]$RepoRoot,
     [string]$WorktreeListText
 )
 
