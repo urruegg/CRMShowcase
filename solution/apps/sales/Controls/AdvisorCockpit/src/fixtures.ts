@@ -12,6 +12,7 @@ import measures from '../../../../../../data/scenarios/advisor-cockpit/measures.
 import type {
   AccountOrContact,
   ActivityRecord,
+  AdvisorProfile,
   ClaimRecord,
   CockpitData,
   LeadRecord,
@@ -20,7 +21,16 @@ import type {
   PolicyRecord,
 } from './types';
 
+// The signed-in advisor. In the PCF this is mapped from `context` — userSettings.userName plus a
+// WebAPI retrieve of systemuser.title and the user's businessunit.name — it is not seeded data.
+export const advisorProfile: AdvisorProfile = {
+  fullName: 'Rahel Moser',
+  role: 'Versicherungsberaterin',
+  generalAgency: 'Generalagentur Bern-Mittelland',
+};
+
 export const cockpitFixtures: CockpitData = {
+  advisor: advisorProfile,
   accountsContacts: accountsContacts as AccountOrContact[],
   leads: leads as LeadRecord[],
   activities: activities as ActivityRecord[],

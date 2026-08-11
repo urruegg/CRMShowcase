@@ -259,10 +259,9 @@ function statusBadgeKind(status: string): keyof typeof badge {
 
 export interface AdvisorCockpitProps {
   data: CockpitData;
-  advisorName?: string;
 }
 
-export function AdvisorCockpit({ data, advisorName = 'Rahel Moser' }: AdvisorCockpitProps): JSX.Element {
+export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
   const s = useStyles();
   const [tab, setTab] = React.useState<string>('tagesplan');
   const accounts = React.useMemo(() => buildAccountIndex(data.accountsContacts), [data]);
@@ -294,8 +293,8 @@ export function AdvisorCockpit({ data, advisorName = 'Rahel Moser' }: AdvisorCoc
     <div className={s.root}>
       <header className={s.header}>
         <div className={s.breadcrumb}>Contoso CRM › Advisor Cockpit</div>
-        <h1 className={s.title}>Guten Morgen, {advisorName}</h1>
-        <div className={s.subtitle}>Versicherungsberaterin · Generalagentur Bern-Mittelland · {today}</div>
+        <h1 className={s.title}>Guten Morgen, {data.advisor.fullName}</h1>
+        <div className={s.subtitle}>{data.advisor.role} · {data.advisor.generalAgency} · {today}</div>
       </header>
 
       <div className={s.content}>

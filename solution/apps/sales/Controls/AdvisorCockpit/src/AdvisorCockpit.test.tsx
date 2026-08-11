@@ -19,6 +19,20 @@ describe('<AdvisorCockpit />', () => {
     expect(screen.getByText('Mehr Zeit für vorbereitete Kundengespräche')).toBeInTheDocument();
   });
 
+  it('binds the header identity from the advisor context data (not hardcoded)', () => {
+    const custom = {
+      ...cockpitFixtures,
+      advisor: { fullName: 'Test Advisor', role: 'Kundenberater', generalAgency: 'GA Testregion' },
+    };
+    render(
+      <FluentProvider theme={webLightTheme}>
+        <AdvisorCockpit data={custom} />
+      </FluentProvider>,
+    );
+    expect(screen.getByText(/Guten Morgen, Test Advisor/)).toBeInTheDocument();
+    expect(screen.getByText(/Kundenberater · GA Testregion/)).toBeInTheDocument();
+  });
+
   it('renders the Arbeitsvorrat KPI grid', () => {
     renderCockpit();
     expect(screen.getByText('Arbeitsvorrat & persönliche Ziele')).toBeInTheDocument();

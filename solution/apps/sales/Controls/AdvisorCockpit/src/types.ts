@@ -121,7 +121,14 @@ export interface MeasureRow {
   externalSystem: string;
 }
 
+export interface AdvisorProfile {
+  fullName: string; // systemuser.fullname (context.userSettings.userName)
+  role: string; // systemuser.title (job title)
+  generalAgency: string; // the advisor's General Agency (business unit)
+}
+
 export interface CockpitData {
+  advisor: AdvisorProfile;
   accountsContacts: AccountOrContact[];
   leads: LeadRecord[];
   activities: ActivityRecord[];
