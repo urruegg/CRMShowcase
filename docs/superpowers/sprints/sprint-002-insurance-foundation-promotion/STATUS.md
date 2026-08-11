@@ -52,3 +52,28 @@ failure throws instead of reporting a false clean.
 `import-to-test` job then imports the managed slice under the `test`
 protected-environment approval (the human gate), and the smoke evaluator records
 the TEST result here.
+
+**Run 2 — [31487139644](https://github.com/urruegg/CRMShowcase/actions/runs/31487139644) (main, after fix #51). ✅ SUCCESS — Proof #2 complete end to end.**
+
+| Step | Result |
+| --- | --- |
+| `export-from-dev` (auth, offline tests, managed export) | ✅ |
+| Assert excluded components absent | ✅ **gate passed — package is clean** (no `businessRules`, no `OverlapReporting`/`InvalidDateReporting` views) |
+| `import-to-test` → Preflight languages | ✅ LCIDs **1033/1031/1036/1040 all Active** in TEST |
+| `import-to-test` → Import managed | ✅ `crmshow_Foundation_managed.zip` Imported, then `crmshow_DataModel_managed.zip` Imported (InstallOrUpdate) |
+| `import-to-test` → Smoke evidence | ⚠️ placeholder step (see follow-up) |
+
+**Outcome.** The managed Insurance Foundation slice (Foundation + DataModel,
+schema/metadata/localization only — **no plug-ins, no business rules, no
+effective-date views**) is deployed to **TEST (prod-equivalent)**, with all four
+languages active and the exclusion gate green. This is the delegated pattern
+proven from brainstorm → design → plan → delegated build → PR → merge →
+managed deployment to TEST.
+
+**Follow-ups (not blocking Proof #2 completion).**
+1. Wire the `import-to-test` "Smoke evidence" step to actually invoke
+   `Get-PromotionSmokeResult` against live TEST facts (currently a placeholder;
+   the evaluator exists and is unit-tested).
+2. Harden the workflow `env:` block so `AZURE_TENANT_ID` / `POWER_PLATFORM_ENV_URL`
+   are not echoed in plaintext in the Actions log (per ENVIRONMENTS.md, tenant
+   IDs are identifying).
