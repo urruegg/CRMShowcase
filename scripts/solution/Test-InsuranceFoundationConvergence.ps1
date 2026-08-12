@@ -694,9 +694,12 @@ function Get-ConvergenceTypedAttributePath {
 
     $escapedTableName = ConvertTo-ODataKeyString $TableLogicalName
     $escapedAttributeName = ConvertTo-ODataKeyString ([string]$Column.logicalName)
+    # Brace ${typeName}: '?' is a valid PowerShell variable-name character, so the
+    # unbraced "$typeName?" parses as the (undefined) variable $typeName? and the
+    # cast type name plus the '?' both vanish, yielding a malformed metadata URL.
     return (
         "/EntityDefinitions(LogicalName='$escapedTableName')/Attributes/" +
-        "Microsoft.Dynamics.CRM.$typeName?" +
+        "Microsoft.Dynamics.CRM.${typeName}?" +
         "`$select=MetadataId,LogicalName,SchemaName,AttributeType," +
         "DisplayName,Description,RequiredLevel,IsAuditEnabled,$derivedProperties&" +
         "`$filter=LogicalName eq '$escapedAttributeName'"

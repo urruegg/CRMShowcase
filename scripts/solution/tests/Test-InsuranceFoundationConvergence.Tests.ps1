@@ -1433,6 +1433,39 @@ Describe 'Convergence path builders' {
                 "`$filter=startswith(name,'CRM Showcase Insurance ')"
             )
     }
+
+    It 'emits a Microsoft.Dynamics.CRM cast type for every typed attribute' {
+        # Regression guard: '?' is a valid PowerShell variable-name character, so
+        # an unbraced "$typeName?" swallows both the cast type and the '?', which
+        # produced a malformed metadata URL and a Dataverse 500 in CD-DEV.
+        $expectedTypes = @{
+            Text     = 'StringAttributeMetadata'
+            DateOnly = 'DateTimeAttributeMetadata'
+            DateTime = 'DateTimeAttributeMetadata'
+            Lookup   = 'LookupAttributeMetadata'
+            Customer = 'LookupAttributeMetadata'
+        }
+        $expectedDerived = @{
+            Text     = 'MaxLength'
+            DateOnly = 'Format,DateTimeBehavior'
+            DateTime = 'Format,DateTimeBehavior'
+            Lookup   = 'Targets'
+            Customer = 'Targets'
+        }
+
+        foreach ($type in $expectedTypes.Keys) {
+            $column = [pscustomobject]@{ type = $type; logicalName = 'crmshow_probe' }
+            Get-ConvergenceTypedAttributePath `
+                -TableLogicalName 'crmshow_accountcontactrole' `
+                -Column $column | Should -Be (
+                    "/EntityDefinitions(LogicalName='crmshow_accountcontactrole')/Attributes/" +
+                    "Microsoft.Dynamics.CRM.$($expectedTypes[$type])?" +
+                    "`$select=MetadataId,LogicalName,SchemaName,AttributeType," +
+                    "DisplayName,Description,RequiredLevel,IsAuditEnabled,$($expectedDerived[$type])&" +
+                    "`$filter=LogicalName eq 'crmshow_probe'"
+                )
+        }
+    }
 }
 
 Describe 'Convergence fixture paths' {
