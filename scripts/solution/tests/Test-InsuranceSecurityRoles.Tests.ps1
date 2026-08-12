@@ -632,6 +632,26 @@ Describe 'Compare-InsuranceRolePrivileges' {
         @($result.Unexpected) | Should -Be @('prvDeleteAccount')
     }
 
+    It 'ignores platform-managed SharePoint baseline privileges' {
+        $result = Compare-InsuranceRolePrivileges `
+            -RoleName 'Reader' `
+            -Expected @([pscustomobject]@{
+                    Name = 'prvReadAccount'
+                    Depth = 'Global'
+                }) `
+            -Actual @(
+                [pscustomobject]@{ Name = 'prvReadAccount'; Depth = 'Global' },
+                [pscustomobject]@{ Name = 'prvReadSharePointDocument'; Depth = 'Global' },
+                [pscustomobject]@{ Name = 'prvReadSharePointData'; Depth = 'Global' },
+                [pscustomobject]@{ Name = 'prvWriteSharePointData'; Depth = 'Global' },
+                [pscustomobject]@{ Name = 'prvCreateSharePointData'; Depth = 'Global' }
+            )
+
+        $result.State | Should -Be 'Ready'
+        @($result.Unexpected) | Should -Be @()
+        @($result.WrongDepth) | Should -Be @()
+    }
+
     It 'reports wrong depth per privilege entry' {
         $result = Compare-InsuranceRolePrivileges `
             -RoleName 'Reader' `
