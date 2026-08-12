@@ -1099,7 +1099,7 @@ Describe 'Insurance Foundation reconciliation' {
         }
 
         $created = @($script:calls | Where-Object Method -eq 'POST')
-        @($created | Where-Object Path -eq '/GlobalOptionSetDefinitions').Count | Should -Be 5
+        @($created | Where-Object Path -eq '/GlobalOptionSetDefinitions').Count | Should -Be 10
         @($created | Where-Object Path -eq '/EntityDefinitions').Count | Should -Be 3
         @($created | Where-Object Path -eq '/PublishXml').Count | Should -Be 6
         foreach ($publish in @($created | Where-Object Path -eq '/PublishXml')) {
@@ -1177,7 +1177,7 @@ Describe 'Insurance Foundation reconciliation' {
 
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and $_.Path -eq '/GlobalOptionSetDefinitions'
-        }).Count | Should -Be 5
+        }).Count | Should -Be 10
         @($script:calls | Where-Object {
             $_.Method -ne 'GET' -and $_.Path -like '/EntityDefinitions*'
         }) | Should -BeNullOrEmpty
@@ -1216,7 +1216,7 @@ Describe 'Insurance Foundation reconciliation' {
 
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and $_.Path -eq '/GlobalOptionSetDefinitions'
-        }).Count | Should -Be 5
+        }).Count | Should -Be 10
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and $_.Path -eq '/EntityDefinitions'
         }).Count | Should -Be 3
@@ -1614,7 +1614,9 @@ Describe 'Insurance Foundation reconciliation' {
         $expected = @(
             '/GlobalOptionSetDefinitions','/GlobalOptionSetDefinitions',
             '/GlobalOptionSetDefinitions','/GlobalOptionSetDefinitions',
-            '/GlobalOptionSetDefinitions',
+            '/GlobalOptionSetDefinitions','/GlobalOptionSetDefinitions',
+            '/GlobalOptionSetDefinitions','/GlobalOptionSetDefinitions',
+            '/GlobalOptionSetDefinitions','/GlobalOptionSetDefinitions',
             "/EntityDefinitions(LogicalName='account')/Attributes",
             "/EntityDefinitions(LogicalName='contact')/Attributes",
             '/EntityDefinitions','/PublishXml','/PublishXml',
