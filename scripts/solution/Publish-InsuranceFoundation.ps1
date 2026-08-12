@@ -2381,36 +2381,33 @@ function Invoke-RoleReconciliation {
         $request = [pscustomobject]@{
             Method = 'POST'; Path = '/roles'; Solution = $Role.solution
             EntityLogicalName = 'role'; IdProperty = 'roleid'
-            LocalizedFields = @{
-                name = $Role.metadata.label
-                description = $Role.metadata.description
-            }
             Body = @{
                 name = $Role.name
                 description = [string]$Role.metadata.description.'1033'
                 'businessunitid@odata.bind' = "/businessunits($businessUnitId)"
             }
         }
+        # Security roles are not in the SetLocLabels supported-attribute set;
+        # name/description are written as plain attributes (1033 base) only.
         $existing = Invoke-PlannedRequest $request
-        Set-RecordLocalizedFields -Request $request -CreatedRecord $existing
         if ($null -eq $existing -or -not $existing.roleid) {
             throw "Created role '$($Role.name)' did not return its role ID."
         }
         Write-Output "$($Role.name): Created"
     } else {
         Assert-SolutionOwnership $existing $Role.solution $Role.name
+        $roleId = [string]$existing.roleid
         $request = [pscustomobject]@{
-            Solution = $Role.solution
-            EntityLogicalName = 'role'
-            IdProperty = 'roleid'
-            LocalizedFields = @{
-                name = $Role.metadata.label
-                description = $Role.metadata.description
+            Method = 'PATCH'; Path = "/roles($roleId)"; Solution = $Role.solution
+            EntityLogicalName = 'role'; IdProperty = 'roleid'
+            Body = @{
+                name = $Role.name
+                description = [string]$Role.metadata.description.'1033'
             }
         }
-        # Role localized labels are not exposed as a complete language set by
-        # the record query. Idempotently repair every language on each run.
-        Set-RecordLocalizedFields -Request $request -CreatedRecord $existing
+        # Security roles do not support SetLocLabels; reconcile name/description
+        # as plain attributes (1033 base) instead.
+        Invoke-PlannedRequest $request | Out-Null
         Write-Output "$($Role.name): Updated"
     }
 
