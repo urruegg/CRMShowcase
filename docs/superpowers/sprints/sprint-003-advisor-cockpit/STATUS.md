@@ -11,7 +11,7 @@ Live status for the Advisor Cockpit (charter **#55**). See the
 | seed-fixtures + loader | #60 | EXECUTION-ONLY | feat/s3-phase5-seed-fixtures | #68 | ✅ merged | 7 synthetic fixtures (exact mockup labels/KPIs) + `seed-advisor-cockpit.ps1` + tests; full suite 367 passed / 2 skipped |
 | advisorcockpit-pcf | #62 | DESIGN-SENSITIVE | feat/sprint-003-advisorcockpit-pcf | #70 | 🔜 in review | local-first PCF (React18/Fluent v9): faithful layout, Meine Leads Liste/Board/Cockpit, brand-kit tokens, data-source provenance (tint + legend, no badges), UX rubric v1.1 + scorecard; tsc clean, 24/24 vitest — awaiting gate1 + human merge |
 | salesleaderdashboard-pcf | #63 | DESIGN-SENSITIVE | feat/sprint-003-salesleaderdashboard-pcf | — | ▶ next | packet: [streams/salesleaderdashboard-pcf.md](./streams/salesleaderdashboard-pcf.md) |
-| foundation-choices | #56 | EXECUTION-ONLY | — | — | ⏳ DEV-gated | needs live DEV (make.powerapps.com authoring) |
+| foundation-choices | #56 | EXECUTION-ONLY | feat/sprint-003-foundation-choices | #75 | 🔜 in review | +5 cockpit choices (nbastatus/nbachannel/productline/region/metrictype) in 4 languages; contract 1.1.0; 210 foundation tests green. DEV/TEST authored by the CD pipeline on merge |
 | foundational-tables | #57 | DESIGN-SENSITIVE | — | — | ⏳ DEV-gated | slices 1–5 (mobiliar-data-model-extension) |
 | cockpit-tables | #58 | EXECUTION-ONLY | — | — | ⏳ DEV-gated | crmshow_nextbestaction + provenance |
 | seed-pipeline | #60 (follow-up) | EXECUTION-ONLY | — | — | ⏳ DEV-gated | task 5.3; needs the tables to exist for smoke |
