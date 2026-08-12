@@ -5,7 +5,7 @@
 | **Status** | Active process |
 | **Date** | 2026-08-11 |
 | **Scope** | How humans and agents run a sprint as a team in this repo |
-| **Autonomy** | Agents recommend and prepare; a human reviews design and merges |
+| **Autonomy** | Agents recommend and prepare; a human reviews design and merges (execution-only streams may auto-merge on green CI — [ADR-0028](../adr/ADR-0028-scoped-auto-merge-execution-only.md)) |
 | **Contracts** | [HANDOVER-CONTRACT.md](./contracts/HANDOVER-CONTRACT.md) · [INTAKE-CONTRACT.md](./contracts/INTAKE-CONTRACT.md) |
 | **Decision record** | [ADR-0023](../adr/ADR-0023-delegated-sprint-operating-model.md) |
 | **Design spec** | [2026-08-11-delegated-sprint-operating-model-design.md](./specs/2026-08-11-delegated-sprint-operating-model-design.md) |
@@ -74,8 +74,11 @@ The full path from an idea to a merged, retired stream:
    within the packet's `Allowed scope`, and cannot self-integrate.
 9. **`Complete-StreamIntake`** — verify locally, push the branch, open a PR;
    it never merges (see the [Intake Contract](./contracts/INTAKE-CONTRACT.md)).
-10. **Human merge** — a named human merges via branch protection + CODEOWNERS +
-    CI + evals.
+10. **Merge** — design-sensitive streams are merged by a named human via branch
+    protection + CODEOWNERS + CI + evals. **Execution-only** streams (labelled
+    `autonomy:execution-only`, touching no guarded path) may **auto-merge on
+    green CI** via GitHub native auto-merge, which never bypasses branch
+    protection ([ADR-0028](../adr/ADR-0028-scoped-auto-merge-execution-only.md)).
 11. **`Remove-SprintWorktree`** — retire the worktree once its work is safely on
     the trunk; the guard refuses a dirty tree.
 
