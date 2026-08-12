@@ -2338,6 +2338,18 @@ function Get-ContractTableSchemaName {
     return [string]$tables[0].schemaName
 }
 
+function Test-InsuranceFoundationRoleIsRoot {
+    # Root roles may be represented with a null parent root role or as a
+    # self-reference (parentrootroleid == roleid). Treat both as root.
+    param(
+        [AllowNull()] $Role
+    )
+    if ($null -eq $Role) { return $false }
+    $parentRootRoleId = ([string]$Role._parentrootroleid_value).Trim('{}')
+    if ([string]::IsNullOrWhiteSpace($parentRootRoleId)) { return $true }
+    return ($parentRootRoleId -ieq ([string]$Role.roleid).Trim('{}'))
+}
+
 function Invoke-RoleReconciliation {
     param(
         [Parameter(Mandatory)] $Role,
@@ -2349,7 +2361,17 @@ function Invoke-RoleReconciliation {
         }
     }
     $escapedName = $Role.name.Replace("'", "''")
-    $existing = Get-One "/roles?`$select=roleid,name,description,_businessunitid_value&`$filter=name eq '$escapedName' and _parentrootroleid_value eq null"
+    $roleResponse = Invoke-DataverseRequest -Method GET -Path "/roles?`$select=roleid,name,description,_businessunitid_value,_parentrootroleid_value&`$filter=name eq '$escapedName'"
+    $rootRoles = @()
+    if ($null -ne $roleResponse) {
+        $rootRoles = @($roleResponse.value | Where-Object {
+            Test-InsuranceFoundationRoleIsRoot -Role $_
+        })
+    }
+    if ($rootRoles.Count -gt 1) {
+        throw "Metadata resolution was ambiguous for root security role '$($Role.name)'."
+    }
+    $existing = if ($rootRoles.Count -eq 1) { $rootRoles[0] } else { $null }
     if ($null -eq $existing) {
         $businessUnit = Get-One "/businessunits?`$select=businessunitid&`$filter=parentbusinessunitid eq null"
         if ($null -eq $businessUnit -or -not $businessUnit.businessunitid) {

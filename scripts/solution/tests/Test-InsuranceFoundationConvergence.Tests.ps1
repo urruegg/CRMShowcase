@@ -1430,7 +1430,7 @@ Describe 'Convergence path builders' {
         Get-ConvergenceRootInsuranceRolesPath -RolePrefix 'CRM Showcase Insurance ' |
             Should -Be (
                 "/roles?`$select=roleid,name,_parentrootroleid_value&" +
-                "`$filter=_parentrootroleid_value eq null and startswith(name,'CRM Showcase Insurance ')"
+                "`$filter=startswith(name,'CRM Showcase Insurance ')"
             )
     }
 }
@@ -2498,6 +2498,35 @@ Describe 'Unexpected metadata reverse inventory' {
 
         $result.State | Should -Be 'ContractConflict'
         @($result.Unexpected) | Should -Contain 'crmshow_DataModel/role/CRM Showcase Insurance DataModel Reviewer'
+    }
+
+    It 'ignores inherited business-unit role copies that are not the root role' {
+        $fixture = script:New-ReadyConvergenceResponseMap `
+            -Contract $script:contract `
+            -Manifest $script:manifest `
+            -Scenario Ready
+        $inheritedRoleId = script:New-FakeGuid -Index 9720
+        $rootPointerId = script:New-FakeGuid -Index 9721
+        $rolesPath = Get-ConvergenceRootInsuranceRolesPath -RolePrefix 'CRM Showcase Insurance '
+        $fixture.Responses[$rolesPath].value = @(
+            $fixture.Responses[$rolesPath].value +
+            [pscustomobject]@{
+                roleid = $inheritedRoleId
+                name = 'CRM Showcase Insurance Reader'
+                _parentrootroleid_value = $rootPointerId
+            }
+        )
+        # No membership or by-id response is registered for the inherited copy:
+        # it must be skipped before any further lookup.
+        script:Register-ConvergenceTransportMock -Responses $fixture.Responses
+
+        $result = Test-InsuranceFoundationUnexpectedMetadata `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Contract $script:contract `
+            -Manifest $script:manifest
+
+        $result.State | Should -Be 'Ready'
+        @($result.Unexpected) | Should -Not -Contain 'crmshow_Foundation/role/CRM Showcase Insurance Reader'
     }
 
     It 'ignores system-generated table children and unrelated roles or views outside reviewed solutions' {

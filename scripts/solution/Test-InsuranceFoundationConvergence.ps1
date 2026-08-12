@@ -873,8 +873,30 @@ function Get-ConvergenceRootInsuranceRolesPath {
     $escapedRolePrefix = ConvertTo-ODataKeyString $RolePrefix
     return (
         "/roles?`$select=roleid,name,_parentrootroleid_value&" +
-        "`$filter=_parentrootroleid_value eq null and startswith(name,'$escapedRolePrefix')"
+        "`$filter=startswith(name,'$escapedRolePrefix')"
     )
+}
+
+function Test-ConvergenceRoleIsRoot {
+    # A root role has no parent root role. Some organisations represent the
+    # root as a self-reference (parentrootroleid == roleid) instead of null,
+    # so treat both shapes as root.
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        $Role
+    )
+
+    if ($null -eq $Role) {
+        return $false
+    }
+
+    $parentRootRoleId = ([string]$Role._parentrootroleid_value).Trim('{}')
+    if ([string]::IsNullOrWhiteSpace($parentRootRoleId)) {
+        return $true
+    }
+
+    return ($parentRootRoleId -ieq ([string]$Role.roleid).Trim('{}'))
 }
 
 function Get-ConvergenceRoleByIdPath {
@@ -3318,6 +3340,10 @@ function Test-InsuranceFoundationUnexpectedMetadata {
         if (-not (Test-ConvergenceStartsWithPrefix `
                     -Value $roleName `
                     -Prefix $rolePrefix)) {
+            continue
+        }
+
+        if (-not (Test-ConvergenceRoleIsRoot -Role $role)) {
             continue
         }
 

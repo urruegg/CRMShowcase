@@ -61,9 +61,31 @@ function Get-InsuranceSecurityRolePath {
 
     $escapedName = ConvertTo-ODataStringLiteral -Value $RoleName
     return (
-        "/roles?`$select=roleid,name&" +
-        "`$filter=_parentrootroleid_value eq null and name eq '$escapedName'"
+        "/roles?`$select=roleid,name,_parentrootroleid_value&" +
+        "`$filter=name eq '$escapedName'"
     )
+}
+
+function Test-InsuranceSecurityRoleIsRoot {
+    # A root security role has no parent root role. Some organisations
+    # materialise the root as a self-reference (parentrootroleid == roleid)
+    # rather than null, so treat both shapes as root.
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        $Role
+    )
+
+    if ($null -eq $Role) {
+        return $false
+    }
+
+    $parentRootRoleId = ([string]$Role._parentrootroleid_value).Trim('{}')
+    if ([string]::IsNullOrWhiteSpace($parentRootRoleId)) {
+        return $true
+    }
+
+    return ($parentRootRoleId -ieq ([string]$Role.roleid).Trim('{}'))
 }
 
 function Get-InsuranceSecurityRoleSolutionMembershipPath {
@@ -621,7 +643,9 @@ function Test-InsuranceSecurityRole {
         -Path (Get-InsuranceSecurityRolePath -RoleName $roleName)
     $matches = @()
     if ($null -ne $roleResponse) {
-        $matches = @($roleResponse.value)
+        $matches = @($roleResponse.value | Where-Object {
+                Test-InsuranceSecurityRoleIsRoot -Role $_
+            })
     }
 
     if ($matches.Count -eq 0) {

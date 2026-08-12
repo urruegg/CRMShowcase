@@ -300,21 +300,24 @@ switch ($path) {
             })
         exit 0
     }
-    "/roles?`$select=roleid,name&`$filter=_parentrootroleid_value eq null and name eq 'CRM Showcase Insurance Reader'" {
+    "/roles?`$select=roleid,name,_parentrootroleid_value&`$filter=name eq 'CRM Showcase Insurance Reader'" {
+        # Self-referencing root shape (parentrootroleid == roleid).
         Write-Json ([pscustomobject]@{
                 value = @([pscustomobject]@{
                         roleid = $readerRoleId
                         name = 'CRM Showcase Insurance Reader'
+                        _parentrootroleid_value = $readerRoleId
                     })
             })
         exit 0
     }
-    "/roles?`$select=roleid,name&`$filter=_parentrootroleid_value eq null and name eq 'CRM Showcase Insurance Data Steward'" {
+    "/roles?`$select=roleid,name,_parentrootroleid_value&`$filter=name eq 'CRM Showcase Insurance Data Steward'" {
         $roles = @()
         if ($env:TEST_INSURANCE_PREFLIGHT_SCENARIO -ne 'MissingRoles') {
             $roles += [pscustomobject]@{
                 roleid = $stewardRoleId
                 name = 'CRM Showcase Insurance Data Steward'
+                _parentrootroleid_value = $null
             }
         }
         Write-Json ([pscustomobject]@{ value = @($roles) })
