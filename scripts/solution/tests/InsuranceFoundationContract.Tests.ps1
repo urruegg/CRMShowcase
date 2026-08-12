@@ -203,7 +203,12 @@ Describe 'Insurance Foundation JSON contract' {
             'crmshow_contactlifecyclestage',
             'crmshow_accountcontactroletype',
             'crmshow_policypartyroletype',
-            'crmshow_policystatus'
+            'crmshow_policystatus',
+            'crmshow_nbastatus',
+            'crmshow_nbachannel',
+            'crmshow_productline',
+            'crmshow_region',
+            'crmshow_metrictype'
         )
         @($contract.choices | Select-Object -ExpandProperty solution -Unique) |
             Should -Be @('crmshow_Foundation')
@@ -219,6 +224,11 @@ Describe 'Insurance Foundation JSON contract' {
                 'AuthorizedRepresentative'
             )
             crmshow_policystatus = @('Draft','Active','Suspended','Expired','Cancelled')
+            crmshow_nbastatus = @('Active','Planned','Accepted','Dismissed')
+            crmshow_nbachannel = @('Call','PhoneAppointment','Email','Teams','OnSite','ClickToCall')
+            crmshow_productline = @('MotorVehicle','HouseholdContents','CommercialProperty','Pension3a','LegalProtection')
+            crmshow_region = @('Mittelland','Zurich','Romandie','Ticino')
+            crmshow_metrictype = @('GoalAttainment','GrowthYoY','NPS','Automation','Forecast','Conversion','Efficiency','Satisfaction','Quality')
         }
         foreach ($choice in $contract.choices) {
             @($choice.options.code) | Should -Be $expectedOptions[$choice.logicalName]
