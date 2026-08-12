@@ -1,7 +1,7 @@
 {
   "$schema": "./insurance-foundation.schema.json",
   "contractId": "crmshow.insurance-foundation",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "languages": ["1033", "1031", "1036", "1040"],
   "solutions": ["crmshow_Foundation", "crmshow_DataModel"],
   "choices": [
@@ -178,6 +178,119 @@
         {"code":"Suspended","metadata":{"label":{"1033":"Suspended","1031":"Suspendiert","1036":"Suspendue","1040":"Sospesa"},"description":{"1033":"Mapped state indicating a temporary source-system suspension; CRM does not infer its reason, duration or coverage consequence.","1031":"Abgebildeter Zustand einer vorübergehenden Suspendierung im Quellsystem; das CRM leitet weder Grund noch Dauer oder Deckungsfolge ab.","1036":"État mappé signalant une suspension temporaire dans la source; le CRM n’en déduit ni motif, ni durée, ni conséquence de couverture.","1040":"Stato mappato che segnala una sospensione temporanea nella fonte; il CRM non ne deduce motivo, durata o conseguenze sulla copertura."}}},
         {"code":"Expired","metadata":{"label":{"1033":"Expired","1031":"Abgelaufen","1036":"Expirée","1040":"Scaduta"},"description":{"1033":"Mapped state indicating that the source policy term has ended; historical CRM context is retained without extending coverage.","1031":"Abgebildeter Zustand eines beendeten Policenzeitraums laut Quelle; der historische CRM-Kontext bleibt ohne Deckungsverlängerung erhalten.","1036":"État mappé indiquant la fin de la période de la police source; le contexte CRM historique est conservé sans prolonger la couverture.","1040":"Stato mappato che indica la fine del periodo della polizza fonte; il contesto CRM storico è conservato senza estendere la copertura."}}},
         {"code":"Cancelled","metadata":{"label":{"1033":"Cancelled / Terminated","1031":"Storniert / beendet","1036":"Annulée / résiliée","1040":"Annullata / cessata"},"description":{"1033":"Broad mapped status for a policy ended in the authoritative source. CRM does not infer the legal mode, effective date or coverage consequence and cannot cancel, reinstate or determine coverage.","1031":"Breit abgebildeter Status für eine in der massgebenden Quelle beendete Police. Das CRM leitet weder Rechtsform, Wirksamkeitsdatum noch Deckungsfolge ab und kann weder stornieren, reaktivieren noch Deckung bestimmen.","1036":"Statut mappé large pour une police terminée dans la source faisant autorité. Le CRM ne déduit ni le mode juridique, ni la date d’effet, ni les conséquences sur les garanties et ne peut ni résilier, ni rétablir, ni déterminer la couverture.","1040":"Stato mappato ampio per una polizza cessata nella fonte autorevole. Il CRM non deduce la modalità giuridica, la data di efficacia o le conseguenze sulla copertura e non può annullare, riattivare o determinare la copertura."}}}
+      ]
+    },
+    {
+      "logicalName":"crmshow_nbastatus",
+      "schemaName":"crmshow_NbaStatus",
+      "solution":"crmshow_Foundation",
+      "metadata":{
+        "label":{"1033":"Next-Best-Action Status","1031":"Status der nächstbesten Aktion","1036":"Statut de la prochaine meilleure action","1040":"Stato della prossima azione migliore"},
+        "description":{
+          "1033":"CRM-owned lifecycle of an advisory Next-Best-Action recommendation; it is advisory only and never an automated customer-facing act.",
+          "1031":"CRM-eigener Lebenszyklus einer beratenden Next-Best-Action-Empfehlung; sie ist rein beratend und nie eine automatisierte kundengerichtete Handlung.",
+          "1036":"Cycle de vie géré par le CRM d’une recommandation de prochaine meilleure action; purement consultative, jamais un acte client automatisé.",
+          "1040":"Ciclo di vita gestito dal CRM di una raccomandazione Next-Best-Action; è solo consultiva e mai un’azione automatica verso il cliente."
+        },
+        "mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Advisory recommendation lifecycle only; agents recommend, humans decide.","lifecycle":"Progresses as a human accepts, plans or dismisses the recommendation."
+      },
+      "options":[
+        {"code":"Active","metadata":{"label":{"1033":"Active","1031":"Aktiv","1036":"Active","1040":"Attiva"},"description":{"1033":"A recommendation currently surfaced to the advisor; it proposes an action and does not perform it.","1031":"Eine der beratenden Person aktuell angezeigte Empfehlung; sie schlägt eine Aktion vor und führt sie nicht aus.","1036":"Recommandation actuellement présentée au conseiller; elle propose une action sans l’exécuter.","1040":"Raccomandazione attualmente mostrata al consulente; propone un’azione senza eseguirla."}}},
+        {"code":"Planned","metadata":{"label":{"1033":"Planned","1031":"Geplant","1036":"Planifiée","1040":"Pianificata"},"description":{"1033":"The advisor scheduled the recommended action; execution remains a human decision.","1031":"Die beratende Person hat die empfohlene Aktion eingeplant; die Ausführung bleibt eine menschliche Entscheidung.","1036":"Le conseiller a planifié l’action recommandée; l’exécution reste une décision humaine.","1040":"Il consulente ha pianificato l’azione raccomandata; l’esecuzione resta una decisione umana."}}},
+        {"code":"Accepted","metadata":{"label":{"1033":"Accepted","1031":"Angenommen","1036":"Acceptée","1040":"Accettata"},"description":{"1033":"The advisor accepted the recommendation; the decision feeds the learning loop.","1031":"Die beratende Person hat die Empfehlung angenommen; die Entscheidung fliesst in die Lernschleife ein.","1036":"Le conseiller a accepté la recommandation; la décision alimente la boucle d’apprentissage.","1040":"Il consulente ha accettato la raccomandazione; la decisione alimenta il ciclo di apprendimento."}}},
+        {"code":"Dismissed","metadata":{"label":{"1033":"Dismissed","1031":"Verworfen","1036":"Écartée","1040":"Ignorata"},"description":{"1033":"The advisor dismissed the recommendation; the signal is retained for learning, not acted on.","1031":"Die beratende Person hat die Empfehlung verworfen; das Signal wird für das Lernen behalten, aber nicht ausgeführt.","1036":"Le conseiller a écarté la recommandation; le signal est conservé pour l’apprentissage, sans action.","1040":"Il consulente ha ignorato la raccomandazione; il segnale è conservato per l’apprendimento, senza azione."}}}
+      ]
+    },
+    {
+      "logicalName":"crmshow_nbachannel",
+      "schemaName":"crmshow_NbaChannel",
+      "solution":"crmshow_Foundation",
+      "metadata":{
+        "label":{"1033":"Next-Best-Action Channel","1031":"Kanal der nächstbesten Aktion","1036":"Canal de la prochaine meilleure action","1040":"Canale della prossima azione migliore"},
+        "description":{
+          "1033":"CRM-owned suggested contact channel for an advisory recommendation; it does not send anything or bypass consent.",
+          "1031":"CRM-eigener vorgeschlagener Kontaktkanal für eine beratende Empfehlung; er versendet nichts und umgeht keine Einwilligung.",
+          "1036":"Canal de contact suggéré par le CRM pour une recommandation; il n’envoie rien et ne contourne pas le consentement.",
+          "1040":"Canale di contatto suggerito dal CRM per una raccomandazione; non invia nulla e non elude il consenso."
+        },
+        "mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Channel suggestion only; consent per contact per channel still gates any outbound.","lifecycle":"Set when the recommendation is produced; may be re-evaluated."
+      },
+      "options":[
+        {"code":"Call","metadata":{"label":{"1033":"Call","1031":"Anruf","1036":"Appel","1040":"Chiamata"},"description":{"1033":"Suggests a phone call as the contact channel.","1031":"Schlägt einen Telefonanruf als Kontaktkanal vor.","1036":"Suggère un appel téléphonique comme canal de contact.","1040":"Suggerisce una telefonata come canale di contatto."}}},
+        {"code":"PhoneAppointment","metadata":{"label":{"1033":"Phone Appointment","1031":"Telefontermin","1036":"Rendez-vous téléphonique","1040":"Appuntamento telefonico"},"description":{"1033":"Suggests a scheduled telephone appointment.","1031":"Schlägt einen vereinbarten Telefontermin vor.","1036":"Suggère un rendez-vous téléphonique planifié.","1040":"Suggerisce un appuntamento telefonico pianificato."}}},
+        {"code":"Email","metadata":{"label":{"1033":"Email","1031":"E-Mail","1036":"E-mail","1040":"E-mail"},"description":{"1033":"Suggests email as the contact channel, subject to consent.","1031":"Schlägt E-Mail als Kontaktkanal vor, vorbehaltlich der Einwilligung.","1036":"Suggère l’e-mail comme canal, sous réserve du consentement.","1040":"Suggerisce l’e-mail come canale, previo consenso."}}},
+        {"code":"Teams","metadata":{"label":{"1033":"Teams","1031":"Teams","1036":"Teams","1040":"Teams"},"description":{"1033":"Suggests a Microsoft Teams meeting as the channel.","1031":"Schlägt eine Microsoft-Teams-Besprechung als Kanal vor.","1036":"Suggère une réunion Microsoft Teams comme canal.","1040":"Suggerisce una riunione Microsoft Teams come canale."}}},
+        {"code":"OnSite","metadata":{"label":{"1033":"On-Site","1031":"Vor Ort","1036":"Sur place","1040":"In loco"},"description":{"1033":"Suggests an in-person, on-site meeting.","1031":"Schlägt ein persönliches Treffen vor Ort vor.","1036":"Suggère une rencontre en personne sur place.","1040":"Suggerisce un incontro di persona in loco."}}},
+        {"code":"ClickToCall","metadata":{"label":{"1033":"Click-to-Call","1031":"Click-to-Call","1036":"Clic pour appeler","1040":"Clic per chiamare"},"description":{"1033":"Suggests an assisted click-to-call initiated from the cockpit.","1031":"Schlägt einen unterstützten Click-to-Call aus dem Cockpit vor.","1036":"Suggère un clic pour appeler assisté depuis le cockpit.","1040":"Suggerisce un clic per chiamare assistito dal cockpit."}}}
+      ]
+    },
+    {
+      "logicalName":"crmshow_productline",
+      "schemaName":"crmshow_ProductLine",
+      "solution":"crmshow_Foundation",
+      "metadata":{
+        "label":{"1033":"Product Line","1031":"Produktlinie","1036":"Ligne de produits","1040":"Linea di prodotti"},
+        "description":{
+          "1033":"CRM-owned analytical grouping of insurance product lines for steering and reporting; it is not a rating or product-administration category.",
+          "1031":"CRM-eigene analytische Gruppierung von Versicherungsproduktlinien für Steuerung und Reporting; keine Tarifierungs- oder Produktverwaltungskategorie.",
+          "1036":"Regroupement analytique CRM des lignes de produits d’assurance pour le pilotage et le reporting; pas une catégorie de tarification ou d’administration.",
+          "1040":"Raggruppamento analitico CRM delle linee di prodotto assicurative per governo e reporting; non una categoria tariffaria o amministrativa."
+        },
+        "mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Analytics and steering grouping only.","lifecycle":"Stable analytical dimension."
+      },
+      "options":[
+        {"code":"MotorVehicle","metadata":{"label":{"1033":"Motor Vehicle","1031":"Motorfahrzeug","1036":"Véhicule à moteur","1040":"Veicolo a motore"},"description":{"1033":"Motor-vehicle insurance product line.","1031":"Produktlinie Motorfahrzeugversicherung.","1036":"Ligne de produits assurance véhicules à moteur.","1040":"Linea di prodotti assicurazione veicoli a motore."}}},
+        {"code":"HouseholdContents","metadata":{"label":{"1033":"Household Contents","1031":"Hausrat","1036":"Ménage","1040":"Contenuto domestico"},"description":{"1033":"Household-contents insurance product line.","1031":"Produktlinie Hausratversicherung.","1036":"Ligne de produits assurance ménage.","1040":"Linea di prodotti assicurazione contenuto domestico."}}},
+        {"code":"CommercialProperty","metadata":{"label":{"1033":"Commercial","1031":"Gewerbe","1036":"Entreprise","1040":"Impresa"},"description":{"1033":"Commercial / business insurance product line.","1031":"Produktlinie Gewerbeversicherung.","1036":"Ligne de produits assurance entreprise.","1040":"Linea di prodotti assicurazione imprese."}}},
+        {"code":"Pension3a","metadata":{"label":{"1033":"Pension 3a","1031":"Vorsorge 3a","1036":"Prévoyance 3a","1040":"Previdenza 3a"},"description":{"1033":"Pillar 3a pension / provision product line.","1031":"Produktlinie Vorsorge 3a (Säule 3a).","1036":"Ligne de produits prévoyance 3a (pilier 3a).","1040":"Linea di prodotti previdenza 3a (pilastro 3a)."}}},
+        {"code":"LegalProtection","metadata":{"label":{"1033":"Legal Protection","1031":"Rechtsschutz","1036":"Protection juridique","1040":"Tutela legale"},"description":{"1033":"Legal-protection insurance product line.","1031":"Produktlinie Rechtsschutzversicherung.","1036":"Ligne de produits protection juridique.","1040":"Linea di prodotti tutela legale."}}}
+      ]
+    },
+    {
+      "logicalName":"crmshow_region",
+      "schemaName":"crmshow_Region",
+      "solution":"crmshow_Foundation",
+      "metadata":{
+        "label":{"1033":"Market / Region","1031":"Markt / Region","1036":"Marché / région","1040":"Mercato / regione"},
+        "description":{
+          "1033":"CRM-owned market/region dimension used for steering and reporting; it is not a rating territory or a jurisdiction determination.",
+          "1031":"CRM-eigene Markt-/Regionsdimension für Steuerung und Reporting; kein Tarifgebiet und keine Zuständigkeitsbestimmung.",
+          "1036":"Dimension marché/région CRM pour le pilotage et le reporting; pas un territoire tarifaire ni une détermination de juridiction.",
+          "1040":"Dimensione mercato/regione CRM per governo e reporting; non un territorio tariffario né una determinazione di giurisdizione."
+        },
+        "mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Analytics and steering grouping only.","lifecycle":"Stable analytical dimension."
+      },
+      "options":[
+        {"code":"Mittelland","metadata":{"label":{"1033":"Mittelland","1031":"Mittelland","1036":"Mittelland","1040":"Mittelland"},"description":{"1033":"Mittelland market/region.","1031":"Markt/Region Mittelland.","1036":"Marché/région Mittelland.","1040":"Mercato/regione Mittelland."}}},
+        {"code":"Zurich","metadata":{"label":{"1033":"Zurich","1031":"Zürich","1036":"Zurich","1040":"Zurigo"},"description":{"1033":"Zurich market/region dimension for steering and reporting.","1031":"Markt-/Regionsdimension Zürich für Steuerung und Reporting.","1036":"Dimension marché/région de Zurich pour le pilotage et le reporting.","1040":"Dimensione mercato/regione di Zurigo per governo e reporting."}}},
+        {"code":"Romandie","metadata":{"label":{"1033":"Romandie","1031":"Romandie","1036":"Romandie","1040":"Romandia"},"description":{"1033":"French-speaking Romandie market/region.","1031":"Französischsprachige Markt/Region Romandie.","1036":"Marché/région de Suisse romande.","1040":"Mercato/regione della Svizzera romanda."}}},
+        {"code":"Ticino","metadata":{"label":{"1033":"Ticino","1031":"Tessin","1036":"Tessin","1040":"Ticino"},"description":{"1033":"Ticino market/region dimension for steering and reporting.","1031":"Markt-/Regionsdimension Tessin für Steuerung und Reporting.","1036":"Dimension marché/région du Tessin pour le pilotage et le reporting.","1040":"Dimensione mercato/regione del Ticino per governo e reporting."}}}
+      ]
+    },
+    {
+      "logicalName":"crmshow_metrictype",
+      "schemaName":"crmshow_MetricType",
+      "solution":"crmshow_Foundation",
+      "metadata":{
+        "label":{"1033":"Measure Type","1031":"Kennzahlentyp","1036":"Type de mesure","1040":"Tipo di misura"},
+        "description":{
+          "1033":"Canonical measure type for the read-only Databricks measure projection (ADR-0018 / ADR-0026); an analytical classification, not a source KPI definition.",
+          "1031":"Kanonischer Kennzahlentyp für die schreibgeschützte Databricks-Measure-Projektion (ADR-0018 / ADR-0026); eine analytische Klassifikation, keine Quell-KPI-Definition.",
+          "1036":"Type de mesure canonique pour la projection de mesures Databricks en lecture seule (ADR-0018 / ADR-0026); une classification analytique, pas une définition de KPI source.",
+          "1040":"Tipo di misura canonico per la proiezione di misure Databricks in sola lettura (ADR-0018 / ADR-0026); una classificazione analitica, non una definizione di KPI fonte."
+        },
+        "mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Analytical classification of projected measures only.","lifecycle":"Stable analytical dimension."
+      },
+      "options":[
+        {"code":"GoalAttainment","metadata":{"label":{"1033":"Goal Attainment","1031":"Zielerreichung","1036":"Atteinte des objectifs","1040":"Raggiungimento obiettivi"},"description":{"1033":"Attainment of a target, in percent.","1031":"Zielerreichung in Prozent.","1036":"Atteinte d’un objectif, en pourcentage.","1040":"Raggiungimento di un obiettivo, in percentuale."}}},
+        {"code":"GrowthYoY","metadata":{"label":{"1033":"Growth YoY","1031":"Wachstum YoY","1036":"Croissance sur un an","1040":"Crescita su base annua"},"description":{"1033":"Year-over-year growth, in percent.","1031":"Wachstum im Jahresvergleich, in Prozent.","1036":"Croissance d’une année sur l’autre, en pourcentage.","1040":"Crescita anno su anno, in percentuale."}}},
+        {"code":"NPS","metadata":{"label":{"1033":"NPS","1031":"NPS","1036":"NPS","1040":"NPS"},"description":{"1033":"Net Promoter Score, a customer-loyalty and advocacy measure.","1031":"Net Promoter Score, eine Kennzahl zu Kundentreue und Weiterempfehlung.","1036":"Net Promoter Score, un indicateur de fidélité et de recommandation client.","1040":"Net Promoter Score, un indicatore di fedeltà e raccomandazione del cliente."}}},
+        {"code":"Automation","metadata":{"label":{"1033":"Automation","1031":"Automatisierung","1036":"Automatisation","1040":"Automazione"},"description":{"1033":"Automation rate, in percent.","1031":"Automatisierungsgrad, in Prozent.","1036":"Taux d’automatisation, en pourcentage.","1040":"Tasso di automazione, in percentuale."}}},
+        {"code":"Forecast","metadata":{"label":{"1033":"Forecast","1031":"Prognose","1036":"Prévision","1040":"Previsione"},"description":{"1033":"Forecast value (e.g. premium volume).","1031":"Prognosewert (z. B. Prämienvolumen).","1036":"Valeur prévisionnelle (p. ex. volume de primes).","1040":"Valore previsionale (per es. volume premi)."}}},
+        {"code":"Conversion","metadata":{"label":{"1033":"Conversion","1031":"Conversion","1036":"Conversion","1040":"Conversione"},"description":{"1033":"Conversion rate, in percent.","1031":"Conversionsrate, in Prozent.","1036":"Taux de conversion, en pourcentage.","1040":"Tasso di conversione, in percentuale."}}},
+        {"code":"Efficiency","metadata":{"label":{"1033":"Efficiency","1031":"Effizienz","1036":"Efficacité","1040":"Efficienza"},"description":{"1033":"Efficiency measure, in percent.","1031":"Effizienzkennzahl, in Prozent.","1036":"Mesure d’efficacité, en pourcentage.","1040":"Misura di efficienza, in percentuale."}}},
+        {"code":"Satisfaction","metadata":{"label":{"1033":"Satisfaction","1031":"Zufriedenheit","1036":"Satisfaction","1040":"Soddisfazione"},"description":{"1033":"Customer-satisfaction measure.","1031":"Kennzahl zur Kundenzufriedenheit.","1036":"Mesure de la satisfaction client.","1040":"Misura della soddisfazione del cliente."}}},
+        {"code":"Quality","metadata":{"label":{"1033":"Quality","1031":"Qualität","1036":"Qualité","1040":"Qualità"},"description":{"1033":"Quality measure, in percent.","1031":"Qualitätskennzahl, in Prozent.","1036":"Mesure de qualité, en pourcentage.","1040":"Misura di qualità, in percentuale."}}}
       ]
     }
   ],

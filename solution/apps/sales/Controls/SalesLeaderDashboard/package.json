@@ -1,8 +1,8 @@
 {
-  "name": "advisor-cockpit-pcf",
+  "name": "sales-leader-dashboard-pcf",
   "version": "0.1.0",
   "private": true,
-  "description": "Advisor Cockpit page-level PCF (React 18 + Fluent UI v9 + Recharts) — local-first harness. Sprint-003 stream advisorcockpit-pcf (#62).",
+  "description": "Sales Leader Dashboard page-level PCF (React 18 + Fluent UI v9 + Recharts) — local-first harness. Sprint-003 stream salesleaderdashboard-pcf (#63).",
   "type": "module",
   "scripts": {
     "dev": "vite",
