@@ -31,7 +31,7 @@ import {
   buildRegionBars,
   buildScorecard,
 } from './selectors';
-import { font, palette } from './tokens';
+import { font, palette, provenance, provenanceLabel } from './tokens';
 import type { DashboardData } from './types';
 
 const useStyles = makeStyles({
@@ -101,7 +101,8 @@ const useStyles = makeStyles({
   legend: {
     display: 'flex',
     alignItems: 'center',
-    ...shorthands.gap('8px'),
+    flexWrap: 'wrap',
+    ...shorthands.gap('6px', '14px'),
     marginTop: '8px',
     paddingTop: '12px',
     ...shorthands.borderTop('1px', 'solid', palette.n30),
@@ -109,6 +110,9 @@ const useStyles = makeStyles({
     color: palette.n130,
   },
   legendLabel: { fontWeight: 700, color: palette.n160 },
+  legendItem: { display: 'inline-flex', alignItems: 'center', ...shorthands.gap('6px') },
+  legendSwatch: { width: '12px', height: '12px', ...shorthands.borderRadius('3px'), ...shorthands.border('1px', 'solid', palette.n30), display: 'inline-block' },
+  legendMuted: { color: palette.n90 },
   srOnly: { position: 'absolute', width: '1px', height: '1px', ...shorthands.padding('0'), ...shorthands.margin('-1px'), ...shorthands.overflow('hidden'), clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', ...shorthands.borderWidth('0') },
 });
 
@@ -164,7 +168,7 @@ export function SalesLeaderDashboard({ data }: { data: DashboardData }) {
 
         <div className={s.kpiGrid}>
           {scorecard.map((k) => (
-            <div key={k.key} className={s.kpi}>
+            <div key={k.key} className={s.kpi} style={{ backgroundColor: provenance.dbx }} title={provenanceLabel.dbx}>
               <div className={s.kpiValueRow}>
                 <span className={s.kpiValue}>{k.valueText}</span>
                 <span
@@ -190,7 +194,7 @@ export function SalesLeaderDashboard({ data }: { data: DashboardData }) {
 
         {tab === 'overview' && (
           <div className={s.grid2}>
-            <section className={s.card}>
+            <section className={s.card} style={{ backgroundColor: provenance.dbx }} title={provenanceLabel.dbx}>
               <div className={s.cardHead}>
                 <div className={s.eyebrow}>Forecast</div>
                 <div className={s.cardTitle}>Neugeschäft & Prämienvolumen über Zeit</div>
@@ -204,7 +208,7 @@ export function SalesLeaderDashboard({ data }: { data: DashboardData }) {
                     <YAxis domain={[280, 460]} tick={{ fontSize: 11, fill: palette.n130 }} axisLine={false} tickLine={false} width={40} />
                     <Tooltip formatter={(v: number) => `${v} CHF Tsd`} />
                     <Area type="monotone" dataKey="high" stroke="none" fill={palette.brand} fillOpacity={0.12} connectNulls={false} legendType="none" isAnimationActive={false} />
-                    <Area type="monotone" dataKey="low" stroke="none" fill={palette.n0} fillOpacity={1} connectNulls={false} legendType="none" isAnimationActive={false} />
+                    <Area type="monotone" dataKey="low" stroke="none" fill={provenance.dbx} fillOpacity={1} connectNulls={false} legendType="none" isAnimationActive={false} />
                     <ReferenceLine y={430} stroke={palette.teal} strokeDasharray="4 4" label={{ value: 'Ziel 430', position: 'insideTopRight', fontSize: 11, fill: palette.teal }} />
                     <Line type="monotone" dataKey="actual" name="Ist" stroke={palette.brand} strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} isAnimationActive={false} />
                     <Line type="monotone" dataKey="forecast" name="KI-Forecast" stroke={palette.brand} strokeWidth={2.5} strokeDasharray="5 4" dot={{ r: 3 }} connectNulls={false} isAnimationActive={false} />
@@ -214,7 +218,7 @@ export function SalesLeaderDashboard({ data }: { data: DashboardData }) {
               </div>
             </section>
 
-            <section className={s.card}>
+            <section className={s.card} style={{ backgroundColor: provenance.unmapped }} title={provenanceLabel.unmapped}>
               <div className={s.cardHead}>
                 <div className={s.eyebrow}>Balanced</div>
                 <div className={s.cardTitle}>Strategischer Scorecard</div>
@@ -236,7 +240,7 @@ export function SalesLeaderDashboard({ data }: { data: DashboardData }) {
 
         {tab === 'products' && (
           <div className={s.grid2}>
-            <section className={s.card}>
+            <section className={s.card} style={{ backgroundColor: provenance.dbx }} title={provenanceLabel.dbx}>
               <div className={s.cardHead}>
                 <div className={s.eyebrow}>Produkte</div>
                 <div className={s.cardTitle}>Neugeschäft je Produktlinie</div>
@@ -259,7 +263,7 @@ export function SalesLeaderDashboard({ data }: { data: DashboardData }) {
               </div>
             </section>
 
-            <section className={s.card}>
+            <section className={s.card} style={{ backgroundColor: provenance.dbx }} title={provenanceLabel.dbx}>
               <div className={s.cardHead}>
                 <div className={s.eyebrow}>Markt / Region</div>
                 <div className={s.cardTitle}>Wachstum je Markt / Region (YoY)</div>
@@ -285,7 +289,7 @@ export function SalesLeaderDashboard({ data }: { data: DashboardData }) {
         )}
 
         {tab === 'funnel' && (
-          <section className={s.card}>
+          <section className={s.card} style={{ backgroundColor: provenance.unmapped }} title={provenanceLabel.unmapped}>
             <div className={s.cardHead}>
               <div className={s.eyebrow}>Funnel-Engpass</div>
               <div className={s.cardTitle}>Volumen & Conversion je Phase</div>
@@ -319,7 +323,7 @@ export function SalesLeaderDashboard({ data }: { data: DashboardData }) {
         )}
 
         {tab === 'benchmark' && (
-          <section className={s.card}>
+          <section className={s.card} style={{ backgroundColor: provenance.unmapped }} title={provenanceLabel.unmapped}>
             <div className={s.cardHead}>
               <div className={s.eyebrow}>GA-Steuerungsmatrix</div>
               <div className={s.cardTitle}>GA-Benchmark & Best-Practice</div>
@@ -354,8 +358,16 @@ export function SalesLeaderDashboard({ data }: { data: DashboardData }) {
         )}
 
         <div className={s.legend} role="note">
-          <span className={s.legendLabel}>Datenquelle:</span> Alle Kennzahlen stammen aus der
-          Databricks-Measure-Projektion (crmshow_measuresnapshot) — read-only, ADR-0018/0026.
+          <span className={s.legendLabel}>Datenquelle:</span>
+          <span className={s.legendItem} title={provenanceLabel.dbx}>
+            <span className={s.legendSwatch} style={{ backgroundColor: provenance.dbx }} />
+            {provenanceLabel.dbx} — Measure-Projektion (crmshow_measuresnapshot)
+          </span>
+          <span className={s.legendItem} title={provenanceLabel.unmapped}>
+            <span className={s.legendSwatch} style={{ backgroundColor: provenance.unmapped }} />
+            {provenanceLabel.unmapped} — illustrativ, noch nicht im Measure-Kontrakt
+          </span>
+          <span className={s.legendMuted}>read-only · ADR-0018/0026</span>
         </div>
       </div>
     </div>

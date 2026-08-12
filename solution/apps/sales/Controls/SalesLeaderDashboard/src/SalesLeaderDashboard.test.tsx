@@ -71,9 +71,10 @@ describe('<SalesLeaderDashboard />', () => {
     expect(screen.getByText(/Ihre GA/)).toBeInTheDocument();
   });
 
-  it('names the single data source in a legend and shows no per-tile badges', () => {
+  it('classifies data-source provenance in a legend without per-tile badges', () => {
     renderDashboard();
-    expect(screen.getByText(/Databricks-Measure-Projektion/)).toBeInTheDocument();
+    expect(screen.getByText(/Measure-Projektion/)).toBeInTheDocument();
+    expect(screen.getByText(/noch nicht im Measure-Kontrakt/)).toBeInTheDocument();
     expect(screen.queryByText('DBX')).not.toBeInTheDocument();
     expect(screen.queryByText('TBD')).not.toBeInTheDocument();
   });
