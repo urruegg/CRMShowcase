@@ -1004,6 +1004,22 @@ BeforeAll {
             if ($Method -cne 'GET') {
                 throw "Unexpected mocked method: $Method"
             }
+
+            if ($Path -match "^/EntityDefinitions\(LogicalName='([^']+)'\)/ManyToOneRelationships") {
+                $relTable = $matches[1]
+                $entityPrefix = "/EntityDefinitions(LogicalName='$relTable')?"
+                $entityKey = @($script:responseMap.Keys |
+                        Where-Object {
+                            $_.StartsWith($entityPrefix, [System.StringComparison]::Ordinal)
+                        }) | Select-Object -First 1
+                $relationships = @()
+                if ($null -ne $entityKey -and
+                    $null -ne $script:responseMap[$entityKey].ManyToOneRelationships) {
+                    $relationships = @($script:responseMap[$entityKey].ManyToOneRelationships)
+                }
+                return [pscustomobject]@{ value = @($relationships) }
+            }
+
             if (-not $script:responseMap.ContainsKey($Path)) {
                 throw "Unexpected mocked path: $Path"
             }
@@ -1100,6 +1116,22 @@ if ($env:TEST_INSURANCE_CONVERGENCE_SCENARIO -eq 'RetrieveLocLabelsUnsupported' 
 }
 
 $map = Get-Content -LiteralPath '__MAP__' -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+
+if ($path -match "^/EntityDefinitions\(LogicalName='([^']+)'\)/ManyToOneRelationships") {
+    $relTable = $matches[1]
+    $entityPrefix = "/EntityDefinitions(LogicalName='$relTable')?"
+    $entityProperty = $map.PSObject.Properties |
+        Where-Object { $_.Name.StartsWith($entityPrefix, [System.StringComparison]::Ordinal) } |
+        Select-Object -First 1
+    $relationships = @()
+    if ($null -ne $entityProperty -and
+        $null -ne $entityProperty.Value.ManyToOneRelationships) {
+        $relationships = @($entityProperty.Value.ManyToOneRelationships)
+    }
+    Write-Json ([pscustomobject]@{ value = @($relationships) })
+    exit 0
+}
+
 $property = $map.PSObject.Properties[$path]
 if ($null -eq $property) {
     Write-Error "Unexpected az rest URL: $url"

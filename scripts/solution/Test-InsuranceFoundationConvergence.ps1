@@ -789,17 +789,36 @@ function Get-ConvergenceTableUnexpectedChildrenPath {
     )
 
     $escapedLogicalName = ConvertTo-ODataKeyString $LogicalName
-    $escapedPrefix = ConvertTo-ODataKeyString $PublisherPrefix
 
+    # Metadata OData supports neither startswith nor derived-property selection
+    # inside $expand, so children are fetched unfiltered and the publisher prefix
+    # is applied client-side. Relationships are read separately via direct
+    # navigation (see Get-ConvergenceTableRelationshipsPath).
     return (
         "/EntityDefinitions(LogicalName='$escapedLogicalName')?" +
         "`$select=MetadataId,LogicalName,SchemaName,PrimaryIdAttribute&" +
         "`$expand=" +
-        "Attributes(`$select=LogicalName,SchemaName,AttributeType,AttributeOf;" +
-        "`$filter=startswith(LogicalName,'$escapedPrefix') or startswith(SchemaName,'$escapedPrefix'))," +
-        "ManyToOneRelationships(`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute;" +
-        "`$filter=startswith(SchemaName,'$escapedPrefix') or startswith(ReferencingAttribute,'$escapedPrefix'))," +
-        "Keys(`$select=SchemaName,KeyAttributes;`$filter=startswith(SchemaName,'$escapedPrefix'))"
+        "Attributes(`$select=LogicalName,SchemaName,AttributeType,AttributeOf)," +
+        "Keys(`$select=SchemaName,KeyAttributes)"
+    )
+}
+
+function Get-ConvergenceTableRelationshipsPath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$LogicalName
+    )
+
+    $escapedLogicalName = ConvertTo-ODataKeyString $LogicalName
+
+    # Direct navigation, not $expand: metadata OData cannot select the derived
+    # OneToManyRelationshipMetadata properties (ReferencingAttribute, ...) inside
+    # an $expand of a relationship collection. The publisher prefix is applied
+    # client-side by the caller.
+    return (
+        "/EntityDefinitions(LogicalName='$escapedLogicalName')/ManyToOneRelationships?" +
+        "`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute"
     )
 }
 
@@ -3438,12 +3457,17 @@ function Test-InsuranceFoundationUnexpectedMetadata {
 
     foreach ($tableLogicalName in @($expectedInventory.ReviewedTables)) {
         $tableInventory = $null
+        $tableRelationships = @()
         try {
             $tableInventory = Invoke-DataverseRequest `
                 -Method GET `
                 -Path (Get-ConvergenceTableUnexpectedChildrenPath `
                     -LogicalName $tableLogicalName `
                     -PublisherPrefix $publisherPrefix)
+            $tableRelationships = @((Invoke-DataverseRequest `
+                        -Method GET `
+                        -Path (Get-ConvergenceTableRelationshipsPath `
+                            -LogicalName $tableLogicalName)).value)
         }
         catch {
             if (Test-ConvergenceTransportError $_) {
@@ -3480,7 +3504,7 @@ function Test-InsuranceFoundationUnexpectedMetadata {
             }
         }
 
-        foreach ($relationship in @($tableInventory.ManyToOneRelationships |
+        foreach ($relationship in @($tableRelationships |
                     Sort-Object SchemaName, ReferencingAttribute)) {
             if (-not (Test-ConvergenceUnexpectedRelationshipCandidate `
                         -Relationship $relationship `
