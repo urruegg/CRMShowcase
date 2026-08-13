@@ -130,14 +130,23 @@ BeforeAll {
             $Column
         )
 
-        return @{
-            Text         = 'String'
-            DateOnly     = 'DateTime'
-            DateTime     = 'DateTime'
-            GlobalChoice = 'Picklist'
-            Lookup       = 'Lookup'
-            Customer     = 'Customer'
-        }[[string]$Column.type]
+        $typeName = switch ([string]$Column.type) {
+            'Text' {
+                if ([string]$Column.format -eq 'Multiline') {
+                    'Memo'
+                }
+                else {
+                    'String'
+                }
+            }
+            'DateOnly' { 'DateTime' }
+            'DateTime' { 'DateTime' }
+            'GlobalChoice' { 'Picklist' }
+            'Lookup' { 'Lookup' }
+            'Customer' { 'Customer' }
+            'Whole' { 'Integer' }
+        }
+        return $typeName
     }
 
     function script:New-BaseAttributeSnapshot {
@@ -204,6 +213,11 @@ BeforeAll {
             'Customer' {
                 $attribute.AttributeType = 'Customer'
                 $attribute.Targets = @($Column.lookup.targets)
+            }
+            'Whole' {
+                $attribute.Format = 'None'
+                $attribute.MinValue = [int]$Column.minValue
+                $attribute.MaxValue = [int]$Column.maxValue
             }
         }
 
@@ -1484,33 +1498,83 @@ Describe 'Convergence path builders' {
         # Regression guard: '?' is a valid PowerShell variable-name character, so
         # an unbraced "$typeName?" swallows both the cast type and the '?', which
         # produced a malformed metadata URL and a Dataverse 500 in CD-DEV.
-        $expectedTypes = @{
-            Text     = 'StringAttributeMetadata'
-            DateOnly = 'DateTimeAttributeMetadata'
-            DateTime = 'DateTimeAttributeMetadata'
-            Lookup   = 'LookupAttributeMetadata'
-            Customer = 'LookupAttributeMetadata'
-        }
-        $expectedDerived = @{
-            Text     = 'MaxLength'
-            DateOnly = 'Format,DateTimeBehavior'
-            DateTime = 'Format,DateTimeBehavior'
-            Lookup   = 'Targets'
-            Customer = 'Targets'
-        }
+        $cases = @(
+            @{ Column = [pscustomobject]@{ type = 'Text'; logicalName = 'crmshow_probe'; format = 'Text' }; TypeName = 'StringAttributeMetadata'; Derived = 'MaxLength' },
+            @{ Column = [pscustomobject]@{ type = 'Text'; logicalName = 'crmshow_probe'; format = 'Multiline' }; TypeName = 'MemoAttributeMetadata'; Derived = 'MaxLength' },
+            @{ Column = [pscustomobject]@{ type = 'DateOnly'; logicalName = 'crmshow_probe' }; TypeName = 'DateTimeAttributeMetadata'; Derived = 'Format,DateTimeBehavior' },
+            @{ Column = [pscustomobject]@{ type = 'DateTime'; logicalName = 'crmshow_probe' }; TypeName = 'DateTimeAttributeMetadata'; Derived = 'Format,DateTimeBehavior' },
+            @{ Column = [pscustomobject]@{ type = 'Whole'; logicalName = 'crmshow_probe' }; TypeName = 'IntegerAttributeMetadata'; Derived = 'Format,MinValue,MaxValue' },
+            @{ Column = [pscustomobject]@{ type = 'Lookup'; logicalName = 'crmshow_probe' }; TypeName = 'LookupAttributeMetadata'; Derived = 'Targets' },
+            @{ Column = [pscustomobject]@{ type = 'Customer'; logicalName = 'crmshow_probe' }; TypeName = 'LookupAttributeMetadata'; Derived = 'Targets' }
+        )
 
-        foreach ($type in $expectedTypes.Keys) {
-            $column = [pscustomobject]@{ type = $type; logicalName = 'crmshow_probe' }
+        foreach ($case in $cases) {
             Get-ConvergenceTypedAttributePath `
                 -TableLogicalName 'crmshow_accountcontactrole' `
-                -Column $column | Should -Be (
+                -Column $case.Column | Should -Be (
                     "/EntityDefinitions(LogicalName='crmshow_accountcontactrole')/Attributes/" +
-                    "Microsoft.Dynamics.CRM.$($expectedTypes[$type])?" +
+                    "Microsoft.Dynamics.CRM.$($case.TypeName)?" +
                     "`$select=MetadataId,LogicalName,SchemaName,AttributeType," +
-                    "DisplayName,Description,RequiredLevel,IsAuditEnabled,$($expectedDerived[$type])&" +
+                    "DisplayName,Description,RequiredLevel,IsAuditEnabled,$($case.Derived)&" +
                     "`$filter=LogicalName eq 'crmshow_probe'"
                 )
         }
+    }
+
+    It 'builds typed fixture snapshots for multiline Text and Whole columns' {
+        $multiline = script:New-TypedAttributeSnapshot -Column ([pscustomobject]@{
+                logicalName = 'crmshow_rationale'
+                schemaName = 'crmshow_Rationale'
+                type = 'Text'
+                required = $true
+                auditing = $true
+                maxLength = 2000
+                format = 'Multiline'
+                metadata = [pscustomobject]@{
+                    label = [pscustomobject]@{
+                        '1033' = 'Rationale'
+                        '1031' = 'Begründung'
+                        '1036' = 'Justification'
+                        '1040' = 'Motivazione'
+                    }
+                    description = [pscustomobject]@{
+                        '1033' = 'Advisory explanation text.'
+                        '1031' = 'Beratender Erläuterungstext.'
+                        '1036' = 'Texte explicatif consultatif.'
+                        '1040' = 'Testo esplicativo consultivo.'
+                    }
+                }
+            }) -MetadataId (script:New-FakeGuid -Index 9801)
+        $multiline.AttributeType | Should -Be 'Memo'
+        $multiline.MaxLength | Should -Be 2000
+
+        $whole = script:New-TypedAttributeSnapshot -Column ([pscustomobject]@{
+                logicalName = 'crmshow_rank'
+                schemaName = 'crmshow_Rank'
+                type = 'Whole'
+                required = $true
+                auditing = $true
+                minValue = 1
+                maxValue = 1000
+                metadata = [pscustomobject]@{
+                    label = [pscustomobject]@{
+                        '1033' = 'Rank'
+                        '1031' = 'Rang'
+                        '1036' = 'Rang'
+                        '1040' = 'Posizione'
+                    }
+                    description = [pscustomobject]@{
+                        '1033' = 'Whole-number ordering rank.'
+                        '1031' = 'Ganzzahliger Ordnungsrang.'
+                        '1036' = 'Rang entier de tri.'
+                        '1040' = 'Posizione intera di ordinamento.'
+                    }
+                }
+            }) -MetadataId (script:New-FakeGuid -Index 9802)
+        $whole.AttributeType | Should -Be 'Integer'
+        $whole.Format | Should -Be 'None'
+        $whole.MinValue | Should -Be 1
+        $whole.MaxValue | Should -Be 1000
     }
 }
 

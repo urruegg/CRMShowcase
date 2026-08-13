@@ -223,9 +223,14 @@ function New-AttributeMetadata {
     }
     switch ($Column.type) {
         'Text' {
-            $common['@odata.type'] = 'Microsoft.Dynamics.CRM.StringAttributeMetadata'
+            $common['@odata.type'] = switch ([string]$Column.format) {
+                'Multiline' { 'Microsoft.Dynamics.CRM.MemoAttributeMetadata' }
+                default { 'Microsoft.Dynamics.CRM.StringAttributeMetadata' }
+            }
             $common.MaxLength = [int]$Column.maxLength
-            $common.FormatName = @{ Value = 'Text' }
+            if ([string]$Column.format -ne 'Multiline') {
+                $common.FormatName = @{ Value = 'Text' }
+            }
         }
         'DateOnly' {
             $common['@odata.type'] = 'Microsoft.Dynamics.CRM.DateTimeAttributeMetadata'
@@ -254,6 +259,12 @@ function New-AttributeMetadata {
         'Customer' {
             $common['@odata.type'] = 'Microsoft.Dynamics.CRM.LookupAttributeMetadata'
             $common.Targets = @($Column.lookup.targets)
+        }
+        'Whole' {
+            $common['@odata.type'] = 'Microsoft.Dynamics.CRM.IntegerAttributeMetadata'
+            $common.Format = 'None'
+            $common.MinValue = [int]$Column.minValue
+            $common.MaxValue = [int]$Column.maxValue
         }
         default { throw "Unsupported attribute type '$($Column.type)' for '$($Column.logicalName)'." }
     }
@@ -1091,10 +1102,22 @@ function Invoke-ChoiceReconciliation {
 
 function Test-AttributeCompatibility {
     param($Existing, $Column, [string]$Owner)
-    $expectedType = @{
-        Text = 'String'; DateOnly = 'DateTime'; DateTime = 'DateTime'
-        GlobalChoice = 'Picklist'; Lookup = 'Lookup'; Customer = 'Customer'
-    }[$Column.type]
+    $expectedType = switch ([string]$Column.type) {
+        'Text' {
+            if ([string]$Column.format -eq 'Multiline') {
+                'Memo'
+            }
+            else {
+                'String'
+            }
+        }
+        'DateOnly' { 'DateTime' }
+        'DateTime' { 'DateTime' }
+        'GlobalChoice' { 'Picklist' }
+        'Lookup' { 'Lookup' }
+        'Customer' { 'Customer' }
+        'Whole' { 'Integer' }
+    }
     $actualType = [string]$Existing.AttributeType
     if ($actualType -and $actualType -ne $expectedType) {
         throw "Structural type conflict for '$Owner/$($Column.logicalName)': expected $expectedType, found $actualType."
@@ -1114,6 +1137,17 @@ function Test-AttributeCompatibility {
         }
         if ([int]$Existing.MaxLength -lt [int]$Column.maxLength) {
             throw "Structural length conflict for '$Owner/$($Column.logicalName)'."
+        }
+    }
+    if ($Column.type -eq 'Whole') {
+        if ($null -eq $Existing.MinValue -or $null -eq $Existing.MaxValue -or
+            [string]::IsNullOrWhiteSpace([string]$Existing.Format)) {
+            throw "Incomplete typed whole-number metadata for '$Owner/$($Column.logicalName)'."
+        }
+        if ([string]$Existing.Format -ne 'None' -or
+            [int]$Existing.MinValue -ne [int]$Column.minValue -or
+            [int]$Existing.MaxValue -ne [int]$Column.maxValue) {
+            throw "Structural whole-number metadata conflict for '$Owner/$($Column.logicalName)': expected None/$($Column.minValue)/$($Column.maxValue), found $($Existing.Format)/$($Existing.MinValue)/$($Existing.MaxValue)."
         }
     }
     if ($Column.type -eq 'GlobalChoice') {
@@ -1166,19 +1200,28 @@ function Get-TypedAttributeMetadata {
     if ($Column.type -eq 'GlobalChoice') {
         return Get-PicklistAttributeMetadata $TableLogicalName $Column.logicalName
     }
-    $type = @{
-        Text = 'StringAttributeMetadata'
-        DateOnly = 'DateTimeAttributeMetadata'
-        DateTime = 'DateTimeAttributeMetadata'
-        Lookup = 'LookupAttributeMetadata'
-        Customer = 'LookupAttributeMetadata'
-    }[$Column.type]
+    $type = switch ([string]$Column.type) {
+        'Text' {
+            if ([string]$Column.format -eq 'Multiline') {
+                'MemoAttributeMetadata'
+            }
+            else {
+                'StringAttributeMetadata'
+            }
+        }
+        'DateOnly' { 'DateTimeAttributeMetadata' }
+        'DateTime' { 'DateTimeAttributeMetadata' }
+        'Lookup' { 'LookupAttributeMetadata' }
+        'Customer' { 'LookupAttributeMetadata' }
+        'Whole' { 'IntegerAttributeMetadata' }
+    }
     $derivedProperties = @{
         Text = 'MaxLength'
         DateOnly = 'Format,DateTimeBehavior'
         DateTime = 'Format,DateTimeBehavior'
         Lookup = 'Targets'
         Customer = 'Targets'
+        Whole = 'Format,MinValue,MaxValue'
     }[$Column.type]
     if (-not $type) {
         throw "Unsupported typed metadata query for '$($Column.type)' column '$($Column.logicalName)'."
@@ -1372,22 +1415,25 @@ function Get-TableMetadataSnapshot {
     }
 
     $normalizedAttributes = foreach ($attribute in $baseAttributes) {
-        $columnType = switch ([string]$attribute.AttributeType) {
-            'String' { 'Text' }
-            'Picklist' { 'GlobalChoice' }
-            'DateTime' { 'DateTime' }
-            'Lookup' { 'Lookup' }
-            'Customer' { 'Customer' }
+        $columnShape = switch ([string]$attribute.AttributeType) {
+            'String' { @{ type = 'Text'; format = 'Text' } }
+            'Memo' { @{ type = 'Text'; format = 'Multiline' } }
+            'Picklist' { @{ type = 'GlobalChoice' } }
+            'DateTime' { @{ type = 'DateTime' } }
+            'Lookup' { @{ type = 'Lookup' } }
+            'Customer' { @{ type = 'Customer' } }
+            'Integer' { @{ type = 'Whole' } }
             default { $null }
         }
-        if (-not $columnType) {
+        if (-not $columnShape) {
             $attribute
             continue
         }
 
         $typed = Get-TypedAttributeMetadata $LogicalName ([pscustomobject]@{
             logicalName = $attribute.LogicalName
-            type = $columnType
+            type = $columnShape.type
+            format = $columnShape.format
         })
         $actual = @($typed)
         if ($actual.Count -eq 1 -and $null -eq $actual[0]) {
@@ -1844,7 +1890,9 @@ function Invoke-NativeExtensionReconciliation {
         }
         $typeName = switch ([string]$existing.AttributeType) {
             'String' { 'StringAttributeMetadata' }
+            'Memo' { 'MemoAttributeMetadata' }
             'DateTime' { 'DateTimeAttributeMetadata' }
+            'Integer' { 'IntegerAttributeMetadata' }
             'Picklist' { 'PicklistAttributeMetadata' }
             default { throw "Cannot safely update attribute metadata for '$($Extension.logicalName)': unsupported typed endpoint." }
         }
@@ -2364,7 +2412,9 @@ function Invoke-TableReconciliation {
                 }
                 $typeName = switch ([string]$actual[0].AttributeType) {
                     'String' { 'StringAttributeMetadata' }
+                    'Memo' { 'MemoAttributeMetadata' }
                     'DateTime' { 'DateTimeAttributeMetadata' }
+                    'Integer' { 'IntegerAttributeMetadata' }
                     'Picklist' { 'PicklistAttributeMetadata' }
                     default { throw "Cannot safely update attribute metadata for '$($column.logicalName)': unsupported typed endpoint." }
                 }

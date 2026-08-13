@@ -676,17 +676,26 @@ function Get-ConvergenceTypedAttributePath {
             -AttributeLogicalName ([string]$Column.logicalName)
     }
 
-    $typeName = @{
-        Text     = 'StringAttributeMetadata'
-        DateOnly = 'DateTimeAttributeMetadata'
-        DateTime = 'DateTimeAttributeMetadata'
-        Lookup   = 'LookupAttributeMetadata'
-        Customer = 'LookupAttributeMetadata'
-    }[[string]$Column.type]
+    $typeName = switch ([string]$Column.type) {
+        'Text' {
+            if ([string]$Column.format -eq 'Multiline') {
+                'MemoAttributeMetadata'
+            }
+            else {
+                'StringAttributeMetadata'
+            }
+        }
+        'DateOnly' { 'DateTimeAttributeMetadata' }
+        'DateTime' { 'DateTimeAttributeMetadata' }
+        'Lookup' { 'LookupAttributeMetadata' }
+        'Customer' { 'LookupAttributeMetadata' }
+        'Whole' { 'IntegerAttributeMetadata' }
+    }
     $derivedProperties = @{
         Text     = 'MaxLength'
         DateOnly = 'Format,DateTimeBehavior'
         DateTime = 'Format,DateTimeBehavior'
+        Whole    = 'Format,MinValue,MaxValue'
         Lookup   = 'Targets'
         Customer = 'Targets'
     }[[string]$Column.type]

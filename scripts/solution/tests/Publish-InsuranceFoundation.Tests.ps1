@@ -26,11 +26,23 @@ BeforeAll {
 
     function Get-ColumnAttributeTypeName {
         param([Parameter(Mandatory)] $Column)
-        return @{
-            Text = 'String'; Lookup = 'Lookup'; Customer = 'Customer'
-            GlobalChoice = 'Picklist'; DateOnly = 'DateTime'
-            DateTime = 'DateTime'
-        }[$Column.type]
+        $typeName = switch ([string]$Column.type) {
+            'Text' {
+                if ([string]$Column.format -eq 'Multiline') {
+                    'Memo'
+                }
+                else {
+                    'String'
+                }
+            }
+            'Lookup' { 'Lookup' }
+            'Customer' { 'Customer' }
+            'GlobalChoice' { 'Picklist' }
+            'DateOnly' { 'DateTime' }
+            'DateTime' { 'DateTime' }
+            'Whole' { 'Integer' }
+        }
+        return $typeName
     }
 
     function New-TableAttributeSnapshot {
@@ -66,6 +78,11 @@ BeforeAll {
             }
             'Customer' {
                 $attribute.Targets = @($Column.lookup.targets)
+            }
+            'Whole' {
+                $attribute.Format = 'None'
+                $attribute.MinValue = $Column.minValue
+                $attribute.MaxValue = $Column.maxValue
             }
         }
         return [pscustomobject]$attribute
@@ -171,8 +188,14 @@ BeforeAll {
             'StringAttributeMetadata' {
                 @($snapshot.Attributes | Where-Object AttributeType -eq 'String')
             }
+            'MemoAttributeMetadata' {
+                @($snapshot.Attributes | Where-Object AttributeType -eq 'Memo')
+            }
             'DateTimeAttributeMetadata' {
                 @($snapshot.Attributes | Where-Object AttributeType -eq 'DateTime')
+            }
+            'IntegerAttributeMetadata' {
+                @($snapshot.Attributes | Where-Object AttributeType -eq 'Integer')
             }
             'LookupAttributeMetadata' {
                 @($snapshot.Attributes | Where-Object {
@@ -422,6 +445,65 @@ Describe 'Insurance Foundation request builders' {
         $dateTime.Format | Should -Be 'DateAndTime'
     }
 
+    It 'builds multiline Text and Whole attributes with the correct Dataverse metadata types' {
+        $multiline = New-AttributeMetadata ([pscustomobject]@{
+                logicalName = 'crmshow_rationale'
+                schemaName = 'crmshow_Rationale'
+                type = 'Text'
+                required = $true
+                auditing = $true
+                maxLength = 2000
+                format = 'Multiline'
+                metadata = [pscustomobject]@{
+                    label = [pscustomobject]@{
+                        '1033' = 'Rationale'
+                        '1031' = 'Begründung'
+                        '1036' = 'Justification'
+                        '1040' = 'Motivazione'
+                    }
+                    description = [pscustomobject]@{
+                        '1033' = 'Advisory explanation text.'
+                        '1031' = 'Beratender Erläuterungstext.'
+                        '1036' = 'Texte explicatif consultatif.'
+                        '1040' = 'Testo esplicativo consultivo.'
+                    }
+                }
+            })
+        $multiline.'@odata.type' |
+            Should -Be 'Microsoft.Dynamics.CRM.MemoAttributeMetadata'
+        $multiline.MaxLength | Should -Be 2000
+        $multiline.Contains('FormatName') | Should -BeFalse
+
+        $whole = New-AttributeMetadata ([pscustomobject]@{
+                logicalName = 'crmshow_rank'
+                schemaName = 'crmshow_Rank'
+                type = 'Whole'
+                required = $true
+                auditing = $true
+                minValue = 1
+                maxValue = 1000
+                metadata = [pscustomobject]@{
+                    label = [pscustomobject]@{
+                        '1033' = 'Rank'
+                        '1031' = 'Rang'
+                        '1036' = 'Rang'
+                        '1040' = 'Posizione'
+                    }
+                    description = [pscustomobject]@{
+                        '1033' = 'Whole-number ordering rank.'
+                        '1031' = 'Ganzzahliger Ordnungsrang.'
+                        '1036' = 'Rang entier de tri.'
+                        '1040' = 'Posizione intera di ordinamento.'
+                    }
+                }
+            })
+        $whole.'@odata.type' |
+            Should -Be 'Microsoft.Dynamics.CRM.IntegerAttributeMetadata'
+        $whole.Format | Should -Be 'None'
+        $whole.MinValue | Should -Be 1
+        $whole.MaxValue | Should -Be 1000
+    }
+
     It 'uses the typed global-option-set alternate key without expand or filter' {
         $script:choicePath = $null
         Mock Invoke-DataverseRequest {
@@ -547,7 +629,8 @@ Describe 'Insurance Foundation request builders' {
             if ($Path -match (
                 "^/EntityDefinitions\(LogicalName='((?:[^']|'')*)'\)" +
                 '/Attributes/Microsoft\.Dynamics\.CRM\.' +
-                '(StringAttributeMetadata|DateTimeAttributeMetadata|' +
+                '(StringAttributeMetadata|MemoAttributeMetadata|' +
+                'DateTimeAttributeMetadata|IntegerAttributeMetadata|' +
                 'LookupAttributeMetadata|PicklistAttributeMetadata)\?'
             )) {
                 $script:typedAttributeRequests.Add($Path) | Out-Null
@@ -1008,7 +1091,8 @@ Describe 'Insurance Foundation reconciliation' {
             if ($Method -eq 'GET' -and $Path -match (
                 "^/EntityDefinitions\(LogicalName='((?:[^']|'')*)'\)" +
                 '/Attributes/Microsoft\.Dynamics\.CRM\.' +
-                '(StringAttributeMetadata|DateTimeAttributeMetadata|' +
+                '(StringAttributeMetadata|MemoAttributeMetadata|' +
+                'DateTimeAttributeMetadata|IntegerAttributeMetadata|' +
                 'LookupAttributeMetadata|PicklistAttributeMetadata)\?'
             )) {
                 $logicalName = $Matches[1].Replace("''", "'")
@@ -1152,7 +1236,8 @@ Describe 'Insurance Foundation reconciliation' {
             $_.Method -eq 'GET' -and
             $_.Path -match (
                 '/Attributes/Microsoft\.Dynamics\.CRM\.' +
-                '(StringAttributeMetadata|DateTimeAttributeMetadata|' +
+                '(StringAttributeMetadata|MemoAttributeMetadata|' +
+                'DateTimeAttributeMetadata|IntegerAttributeMetadata|' +
                 'LookupAttributeMetadata|PicklistAttributeMetadata)\?'
             )
         }).Count | Should -BeGreaterThan 0
@@ -2211,6 +2296,42 @@ Describe 'Insurance Foundation reconciliation' {
                 GlobalOptionSet = [pscustomobject]@{ Name = 'crmshow_wrongchoice' }
             }) $script:contract.nativeExtensions[0] 'account'
         } | Should -Throw '*choice-binding conflict*'
+    }
+
+    It 'accepts Memo and Integer metadata for multiline Text and Whole contract columns' {
+        $multilineColumn = [pscustomobject]@{
+            logicalName = 'crmshow_rationale'
+            schemaName = 'crmshow_Rationale'
+            type = 'Text'
+            required = $true
+            auditing = $true
+            maxLength = 2000
+            format = 'Multiline'
+        }
+        {
+            Test-AttributeCompatibility ([pscustomobject]@{
+                AttributeType = 'Memo'
+                MaxLength = 2000
+            }) $multilineColumn 'crmshow_nextbestaction'
+        } | Should -Not -Throw
+
+        $wholeColumn = [pscustomobject]@{
+            logicalName = 'crmshow_rank'
+            schemaName = 'crmshow_Rank'
+            type = 'Whole'
+            required = $true
+            auditing = $true
+            minValue = 1
+            maxValue = 1000
+        }
+        {
+            Test-AttributeCompatibility ([pscustomobject]@{
+                AttributeType = 'Integer'
+                Format = 'None'
+                MinValue = 1
+                MaxValue = 1000
+            }) $wholeColumn 'crmshow_nextbestaction'
+        } | Should -Not -Throw
     }
 
     It 'throws when typed native choice metadata has a conflicting binding' {

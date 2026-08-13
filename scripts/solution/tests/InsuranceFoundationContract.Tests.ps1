@@ -149,6 +149,77 @@ Describe 'Insurance Foundation JSON contract' {
         Test-ContractSchema | Should -BeTrue
     }
 
+    It 'accepts Whole columns and multiline Text columns in the schema' {
+        $contract = Get-Contract
+        $contract = $contract | ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        $table = @($contract.tables | Where-Object logicalName -eq 'crmshow_accountcontactrole')[0]
+        $table.columns += @(
+            [pscustomobject]@{
+                logicalName = 'crmshow_score'
+                schemaName = 'crmshow_Score'
+                type = 'Whole'
+                required = $true
+                auditing = $true
+                minValue = 0
+                maxValue = 100
+                metadata = [pscustomobject]@{
+                    label = [pscustomobject]@{ '1033' = 'Score'; '1031' = 'Punktzahl'; '1036' = 'Score'; '1040' = 'Punteggio' }
+                    description = [pscustomobject]@{ '1033' = 'Whole-number advisory score for schema validation.'; '1031' = 'Ganzzahliger Beratungsscore zur Schemavalidierung.'; '1036' = 'Score entier de validation du schéma.'; '1040' = 'Punteggio intero per la convalida dello schema.' }
+                    mastership = 'Configuration'
+                    sensitivity = 'Internal'
+                    permittedUse = 'Schema validation only.'
+                }
+            },
+            [pscustomobject]@{
+                logicalName = 'crmshow_notes'
+                schemaName = 'crmshow_Notes'
+                type = 'Text'
+                required = $false
+                auditing = $true
+                maxLength = 2000
+                format = 'Multiline'
+                metadata = [pscustomobject]@{
+                    label = [pscustomobject]@{ '1033' = 'Notes'; '1031' = 'Notizen'; '1036' = 'Notes'; '1040' = 'Note' }
+                    description = [pscustomobject]@{ '1033' = 'Multiline rationale sample for schema validation.'; '1031' = 'Mehrzeiliges Begründungsbeispiel zur Schemavalidierung.'; '1036' = 'Exemple de justification multiligne pour la validation du schéma.'; '1040' = 'Esempio di motivazione multilinea per la convalida dello schema.' }
+                    mastership = 'Configuration'
+                    sensitivity = 'Internal'
+                    permittedUse = 'Schema validation only.'
+                }
+            }
+        )
+        $table.views[0].columns += @('crmshow_score')
+        $table.forms[0].columns += @('crmshow_score', 'crmshow_notes')
+        $json = $contract | ConvertTo-Json -Depth 100
+
+        Test-JsonInstanceSchema -Json $json | Should -BeTrue
+    }
+
+    It 'requires Whole columns to declare integer bounds' {
+        $contract = Get-Contract
+        $contract = $contract | ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        $table = @($contract.tables | Where-Object logicalName -eq 'crmshow_accountcontactrole')[0]
+        $table.columns += [pscustomobject]@{
+            logicalName = 'crmshow_score'
+            schemaName = 'crmshow_Score'
+            type = 'Whole'
+            required = $true
+            auditing = $true
+            maxValue = 100
+            metadata = [pscustomobject]@{
+                label = [pscustomobject]@{ '1033' = 'Score'; '1031' = 'Punktzahl'; '1036' = 'Score'; '1040' = 'Punteggio' }
+                description = [pscustomobject]@{ '1033' = 'Invalid Whole sample without a minimum.'; '1031' = 'Ungültiges Ganzzahlbeispiel ohne Minimum.'; '1036' = 'Exemple entier invalide sans minimum.'; '1040' = 'Esempio intero non valido senza minimo.' }
+                mastership = 'Configuration'
+                sensitivity = 'Internal'
+                permittedUse = 'Schema validation only.'
+            }
+        }
+        $table.views[0].columns += @('crmshow_score')
+        $table.forms[0].columns += @('crmshow_score')
+        $json = $contract | ConvertTo-Json -Depth 100
+
+        Test-JsonInstanceSchema -Json $json | Should -BeFalse
+    }
+
     It 'uses closed reusable object definitions at every schema boundary' {
         $schema = Get-Content $script:schemaPath -Raw | ConvertFrom-Json
         @($schema.'$defs'.PSObject.Properties.Name) | Should -Contain 'localizedText'

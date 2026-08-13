@@ -174,7 +174,7 @@
         "logicalName": { "$ref": "#/$defs/customLogicalName" },
         "schemaName": { "$ref": "#/$defs/schemaName" },
         "type": {
-          "enum": ["Text", "DateOnly", "DateTime", "GlobalChoice", "Lookup", "Customer"]
+          "enum": ["Text", "DateOnly", "DateTime", "GlobalChoice", "Lookup", "Customer", "Whole"]
         },
         "required": { "type": "boolean" },
         "auditing": { "type": "boolean" },
@@ -183,8 +183,10 @@
           "minimum": 1,
           "maximum": 4000
         },
+        "minValue": { "type": "integer" },
+        "maxValue": { "type": "integer" },
         "format": {
-          "enum": ["Text", "DateOnly", "UTC"]
+          "enum": ["Text", "Multiline", "DateOnly", "UTC"]
         },
         "choice": { "$ref": "#/$defs/customLogicalName" },
         "lookup": { "$ref": "#/$defs/lookup" },
@@ -200,7 +202,22 @@
           "not": {
             "anyOf": [
               { "required": ["lookup"] },
-              { "required": ["choice"] }
+              { "required": ["choice"] },
+              { "required": ["minValue"] }
+            ]
+          }
+        },
+        {
+          "required": ["maxLength", "format"],
+          "properties": {
+            "type": { "const": "Text" },
+            "format": { "const": "Multiline" }
+          },
+          "not": {
+            "anyOf": [
+              { "required": ["lookup"] },
+              { "required": ["choice"] },
+              { "required": ["minValue"] }
             ]
           }
         },
@@ -213,7 +230,9 @@
             "anyOf": [
               { "required": ["choice"] },
               { "required": ["maxLength"] },
-              { "required": ["format"] }
+              { "required": ["format"] },
+              { "required": ["minValue"] },
+              { "required": ["maxValue"] }
             ]
           }
         },
@@ -235,7 +254,9 @@
             "anyOf": [
               { "required": ["choice"] },
               { "required": ["maxLength"] },
-              { "required": ["format"] }
+              { "required": ["format"] },
+              { "required": ["minValue"] },
+              { "required": ["maxValue"] }
             ]
           }
         },
@@ -248,7 +269,9 @@
             "anyOf": [
               { "required": ["lookup"] },
               { "required": ["maxLength"] },
-              { "required": ["format"] }
+              { "required": ["format"] },
+              { "required": ["minValue"] },
+              { "required": ["maxValue"] }
             ]
           }
         },
@@ -262,7 +285,9 @@
             "anyOf": [
               { "required": ["lookup"] },
               { "required": ["choice"] },
-              { "required": ["maxLength"] }
+              { "required": ["maxLength"] },
+              { "required": ["minValue"] },
+              { "required": ["maxValue"] }
             ]
           }
         },
@@ -276,7 +301,23 @@
             "anyOf": [
               { "required": ["lookup"] },
               { "required": ["choice"] },
-              { "required": ["maxLength"] }
+              { "required": ["maxLength"] },
+              { "required": ["minValue"] },
+              { "required": ["maxValue"] }
+            ]
+          }
+        },
+        {
+          "required": ["minValue", "maxValue"],
+          "properties": {
+            "type": { "const": "Whole" }
+          },
+          "not": {
+            "anyOf": [
+              { "required": ["lookup"] },
+              { "required": ["choice"] },
+              { "required": ["maxLength"] },
+              { "required": ["format"] }
             ]
           }
         }
