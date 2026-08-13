@@ -13,7 +13,7 @@ Live status for the Advisor Cockpit (charter **#55**). See the
 | salesleaderdashboard-pcf | #63 | DESIGN-SENSITIVE | feat/sprint-003-salesleaderdashboard-pcf | #74 | ✅ merged | local-first PCF (React18/Fluent v9 + Recharts): Führungsdashboard — scorecard KPIs + forecast confidence band + radar + product/region bars + funnel + GA benchmark; data-mapped to measures.json + provenance (measure vs not-yet-mapped) + DATA-BOM/rubric scorecard; tsc clean, 8/8 vitest |
 | foundation-choices | #56 | EXECUTION-ONLY | feat/sprint-003-foundation-choices | #75 | ✅ merged | +5 cockpit choices (nbastatus/nbachannel/productline/region/metrictype) in 4 languages; contract 1.1.0; authored in DEV by the CD pipeline (2026-08-12) |
 | foundational-tables | #57 | DESIGN-SENSITIVE | — | — | ⏳ DEV-gated | slices 1–5 (mobiliar-data-model-extension) |
-| cockpit-tables | #58 | EXECUTION-ONLY | — | — | ⏳ DEV-gated | crmshow_nextbestaction + provenance |
+| cockpit-tables | #58 | EXECUTION-ONLY | feat/s3-phase3-cockpit-tables | — | 🚧 WIP | type-system extension (Whole/Multiline) done + green (382/0/2); tables not yet authored - resume in `wt/s3-phase3-cockpit-tables` |
 | seed-pipeline | #60 (follow-up) | EXECUTION-ONLY | — | — | ⏳ DEV-gated | task 5.3; needs the tables to exist for smoke |
 | mda-app | #64 | DESIGN-SENSITIVE | — | — | ⏳ DEV-gated | app + two custom pages |
 | e2e-verify | #65 | EXECUTION-ONLY | — | — | ⏳ DEV-gated | DEV→TEST evidence |
@@ -175,3 +175,62 @@ Live status for the Advisor Cockpit (charter **#55**). See the
     decide #86) -> CD-DEV green~~ **done**; (2) cockpit data model
     `crmshow_nextbestaction` + provenance (#58); (3) model-driven app + PCF
     ALM wrap in source (#64); (4) promote to TEST (#65).
+
+- **2026-08-13 (session paused - Phase 3 cockpit tables in progress, WIP checkpoint)** -
+  Two flaky/blocking items from the prior session were closed first:
+  - **#96** (new): a non-deterministic `ManyToOneRelationships` mock-resolution
+    bug in the convergence test suite (ambiguous prefix match across two
+    fixture builders sharing an `EntityDefinitions` URL prefix) - fixed by
+    requiring the unique `Keys(` substring for deterministic resolution.
+    Merged as **PR #97**. Full offline suite: 386 passed, 0 failed, 2 skipped.
+  - **PR #95** (STATUS.md CD-DEV-green doc update, pending since 08-14 entry
+    above) rebased onto the #96 fix and merged. `main` now at `741c9cc`.
+  - Started **Phase 3 - cockpit tables (#58)** via a background
+    `general-purpose` agent (`s3-phase3-cockpit-tables`), working in
+    `wt/s3-phase3-cockpit-tables` on branch `feat/s3-phase3-cockpit-tables`.
+    Scope: the contract's `column.type` enum only supported
+    `Text | DateOnly | DateTime | GlobalChoice | Lookup | Customer` - no
+    numeric or multi-line text type existed, but the plan's
+    `crmshow_nextbestaction` table needs a `Whole` (AI score/rank) and a
+    `Multiline` text (rationale) column. This makes Phase 3 a genuine
+    schema + pipeline extension, not just new contract rows.
+  - **Completed and verified today:** the type-system extension itself -
+    `Whole` type (with `minValue`/`maxValue`) and `Multiline` text format
+    added to `insurance-foundation.schema.json`, `Publish-InsuranceFoundation.ps1`,
+    `Test-InsuranceFoundationConvergence.ps1`, and their Pester suites.
+    **Full offline suite re-verified green: 382 passed, 0 failed, 2 skipped**
+    (count differs slightly from the 386 baseline because table-authoring
+    tests for #58 have not been added yet - see below). Committed as a WIP
+    checkpoint (`c2eddbd`, message prefixed `wip(sprint-003):`) and **pushed
+    to `origin/feat/s3-phase3-cockpit-tables` for backup - no PR opened yet**,
+    since the tables themselves are not yet authored in the contract.
+  - **Not yet done** (pick up here tomorrow, same branch/worktree):
+    1. Author `crmshow_nextbestaction` (full 4-language metadata; subject
+       carried by **three separate optional Lookups** - Lead/Account/Contact,
+       not a polymorphic Customer, per ADR-0006/0007 and the
+       `crmshow_accountcontactrole` precedent; references the already-live
+       `crmshow_nbastatus`/`crmshow_nbachannel` choices from #56/PR #75 - no
+       new choice authoring needed).
+    2. Author `crmshow_nbaprovenance` (lookup child of
+       `crmshow_nextbestaction`; check whether the contract already has a
+       custom-table-to-custom-table Lookup precedent to mirror before wiring
+       it up).
+    3. Apply the `auditing:false` convention (from #92) to every new Lookup
+       column (`crmshow_leadid`/`crmshow_accountid`/`crmshow_contactid` on
+       the NBA table, `crmshow_nextbestactionid` on the provenance table) -
+       all other new columns stay `auditing:true`.
+    4. Bump the contract version (currently 1.1.0 -> 1.2.0) and re-run the
+       **full** offline suite (target: 386+ passed, 0 failed, up to 2
+       skipped) before opening a PR.
+    5. Update this STATUS.md row for `cockpit-tables | #58` with the PR
+       number once opened; **do not self-merge** - wait for `gate1`, then
+       squash-merge + delete branch (worktree must be removed via
+       `git worktree remove` from the main repo root first if the branch is
+       checked out in one - see `#96`/`#97` session notes above for the
+       exact sequence).
+  - Sprint remains blocked on **live DEV authoring** of the new tables (via
+    `cd-solution-dev.yml`, once #58 merges) before Phase 9 (**#64** - MDA
+    app + PCF ALM wrap) and Phase 10 (**#65** - DEV->TEST promotion,
+    closing charter **#55**) can start.
+  - Session paused here for the day; resume tomorrow from step 1 above in
+    `wt/s3-phase3-cockpit-tables`.

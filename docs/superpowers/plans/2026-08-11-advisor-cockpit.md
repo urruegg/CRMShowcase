@@ -158,6 +158,21 @@ It 'defines the advisor-cockpit choices in four languages' {
 
 ## Phase 3 — Cockpit tables
 
+> **Progress checkpoint (2026-08-13, paused for the day):** the plan as
+> written assumed the contract already supported numeric/multi-line column
+> types. It didn't — `column.type` only had
+> `Text | DateOnly | DateTime | GlobalChoice | Lookup | Customer`. That gap
+> is now closed: `Whole` (with `minValue`/`maxValue`) and a `Multiline` text
+> format were added to `insurance-foundation.schema.json`,
+> `Publish-InsuranceFoundation.ps1`, `Test-InsuranceFoundationConvergence.ps1`
+> and their Pester suites, TDD'd, full offline suite green (382 passed, 0
+> failed, 2 skipped). This is a **WIP checkpoint commit** (`c2eddbd`) pushed
+> to `origin/feat/s3-phase3-cockpit-tables` (worktree
+> `wt/s3-phase3-cockpit-tables`) — **no PR yet**. Tasks 3.1 and 3.2 below are
+> still outstanding; resume there tomorrow. See
+> [STATUS.md](../sprints/sprint-003-advisor-cockpit/STATUS.md) 2026-08-13
+> entry for the full detail and exact resume steps.
+
 ### Task 3.1: `crmshow_nextbestaction`
 **Files:** author in DEV → `solution/core/datamodel/…`; Test: Pester entity assertion
 
