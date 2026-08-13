@@ -573,7 +573,7 @@ BeforeAll {
             objectid                     = $resolvedObjectId
             componenttype                = [int]$ComponentType
             rootcomponentbehavior        = $RootComponentBehavior
-            _rootsolutioncomponentid_value = $resolvedRootSolutionComponentId
+            rootsolutioncomponentid      = $resolvedRootSolutionComponentId
         }
     }
 
@@ -1401,7 +1401,7 @@ Describe 'Convergence path builders' {
         Get-ConvergenceSolutionInventoryPath `
             -SolutionId '{11111111-1111-1111-1111-111111111111}' `
             -ComponentType @(60, 1, 9, 26, 1) | Should -Be (
-                "/solutioncomponents?`$select=solutioncomponentid,objectid,componenttype,rootcomponentbehavior,_rootsolutioncomponentid_value&" +
+                "/solutioncomponents?`$select=solutioncomponentid,objectid,componenttype,rootcomponentbehavior,rootsolutioncomponentid&" +
                 "`$filter=_solutionid_value eq 11111111-1111-1111-1111-111111111111 and (componenttype eq 1 or componenttype eq 9 or componenttype eq 26 or componenttype eq 60)"
             )
 

@@ -601,8 +601,11 @@ function Get-ConvergenceSolutionInventoryPath {
             "componenttype eq $([int]$_)"
         }) -join ' or '
 
+    # rootsolutioncomponentid is a Uniqueidentifier (not a lookup), so it is selected
+    # directly; the lookup-style _rootsolutioncomponentid_value property does not exist
+    # on solutioncomponent and makes the whole request 400. solutionid IS a lookup.
     return (
-        "/solutioncomponents?`$select=solutioncomponentid,objectid,componenttype,rootcomponentbehavior,_rootsolutioncomponentid_value&" +
+        "/solutioncomponents?`$select=solutioncomponentid,objectid,componenttype,rootcomponentbehavior,rootsolutioncomponentid&" +
         "`$filter=_solutionid_value eq $resolvedSolutionId and ($typeFilter)"
     )
 }
