@@ -743,7 +743,7 @@ function Get-ConvergenceTableMetadataPath {
         "`$select=MetadataId,LogicalName,SchemaName,OwnershipType," +
         'PrimaryNameAttribute,IsAuditEnabled,DisplayName,Description,ObjectTypeCode&' +
         "`$expand=$attributeExpand," +
-        "ManyToOneRelationships(`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute,CascadeConfiguration)&" +
+        "ManyToOneRelationships(`$select=MetadataId,SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute,CascadeConfiguration)&" +
         "`$filter=LogicalName eq '$escapedLogicalName'"
     )
 }
@@ -2426,15 +2426,11 @@ function Test-InsuranceFoundationView {
     $differences = [System.Collections.Generic.List[object]]::new()
     $details = [System.Collections.Generic.List[string]]::new()
     $unsupportedDetails = [System.Collections.Generic.List[string]]::new()
-    try {
-        Assert-ConvergenceSolutionOwnership `
-            -Existing $actual `
-            -Expected ([string]$Table.solution) `
-            -Component $component
-    }
-    catch {
-        [void]$details.Add($_.Exception.Message)
-    }
+    # Solution ownership is intentionally not enforced for custom views (issue #92
+    # Blocker B): the Publisher does not re-parent unmanaged saved queries into
+    # crmshow_DataModel, and adding that enforcement was decided out of scope for
+    # the demo showcase. Contract fidelity (fetchxml/layoutxml/localized labels)
+    # below is still enforced.
 
     $localizedFields = Test-ConvergenceLocalizedRecordFields `
         -EnvironmentUrl $EnvironmentUrl `
@@ -2550,15 +2546,11 @@ function Test-InsuranceFoundationForm {
     $differences = [System.Collections.Generic.List[object]]::new()
     $details = [System.Collections.Generic.List[string]]::new()
     $unsupportedDetails = [System.Collections.Generic.List[string]]::new()
-    try {
-        Assert-ConvergenceSolutionOwnership `
-            -Existing $actual `
-            -Expected ([string]$Table.solution) `
-            -Component $component
-    }
-    catch {
-        [void]$details.Add($_.Exception.Message)
-    }
+    # Solution ownership is intentionally not enforced for the custom admin form
+    # (issue #92 Blocker B): the Publisher does not re-parent unmanaged system
+    # forms into crmshow_DataModel, and adding that enforcement was decided out
+    # of scope for the demo showcase. Contract fidelity (formxml/localized
+    # labels) below is still enforced.
 
     $localizedFields = Test-ConvergenceLocalizedRecordFields `
         -EnvironmentUrl $EnvironmentUrl `

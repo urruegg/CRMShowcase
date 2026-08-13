@@ -122,3 +122,44 @@ Live status for the Advisor Cockpit (charter **#55**). See the
     wrap in source (#64); (4) promote to TEST (#65).
   - Session paused here for a local system + VS Code update; resume from the
     "Remaining path" above.
+
+- **2026-08-14 (blockers #92/#86 fixed via TDD in `wt/s3-cddev-green`)** -
+  Both remaining CD-DEV convergence blockers implemented and green offline:
+  - **#92 Blocker A** (column `IsAuditEnabled`): confirmed a systemic Dataverse
+    quirk - `InitialTableCreate`/`CreateCustomerRelationships` never honor
+    column-level auditing on Lookup/Customer attributes, even though
+    table-level auditing is set correctly. Found **5** affected columns (the
+    issue text named 4; a 5th, `crmshow_policyprojection.crmshow_accountid`,
+    has the same shape) via `insurance-foundation.json`. Relaxed the contract
+    to `auditing:false` on all 5 and locked it in with a new Pester regression
+    test asserting Lookup/Customer columns are `false` and every other column
+    stays `true`.
+  - **#92 Blocker B** (view/form solution ownership): custom views/forms in
+    DEV are not owned by `crmshow_DataModel`; enforcing that was decided out
+    of scope for the demo. Removed the `Assert-ConvergenceSolutionOwnership`
+    enforcement inside `Test-InsuranceFoundationView`/`Test-InsuranceFoundationForm`
+    only (table/column/choice/native-extension ownership checks untouched) and
+    added two regression tests proving a differently-owned view/form no longer
+    reports `ContractConflict`.
+  - **#86** (Customer-relationship cascade defaults to `RemoveLink`): fixed
+    with (1) a best-effort `CascadeConfiguration` on the `CreateCustomerRelationships`
+    create payload (Dataverse may still ignore it) and (2) a new
+    `Repair-CustomerRelationshipCascade` function wired into
+    `Invoke-ExistingCustomerRelationshipReconciliation` that detects an
+    existing Customer relationship whose cascade doesn't match the contract
+    and PUTs a fix via `/RelationshipDefinitions($metadataId)` instead of
+    throwing. `Get-TableMetadataSnapshot`'s `ManyToOneRelationships` `$select`
+    now also requests `MetadataId` so the repair path can address the right
+    relationship. Ordinary (non-Customer) relationship cascade mismatches
+    still throw, unchanged.
+  - Full TDD red -> green cycle for all three fixes; caught and fixed a
+    fixture-path regression along the way - `Get-ConvergenceTableMetadataPath`
+    (the convergence test-fixture mock-key builder) hardcoded the *old*
+    `ManyToOneRelationships` select string and had drifted out of sync with
+    the real query built by `Get-TableMetadataSnapshot`, breaking 4 of the
+    large end-to-end convergence fixtures with "Unexpected mocked path" until
+    both builders were realigned.
+  - **Full offline Pester suite (22 files, `scripts/solution/tests` +
+    `infra/scripts/tests`): 376 passed, 0 failed, 2 skipped.** Ready for PR
+    against #92/#86, then a manual `cd-solution-dev.yml` dispatch to confirm
+    the convergence gate reports **Ready** live in DEV.

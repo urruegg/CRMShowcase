@@ -1945,6 +1945,75 @@ Describe 'Component-level convergence checks' {
             }).Count | Should -Be 1
     }
 
+    It 'does not classify a view owned by a different solution as a contract conflict (issue #92)' {
+        $table = script:Clone-Object -InputObject $script:contract.tables[0]
+        $view = $table.views[0]
+        $request = New-ViewRequest -Table $table -View $view -ObjectTypeCode 10427
+        $savedQuery = script:New-SavedQuerySnapshot `
+            -Request $request `
+            -Table $table `
+            -SavedQueryId (script:New-FakeGuid -Index 26)
+
+        $responses = @{
+            (Get-ConvergenceSavedQueryPath `
+                -TableLogicalName $table.logicalName `
+                -Label ([string]$view.metadata.label.'1033')) = [pscustomobject]@{
+                value = @($savedQuery)
+            }
+            (Get-ConvergenceSolutionMembershipPath -ComponentId $savedQuery.savedqueryid) =
+                script:New-SolutionMembershipResponse -SolutionUniqueName 'Active'
+        }
+        script:Add-LocalizedFieldResponses `
+            -Responses $responses `
+            -EntityLogicalName 'savedquery' `
+            -IdProperty 'savedqueryid' `
+            -RecordId $savedQuery.savedqueryid `
+            -LocalizedFields $request.LocalizedFields
+        script:Register-ConvergenceTransportMock -Responses $responses
+
+        $result = Test-InsuranceFoundationView `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Table $table `
+            -View $view `
+            -ObjectTypeCode 10427
+
+        $result.State | Should -Be 'Ready'
+    }
+
+    It 'does not classify a form owned by a different solution as a contract conflict (issue #92)' {
+        $table = script:Clone-Object -InputObject $script:contract.tables[0]
+        $form = $table.forms[0]
+        $request = New-FormRequest -Table $table -Form $form
+        $systemForm = script:New-FormSnapshot `
+            -Request $request `
+            -Table $table `
+            -FormId (script:New-FakeGuid -Index 27)
+
+        $responses = @{
+            (Get-ConvergenceSystemFormPath `
+                -TableLogicalName $table.logicalName `
+                -Label ([string]$form.metadata.label.'1033')) = [pscustomobject]@{
+                value = @($systemForm)
+            }
+            (Get-ConvergenceSolutionMembershipPath -ComponentId $systemForm.formid) =
+                script:New-SolutionMembershipResponse -SolutionUniqueName 'Active'
+        }
+        script:Add-LocalizedFieldResponses `
+            -Responses $responses `
+            -EntityLogicalName 'systemform' `
+            -IdProperty 'formid' `
+            -RecordId $systemForm.formid `
+            -LocalizedFields $request.LocalizedFields
+        script:Register-ConvergenceTransportMock -Responses $responses
+
+        $result = Test-InsuranceFoundationForm `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Table $table `
+            -Form $form
+
+        $result.State | Should -Be 'Ready'
+    }
+
     It 'classifies a role prerequisite through the reused role verifier result' {
         Mock Invoke-InsuranceSecurityRoleVerification {
             [pscustomobject]@{

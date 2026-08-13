@@ -514,6 +514,23 @@ Describe 'Insurance Foundation JSON contract' {
         }
     }
 
+    It 'does not require column-level auditing on Lookup/Customer columns (issue #92)' {
+        # Dataverse does not honor IsAuditEnabled on lookup attributes created via
+        # InitialTableCreate/CreateCustomerRelationships (confirmed live: table audit
+        # applies, column audit on Lookup/Customer columns does not). Rather than add
+        # Publisher enforcement for a platform quirk, the contract accepts column
+        # auditing:false for these column types; table-level auditing remains true.
+        $contract = Get-Contract
+        foreach ($table in $contract.tables) {
+            foreach ($column in @($table.columns | Where-Object type -in @('Lookup', 'Customer'))) {
+                $column.auditing | Should -BeFalse -Because "$($table.logicalName)/$($column.logicalName) is a Lookup/Customer column"
+            }
+            foreach ($column in @($table.columns | Where-Object type -notin @('Lookup', 'Customer'))) {
+                $column.auditing | Should -BeTrue -Because "$($table.logicalName)/$($column.logicalName) is not a Lookup/Customer column"
+            }
+        }
+    }
+
     It 'declares the thin policy projection exclusions' {
         $contract = Get-Contract
         $policy = $contract.tables | Where-Object logicalName -eq 'crmshow_policyprojection'
