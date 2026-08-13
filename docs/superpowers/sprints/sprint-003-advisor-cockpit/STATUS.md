@@ -77,3 +77,48 @@ Live status for the Advisor Cockpit (charter **#55**). See the
   - Also open: **PCF multi-language i18n** (Phase 9 - both controls are
     German-only, no resx / `context.userSettings`); and a note that the local
     `main` working copy drifted behind `origin/main` during the session.
+
+- **2026-08-13 (convergence gate: transport chain fixed; app-deploy status mapped)** -
+  The CD-DEV `Validate complete demo convergence` gate now **runs fully
+  end-to-end against live Dataverse** for the first time. It had never
+  completed before - its Pester suite mocks every HTTP call, so a chain of
+  live-only query bugs was never exercised. All three are now fixed:
+  - **#85 / #88** (merged): typed attribute-metadata cast URL - unbraced
+    `"$typeName?"` (in PowerShell `?` is a valid variable-name char) swallowed
+    the cast type -> malformed URL -> Dataverse 500.
+  - **#89** (merged): reverse-inventory selected `_rootsolutioncomponentid_value`,
+    which does not exist (`rootsolutioncomponentid` is a Uniqueidentifier, not a
+    lookup).
+  - **#90 / #91** (merged): metadata OData supports **neither** `startswith`
+    filtering **nor** derived-property selection inside `$expand` for any
+    metadata entity. Reworked the reverse-inventory to drop the (redundant)
+    server-side `startswith` filters and read relationships via **direct
+    navigation** (`/EntityDefinitions(LogicalName='X')/ManyToOneRelationships`).
+    Convergence Pester **52/52**.
+  - **CD-DEV from `main` (run 31681039745)** confirms it live: `validate` +
+    authoring (`Reconcile demo-safe metadata`) pass; convergence now runs
+    completely with `languages`, `roles`, and **`unexpectedMetadata` = Ready**.
+  - Two real **Publisher authoring-completeness** gaps remain before the gate is
+    green (filed as **#92**): (A) per-**column** `IsAuditEnabled` not set (table
+    audit is set; contract wants `column.auditing: true`); (B) custom
+    views/forms exist in DEV but are not owned by the `crmshow_DataModel`
+    solution. **Owner decision on #92: not needed** - resolve by **relaxing**
+    the contract/convergence expectations at restart, not by adding Publisher
+    enforcement. **#86** (publisher enforce `Delete=Restrict` on the Customer
+    relationships) remains separately open.
+  - **Deployment status (verified live):** DEV `crmshowdev` = **6/6** solutions
+    (unmanaged, current) + 3 tables + 10 choices + 2 roles. TEST `crmshowtest` =
+    **2/6** managed (`Foundation`+`DataModel` only) and **stale** (missing the 5
+    cockpit choices, Data Steward, and the Sales/Service/Marketing/Integration
+    solutions) - the DEV->TEST promotion never completed because the gate was
+    blocked. **No model-driven app and no PCF code components in either
+    environment yet** (Phase 9 #64 not started).
+  - **Diagnostic tool:** a read-only local convergence probe (dot-source the gate
+    against DEV with an `Invoke-RestMethod` transport override) surfaces all
+    live-only gate bugs in one run instead of ~10-min CD-DEV round-trips.
+  - **Remaining path to the advisory app end-to-end:** (1) relax #92 (+ decide
+    #86) -> CD-DEV green -> DEV evidence artifact; (2) cockpit data model
+    `crmshow_nextbestaction` + provenance (#58); (3) model-driven app + PCF ALM
+    wrap in source (#64); (4) promote to TEST (#65).
+  - Session paused here for a local system + VS Code update; resume from the
+    "Remaining path" above.
