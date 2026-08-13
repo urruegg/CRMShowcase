@@ -1008,9 +1008,17 @@ BeforeAll {
             if ($Path -match "^/EntityDefinitions\(LogicalName='([^']+)'\)/ManyToOneRelationships") {
                 $relTable = $matches[1]
                 $entityPrefix = "/EntityDefinitions(LogicalName='$relTable')?"
+                # Multiple fixture keys can share this entity-name prefix (e.g. the
+                # "unexpected children" reverse-inventory query and the metadata-snapshot
+                # query both start with "/EntityDefinitions(LogicalName='X')?"). Only the
+                # unexpected-children query's $expand includes "Keys(" (see
+                # Get-ConvergenceTableUnexpectedChildrenPath), so require that substring
+                # too. Without it, resolution depends on Hashtable key enumeration order,
+                # which is not stable across processes and causes flaky failures (#96).
                 $entityKey = @($script:responseMap.Keys |
                         Where-Object {
-                            $_.StartsWith($entityPrefix, [System.StringComparison]::Ordinal)
+                            $_.StartsWith($entityPrefix, [System.StringComparison]::Ordinal) -and
+                            $_.Contains('Keys(')
                         }) | Select-Object -First 1
                 $relationships = @()
                 if ($null -ne $entityKey -and
@@ -1120,8 +1128,14 @@ $map = Get-Content -LiteralPath '__MAP__' -Raw -Encoding UTF8 | ConvertFrom-Json
 if ($path -match "^/EntityDefinitions\(LogicalName='([^']+)'\)/ManyToOneRelationships") {
     $relTable = $matches[1]
     $entityPrefix = "/EntityDefinitions(LogicalName='$relTable')?"
+    # See the matching comment in Register-ConvergenceTransportMock (#96): require the
+    # unique "Keys(" substring so resolution does not depend on property enumeration
+    # order when more than one fixture key shares this entity-name prefix.
     $entityProperty = $map.PSObject.Properties |
-        Where-Object { $_.Name.StartsWith($entityPrefix, [System.StringComparison]::Ordinal) } |
+        Where-Object {
+            $_.Name.StartsWith($entityPrefix, [System.StringComparison]::Ordinal) -and
+            $_.Name.Contains('Keys(')
+        } |
         Select-Object -First 1
     $relationships = @()
     if ($null -ne $entityProperty -and
@@ -2209,6 +2223,47 @@ Describe 'Unexpected metadata reverse inventory' {
 
         $result.State | Should -Be 'ContractConflict'
         @($result.Unexpected) | Should -Contain 'crmshow_DataModel/table/crmshow_unexpectedtable'
+    }
+
+    It 'resolves ManyToOneRelationships direct navigation to the unexpected-children fixture, not an ambiguous metadata-query fixture sharing the same entity prefix (#96)' {
+        # Get-ConvergenceTableMetadataPath and Get-ConvergenceTableUnexpectedChildrenPath
+        # both register a fixture key starting with "/EntityDefinitions(LogicalName='X')?"
+        # for every contract table (see New-ReadyConvergenceResponseMap above). Only the
+        # unexpected-children key is authoritative for ManyToOneRelationships direct
+        # navigation. Diverge the two fixtures' relationships to prove resolution always
+        # picks the correct one, regardless of Hashtable key enumeration order.
+        $fixture = script:New-ReadyConvergenceResponseMap `
+            -Contract $script:contract `
+            -Manifest $script:manifest `
+            -Scenario Ready
+        $table = $script:contract.tables[2]
+        $metadataPath = Get-ConvergenceTableMetadataPath `
+            -LogicalName $table.logicalName `
+            -RequestedAttributeLogicalNames @($table.columns.logicalName)
+        $childrenPath = Get-ConvergenceTableUnexpectedChildrenPath `
+            -LogicalName $table.logicalName `
+            -PublisherPrefix (Get-ConvergencePublisherLogicalPrefix -Manifest $script:manifest)
+
+        # Decoy: inject a relationship visible only via the non-authoritative
+        # metadata-query fixture. A buggy (order-dependent) resolver could surface it.
+        $fixture.Responses[$metadataPath].value[0].ManyToOneRelationships = @(
+            $fixture.Responses[$metadataPath].value[0].ManyToOneRelationships +
+            [pscustomobject]@{
+                SchemaName           = 'crmshow_DecoyFromMetadataFixture'
+                ReferencedEntity     = 'account'
+                ReferencingEntity    = [string]$table.logicalName
+                ReferencingAttribute = 'crmshow_decoyfrommetadatafixtureid'
+            }
+        )
+        script:Register-ConvergenceTransportMock -Responses $fixture.Responses
+
+        $result = Invoke-ConvergenceDataverseRequest -Method GET `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Path (Get-ConvergenceTableRelationshipsPath -LogicalName $table.logicalName)
+
+        @($result.value.SchemaName) | Should -Not -Contain 'crmshow_DecoyFromMetadataFixture'
+        @($result.value.SchemaName) |
+            Should -Be @($fixture.Responses[$childrenPath].ManyToOneRelationships.SchemaName)
     }
 
     It 'classifies an unexpected custom column as ContractConflict' {
