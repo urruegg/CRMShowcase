@@ -159,7 +159,19 @@ Live status for the Advisor Cockpit (charter **#55**). See the
     the real query built by `Get-TableMetadataSnapshot`, breaking 4 of the
     large end-to-end convergence fixtures with "Unexpected mocked path" until
     both builders were realigned.
-  - **Full offline Pester suite (22 files, `scripts/solution/tests` +
-    `infra/scripts/tests`): 376 passed, 0 failed, 2 skipped.** Ready for PR
-    against #92/#86, then a manual `cd-solution-dev.yml` dispatch to confirm
-    the convergence gate reports **Ready** live in DEV.
+  - **Full offline Pester suite (23 files, `scripts/solution/tests` +
+    `infra/scripts/tests`): 385 passed, 0 failed, 2 skipped.** Merged as
+    **PR #94** (labelled `autonomy:execution-only`; guardrail scan confirmed
+    it touches no guarded path). Closes #92 and #86.
+  - **CD-DEV gate confirmed green live** - `cd-solution-dev.yml` dispatched
+    from `main` at `0ff50ff` (run
+    [31695020608](https://github.com/urruegg/CRMShowcase/actions/runs/31695020608)):
+    `validate` + `author` both succeed; the convergence result has **68/68
+    component/child `State` entries = `Ready`**, zero `ContractConflict`.
+    **CD-DEV is fully green for the first time this sprint.**
+  - Worktree `wt/s3-cddev-green` removed; branch
+    `fix/s3-cddev-green-blockers` deleted (local + remote) after merge.
+  - **Remaining path to the advisory app end-to-end:** (1) ~~relax #92 (+
+    decide #86) -> CD-DEV green~~ **done**; (2) cockpit data model
+    `crmshow_nextbestaction` + provenance (#58); (3) model-driven app + PCF
+    ALM wrap in source (#64); (4) promote to TEST (#65).
