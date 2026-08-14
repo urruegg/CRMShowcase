@@ -110,6 +110,22 @@ record. **Not yet done:** intake-export the newly authored components
 `crmshow_nextbestaction`, `crmshow_nbaprovenance`, `crmshow_measuresnapshot`)
 into `solution/core/datamodel` source control.
 
+**PCF wrap for #64 started (2026-08-14).** Per the owner's explicit scope
+decision ("ship the existing PCF as-is first, polish afterwards"), both
+controls now have a real, buildable PCF project under `pcf/` (isolated
+`package.json`/`tsconfig.json`, `ControlManifest.Input.xml`, `index.ts`
+rendering the existing component unchanged with its existing fixture data —
+no Dataverse binding yet). `control-type="standard"` bundles React 18 +
+Fluent v9 directly rather than the platform's React 16, since the existing
+components already use React 18 APIs. Both builds verified green:
+`AdvisorCockpit` webpack compiled in 259s (bundle.js 8.1 MiB),
+`SalesLeaderDashboard` in 74s (bundle.js 3.97 MiB). **Not yet done:** the
+MDA app "Advisor Cockpit" + 2 custom pages that host these controls.
+Researched via Microsoft Learn: custom-page canvas content has **no**
+Web API/CLI authoring path — it must be created interactively in Power Apps
+Studio/the Maker Portal. The app-module + sitemap registration is scriptable
+via Web API and remains a planned next step.
+
 ## Definition of done
 
 - [x] Governance: ADR-0026/0027 + polish-loop pattern recorded (#66).
@@ -120,5 +136,5 @@ into `solution/core/datamodel` source control.
 - [x] Foundation choices authored in DEV (#56 base, PR #75).
 - [x] #56 addendum choices + foundational/cockpit tables authored in DEV (#57/#58, run 31805085480, 2026-08-14) — intake-export into source control still pending.
 - [ ] Seed wired into the CD pipeline with smoke (#60 follow-up / 5.3).
-- [ ] MDA app "Advisor Cockpit" + custom pages (#64).
+- [ ] MDA app "Advisor Cockpit" + custom pages (#64) — both controls wrapped as real PCF + build-verified (2026-08-14); app module/sitemap + the 2 custom pages (Maker-Portal-only step) still pending.
 - [ ] E2E DEV→TEST evidence (#65).
