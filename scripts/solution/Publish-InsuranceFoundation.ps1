@@ -438,6 +438,12 @@ function Get-CustomerRelationshipRequest {
             ReferencedEntity = $target
             ReferencingEntity = $Table.logicalName
             RelationshipType = 'OneToManyRelationship'
+            # Best-effort only: CreateCustomerRelationships does not reliably
+            # honor CascadeConfiguration at create time (issue #86); the
+            # existing-relationship path repairs it if the platform ignores
+            # this and defaults to RemoveLink.
+            CascadeConfiguration = Get-ExpectedOrdinaryRelationshipCascade `
+                -ReferencedEntity $target
             AssociatedMenuConfiguration = @{
                 Behavior = 'UseLabel'
                 Group = 'Details'
@@ -1353,7 +1359,7 @@ function Get-TableMetadataSnapshot {
         "`$select=MetadataId,LogicalName,SchemaName,OwnershipType," +
         "PrimaryNameAttribute,IsAuditEnabled,DisplayName,Description,ObjectTypeCode&" +
         "`$expand=$attributeExpand," +
-        "ManyToOneRelationships(`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute,CascadeConfiguration)&" +
+        "ManyToOneRelationships(`$select=MetadataId,SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute,CascadeConfiguration)&" +
         "`$filter=LogicalName eq '$escapedLogicalName'"
     )
     if ($null -eq $existing) { return $null }
@@ -1779,6 +1785,45 @@ function Test-CustomerRelationshipVisibility {
     return $true
 }
 
+function Repair-CustomerRelationshipCascade {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] $Table,
+        [Parameter(Mandatory)] $Column,
+        [Parameter(Mandatory)] $Relationship,
+        [Parameter(Mandatory)] [hashtable]$ExpectedCascade
+    )
+
+    # CreateCustomerRelationships always creates the underlying OneToMany
+    # relationships with Delete=RemoveLink; Dataverse does not honor a
+    # requested CascadeConfiguration for this action (issue #86). Repair by
+    # fetching the full relationship metadata and PUTing the corrected
+    # cascade back, mirroring the proven attribute-metadata repair pattern
+    # in Invoke-NativeExtensionReconciliation.
+    $metadataId = ([string]$Relationship.MetadataId).Trim('{}')
+    if ([string]::IsNullOrWhiteSpace($metadataId)) {
+        throw "Cannot repair Customer relationship cascade for '$($Relationship.SchemaName)': no metadata ID was returned by the platform."
+    }
+    $path = "/RelationshipDefinitions($metadataId)"
+    $complete = Invoke-DataverseRequest -Method GET -Path $path
+    if ($null -eq $complete -or
+        $complete.PSObject.Properties.Name -contains 'value') {
+        throw "Cannot repair Customer relationship cascade for '$($Relationship.SchemaName)': a complete relationship representation was not returned by '$path'."
+    }
+
+    $body = [ordered]@{}
+    foreach ($property in $complete.PSObject.Properties) {
+        if ($property.Name -match '^@odata\.context$') { continue }
+        $body[$property.Name] = $property.Value
+    }
+    $body['@odata.type'] = 'Microsoft.Dynamics.CRM.OneToManyRelationshipMetadata'
+    $body['CascadeConfiguration'] = $ExpectedCascade
+
+    Invoke-DataverseRequest -Method PUT -Path $path -Body $body `
+        -Headers (Get-MergeLabelHeaders $Table.solution) | Out-Null
+    Write-Output "$($Table.logicalName)/$($Column.logicalName): Repaired cascade for '$($Relationship.SchemaName)'"
+}
+
 function Invoke-NativeExtensionReconciliation {
     param($Extension)
     $existing = Get-PicklistAttributeMetadata $Extension.table `
@@ -2053,6 +2098,32 @@ function Invoke-ExistingCustomerRelationshipReconciliation {
     if ($relationshipCandidates.Count -ne $expectedRelationships.Count) {
         throw "Structural Customer relationship conflict for '$component': expected $($expectedRelationships.Count) complete relationships, found $($relationshipCandidates.Count); automatic recovery cannot continue from partial metadata."
     }
+
+    # CreateCustomerRelationships does not honor CascadeConfiguration on
+    # create (issue #86); repair any complete-but-wrong cascade in place
+    # before the visibility check below, rather than throwing.
+    foreach ($candidate in $relationshipCandidates) {
+        $expectedCascade = Get-ExpectedOrdinaryRelationshipCascade `
+            -ReferencedEntity ([string]$candidate.ReferencedEntity)
+        $cascadeIsComplete = -not @($expectedCascade.Keys | Where-Object {
+            [string]::IsNullOrWhiteSpace([string]$candidate.CascadeConfiguration.$_)
+        })
+        if (-not $cascadeIsComplete) {
+            continue
+        }
+        $cascadeMismatched = @($expectedCascade.Keys | Where-Object {
+            [string]$candidate.CascadeConfiguration.$_ -ne [string]$expectedCascade[$_]
+        })
+        if ($cascadeMismatched.Count -eq 0) {
+            continue
+        }
+        Repair-CustomerRelationshipCascade -Table $Table -Column $Column `
+            -Relationship $candidate -ExpectedCascade $expectedCascade
+        foreach ($action in $expectedCascade.Keys) {
+            $candidate.CascadeConfiguration.$action = $expectedCascade[$action]
+        }
+    }
+
     if (-not (Test-CustomerRelationshipVisibility -Table $Table `
                 -Column $Column -Snapshot ([pscustomobject]@{
                     Attributes = @($attribute)
@@ -2338,6 +2409,18 @@ function Get-ContractTableSchemaName {
     return [string]$tables[0].schemaName
 }
 
+function Test-InsuranceFoundationRoleIsRoot {
+    # Root roles may be represented with a null parent root role or as a
+    # self-reference (parentrootroleid == roleid). Treat both as root.
+    param(
+        [AllowNull()] $Role
+    )
+    if ($null -eq $Role) { return $false }
+    $parentRootRoleId = ([string]$Role._parentrootroleid_value).Trim('{}')
+    if ([string]::IsNullOrWhiteSpace($parentRootRoleId)) { return $true }
+    return ($parentRootRoleId -ieq ([string]$Role.roleid).Trim('{}'))
+}
+
 function Invoke-RoleReconciliation {
     param(
         [Parameter(Mandatory)] $Role,
@@ -2349,7 +2432,17 @@ function Invoke-RoleReconciliation {
         }
     }
     $escapedName = $Role.name.Replace("'", "''")
-    $existing = Get-One "/roles?`$select=roleid,name,description,_businessunitid_value&`$filter=name eq '$escapedName' and _parentrootroleid_value eq null"
+    $roleResponse = Invoke-DataverseRequest -Method GET -Path "/roles?`$select=roleid,name,description,_businessunitid_value,_parentrootroleid_value&`$filter=name eq '$escapedName'"
+    $rootRoles = @()
+    if ($null -ne $roleResponse) {
+        $rootRoles = @($roleResponse.value | Where-Object {
+            Test-InsuranceFoundationRoleIsRoot -Role $_
+        })
+    }
+    if ($rootRoles.Count -gt 1) {
+        throw "Metadata resolution was ambiguous for root security role '$($Role.name)'."
+    }
+    $existing = if ($rootRoles.Count -eq 1) { $rootRoles[0] } else { $null }
     if ($null -eq $existing) {
         $businessUnit = Get-One "/businessunits?`$select=businessunitid&`$filter=parentbusinessunitid eq null"
         if ($null -eq $businessUnit -or -not $businessUnit.businessunitid) {
@@ -2359,36 +2452,33 @@ function Invoke-RoleReconciliation {
         $request = [pscustomobject]@{
             Method = 'POST'; Path = '/roles'; Solution = $Role.solution
             EntityLogicalName = 'role'; IdProperty = 'roleid'
-            LocalizedFields = @{
-                name = $Role.metadata.label
-                description = $Role.metadata.description
-            }
             Body = @{
                 name = $Role.name
                 description = [string]$Role.metadata.description.'1033'
                 'businessunitid@odata.bind' = "/businessunits($businessUnitId)"
             }
         }
+        # Security roles are not in the SetLocLabels supported-attribute set;
+        # name/description are written as plain attributes (1033 base) only.
         $existing = Invoke-PlannedRequest $request
-        Set-RecordLocalizedFields -Request $request -CreatedRecord $existing
         if ($null -eq $existing -or -not $existing.roleid) {
             throw "Created role '$($Role.name)' did not return its role ID."
         }
         Write-Output "$($Role.name): Created"
     } else {
         Assert-SolutionOwnership $existing $Role.solution $Role.name
+        $roleId = [string]$existing.roleid
         $request = [pscustomobject]@{
-            Solution = $Role.solution
-            EntityLogicalName = 'role'
-            IdProperty = 'roleid'
-            LocalizedFields = @{
-                name = $Role.metadata.label
-                description = $Role.metadata.description
+            Method = 'PATCH'; Path = "/roles($roleId)"; Solution = $Role.solution
+            EntityLogicalName = 'role'; IdProperty = 'roleid'
+            Body = @{
+                name = $Role.name
+                description = [string]$Role.metadata.description.'1033'
             }
         }
-        # Role localized labels are not exposed as a complete language set by
-        # the record query. Idempotently repair every language on each run.
-        Set-RecordLocalizedFields -Request $request -CreatedRecord $existing
+        # Security roles do not support SetLocLabels; reconcile name/description
+        # as plain attributes (1033 base) instead.
+        Invoke-PlannedRequest $request | Out-Null
         Write-Output "$($Role.name): Updated"
     }
 

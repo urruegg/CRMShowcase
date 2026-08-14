@@ -61,9 +61,31 @@ function Get-InsuranceSecurityRolePath {
 
     $escapedName = ConvertTo-ODataStringLiteral -Value $RoleName
     return (
-        "/roles?`$select=roleid,name&" +
-        "`$filter=_parentrootroleid_value eq null and name eq '$escapedName'"
+        "/roles?`$select=roleid,name,_parentrootroleid_value&" +
+        "`$filter=name eq '$escapedName'"
     )
+}
+
+function Test-InsuranceSecurityRoleIsRoot {
+    # A root security role has no parent root role. Some organisations
+    # materialise the root as a self-reference (parentrootroleid == roleid)
+    # rather than null, so treat both shapes as root.
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        $Role
+    )
+
+    if ($null -eq $Role) {
+        return $false
+    }
+
+    $parentRootRoleId = ([string]$Role._parentrootroleid_value).Trim('{}')
+    if ([string]::IsNullOrWhiteSpace($parentRootRoleId)) {
+        return $true
+    }
+
+    return ($parentRootRoleId -ieq ([string]$Role.roleid).Trim('{}'))
 }
 
 function Get-InsuranceSecurityRoleSolutionMembershipPath {
@@ -294,7 +316,7 @@ function New-InsuranceSecurityRoleResult {
         State = $State
         Missing = @(Get-UniqueExactStrings -Value $Missing)
         Unexpected = @(Get-UniqueExactStrings -Value $Unexpected)
-        WrongDepth = @($WrongDepth)
+        WrongDepth = @($WrongDepth | Where-Object { $null -ne $_ })
         DuplicateExpected = @(Get-UniqueExactStrings -Value $DuplicateExpected)
         DuplicateActual = @(Get-UniqueExactStrings -Value $DuplicateActual)
         Details = @($Details | Where-Object {
@@ -396,6 +418,20 @@ function Normalize-InsuranceRolePrivilegeCollection {
     return @($normalized)
 }
 
+function Test-InsuranceRoleBaselinePrivilege {
+    # Dataverse auto-grants a protected baseline (e.g. SharePoint document
+    # management) to every security role; ReplacePrivilegesRole cannot remove
+    # it and it is outside the reviewed-role contract scope (ADR-0029).
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [AllowEmptyString()]
+        [string]$Name
+    )
+
+    return ([string]$Name -imatch 'SharePoint')
+}
+
 function Compare-InsuranceRolePrivileges {
     [CmdletBinding()]
     param(
@@ -422,9 +458,15 @@ function Compare-InsuranceRolePrivileges {
     }
 
     $unexpected = foreach ($name in @(Get-UniqueExactStrings -Value @($actualItems.Name))) {
-        if (-not (Test-ContainsExactString -Value @($expectedItems.Name) -Expected $name)) {
-            $name
+        if (Test-ContainsExactString -Value @($expectedItems.Name) -Expected $name) {
+            continue
         }
+        # Platform-managed baseline privileges (e.g. SharePoint document
+        # management) are auto-granted to every role and out of contract scope.
+        if (Test-InsuranceRoleBaselinePrivilege -Name $name) {
+            continue
+        }
+        $name
     }
 
     $wrongDepth = foreach ($name in @(Get-UniqueExactStrings -Value @($expectedItems.Name))) {
@@ -621,7 +663,9 @@ function Test-InsuranceSecurityRole {
         -Path (Get-InsuranceSecurityRolePath -RoleName $roleName)
     $matches = @()
     if ($null -ne $roleResponse) {
-        $matches = @($roleResponse.value)
+        $matches = @($roleResponse.value | Where-Object {
+                Test-InsuranceSecurityRoleIsRoot -Role $_
+            })
     }
 
     if ($matches.Count -eq 0) {

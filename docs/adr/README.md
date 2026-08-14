@@ -10,11 +10,13 @@ Two loose series live side by side:
 - **Governance / build ADRs (0001–0005)** record real decisions made while bringing
   the showcase up: Copilot governance, OIDC federation, Terraform, CI plane, CI app
   users.
-- **Domain and delivery ADRs (0006–0033)** record the CRM Frontier Firm design position on the
+- **Domain and delivery ADRs (0006–0039)** record the CRM Frontier Firm design position on the
   illustrated insurance vertical: party model, portfolio placement, thin CRM over
   the engines, consent, event cascade, jurisdiction eligibility, GA territory,
   agents-advisory, voice, outbound, ALM, analytics split, demo-feasible
-  Dataverse bootstrap boundaries, the Dataverse-to-Databricks integration
+  Dataverse bootstrap boundaries, effective-date integrity, the CI/CD workflow
+  naming convention, the inbound analytics projection pattern, page-level PCF +
+  the local-first polish loop, the Dataverse-to-Databricks integration
   pattern, the CRM-to-core-systems Kafka/Confluent Cloud integration
   pattern, Entra ID→Power Platform/Dynamics 365 identity and access
   management, CRM UX placement within the customer's B2E landscape, the
@@ -35,7 +37,7 @@ Copy [ADR-TEMPLATE.md](./ADR-TEMPLATE.md) and edit — do not invent a new shape
 
 `ADR-####-kebab-case-title.md`, four-digit sequence, no gaps.
 
-`0033` is the latest allocated sequence; use `0034` for the next ADR.
+`0039` is the latest allocated sequence; use `0040` for the next ADR.
 
 ## Index
 
@@ -64,19 +66,25 @@ Copy [ADR-TEMPLATE.md](./ADR-TEMPLATE.md) and edit — do not invent a new shape
 | [0021](./ADR-0021-multilingual-semantic-dataverse-metadata.md) | Multilingual semantic Dataverse metadata | A2 · A4 · A6 · A8 | Accepted |
 | [0022](./ADR-0022-curated-external-copilot-capability-packs.md) | Curated external Copilot capability packs | A4 · A6 · A8 | Accepted |
 | [0023](./ADR-0023-demo-feasible-dataverse-bootstrap.md) | Demo-feasible Dataverse bootstrap and steady-state identities | A8 | Proposed hypothesis |
-| [0024](./ADR-0024-dataverse-to-databricks-integration-pattern.md) | Dataverse-to-Databricks integration pattern via Fabric/OneLake | A3 · A7 · A8 · A9 | Proposed hypothesis |
-| [0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md) | CRM-to-core-systems event integration via Kafka on Confluent Cloud | A3 · A5 · A9 | Proposed hypothesis |
-| [0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md) | Identity and access management — Entra ID to Power Platform & Dynamics 365 Security Roles | A2 · A8 · A9 | Proposed hypothesis |
-| [0027](./ADR-0027-crm-ux-placement-in-b2e-landscape.md) | CRM UX placement in the B2E landscape — headless, UX layer, or hybrid | A1 · A5 · A6 | Proposed hypothesis |
-| [0028](./ADR-0028-aro-case-task-management-integration-pattern.md) | ARO case/task management integration and Opportunity migration | A2 · A3 · A5 | Proposed hypothesis |
-| [0029](./ADR-0029-pdv-partner-master-data-integration-pattern.md) | PDV partner master-data integration pattern — initial load, sync, and party origination policy | A2 · A3 | Proposed hypothesis |
-| [0030](./ADR-0030-crm-lead-campaign-external-landscape.md) | CRM lead & campaign external landscape — Comparis intake and Salesforce → D365 Marketing migration | A2 · A3 · A5 | Proposed hypothesis |
-| [0031](./ADR-0031-power-platform-environment-strategy-b2b-b2c.md) | Power Platform environment strategy for Household/Business/Broker business models | A2 · A4 · A8 | Proposed hypothesis |
-| [0032](./ADR-0032-purview-power-platform-dynamics365-compliance.md) | Microsoft Purview compliance and regulatory governance for Power Platform & Dynamics 365 | A2 · A6 · A9 | Proposed hypothesis |
-| [0033](./ADR-0033-devsecops-cicd-github-enterprise-vs-gitlab.md) | DevSecOps CI/CD operating model — GitHub Enterprise vs. GitLab vs. hybrid | A4 · A8 · A9 | Proposed hypothesis |
+| [0024](./ADR-0024-effective-date-integrity-options.md) | Effective-date integrity options | A8 | Accepted |
+| [0025](./ADR-0025-cicd-workflow-naming-convention.md) | CI/CD workflow naming convention | A8 | Accepted |
+| [0026](./ADR-0026-inbound-analytics-projection-pattern.md) | Inbound analytics projection pattern (data platform → CRM) | A3 · A7 | Accepted |
+| [0027](./ADR-0027-page-level-pcf-and-local-first-polish-loop.md) | Page-level PCF + the PCF Local-First Polish Loop | A4 | Accepted |
+| [0028](./ADR-0028-scoped-auto-merge-execution-only.md) | Scoped auto-merge for execution-only sprint streams | A8 | Accepted |
+| [0029](./ADR-0029-platform-baseline-privileges-out-of-role-contract.md) | Platform-managed baseline privileges out of reviewed-role contract scope | A8 | Accepted |
+| [0030](./ADR-0030-dataverse-to-databricks-integration-pattern.md) | Dataverse-to-Databricks integration pattern via Fabric/OneLake | A3 · A7 · A8 · A9 | Proposed hypothesis |
+| [0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md) | CRM-to-core-systems event integration via Kafka on Confluent Cloud | A3 · A5 · A9 | Proposed hypothesis |
+| [0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md) | Identity and access management — Entra ID to Power Platform & Dynamics 365 Security Roles | A2 · A8 · A9 | Proposed hypothesis |
+| [0033](./ADR-0033-crm-ux-placement-in-b2e-landscape.md) | CRM UX placement in the B2E landscape — headless, UX layer, or hybrid | A1 · A5 · A6 | Proposed hypothesis |
+| [0034](./ADR-0034-aro-case-task-management-integration-pattern.md) | ARO case/task management integration and Opportunity migration | A2 · A3 · A5 | Proposed hypothesis |
+| [0035](./ADR-0035-pdv-partner-master-data-integration-pattern.md) | PDV partner master-data integration pattern — initial load, sync, and party origination policy | A2 · A3 | Proposed hypothesis |
+| [0036](./ADR-0036-crm-lead-campaign-external-landscape.md) | CRM lead & campaign external landscape — Comparis intake and Salesforce → D365 Marketing migration | A2 · A3 · A5 | Proposed hypothesis |
+| [0037](./ADR-0037-power-platform-environment-strategy-b2b-b2c.md) | Power Platform environment strategy for Household/Business/Broker business models | A2 · A4 · A8 | Proposed hypothesis |
+| [0038](./ADR-0038-purview-power-platform-dynamics365-compliance.md) | Microsoft Purview compliance and regulatory governance for Power Platform & Dynamics 365 | A2 · A6 · A9 | Proposed hypothesis |
+| [0039](./ADR-0039-devsecops-cicd-github-enterprise-vs-gitlab.md) | DevSecOps CI/CD operating model — GitHub Enterprise vs. GitLab vs. hybrid | A4 · A8 · A9 | Proposed hypothesis |
 
-ADRs 0011, 0012, 0013, 0017, 0018, 0019, 0020, 0023, 0024, 0025, 0026, 0027,
-0028, 0029, 0030, 0031, 0032, and 0033 remain proposed until confirmed with
+ADRs 0011, 0012, 0013, 0017, 0018, 0019, 0020, 0023, 0030, 0031, 0032, 0033,
+0034, 0035, 0036, 0037, 0038, and 0039 remain proposed until confirmed with
 customer architecture in the next review.
 
 ## Hypothesis-driven decisions

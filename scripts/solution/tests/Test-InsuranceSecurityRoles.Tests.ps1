@@ -295,16 +295,19 @@ $readerRoleId = '11111111-1111-1111-1111-111111111111'
 $stewardRoleId = '22222222-2222-2222-2222-222222222222'
 
 switch ($path) {
-    "/roles?`$select=roleid,name&`$filter=_parentrootroleid_value eq null and name eq 'CRM Showcase Insurance Reader'" {
+    "/roles?`$select=roleid,name,_parentrootroleid_value&`$filter=name eq 'CRM Showcase Insurance Reader'" {
+        # Self-referencing root shape (parentrootroleid == roleid), which the
+        # previous `eq null` predicate failed to detect.
         Write-Json ([pscustomobject]@{
                 value = @([pscustomobject]@{
                         roleid = $readerRoleId
                         name = 'CRM Showcase Insurance Reader'
+                        _parentrootroleid_value = $readerRoleId
                     })
             })
         exit 0
     }
-    "/roles?`$select=roleid,name&`$filter=_parentrootroleid_value eq null and name eq 'CRM Showcase Insurance Data Steward'" {
+    "/roles?`$select=roleid,name,_parentrootroleid_value&`$filter=name eq 'CRM Showcase Insurance Data Steward'" {
         $roles = @()
         if ($env:TEST_INSURANCE_SECURITY_ROLES_SCENARIO -ne 'MissingRole') {
             $resolvedRoleName = if ($env:TEST_INSURANCE_SECURITY_ROLES_SCENARIO -eq 'LowerCaseRoleName') {
@@ -316,6 +319,7 @@ switch ($path) {
             $roles += [pscustomobject]@{
                 roleid = $stewardRoleId
                 name = $resolvedRoleName
+                _parentrootroleid_value = $null
             }
         }
         Write-Json ([pscustomobject]@{ value = @($roles) })
@@ -628,6 +632,26 @@ Describe 'Compare-InsuranceRolePrivileges' {
         @($result.Unexpected) | Should -Be @('prvDeleteAccount')
     }
 
+    It 'ignores platform-managed SharePoint baseline privileges' {
+        $result = Compare-InsuranceRolePrivileges `
+            -RoleName 'Reader' `
+            -Expected @([pscustomobject]@{
+                    Name = 'prvReadAccount'
+                    Depth = 'Global'
+                }) `
+            -Actual @(
+                [pscustomobject]@{ Name = 'prvReadAccount'; Depth = 'Global' },
+                [pscustomobject]@{ Name = 'prvReadSharePointDocument'; Depth = 'Global' },
+                [pscustomobject]@{ Name = 'prvReadSharePointData'; Depth = 'Global' },
+                [pscustomobject]@{ Name = 'prvWriteSharePointData'; Depth = 'Global' },
+                [pscustomobject]@{ Name = 'prvCreateSharePointData'; Depth = 'Global' }
+            )
+
+        $result.State | Should -Be 'Ready'
+        @($result.Unexpected) | Should -Be @()
+        @($result.WrongDepth) | Should -Be @()
+    }
+
     It 'reports wrong depth per privilege entry' {
         $result = Compare-InsuranceRolePrivileges `
             -RoleName 'Reader' `
@@ -681,11 +705,11 @@ Describe 'Compare-InsuranceRolePrivileges' {
 }
 
 Describe 'OData query helpers' {
-    It 'escapes root role names and enforces the root-role predicate' {
+    It 'escapes root role names and queries by name for client-side root selection' {
         Get-InsuranceSecurityRolePath -RoleName "Reader's Role" |
             Should -Be (
-                "/roles?`$select=roleid,name&" +
-                "`$filter=_parentrootroleid_value eq null and name eq 'Reader''s Role'"
+                "/roles?`$select=roleid,name,_parentrootroleid_value&" +
+                "`$filter=name eq 'Reader''s Role'"
             )
     }
 
@@ -816,6 +840,43 @@ Describe 'Test-InsuranceSecurityRole' {
         @($result.Details) | Should -Contain (
             "Expected exactly one root security role named '$($script:role.name)', found 2."
         )
+    }
+
+    It 'detects a self-referencing root role (parentrootroleid == roleid)' {
+        $script:rootRoleItems = @([pscustomobject]@{
+                roleid = $script:roleId
+                name = $script:role.name
+                _parentrootroleid_value = $script:roleId
+            })
+
+        $result = Test-InsuranceSecurityRole `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Role $script:role `
+            -Contract $script:contract
+
+        $result.State | Should -Be 'Ready'
+    }
+
+    It 'ignores inherited business-unit role copies and resolves the root' {
+        $script:rootRoleItems = @(
+            [pscustomobject]@{
+                roleid = '88888888-8888-8888-8888-888888888888'
+                name = $script:role.name
+                _parentrootroleid_value = $script:roleId
+            },
+            [pscustomobject]@{
+                roleid = $script:roleId
+                name = $script:role.name
+                _parentrootroleid_value = $null
+            }
+        )
+
+        $result = Test-InsuranceSecurityRole `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Role $script:role `
+            -Contract $script:contract
+
+        $result.State | Should -Be 'Ready'
     }
 
     It 'returns ContractConflict when the root-role query resolves only a case-insensitive name match' {

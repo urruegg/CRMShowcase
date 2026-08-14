@@ -1,0 +1,71 @@
+# Enables GitHub native auto-merge for execution-only PRs once required checks pass.
+# Native auto-merge never bypasses branch protection — it only removes the human
+# "click merge" wait. Design-sensitive work and the non-delegable/guarded paths
+# (ADRs, contract, .github, AI/RAI/compliance/security, copilot-studio) stay human.
+# See ADR-0028.
+name: Auto-merge — execution-only
+
+on:
+  pull_request:
+    types: [labeled, opened, reopened, synchronize, ready_for_review]
+
+# Minimal default; the job elevates only what it needs.
+permissions:
+  contents: read
+
+concurrency:
+  group: auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  enable-auto-merge:
+    # Same-repo, non-draft, labelled execution-only and NOT design-sensitive.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false &&
+      contains(github.event.pull_request.labels.*.name, 'autonomy:execution-only') &&
+      !contains(github.event.pull_request.labels.*.name, 'autonomy:design-sensitive')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Enable native auto-merge (guarded)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Defense in depth: CODEOWNERS is a single owner (= usual author), so it
+          # does not block self-authored PRs. Refuse guarded paths here regardless
+          # of label. Keep this list in sync with ADR-0028.
+          guarded='^(docs/adr/|SUPERPOWERS_CONTRACT\.md|AGENTS\.md|\.github/|docs/AI\.md|docs/COMPLIANCE\.md|docs/SECURITY\.md|docs/SHARED-RESPONSIBILITY\.md|copilot-studio/)'
+
+          files="$(gh pr view "$PR" --json files --jq '.files[].path')"
+          echo "Changed files:"
+          echo "$files"
+
+          if echo "$files" | grep -Eq "$guarded"; then
+            echo "::notice title=Auto-merge skipped::PR #$PR touches a guarded path — left for human review."
+            exit 0
+          fi
+
+          set +e
+          out="$(gh pr merge "$PR" --squash --auto 2>&1)"
+          code=$?
+          set -e
+          echo "$out"
+
+          if [ "$code" -ne 0 ]; then
+            if echo "$out" | grep -qi 'auto merge is not allowed'; then
+              echo "::notice title=Auto-merge disabled::Enable the repository 'Allow auto-merge' setting to activate (ADR-0028). No-op for now."
+              exit 0
+            fi
+            echo "::error title=Auto-merge failed::gh pr merge --auto exited $code"
+            exit "$code"
+          fi
+
+          echo "::notice title=Auto-merge armed::PR #$PR will merge automatically once required checks pass."

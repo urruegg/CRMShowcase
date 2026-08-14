@@ -84,6 +84,7 @@ BeforeAll {
         }
         $relationships = foreach ($target in $targets) {
             [pscustomobject]@{
+                MetadataId = "relationship-$($Relationship.schemaName)-$target"
                 SchemaName = if (
                     $Relationship.authoring -eq 'CreateCustomerRelationships'
                 ) {
@@ -625,6 +626,10 @@ Describe 'Insurance Foundation request builders' {
         $request.Body.SolutionUniqueName | Should -Be 'crmshow_DataModel'
         @($request.Body.OneToManyRelationships.ReferencedEntity) |
             Should -Be @('account', 'contact')
+        @($request.Body.OneToManyRelationships.CascadeConfiguration.Delete) |
+            Should -Be @('Restrict', 'Restrict')
+        @($request.Body.OneToManyRelationships.CascadeConfiguration.Merge) |
+            Should -Be @('Cascade', 'Cascade')
     }
 
     It 'targets alternate keys through the table logical name' {
@@ -1099,7 +1104,7 @@ Describe 'Insurance Foundation reconciliation' {
         }
 
         $created = @($script:calls | Where-Object Method -eq 'POST')
-        @($created | Where-Object Path -eq '/GlobalOptionSetDefinitions').Count | Should -Be 5
+        @($created | Where-Object Path -eq '/GlobalOptionSetDefinitions').Count | Should -Be 10
         @($created | Where-Object Path -eq '/EntityDefinitions').Count | Should -Be 3
         @($created | Where-Object Path -eq '/PublishXml').Count | Should -Be 6
         foreach ($publish in @($created | Where-Object Path -eq '/PublishXml')) {
@@ -1177,7 +1182,7 @@ Describe 'Insurance Foundation reconciliation' {
 
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and $_.Path -eq '/GlobalOptionSetDefinitions'
-        }).Count | Should -Be 5
+        }).Count | Should -Be 10
         @($script:calls | Where-Object {
             $_.Method -ne 'GET' -and $_.Path -like '/EntityDefinitions*'
         }) | Should -BeNullOrEmpty
@@ -1216,7 +1221,7 @@ Describe 'Insurance Foundation reconciliation' {
 
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and $_.Path -eq '/GlobalOptionSetDefinitions'
-        }).Count | Should -Be 5
+        }).Count | Should -Be 10
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and $_.Path -eq '/EntityDefinitions'
         }).Count | Should -Be 3
@@ -1547,6 +1552,84 @@ Describe 'Insurance Foundation reconciliation' {
         }) | Should -BeNullOrEmpty
     }
 
+    It 'repairs an existing Customer relationship whose cascade does not match the contract instead of throwing (issue #86)' {
+        $table = $script:contract.tables[2]
+        $column = $table.columns | Where-Object logicalName -eq 'crmshow_partyid'
+        $expectedRelationships = @(Get-ExpectedCustomerRelationships -Table $table -Column $column)
+
+        $attribute = [pscustomobject]@{
+            MetadataId = 'attribute-crmshow_partyid'
+            LogicalName = $column.logicalName
+            SchemaName = $column.schemaName
+            AttributeType = 'Customer'
+            Targets = @($column.lookup.targets)
+        }
+        $wrongCascade = {
+            [pscustomobject]@{
+                Assign = 'NoCascade'; Delete = 'RemoveLink'
+                Merge = 'Cascade'; Reparent = 'NoCascade'
+                Share = 'NoCascade'; Unshare = 'NoCascade'
+            }
+        }
+        $relationships = foreach ($expected in $expectedRelationships) {
+            [pscustomobject]@{
+                MetadataId = "relationship-$($expected.SchemaName)"
+                SchemaName = $expected.SchemaName
+                ReferencedEntity = $expected.ReferencedEntity
+                ReferencingEntity = $table.logicalName
+                ReferencingAttribute = $column.logicalName
+                CascadeConfiguration = (& $wrongCascade)
+            }
+        }
+
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Method=$Method; Path=$Path; Body=$Body; Headers=$Headers
+            })
+            if ($Method -eq 'GET' -and
+                $Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.LookupAttributeMetadata') {
+                return [pscustomobject]@{ value=@($attribute) }
+            }
+            if ($Method -eq 'GET' -and $Path -match '/ManyToOneRelationships\?') {
+                return [pscustomobject]@{ value=@($relationships) }
+            }
+            foreach ($relationship in $relationships) {
+                $expectedPath = "/RelationshipDefinitions($($relationship.MetadataId))"
+                if ($Method -eq 'GET' -and $Path -eq $expectedPath) {
+                    return [pscustomobject]@{
+                        '@odata.context' = 'https://unit.crm.dynamics.com/api/data/v9.2/$metadata#RelationshipDefinitions/$entity'
+                        MetadataId = $relationship.MetadataId
+                        SchemaName = $relationship.SchemaName
+                        ReferencedEntity = $relationship.ReferencedEntity
+                        ReferencingEntity = $relationship.ReferencingEntity
+                        ReferencingAttribute = $relationship.ReferencingAttribute
+                        CascadeConfiguration = $relationship.CascadeConfiguration
+                    }
+                }
+                if ($Method -eq 'PUT' -and $Path -eq $expectedPath) {
+                    return $null
+                }
+            }
+            throw "Unsupported mocked endpoint: $Method $Path"
+        }
+
+        { Invoke-ExistingCustomerRelationshipReconciliation $table $column } |
+            Should -Not -Throw
+
+        $repairs = @($script:calls | Where-Object {
+            $_.Method -eq 'PUT' -and $_.Path -like '/RelationshipDefinitions(*'
+        })
+        $repairs.Count | Should -Be $expectedRelationships.Count
+        foreach ($repair in $repairs) {
+            $repair.Body.'@odata.type' | Should -Be 'Microsoft.Dynamics.CRM.OneToManyRelationshipMetadata'
+            $repair.Body.CascadeConfiguration.Delete | Should -Be 'Restrict'
+            @($repair.Body.PSObject.Properties.Name) |
+                Should -Not -Contain '@odata.context'
+            $repair.Headers.'MSCRM.MergeLabels' | Should -Be 'true'
+        }
+    }
+
     It 'reapplies all localized form and view fields on existing components' {
         $table = $script:contract.tables[0]
         $requests = @(
@@ -1614,7 +1697,9 @@ Describe 'Insurance Foundation reconciliation' {
         $expected = @(
             '/GlobalOptionSetDefinitions','/GlobalOptionSetDefinitions',
             '/GlobalOptionSetDefinitions','/GlobalOptionSetDefinitions',
-            '/GlobalOptionSetDefinitions',
+            '/GlobalOptionSetDefinitions','/GlobalOptionSetDefinitions',
+            '/GlobalOptionSetDefinitions','/GlobalOptionSetDefinitions',
+            '/GlobalOptionSetDefinitions','/GlobalOptionSetDefinitions',
             "/EntityDefinitions(LogicalName='account')/Attributes",
             "/EntityDefinitions(LogicalName='contact')/Attributes",
             '/EntityDefinitions','/PublishXml','/PublishXml',
@@ -1635,9 +1720,9 @@ Describe 'Insurance Foundation reconciliation' {
             '/savedqueries','/SetLocLabels','/SetLocLabels',
             '/savedqueries','/SetLocLabels','/SetLocLabels',
             '/systemforms','/SetLocLabels','/SetLocLabels',
-            '/roles','/SetLocLabels','/SetLocLabels',
+            '/roles',
             '/roles(new-role)/Microsoft.Dynamics.CRM.AddPrivilegesRole',
-            '/roles','/SetLocLabels','/SetLocLabels',
+            '/roles',
             '/roles(new-role)/Microsoft.Dynamics.CRM.AddPrivilegesRole',
             '/PublishAllXml'
         )
@@ -2442,13 +2527,15 @@ Describe 'Insurance Foundation reconciliation' {
         }) | Should -BeNullOrEmpty
         @($script:calls | Where-Object Path -like '/roleprivileges*') |
             Should -BeNullOrEmpty
-        $localizationRepairs = @($script:calls |
-            Where-Object Path -eq '/SetLocLabels')
-        $localizationRepairs.Count | Should -Be 2
-        foreach ($repair in $localizationRepairs) {
-            @($repair.Body.Labels.LanguageCode) |
-                Should -Be @(1033, 1031, 1036, 1040)
-        }
+        @($script:calls | Where-Object Path -eq '/SetLocLabels') |
+            Should -BeNullOrEmpty
+        $roleUpdate = @($script:calls | Where-Object {
+            $_.Method -eq 'PATCH' -and $_.Path -eq "/roles($roleId)"
+        })
+        $roleUpdate.Count | Should -Be 1
+        $roleUpdate[0].Body.name | Should -Be $role.name
+        $roleUpdate[0].Body.description |
+            Should -Be ([string]$role.metadata.description.'1033')
         $wantedNames | Should -Contain 'prvReadcrmshow_PolicyProjection'
         ($wantedNames -ccontains 'prvReadcrmshow_policyprojection') |
             Should -BeFalse
@@ -4571,7 +4658,7 @@ Describe 'Insurance Foundation table metadata convergence' {
 Describe 'Publisher entry point safety' {
     BeforeAll {
         $script:authoringWorkflow = Get-Content (Join-Path $script:repoRoot `
-            '.github/workflows/solution-author-dev.yml') -Raw
+            '.github/workflows/cd-solution-dev.yml') -Raw
         $script:validateJobBlock = [regex]::Match(
             $script:authoringWorkflow,
             '(?ms)^  validate:\r?\n.*?(?=^  author:\r?\n)'

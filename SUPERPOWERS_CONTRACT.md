@@ -102,7 +102,7 @@ agent.
 | Builder agent | May propose | Must NOT decide alone | Human gate it enforces |
 | --- | --- | --- | --- |
 | `AG-E-01` Product Owner | stories, acceptance criteria, priorities | scope affecting consent / compliance / maturity | — |
-| `AG-E-02` Developer | code, tests, IaC, Copilot Studio topics, Dataverse artefacts | merging to protected branches | — |
+| `AG-E-02` Developer | code, tests, IaC, Copilot Studio topics, Dataverse artefacts | merging design-sensitive or guarded-path PRs to protected branches (execution-only may auto-merge on green CI — [ADR-0028](./docs/adr/ADR-0028-scoped-auto-merge-execution-only.md)) | — |
 | `AG-E-03` Enterprise Architect | ADRs, boundaries, contracts | breaching the thin-CRM position, model-plane change without RAI review | **Architecture approval** |
 | `AG-E-04` SecDevOps | CI/CD, policy-as-code, identity | disabling a security or test gate | pipeline / policy gate |
 | `AG-E-05` CRM Domain Expert | personas, journeys, phrasing, synthetic sample data | overriding an RAI or architecture gate | domain credibility |
@@ -118,6 +118,13 @@ agent.
 
 - **Branch protection.** Protected `main`; PRs require green CI and the
   correct required reviewers per [.github/CODEOWNERS](./.github/CODEOWNERS).
+- **Scoped auto-merge.** PRs labelled `autonomy:execution-only` (and not
+  `autonomy:design-sensitive`) may use GitHub **native auto-merge** to merge on
+  green CI without a human click — it never bypasses branch protection.
+  Design-sensitive work and the guarded paths (ADRs, this contract, `.github/**`,
+  AI/RAI/compliance/security docs, `copilot-studio/**`) stay human-reviewed
+  ([ADR-0028](./docs/adr/ADR-0028-scoped-auto-merge-execution-only.md) ·
+  [workflow](./.github/workflows/auto-merge-execution-only.yml)).
 - **Protected environments.** Deploy jobs target GitHub Environments with
   required approvals ([ADR-0004](./docs/adr/ADR-0004-ci-plane-app-registrations-and-github-environments.md)).
 - **Policy-as-code.** Solution checker and environment policy run in CI; a

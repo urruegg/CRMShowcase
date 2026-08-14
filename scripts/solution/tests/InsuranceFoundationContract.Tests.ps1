@@ -203,7 +203,12 @@ Describe 'Insurance Foundation JSON contract' {
             'crmshow_contactlifecyclestage',
             'crmshow_accountcontactroletype',
             'crmshow_policypartyroletype',
-            'crmshow_policystatus'
+            'crmshow_policystatus',
+            'crmshow_nbastatus',
+            'crmshow_nbachannel',
+            'crmshow_productline',
+            'crmshow_region',
+            'crmshow_metrictype'
         )
         @($contract.choices | Select-Object -ExpandProperty solution -Unique) |
             Should -Be @('crmshow_Foundation')
@@ -219,6 +224,11 @@ Describe 'Insurance Foundation JSON contract' {
                 'AuthorizedRepresentative'
             )
             crmshow_policystatus = @('Draft','Active','Suspended','Expired','Cancelled')
+            crmshow_nbastatus = @('Active','Planned','Accepted','Dismissed')
+            crmshow_nbachannel = @('Call','PhoneAppointment','Email','Teams','OnSite','ClickToCall')
+            crmshow_productline = @('MotorVehicle','HouseholdContents','CommercialProperty','Pension3a','LegalProtection')
+            crmshow_region = @('Mittelland','Zurich','Romandie','Ticino')
+            crmshow_metrictype = @('GoalAttainment','GrowthYoY','NPS','Automation','Forecast','Conversion','Efficiency','Satisfaction','Quality')
         }
         foreach ($choice in $contract.choices) {
             @($choice.options.code) | Should -Be $expectedOptions[$choice.logicalName]
@@ -501,6 +511,23 @@ Describe 'Insurance Foundation JSON contract' {
             $table.auditing | Should -BeTrue
             $table.isActivity | Should -BeFalse
             $table.solution | Should -Be 'crmshow_DataModel'
+        }
+    }
+
+    It 'does not require column-level auditing on Lookup/Customer columns (issue #92)' {
+        # Dataverse does not honor IsAuditEnabled on lookup attributes created via
+        # InitialTableCreate/CreateCustomerRelationships (confirmed live: table audit
+        # applies, column audit on Lookup/Customer columns does not). Rather than add
+        # Publisher enforcement for a platform quirk, the contract accepts column
+        # auditing:false for these column types; table-level auditing remains true.
+        $contract = Get-Contract
+        foreach ($table in $contract.tables) {
+            foreach ($column in @($table.columns | Where-Object type -in @('Lookup', 'Customer'))) {
+                $column.auditing | Should -BeFalse -Because "$($table.logicalName)/$($column.logicalName) is a Lookup/Customer column"
+            }
+            foreach ($column in @($table.columns | Where-Object type -notin @('Lookup', 'Customer'))) {
+                $column.auditing | Should -BeTrue -Because "$($table.logicalName)/$($column.logicalName) is not a Lookup/Customer column"
+            }
         }
     }
 

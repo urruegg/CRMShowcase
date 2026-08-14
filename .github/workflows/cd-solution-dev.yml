@@ -1,4 +1,4 @@
-name: Author insurance foundation in DEV
+name: CD — Solution to DEV
 
 on:
   workflow_dispatch: {}

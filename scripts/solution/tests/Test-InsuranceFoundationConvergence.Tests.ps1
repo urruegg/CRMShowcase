@@ -573,7 +573,7 @@ BeforeAll {
             objectid                     = $resolvedObjectId
             componenttype                = [int]$ComponentType
             rootcomponentbehavior        = $RootComponentBehavior
-            _rootsolutioncomponentid_value = $resolvedRootSolutionComponentId
+            rootsolutioncomponentid      = $resolvedRootSolutionComponentId
         }
     }
 
@@ -1004,6 +1004,30 @@ BeforeAll {
             if ($Method -cne 'GET') {
                 throw "Unexpected mocked method: $Method"
             }
+
+            if ($Path -match "^/EntityDefinitions\(LogicalName='([^']+)'\)/ManyToOneRelationships") {
+                $relTable = $matches[1]
+                $entityPrefix = "/EntityDefinitions(LogicalName='$relTable')?"
+                # Multiple fixture keys can share this entity-name prefix (e.g. the
+                # "unexpected children" reverse-inventory query and the metadata-snapshot
+                # query both start with "/EntityDefinitions(LogicalName='X')?"). Only the
+                # unexpected-children query's $expand includes "Keys(" (see
+                # Get-ConvergenceTableUnexpectedChildrenPath), so require that substring
+                # too. Without it, resolution depends on Hashtable key enumeration order,
+                # which is not stable across processes and causes flaky failures (#96).
+                $entityKey = @($script:responseMap.Keys |
+                        Where-Object {
+                            $_.StartsWith($entityPrefix, [System.StringComparison]::Ordinal) -and
+                            $_.Contains('Keys(')
+                        }) | Select-Object -First 1
+                $relationships = @()
+                if ($null -ne $entityKey -and
+                    $null -ne $script:responseMap[$entityKey].ManyToOneRelationships) {
+                    $relationships = @($script:responseMap[$entityKey].ManyToOneRelationships)
+                }
+                return [pscustomobject]@{ value = @($relationships) }
+            }
+
             if (-not $script:responseMap.ContainsKey($Path)) {
                 throw "Unexpected mocked path: $Path"
             }
@@ -1100,6 +1124,28 @@ if ($env:TEST_INSURANCE_CONVERGENCE_SCENARIO -eq 'RetrieveLocLabelsUnsupported' 
 }
 
 $map = Get-Content -LiteralPath '__MAP__' -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+
+if ($path -match "^/EntityDefinitions\(LogicalName='([^']+)'\)/ManyToOneRelationships") {
+    $relTable = $matches[1]
+    $entityPrefix = "/EntityDefinitions(LogicalName='$relTable')?"
+    # See the matching comment in Register-ConvergenceTransportMock (#96): require the
+    # unique "Keys(" substring so resolution does not depend on property enumeration
+    # order when more than one fixture key shares this entity-name prefix.
+    $entityProperty = $map.PSObject.Properties |
+        Where-Object {
+            $_.Name.StartsWith($entityPrefix, [System.StringComparison]::Ordinal) -and
+            $_.Name.Contains('Keys(')
+        } |
+        Select-Object -First 1
+    $relationships = @()
+    if ($null -ne $entityProperty -and
+        $null -ne $entityProperty.Value.ManyToOneRelationships) {
+        $relationships = @($entityProperty.Value.ManyToOneRelationships)
+    }
+    Write-Json ([pscustomobject]@{ value = @($relationships) })
+    exit 0
+}
+
 $property = $map.PSObject.Properties[$path]
 if ($null -eq $property) {
     Write-Error "Unexpected az rest URL: $url"
@@ -1401,7 +1447,7 @@ Describe 'Convergence path builders' {
         Get-ConvergenceSolutionInventoryPath `
             -SolutionId '{11111111-1111-1111-1111-111111111111}' `
             -ComponentType @(60, 1, 9, 26, 1) | Should -Be (
-                "/solutioncomponents?`$select=solutioncomponentid,objectid,componenttype,rootcomponentbehavior,_rootsolutioncomponentid_value&" +
+                "/solutioncomponents?`$select=solutioncomponentid,objectid,componenttype,rootcomponentbehavior,rootsolutioncomponentid&" +
                 "`$filter=_solutionid_value eq 11111111-1111-1111-1111-111111111111 and (componenttype eq 1 or componenttype eq 9 or componenttype eq 26 or componenttype eq 60)"
             )
 
@@ -1430,8 +1476,41 @@ Describe 'Convergence path builders' {
         Get-ConvergenceRootInsuranceRolesPath -RolePrefix 'CRM Showcase Insurance ' |
             Should -Be (
                 "/roles?`$select=roleid,name,_parentrootroleid_value&" +
-                "`$filter=_parentrootroleid_value eq null and startswith(name,'CRM Showcase Insurance ')"
+                "`$filter=startswith(name,'CRM Showcase Insurance ')"
             )
+    }
+
+    It 'emits a Microsoft.Dynamics.CRM cast type for every typed attribute' {
+        # Regression guard: '?' is a valid PowerShell variable-name character, so
+        # an unbraced "$typeName?" swallows both the cast type and the '?', which
+        # produced a malformed metadata URL and a Dataverse 500 in CD-DEV.
+        $expectedTypes = @{
+            Text     = 'StringAttributeMetadata'
+            DateOnly = 'DateTimeAttributeMetadata'
+            DateTime = 'DateTimeAttributeMetadata'
+            Lookup   = 'LookupAttributeMetadata'
+            Customer = 'LookupAttributeMetadata'
+        }
+        $expectedDerived = @{
+            Text     = 'MaxLength'
+            DateOnly = 'Format,DateTimeBehavior'
+            DateTime = 'Format,DateTimeBehavior'
+            Lookup   = 'Targets'
+            Customer = 'Targets'
+        }
+
+        foreach ($type in $expectedTypes.Keys) {
+            $column = [pscustomobject]@{ type = $type; logicalName = 'crmshow_probe' }
+            Get-ConvergenceTypedAttributePath `
+                -TableLogicalName 'crmshow_accountcontactrole' `
+                -Column $column | Should -Be (
+                    "/EntityDefinitions(LogicalName='crmshow_accountcontactrole')/Attributes/" +
+                    "Microsoft.Dynamics.CRM.$($expectedTypes[$type])?" +
+                    "`$select=MetadataId,LogicalName,SchemaName,AttributeType," +
+                    "DisplayName,Description,RequiredLevel,IsAuditEnabled,$($expectedDerived[$type])&" +
+                    "`$filter=LogicalName eq 'crmshow_probe'"
+                )
+        }
     }
 }
 
@@ -1880,6 +1959,75 @@ Describe 'Component-level convergence checks' {
             }).Count | Should -Be 1
     }
 
+    It 'does not classify a view owned by a different solution as a contract conflict (issue #92)' {
+        $table = script:Clone-Object -InputObject $script:contract.tables[0]
+        $view = $table.views[0]
+        $request = New-ViewRequest -Table $table -View $view -ObjectTypeCode 10427
+        $savedQuery = script:New-SavedQuerySnapshot `
+            -Request $request `
+            -Table $table `
+            -SavedQueryId (script:New-FakeGuid -Index 26)
+
+        $responses = @{
+            (Get-ConvergenceSavedQueryPath `
+                -TableLogicalName $table.logicalName `
+                -Label ([string]$view.metadata.label.'1033')) = [pscustomobject]@{
+                value = @($savedQuery)
+            }
+            (Get-ConvergenceSolutionMembershipPath -ComponentId $savedQuery.savedqueryid) =
+                script:New-SolutionMembershipResponse -SolutionUniqueName 'Active'
+        }
+        script:Add-LocalizedFieldResponses `
+            -Responses $responses `
+            -EntityLogicalName 'savedquery' `
+            -IdProperty 'savedqueryid' `
+            -RecordId $savedQuery.savedqueryid `
+            -LocalizedFields $request.LocalizedFields
+        script:Register-ConvergenceTransportMock -Responses $responses
+
+        $result = Test-InsuranceFoundationView `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Table $table `
+            -View $view `
+            -ObjectTypeCode 10427
+
+        $result.State | Should -Be 'Ready'
+    }
+
+    It 'does not classify a form owned by a different solution as a contract conflict (issue #92)' {
+        $table = script:Clone-Object -InputObject $script:contract.tables[0]
+        $form = $table.forms[0]
+        $request = New-FormRequest -Table $table -Form $form
+        $systemForm = script:New-FormSnapshot `
+            -Request $request `
+            -Table $table `
+            -FormId (script:New-FakeGuid -Index 27)
+
+        $responses = @{
+            (Get-ConvergenceSystemFormPath `
+                -TableLogicalName $table.logicalName `
+                -Label ([string]$form.metadata.label.'1033')) = [pscustomobject]@{
+                value = @($systemForm)
+            }
+            (Get-ConvergenceSolutionMembershipPath -ComponentId $systemForm.formid) =
+                script:New-SolutionMembershipResponse -SolutionUniqueName 'Active'
+        }
+        script:Add-LocalizedFieldResponses `
+            -Responses $responses `
+            -EntityLogicalName 'systemform' `
+            -IdProperty 'formid' `
+            -RecordId $systemForm.formid `
+            -LocalizedFields $request.LocalizedFields
+        script:Register-ConvergenceTransportMock -Responses $responses
+
+        $result = Test-InsuranceFoundationForm `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Table $table `
+            -Form $form
+
+        $result.State | Should -Be 'Ready'
+    }
+
     It 'classifies a role prerequisite through the reused role verifier result' {
         Mock Invoke-InsuranceSecurityRoleVerification {
             [pscustomobject]@{
@@ -2075,6 +2223,47 @@ Describe 'Unexpected metadata reverse inventory' {
 
         $result.State | Should -Be 'ContractConflict'
         @($result.Unexpected) | Should -Contain 'crmshow_DataModel/table/crmshow_unexpectedtable'
+    }
+
+    It 'resolves ManyToOneRelationships direct navigation to the unexpected-children fixture, not an ambiguous metadata-query fixture sharing the same entity prefix (#96)' {
+        # Get-ConvergenceTableMetadataPath and Get-ConvergenceTableUnexpectedChildrenPath
+        # both register a fixture key starting with "/EntityDefinitions(LogicalName='X')?"
+        # for every contract table (see New-ReadyConvergenceResponseMap above). Only the
+        # unexpected-children key is authoritative for ManyToOneRelationships direct
+        # navigation. Diverge the two fixtures' relationships to prove resolution always
+        # picks the correct one, regardless of Hashtable key enumeration order.
+        $fixture = script:New-ReadyConvergenceResponseMap `
+            -Contract $script:contract `
+            -Manifest $script:manifest `
+            -Scenario Ready
+        $table = $script:contract.tables[2]
+        $metadataPath = Get-ConvergenceTableMetadataPath `
+            -LogicalName $table.logicalName `
+            -RequestedAttributeLogicalNames @($table.columns.logicalName)
+        $childrenPath = Get-ConvergenceTableUnexpectedChildrenPath `
+            -LogicalName $table.logicalName `
+            -PublisherPrefix (Get-ConvergencePublisherLogicalPrefix -Manifest $script:manifest)
+
+        # Decoy: inject a relationship visible only via the non-authoritative
+        # metadata-query fixture. A buggy (order-dependent) resolver could surface it.
+        $fixture.Responses[$metadataPath].value[0].ManyToOneRelationships = @(
+            $fixture.Responses[$metadataPath].value[0].ManyToOneRelationships +
+            [pscustomobject]@{
+                SchemaName           = 'crmshow_DecoyFromMetadataFixture'
+                ReferencedEntity     = 'account'
+                ReferencingEntity    = [string]$table.logicalName
+                ReferencingAttribute = 'crmshow_decoyfrommetadatafixtureid'
+            }
+        )
+        script:Register-ConvergenceTransportMock -Responses $fixture.Responses
+
+        $result = Invoke-ConvergenceDataverseRequest -Method GET `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Path (Get-ConvergenceTableRelationshipsPath -LogicalName $table.logicalName)
+
+        @($result.value.SchemaName) | Should -Not -Contain 'crmshow_DecoyFromMetadataFixture'
+        @($result.value.SchemaName) |
+            Should -Be @($fixture.Responses[$childrenPath].ManyToOneRelationships.SchemaName)
     }
 
     It 'classifies an unexpected custom column as ContractConflict' {
@@ -2498,6 +2687,35 @@ Describe 'Unexpected metadata reverse inventory' {
 
         $result.State | Should -Be 'ContractConflict'
         @($result.Unexpected) | Should -Contain 'crmshow_DataModel/role/CRM Showcase Insurance DataModel Reviewer'
+    }
+
+    It 'ignores inherited business-unit role copies that are not the root role' {
+        $fixture = script:New-ReadyConvergenceResponseMap `
+            -Contract $script:contract `
+            -Manifest $script:manifest `
+            -Scenario Ready
+        $inheritedRoleId = script:New-FakeGuid -Index 9720
+        $rootPointerId = script:New-FakeGuid -Index 9721
+        $rolesPath = Get-ConvergenceRootInsuranceRolesPath -RolePrefix 'CRM Showcase Insurance '
+        $fixture.Responses[$rolesPath].value = @(
+            $fixture.Responses[$rolesPath].value +
+            [pscustomobject]@{
+                roleid = $inheritedRoleId
+                name = 'CRM Showcase Insurance Reader'
+                _parentrootroleid_value = $rootPointerId
+            }
+        )
+        # No membership or by-id response is registered for the inherited copy:
+        # it must be skipped before any further lookup.
+        script:Register-ConvergenceTransportMock -Responses $fixture.Responses
+
+        $result = Test-InsuranceFoundationUnexpectedMetadata `
+            -EnvironmentUrl 'https://unit.crm.dynamics.com' `
+            -Contract $script:contract `
+            -Manifest $script:manifest
+
+        $result.State | Should -Be 'Ready'
+        @($result.Unexpected) | Should -Not -Contain 'crmshow_Foundation/role/CRM Showcase Insurance Reader'
     }
 
     It 'ignores system-generated table children and unrelated roles or views outside reviewed solutions' {

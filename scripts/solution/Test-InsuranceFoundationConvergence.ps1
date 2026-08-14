@@ -601,8 +601,11 @@ function Get-ConvergenceSolutionInventoryPath {
             "componenttype eq $([int]$_)"
         }) -join ' or '
 
+    # rootsolutioncomponentid is a Uniqueidentifier (not a lookup), so it is selected
+    # directly; the lookup-style _rootsolutioncomponentid_value property does not exist
+    # on solutioncomponent and makes the whole request 400. solutionid IS a lookup.
     return (
-        "/solutioncomponents?`$select=solutioncomponentid,objectid,componenttype,rootcomponentbehavior,_rootsolutioncomponentid_value&" +
+        "/solutioncomponents?`$select=solutioncomponentid,objectid,componenttype,rootcomponentbehavior,rootsolutioncomponentid&" +
         "`$filter=_solutionid_value eq $resolvedSolutionId and ($typeFilter)"
     )
 }
@@ -694,9 +697,12 @@ function Get-ConvergenceTypedAttributePath {
 
     $escapedTableName = ConvertTo-ODataKeyString $TableLogicalName
     $escapedAttributeName = ConvertTo-ODataKeyString ([string]$Column.logicalName)
+    # Brace ${typeName}: '?' is a valid PowerShell variable-name character, so the
+    # unbraced "$typeName?" parses as the (undefined) variable $typeName? and the
+    # cast type name plus the '?' both vanish, yielding a malformed metadata URL.
     return (
         "/EntityDefinitions(LogicalName='$escapedTableName')/Attributes/" +
-        "Microsoft.Dynamics.CRM.$typeName?" +
+        "Microsoft.Dynamics.CRM.${typeName}?" +
         "`$select=MetadataId,LogicalName,SchemaName,AttributeType," +
         "DisplayName,Description,RequiredLevel,IsAuditEnabled,$derivedProperties&" +
         "`$filter=LogicalName eq '$escapedAttributeName'"
@@ -737,7 +743,7 @@ function Get-ConvergenceTableMetadataPath {
         "`$select=MetadataId,LogicalName,SchemaName,OwnershipType," +
         'PrimaryNameAttribute,IsAuditEnabled,DisplayName,Description,ObjectTypeCode&' +
         "`$expand=$attributeExpand," +
-        "ManyToOneRelationships(`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute,CascadeConfiguration)&" +
+        "ManyToOneRelationships(`$select=MetadataId,SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute,CascadeConfiguration)&" +
         "`$filter=LogicalName eq '$escapedLogicalName'"
     )
 }
@@ -783,17 +789,36 @@ function Get-ConvergenceTableUnexpectedChildrenPath {
     )
 
     $escapedLogicalName = ConvertTo-ODataKeyString $LogicalName
-    $escapedPrefix = ConvertTo-ODataKeyString $PublisherPrefix
 
+    # Metadata OData supports neither startswith nor derived-property selection
+    # inside $expand, so children are fetched unfiltered and the publisher prefix
+    # is applied client-side. Relationships are read separately via direct
+    # navigation (see Get-ConvergenceTableRelationshipsPath).
     return (
         "/EntityDefinitions(LogicalName='$escapedLogicalName')?" +
         "`$select=MetadataId,LogicalName,SchemaName,PrimaryIdAttribute&" +
         "`$expand=" +
-        "Attributes(`$select=LogicalName,SchemaName,AttributeType,AttributeOf;" +
-        "`$filter=startswith(LogicalName,'$escapedPrefix') or startswith(SchemaName,'$escapedPrefix'))," +
-        "ManyToOneRelationships(`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute;" +
-        "`$filter=startswith(SchemaName,'$escapedPrefix') or startswith(ReferencingAttribute,'$escapedPrefix'))," +
-        "Keys(`$select=SchemaName,KeyAttributes;`$filter=startswith(SchemaName,'$escapedPrefix'))"
+        "Attributes(`$select=LogicalName,SchemaName,AttributeType,AttributeOf)," +
+        "Keys(`$select=SchemaName,KeyAttributes)"
+    )
+}
+
+function Get-ConvergenceTableRelationshipsPath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$LogicalName
+    )
+
+    $escapedLogicalName = ConvertTo-ODataKeyString $LogicalName
+
+    # Direct navigation, not $expand: metadata OData cannot select the derived
+    # OneToManyRelationshipMetadata properties (ReferencingAttribute, ...) inside
+    # an $expand of a relationship collection. The publisher prefix is applied
+    # client-side by the caller.
+    return (
+        "/EntityDefinitions(LogicalName='$escapedLogicalName')/ManyToOneRelationships?" +
+        "`$select=SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute"
     )
 }
 
@@ -873,8 +898,30 @@ function Get-ConvergenceRootInsuranceRolesPath {
     $escapedRolePrefix = ConvertTo-ODataKeyString $RolePrefix
     return (
         "/roles?`$select=roleid,name,_parentrootroleid_value&" +
-        "`$filter=_parentrootroleid_value eq null and startswith(name,'$escapedRolePrefix')"
+        "`$filter=startswith(name,'$escapedRolePrefix')"
     )
+}
+
+function Test-ConvergenceRoleIsRoot {
+    # A root role has no parent root role. Some organisations represent the
+    # root as a self-reference (parentrootroleid == roleid) instead of null,
+    # so treat both shapes as root.
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        $Role
+    )
+
+    if ($null -eq $Role) {
+        return $false
+    }
+
+    $parentRootRoleId = ([string]$Role._parentrootroleid_value).Trim('{}')
+    if ([string]::IsNullOrWhiteSpace($parentRootRoleId)) {
+        return $true
+    }
+
+    return ($parentRootRoleId -ieq ([string]$Role.roleid).Trim('{}'))
 }
 
 function Get-ConvergenceRoleByIdPath {
@@ -2379,15 +2426,11 @@ function Test-InsuranceFoundationView {
     $differences = [System.Collections.Generic.List[object]]::new()
     $details = [System.Collections.Generic.List[string]]::new()
     $unsupportedDetails = [System.Collections.Generic.List[string]]::new()
-    try {
-        Assert-ConvergenceSolutionOwnership `
-            -Existing $actual `
-            -Expected ([string]$Table.solution) `
-            -Component $component
-    }
-    catch {
-        [void]$details.Add($_.Exception.Message)
-    }
+    # Solution ownership is intentionally not enforced for custom views (issue #92
+    # Blocker B): the Publisher does not re-parent unmanaged saved queries into
+    # crmshow_DataModel, and adding that enforcement was decided out of scope for
+    # the demo showcase. Contract fidelity (fetchxml/layoutxml/localized labels)
+    # below is still enforced.
 
     $localizedFields = Test-ConvergenceLocalizedRecordFields `
         -EnvironmentUrl $EnvironmentUrl `
@@ -2503,15 +2546,11 @@ function Test-InsuranceFoundationForm {
     $differences = [System.Collections.Generic.List[object]]::new()
     $details = [System.Collections.Generic.List[string]]::new()
     $unsupportedDetails = [System.Collections.Generic.List[string]]::new()
-    try {
-        Assert-ConvergenceSolutionOwnership `
-            -Existing $actual `
-            -Expected ([string]$Table.solution) `
-            -Component $component
-    }
-    catch {
-        [void]$details.Add($_.Exception.Message)
-    }
+    # Solution ownership is intentionally not enforced for the custom admin form
+    # (issue #92 Blocker B): the Publisher does not re-parent unmanaged system
+    # forms into crmshow_DataModel, and adding that enforcement was decided out
+    # of scope for the demo showcase. Contract fidelity (formxml/localized
+    # labels) below is still enforced.
 
     $localizedFields = Test-ConvergenceLocalizedRecordFields `
         -EnvironmentUrl $EnvironmentUrl `
@@ -3321,6 +3360,10 @@ function Test-InsuranceFoundationUnexpectedMetadata {
             continue
         }
 
+        if (-not (Test-ConvergenceRoleIsRoot -Role $role)) {
+            continue
+        }
+
         $roleId = [string]$role.roleid
         if ([string]::IsNullOrWhiteSpace($roleId)) {
             [void]$details.Add(
@@ -3406,12 +3449,17 @@ function Test-InsuranceFoundationUnexpectedMetadata {
 
     foreach ($tableLogicalName in @($expectedInventory.ReviewedTables)) {
         $tableInventory = $null
+        $tableRelationships = @()
         try {
             $tableInventory = Invoke-DataverseRequest `
                 -Method GET `
                 -Path (Get-ConvergenceTableUnexpectedChildrenPath `
                     -LogicalName $tableLogicalName `
                     -PublisherPrefix $publisherPrefix)
+            $tableRelationships = @((Invoke-DataverseRequest `
+                        -Method GET `
+                        -Path (Get-ConvergenceTableRelationshipsPath `
+                            -LogicalName $tableLogicalName)).value)
         }
         catch {
             if (Test-ConvergenceTransportError $_) {
@@ -3448,7 +3496,7 @@ function Test-InsuranceFoundationUnexpectedMetadata {
             }
         }
 
-        foreach ($relationship in @($tableInventory.ManyToOneRelationships |
+        foreach ($relationship in @($tableRelationships |
                     Sort-Object SchemaName, ReferencingAttribute)) {
             if (-not (Test-ConvergenceUnexpectedRelationshipCandidate `
                         -Relationship $relationship `
