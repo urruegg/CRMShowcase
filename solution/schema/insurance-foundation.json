@@ -1,7 +1,7 @@
 {
   "$schema": "./insurance-foundation.schema.json",
   "contractId": "crmshow.insurance-foundation",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "languages": ["1033", "1031", "1036", "1040"],
   "solutions": ["crmshow_Foundation", "crmshow_DataModel"],
   "choices": [
@@ -433,6 +433,19 @@
           "1040":"Istante UTC dell'ultima sincronizzazione riuscita dei dati identificativi principali di questo account dal sistema master; vuoto finché gestito dal CRM."
         },
         "mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Technical integration freshness indicator on the standard form only.","lifecycle":"Updated on every successful sync from the master system."
+      }
+    },
+    {
+      "table":"account","logicalName":"crmshow_seedkey","schemaName":"crmshow_SeedKey","type":"Text","maxLength":100,"format":"Text","required":false,"auditing":true,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Seed Key","1031":"Seed-Schlüssel","1036":"Clé de seed","1040":"Chiave di seed"},
+        "description":{
+          "1033":"Demo-only synthetic identifier letting the pipeline seed loader resolve this Account idempotently from fixture data; not a production business field, never shown on a form, and carries no meaning outside the showcase's own seed scripts.",
+          "1031":"Rein demobezogener synthetischer Bezeichner, der es dem Pipeline-Seed-Loader ermöglicht, dieses Konto anhand von Fixture-Daten idempotent aufzulösen; kein Geschäftsfeld, wird auf keinem Formular angezeigt und hat ausserhalb der Seed-Skripte des Showcases keine Bedeutung.",
+          "1036":"Identifiant synthétique réservé à la démonstration, permettant au chargeur de seed du pipeline de résoudre ce compte de façon idempotente à partir des données de fixture ; ce n'est pas un champ métier, jamais affiché sur un formulaire, et sans signification hors des scripts de seed de la démo.",
+          "1040":"Identificatore sintetico solo dimostrativo che consente al loader di seed della pipeline di risolvere questo account in modo idempotente a partire dai dati fixture; non è un campo di business, non viene mai mostrato su un modulo e non ha alcun significato al di fuori degli script di seed della demo."
+        },
+        "mastership":"Configuration","sensitivity":"Internal","permittedUse":"Dataverse seed-pipeline resolution only \u2014 not a production business field, never shown on a form or used in a business decision.","lifecycle":"Set once by the seed loader at demo-data creation; not maintained afterwards."
       }
     },
     {

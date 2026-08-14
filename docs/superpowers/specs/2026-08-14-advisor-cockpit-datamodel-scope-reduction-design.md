@@ -439,6 +439,56 @@ issues untouched.
   (`crmshow_mastershipstatus`, `crmshow_mastersystem`, `crmshow_lastsyncedon`)
   — see the new schema subsection and the ADR-0008 update.
 
+## Addendum: `crmshow_seedkey` on Account (2026-08-14, produced autonomously)
+
+While implementing claims seeding (#60 follow-up, PR #101), found that the
+seed loader's own fixture manifest (`Get-FixtureManifest` in
+`seed-advisor-cockpit.ps1`, merged in **PR #68**, EXECUTION-ONLY) has
+**always** declared `AlternateKey = @('crmshow_seedkey')` for
+`accounts-contacts.json` (and also `leads.json`) — but the field itself was
+never authored in `insurance-foundation.json`. This is a completion of an
+already-approved design intent, not a new decision, so it's implemented
+directly (additive, non-controversial) rather than added to "Open questions"
+below.
+
+- **Added:** `account.crmshow_seedkey` (Text, optional, maxLength 100,
+  `mastership: Configuration` — the same category already used for every
+  other natural/idempotency key in this contract, e.g.
+  `crmshow_policyprojectionexternalkey`'s columns). Metadata is explicit that
+  this is demo/seed-pipeline scaffolding only — never a production business
+  field, never shown on a form, never used in a business decision. Contract
+  version bumped `1.1.0` → `1.2.0` (additive).
+- **Scope deliberately kept narrow:** this unblocks resolving a claims/policy
+  fixture's `accountKey` (e.g. `"ACC-BRUNNER"`) to a live Account GUID via a
+  plain OData `$filter` query — sufficient for `seed-advisor-cockpit.ps1`'s
+  already-built `-AccountKeyMap` parameter (PR #101). It is **not** wired up
+  as a true Dataverse alternate key: this contract's `alternateKeys` array
+  (used for `crmshow_policyprojectionexternalkey` etc.) is a **custom-table
+  ­only** mechanism today — `nativeExtensions` (account/contact/lead/incident)
+  have no equivalent schema/pipeline support for declaring an alternate key
+  on a native table's own column. Building that is a separable, larger
+  pipeline capability, not required to unblock the confirmed problem, and is
+  **not** attempted here.
+- **Not resolved / explicitly out of scope this round:** the seed manifest
+  also references `crmshow_seedkey` on `lead` (native — same missing-pipeline
+  gap as account) and on `activitypointer` (native, and not even in this
+  contract's `table` enum for native extensions at all — `["account",
+  "contact", "lead", "incident"]`) and on the custom
+  `crmshow_nextbestaction` table (which, being custom, *could* get a real
+  alternate key today via the existing mechanism, but doing so wasn't needed
+  to unblock claims/policies and is left for whoever picks up `nba.json`
+  seeding). None of `accounts-contacts.json`/`leads.json`/`activities.json`/
+  `nba.json` seeding is implemented yet at all (only `Get-FixtureManifest`
+  declares their intended shape — no `Get-XUpsertRequests` builder exists for
+  any of them), so nothing here regresses a working capability.
+- **Still needed as a follow-up, not done here:** a `Get-AccountKeyMap`-style
+  resolver in `seed-advisor-cockpit.ps1` that queries
+  `GET /accounts?$select=accountid,crmshow_seedkey&$filter=crmshow_seedkey ne null`
+  and builds the hashtable PR #101's `-AccountKeyMap` parameter expects.
+  Deliberately not added in this PR to avoid touching the already-green,
+  already-reviewable `feat/s3-seed-claims-mapping` branch while it's pending
+  human merge.
+
 ## Open questions for the owner
 
 1. Resolve the premium vs. `excludedConcepts` conflict — narrow the exclusion
