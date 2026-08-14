@@ -36,8 +36,8 @@ DESIGN-SENSITIVE streams run **attended**; EXECUTION-ONLY may run headless.
 | governance (ADRs 0026/0027 + pattern) | 0 | #55 | DESIGN-SENSITIVE | ✅ merged (PR #66) |
 | measure-contract | 4 | #59 | EXECUTION-ONLY | ✅ merged (PR #67) |
 | seed-fixtures + loader | 5.1/5.2 | #60 | EXECUTION-ONLY | ✅ merged (PR #68) |
-| advisorcockpit-pcf | 7 | #62 | DESIGN-SENSITIVE | ▶ next (attended, local-first polish loop) |
-| salesleaderdashboard-pcf | 8 | #63 | DESIGN-SENSITIVE | ▶ next (attended, local-first polish loop) |
+| advisorcockpit-pcf | 7 | #62 | DESIGN-SENSITIVE | ✅ merged (PR #70) |
+| salesleaderdashboard-pcf | 8 | #63 | DESIGN-SENSITIVE | ✅ merged (PR #74) |
 | foundation-choices | 1 | #56 | EXECUTION-ONLY | ⏳ DEV-gated (contract authored + tests green) |
 | foundational-tables (slices 1–5) | 2 | #57 | DESIGN-SENSITIVE | ⏳ DEV-gated (contract authored, reduced scope + tests green) |
 | cockpit-tables (nba + provenance) | 3 | #58 | EXECUTION-ONLY | ⏳ DEV-gated (contract authored + tests green) |
@@ -46,9 +46,9 @@ DESIGN-SENSITIVE streams run **attended**; EXECUTION-ONLY may run headless.
 | e2e DEV→TEST verify | 10 | #65 | EXECUTION-ONLY | ⏳ DEV-gated |
 | nba-agent (Copilot Studio) | 6 | #61 | DESIGN-SENSITIVE | ⏸ deferred (out of sprint) |
 
-The two **next** streams (7, 8) are independent and parallelizable — run them as
-two worktrees off `main` once the PCF prerequisites (contract + fixtures) are on
-the trunk (they are, via #67/#68).
+The data-model streams (#56/#57/#58) are DEV-gated; both PCF streams (7, 8) are
+already merged (PR #70, #74) with a per-control `DATA-BOM.md` tracking bound vs.
+placeholder visual elements for follow-up polish.
 
 **Data-model contract progress (2026-08-14, commit `d2e05e0`).** Streams
 #56/#57/#58 are rescoped by the
@@ -71,8 +71,8 @@ environment is Pester-verified end to end (`InsuranceFoundationContract.Tests.ps
 - [x] Governance: ADR-0026/0027 + polish-loop pattern recorded (#66).
 - [x] Measure-snapshot consumption contract + tests (#67).
 - [x] Synthetic seed fixtures + idempotent loader + tests (#68).
-- [ ] `AdvisorCockpit` PCF pixel-faithful to the mockup, local-first polished (#62).
-- [ ] `SalesLeaderDashboard` PCF pixel-faithful to the mockup (#63).
+- [x] `AdvisorCockpit` PCF pixel-faithful to the mockup, local-first polished (#62).
+- [x] `SalesLeaderDashboard` PCF pixel-faithful to the mockup (#63).
 - [ ] Foundation choices + foundational/cockpit tables authored in DEV (#56/#57/#58) — contract authored + Pester-verified, DEV authoring pending.
 - [ ] Seed wired into the CD pipeline with smoke (#60 follow-up / 5.3).
 - [ ] MDA app "Advisor Cockpit" + custom pages (#64).
