@@ -1,4 +1,4 @@
-# ADR-0025 — CRM-to-core-systems event integration via Kafka on Confluent Cloud
+# ADR-0031 — CRM-to-core-systems event integration via Kafka on Confluent Cloud
 
 | Field | Value |
 | --- | --- |

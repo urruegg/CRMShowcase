@@ -1,4 +1,4 @@
-# ADR-0032 — Microsoft Purview & Power Platform/Dynamics 365 Compliance and Regulatory Governance
+# ADR-0038 — Microsoft Purview & Power Platform/Dynamics 365 Compliance and Regulatory Governance
 
 | Field | Value |
 | --- | --- |

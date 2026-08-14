@@ -1,4 +1,4 @@
-# ADR-0026 — Identity and Access Management: Entra ID to Power Platform & Dynamics 365 Security Roles
+# ADR-0032 — Identity and Access Management: Entra ID to Power Platform & Dynamics 365 Security Roles
 
 | Field | Value |
 | --- | --- |

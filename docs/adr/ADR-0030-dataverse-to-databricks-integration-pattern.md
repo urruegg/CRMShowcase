@@ -1,4 +1,4 @@
-# ADR-0024 — Dataverse-to-Databricks integration pattern via Microsoft Fabric / OneLake
+# ADR-0030 — Dataverse-to-Databricks integration pattern via Microsoft Fabric / OneLake
 
 | Field | Value |
 | --- | --- |

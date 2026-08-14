@@ -1,4 +1,4 @@
-# ADR-0033 — DevSecOps CI/CD Operating Model: GitHub Enterprise + Entra vs. GitLab
+# ADR-0039 — DevSecOps CI/CD Operating Model: GitHub Enterprise + Entra vs. GitLab
 
 | Field | Value |
 | --- | --- |

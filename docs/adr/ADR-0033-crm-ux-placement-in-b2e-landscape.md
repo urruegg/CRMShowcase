@@ -1,4 +1,4 @@
-# ADR-0027 — CRM UX Placement in the B2E Landscape: Headless, UX Layer, or Hybrid
+# ADR-0033 — CRM UX Placement in the B2E Landscape: Headless, UX Layer, or Hybrid
 
 | Field | Value |
 | --- | --- |
