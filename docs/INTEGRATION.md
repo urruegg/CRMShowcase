@@ -45,9 +45,10 @@ message formats are **controlled and versioned across the entire lifecycle**.
 | --- | --- |
 | M365 / Teams / Outlook | Native |
 | Power Platform connectors | Standard |
-| Policy administration engine | `[TBD — standard connector vs. custom adapter]` |
+| Policy administration engine (Versicherungsprozesse) | Event-based via Kafka on Confluent Cloud — four candidate patterns evaluated, no decision yet — [ADR-0025](./adr/ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md) |
+| Claims engine (Schadenprozesse) | Same Kafka/Confluent Cloud backbone as the policy administration engine — see [ADR-0025](./adr/ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md) |
 | Partner master | `[TBD]` |
-| Analytics platform | `[TBD]` |
+| Analytics platform | Three candidate patterns evaluated, no decision yet — [ADR-0024](./adr/ADR-0024-dataverse-to-databricks-integration-pattern.md) |
 | Telephony | see [ADR-0015](./adr/ADR-0015-voice-channel-boundary.md) |
 
 Never let a custom build be **discovered** later. A stated custom development

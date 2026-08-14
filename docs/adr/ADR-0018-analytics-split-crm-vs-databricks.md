@@ -30,4 +30,6 @@ illustrated example, Databricks).
   not a list — otherwise every new report becomes a debate.
 - KPI governance is a shared-responsibility topic (A9), not a tooling topic.
 - **Open with the customer:** the provisioning mechanism and latency expectation
-  toward the analytics platform. `[TBD]`
+  toward the analytics platform. Three candidate patterns evaluated without a
+  final decision in
+  [ADR-0024](./ADR-0024-dataverse-to-databricks-integration-pattern.md).

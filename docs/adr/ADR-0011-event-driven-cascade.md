@@ -41,6 +41,9 @@ with an effective date; the CRM identifies the impact set but **does not re-rate
 - **Contract control:** event schemas live in `api/`, versioned, with a
   compatibility policy. A breaking change is an ADR, not a deployment. This
   answers A3's hardest question.
-- **Open with the customer:** which bus/middleware carries the events in the
-  target landscape, and the interaction with the analytics platform, partner
-  master, and any employee portal. `[TBD]`
+- **Open with the customer:** the interaction with the analytics platform,
+  partner master, and any employee portal remains `[TBD]`. Which bus/middleware
+  carries the events is now evaluated — the customer uses Kafka on Confluent
+  Cloud, and four candidate integration patterns (both inbound and outbound)
+  are documented without a final decision in
+  [ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md).
