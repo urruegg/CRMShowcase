@@ -38,18 +38,20 @@ DESIGN-SENSITIVE streams run **attended**; EXECUTION-ONLY may run headless.
 | seed-fixtures + loader | 5.1/5.2 | #60 | EXECUTION-ONLY | ✅ merged (PR #68) |
 | advisorcockpit-pcf | 7 | #62 | DESIGN-SENSITIVE | ✅ merged (PR #70) |
 | salesleaderdashboard-pcf | 8 | #63 | DESIGN-SENSITIVE | ✅ merged (PR #74) |
-| foundation-choices | 1 | #56 | EXECUTION-ONLY | ✅ merged (PR #75), DEV-authored (2026-08-12); addendum below is DEV-gated |
-| foundational-tables (slices 1–5) | 2 | #57 | DESIGN-SENSITIVE | ⏳ DEV-gated (contract authored, reduced scope + tests green) |
-| cockpit-tables (nba + provenance) | 3 | #58 | EXECUTION-ONLY | ⏳ DEV-gated (contract authored + tests green) |
-| seed-pipeline wiring | 5.3 | #60 (follow-up) | EXECUTION-ONLY | ⏳ DEV-gated (needs tables) |
-| mda-app + custom pages | 9 | #64 | DESIGN-SENSITIVE | ⏳ DEV-gated |
+| foundation-choices | 1 | #56 | EXECUTION-ONLY | ✅ merged (PR #75) + addendum DEV-authored (2026-08-14, run 31805085480) |
+| foundational-tables (slices 1–5) | 2 | #57 | DESIGN-SENSITIVE | ✅ DEV-authored (2026-08-14, run 31805085480); source not yet intake-exported |
+| cockpit-tables (nba + provenance) | 3 | #58 | EXECUTION-ONLY | ✅ DEV-authored (2026-08-14, run 31805085480); source not yet intake-exported |
+| seed-pipeline wiring | 5.3 | #60 (follow-up) | EXECUTION-ONLY | ⏳ in progress — tables now exist in DEV |
+| mda-app + custom pages | 9 | #64 | DESIGN-SENSITIVE | ⏳ in progress (attended) |
 | e2e DEV→TEST verify | 10 | #65 | EXECUTION-ONLY | ⏳ DEV-gated |
 | nba-agent (Copilot Studio) | 6 | #61 | DESIGN-SENSITIVE | ⏸ deferred (out of sprint) |
 
-#56 (foundation-choices) is merged and DEV-authored; #57/#58 (foundational +
-cockpit tables) and the #56 addendum are DEV-gated. Both PCF streams (7, 8) are
-already merged (PR #70, #74) with a per-control `DATA-BOM.md` tracking bound vs.
-placeholder visual elements for follow-up polish.
+#56 (foundation-choices, base + addendum) and #57/#58 (foundational + cockpit
+tables) are now DEV-authored. Both PCF streams (7, 8) are already merged
+(PR #70, #74) with a per-control `DATA-BOM.md` tracking bound vs. placeholder
+visual elements for follow-up polish. Remaining: intake-export the newly
+authored DEV schema into source, seed-pipeline wiring (#60 follow-up), and the
+MDA app + custom pages (#64) — all in progress 2026-08-14.
 
 **Data-model contract progress (2026-08-14, commit `d2e05e0`).** Streams
 #56/#57/#58 are rescoped by the
@@ -90,6 +92,24 @@ controls build and test cleanly from a clean install in this workspace:
 high-severity `npm audit` advisories (transitive dev-dependency tree; not yet
 triaged — filed as a follow-up, not a build blocker).
 
+**#56 addendum + #57/#58 DEV-authored (2026-08-14, run
+[31805085480](https://github.com/urruegg/CRMShowcase/actions/runs/31805085480)).**
+Dispatched `cd-solution-dev.yml` against the rescoped schema (commit `d2e05e0`):
+`validate` succeeded in 12m22s (full offline Pester suite), `author` succeeded
+in 9m13s (languages reconciled, demo-safe metadata reconciled, convergence
+validated, packages exported). This is the step that authors the #56 addendum
+choices, `crmshow_leadcluster`/`crmshow_claimprojection` (#57) and
+`crmshow_nextbestaction`/`crmshow_nbaprovenance`/`crmshow_measuresnapshot` (#58)
+in live DEV. **Autonomy note:** the remaining #57 work (dispatching this
+already-approved, already-tested pipeline) was reclassified from
+DESIGN-SENSITIVE to EXECUTION-ONLY for this run only — no new schema decision
+was made; the classification reflects that a control-plane decision was made
+for this specific dispatch action, not a change to the stream's original design
+record. **Not yet done:** intake-export the newly authored components
+(`crmshow_leadcluster`, `crmshow_claimprojection`, native extensions,
+`crmshow_nextbestaction`, `crmshow_nbaprovenance`, `crmshow_measuresnapshot`)
+into `solution/core/datamodel` source control.
+
 ## Definition of done
 
 - [x] Governance: ADR-0026/0027 + polish-loop pattern recorded (#66).
@@ -98,7 +118,7 @@ triaged — filed as a follow-up, not a build blocker).
 - [x] `AdvisorCockpit` PCF pixel-faithful to the mockup, local-first polished (#62).
 - [x] `SalesLeaderDashboard` PCF pixel-faithful to the mockup (#63).
 - [x] Foundation choices authored in DEV (#56 base, PR #75).
-- [ ] #56 addendum choices + foundational/cockpit tables authored in DEV (#57/#58) — contract authored + Pester-verified, CD-DEV gate confirmed green (2026-08-14); live authoring run of the rescoped schema pending.
+- [x] #56 addendum choices + foundational/cockpit tables authored in DEV (#57/#58, run 31805085480, 2026-08-14) — intake-export into source control still pending.
 - [ ] Seed wired into the CD pipeline with smoke (#60 follow-up / 5.3).
 - [ ] MDA app "Advisor Cockpit" + custom pages (#64).
 - [ ] E2E DEV→TEST evidence (#65).
