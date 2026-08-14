@@ -43,6 +43,11 @@ and the **Secure** methodology of the
 - CI service principals are added as Dataverse application users per
   [ADR-0005](./adr/ADR-0005-power-platform-application-users-for-ci.md).
 - No shared service accounts across environments.
+- **Human identity** (advisor/employee Security Roles, GA/Business-Unit
+  scoping) is evaluated — four options, no decision yet — in
+  [ADR-0026](./adr/ADR-0026-entra-power-platform-dynamics365-identity-access-management.md).
+  Scoped to internal-facing personas only; external-facing (broker/customer
+  portal) identity is deliberately out of scope, left for a future ADR.
 
 ## Secrets
 
@@ -70,7 +75,7 @@ and the **Secure** methodology of the
 
 | Area | Status |
 | --- | --- |
-| Identity & access model (incl. GA scoping) | `[TBD]` |
+| Identity & access model (incl. GA scoping) | Options evaluated in [ADR-0026](./adr/ADR-0026-entra-power-platform-dynamics365-identity-access-management.md); no decision yet |
 | Data classification | `[TBD]` |
 | Threat model — full pass | `[TBD]` |
 | Logging, monitoring, incident response | `[TBD]` |

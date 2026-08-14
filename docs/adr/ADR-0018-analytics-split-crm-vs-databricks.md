@@ -29,7 +29,13 @@ illustrated example, Databricks).
 - The split must be stated as a **principle the customer can apply themselves**,
   not a list — otherwise every new report becomes a debate.
 - KPI governance is a shared-responsibility topic (A9), not a tooling topic.
-- **Provisioning mechanism and latency** toward the analytics platform:
-  **resolved by [ADR-0026](./ADR-0026-inbound-analytics-projection-pattern.md)** —
-  inbound analytics use a *materialized projection* (with virtual-table and
-  embedded Power BI / Fabric as catalogued alternatives).
+- **Inbound provisioning mechanism and latency** (data platform → CRM) toward
+  the analytics platform: **resolved by
+  [ADR-0026](./ADR-0026-inbound-analytics-projection-pattern.md)** — inbound
+  analytics use a *materialized projection* (with virtual-table and embedded
+  Power BI / Fabric as catalogued alternatives).
+- **Outbound provisioning mechanism and latency** (CRM → data platform), i.e.
+  how Dataverse data reaches Databricks for cross-domain modelling and
+  data-science workloads: **open with the customer** — three candidate
+  patterns evaluated without a final decision in
+  [ADR-0030](./ADR-0030-dataverse-to-databricks-integration-pattern.md).

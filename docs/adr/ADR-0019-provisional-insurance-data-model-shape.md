@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| **Status** | Proposed — Option C is the working hypothesis pending Mobiliar integration and data-platform discovery |
+| **Status** | Proposed — Option C is the working hypothesis pending Mobiliar integration and data-platform discovery; Option D is documented as a migration-fidelity alternative for the same stakeholder discussion |
 | **Date** | 2026-08-08 |
 | **Deciders** | Enterprise Architect, Dataverse Modeler, Integration Engineer, Data Engineer & Scientist; customer architecture confirmation required |
 | **Topic area** | A1 — Architecture vision · A2 — Data model · A3 — Integration · A7 — Analytics |
@@ -73,6 +73,15 @@ candidate shapes and establishes a reversible working hypothesis.
 - [CRM Showcase data architecture](../DATA.md)
 - [Microsoft Property and Casualty Data Model](https://learn.microsoft.com/common-data-model/schema/core/industrycommon/financialservices/propertyandcasualtydatamodel/overview)
 - [Microsoft Financial Services Common Data Model](https://learn.microsoft.com/common-data-model/schema/core/industrycommon/financialservices/financialservicescommondatamodel/overview)
+- [Data migration approaches, Power Platform](https://learn.microsoft.com/power-platform/architecture/key-concepts/data-migration/data-migration-approaches)
+- [Suggested workflow for a complex data migration, Power Platform](https://learn.microsoft.com/power-platform/architecture/key-concepts/data-migration/workflow-complex-data-migration)
+- General, publicly documented Siebel CRM / Siebel Financial Services
+  concepts (Account, Contact, Household, Asset, Policy, Business
+  Object/Business Component, Integration Object, EIM staging tables) used
+  as background for Option D below. **Mobiliar's actual Siebel
+  customizations are not documented in this repository and remain
+  unconfirmed pending source-system discovery** — nothing below should be
+  read as a claim about Mobiliar's specific implementation.
 
 The local intake HTML is discovery evidence, not a deployable schema or
 normative architecture source.
@@ -93,7 +102,10 @@ The target shape must:
 6. minimize replicated personal and insurance data by purpose and persona;
 7. remain adaptable to API-led, event-led, virtualized, or data-platform-led
    integration;
-8. avoid premature physical-schema commitments before source-system discovery.
+8. avoid premature physical-schema commitments before source-system discovery;
+9. minimize data-migration and cutover risk from the incumbent, highly
+   customized Siebel CRM environment, without that risk-reduction goal
+   silently overriding drivers 1–8.
 
 ## Options
 
@@ -116,6 +128,26 @@ required to make its stated curveballs internally consistent.
 - **Operations:** Case, Activity, NextBestAction, AssistanceCase,
   AssistancePartner, Dispatch, ServiceLineItem, BrokerScorecard, BrokerReview,
   Measure.
+
+```mermaid
+erDiagram
+    ACCOUNT ||--o{ ACCOUNTCONTACTROLE : "effective-dated role"
+    CONTACT ||--o{ ACCOUNTCONTACTROLE : "plays"
+    ACCOUNT ||--o{ CONSENT : "grants"
+    ACCOUNT ||--o{ GENERALAGENCYOWNERSHIP : "assigned"
+    ACCOUNT ||--o{ LEAD : "originates"
+    LEAD ||--o| OPPORTUNITY : "qualifies to"
+    OPPORTUNITY ||--o{ QUOTE : "produces"
+    ACCOUNT ||--o{ POLICYPROJECTION : "holds"
+    POLICYPROJECTION ||--o{ POLICYPARTYROLE : "has parties"
+    POLICYPROJECTION ||--o{ COVERAGEPROJECTION : "includes"
+    ACCOUNT ||--o{ CLAIMPROJECTION : "files"
+    CLAIMPROJECTION ||--o{ CLAIMPARTYROLE : "has parties"
+    POLICYPROJECTION }o--o{ RISKOBJECTPROJECTION : "covers"
+    CLAIMPROJECTION }o--o{ RISKOBJECTPROJECTION : "involves"
+    ACCOUNT ||--o{ CASE : "raises"
+    ACCOUNT ||--o{ NEXTBESTACTION : "receives"
+```
 
 #### Advantages
 
@@ -172,6 +204,25 @@ where CDM uses concepts such as Group and GroupMember.
 - **Claims:** Claim, ClaimRevision, loss cause, asset-claim relationships,
   reserves, and payments where required.
 - **Jurisdiction:** authorized jurisdictions and product/coverage eligibility.
+
+```mermaid
+erDiagram
+    ACCOUNT ||--o{ POLICY : "holds"
+    AGENCY ||--o{ POLICYAGENCY : "services"
+    POLICYAGENCY }o--|| POLICY : "for"
+    AGENT ||--o{ POLICYAGENT : "services"
+    POLICYAGENT }o--|| POLICY : "for"
+    POLICY ||--o{ POLICYTERM : "has terms"
+    POLICYTERM ||--o{ POLICYTRANSACTION : "records"
+    POLICY ||--o{ COVERAGE : "includes"
+    COVERAGE }o--o{ INSUREDASSET : "protects"
+    INSUREDASSET ||--o{ ASSETLOCATION : "located at"
+    POLICY ||--o{ CLAIM : "generates"
+    CLAIM ||--o{ CLAIMREVISION : "revised as"
+    CLAIM }o--o{ INSUREDASSET : "against"
+    POLICY }o--|| PRODUCT : "of type"
+    POLICY }o--|| AUTHORIZEDJURISDICTION : "authorized in"
+```
 
 #### Advantages
 
@@ -263,6 +314,50 @@ reserves, settlement, payment, commission, or policy transactions.
 - A projection may be persisted, virtualized, event-fed, or composed from a
   governed data product after non-functional requirements are known.
 
+```mermaid
+flowchart TD
+    subgraph L1["Layer 1 - CRM-owned relationship and work"]
+        ACC["Account\nHousehold / Business / Broker"]
+        CON["Contact"]
+        ACR["AccountContactRole\neffective-dated"]
+        LEAD["Lead / LeadCluster / Opportunity"]
+        NBA["NextBestAction / Case / Activity"]
+        GA["AccountAssignment\nGeneral Agency, effective-dated"]
+    end
+    subgraph L2["Layer 2 - source-mastered insurance context"]
+        POL["PolicyProjection\n+ PolicyPartyRole"]
+        CLM["ClaimProjection\n+ ClaimPartyRole"]
+        COV["CoverageProjection\nselective"]
+        RISK["RiskObjectProjection\nVehicle / Property / Location / BusinessSite"]
+        JUR["JurisdictionProjection"]
+    end
+    subgraph L3["Layer 3 - CRM orchestration and traceability"]
+        CE["ChangeEvent"]
+        IA["ImpactAssessment"]
+        ED["EligibilityDecisionProjection"]
+        HW["Handover / remediation work items"]
+    end
+    subgraph L4["Layer 4 - canonical integration and data products"]
+        API["Versioned API / event contracts\nP&C-aligned"]
+        MAP["Canonical to source to Dataverse mappings"]
+        DP["Data platform\nlong-horizon, cross-domain history"]
+    end
+
+    ACC --> ACR --> CON
+    ACC --> GA
+    ACC --> LEAD --> NBA
+    ACC --> POL
+    ACC --> CLM
+    POL --> COV
+    POL -.-> RISK
+    CLM -.-> RISK
+    POL --> JUR
+    CE --> IA --> ED --> HW
+    L2 --> L3
+    L4 --> L2
+    L3 --> L1
+```
+
 #### Advantages
 
 - Preserves the proven CRM operating model and thin-CRM boundary.
@@ -299,21 +394,145 @@ reserves, settlement, payment, commission, or policy transactions.
 - Multiple channels and business domains need shared semantics without shared
   ownership of insurance processing.
 
+### Option D — Migration-mirrored: shape the extension close to Mobiliar's Siebel CRM object model
+
+Keep the same CRM-owned foundation as Options A/C (Account, Contact,
+effective-dated AccountContactRole, Consent, Lead/Opportunity, Case,
+NextBestAction), but shape Layer 2's insurance-context projections and their
+field-level mapping as close as possible to the actual, highly customized
+Siebel CRM object model Mobiliar operates today — not to the BizApp
+Solution Engineer's ERD (Option A), the P&C CDM (Option B), or a
+use-case-pruned hybrid (Option C). The explicit goal is to minimize
+transformation logic and cutover risk during the migration itself, using
+Siebel's own well-documented data-model concepts and extraction mechanism as
+the bridge.
+
+**A caveat that governs everything below:** Mobiliar's actual Siebel
+customizations are not documented anywhere in this repository. The shapes
+described here are generic, publicly known Siebel CRM / Siebel Financial
+Services concepts — Account, Contact, Household, Asset, Policy, Business
+Object/Business Component, Integration Object, and EIM (Enterprise
+Integration Manager) staging tables — used only as an illustrative pattern.
+A source-schema discovery pass against Mobiliar's real Siebel instance is
+mandatory before this option can be estimated or committed to.
+
+#### Logical shape
+
+- **Party and organization:** Account mirrors Siebel's Account entity
+  (organizations/institutions); Contact mirrors Siebel's Contact entity.
+  Household grouping mirrors Siebel's own Household construct — used in
+  Siebel's Financial Services/Insurance verticals for shared or bundled
+  policy management — which is structurally close to this repo's existing
+  Household Account type ([ADR-0006](./ADR-0006-account-centre-of-gravity.md)),
+  a genuine low-risk point of alignment. AccountContactRole mirrors Siebel's
+  Account-Contact affiliation, but still adds explicit effective dating,
+  since Siebel's native affiliation model is not inherently effective-dated
+  — this is a curveball gap (see Context) that even a Siebel-mirrored option
+  does not get to skip.
+- **Distribution:** GeneralAgency/broker assignment mirrors Siebel's
+  Position and Account Team constructs.
+- **Insurance context:** PolicyProjection mirrors Siebel's Policy Business
+  Object, which in the Insurance vertical links its own Policy Product,
+  Policy Coverage, Policy Asset, and Claim sub-objects; PolicyPartyRole
+  mirrors the Policy's own party links (policyholder, beneficiary, insured);
+  RiskObjectProjection mirrors Siebel's separate Asset entity (the insured
+  vehicle or property, linked to but distinct from Policy); ClaimProjection
+  mirrors the Claims sub-object under the Policy Business Object.
+- **Integration and migration layer:** every mirrored entity carries an
+  explicit legacy-source key, mirroring the row identifiers Siebel's own EIM
+  staging tables (for example `EIM_ACCNT`, `EIM_CONTACT`, `EIM_ASSET`)
+  already use for bulk data movement, so the same Integration
+  Object/EIM extraction mechanism Mobiliar's team already operates can drive
+  both the initial load and every later reconciliation pass, rather than
+  requiring a bespoke source connector built from scratch.
+
+```mermaid
+erDiagram
+    ACCOUNT ||--o{ HOUSEHOLDGROUPING : "mirrors Siebel Household"
+    ACCOUNT ||--o{ ACCOUNTCONTACTAFFILIATION : "mirrors Siebel Account-Contact link"
+    CONTACT ||--o{ ACCOUNTCONTACTAFFILIATION : "affiliated via"
+    ACCOUNT ||--o{ POLICYPROJECTION : "mirrors Siebel Policy Business Object"
+    POLICYPROJECTION ||--o{ POLICYPARTYROLE : "mirrors Policy party links"
+    POLICYPROJECTION ||--o{ COVERAGEPROJECTION : "mirrors Policy Coverage sub-object"
+    POLICYPROJECTION }o--o{ RISKOBJECTPROJECTION : "mirrors Policy Asset link"
+    ACCOUNT ||--o{ CLAIMPROJECTION : "mirrors Claim sub-object"
+    CLAIMPROJECTION }o--o{ RISKOBJECTPROJECTION : "against"
+    ACCOUNT ||--o{ GENERALAGENCYOWNERSHIP : "mirrors Position/Account Team"
+    POLICYPROJECTION ||--|| LEGACYSOURCEKEY : "EIM/Integration-Object traceability"
+```
+
+#### Advantages
+
+- Fastest, most traceable source-to-target mapping of the four options —
+  every legacy field/table has a near 1:1 counterpart, minimizing custom
+  transformation logic during the highest-risk phase of a highly customized
+  migration.
+- Simplest reconciliation: staged, mirrored records can be diffed directly
+  against Siebel's own EIM extracts using preserved legacy identifiers,
+  matching Microsoft's own complex-migration guidance on staging, success/
+  error tables, and record-count reconciliation
+  ([Suggested workflow for a complex data migration](https://learn.microsoft.com/power-platform/architecture/key-concepts/data-migration/workflow-complex-data-migration)).
+- De-risks cutover by enabling a phased, side-by-side validation window
+  rather than a single irreversible transform — consistent with Microsoft's
+  own guidance that phased migration with pilots is the recommended
+  approach for complex, highly customized sources
+  ([Data migration approaches](https://learn.microsoft.com/power-platform/architecture/key-concepts/data-migration/data-migration-approaches)).
+- Business questions during migration ("why does this differ from what I
+  see in Siebel today?") are the easiest of any option to answer, because
+  the shapes stay recognizable to Mobiliar's own business and support teams.
+
+#### Disadvantages
+
+- Carries Siebel's own historical technical debt and highly customized
+  quirks directly into Dataverse, unless the programme explicitly funds and
+  schedules a second canonicalization wave — a common risk when a
+  "temporary" bridge is never revisited.
+- Weakest canonical/semantic alignment of the four options — no better than
+  Option A, and materially behind Option C, on external reuse and cross-line
+  query capability; the data platform and any future accelerator get the
+  least reusable vocabulary.
+- Runs against Microsoft's own complex-migration guidance that literal
+  1:1 mirroring is usually unnecessary and costly: table/column relevance
+  analysis on long-running CRM systems "commonly eliminates 30–40% of
+  columns and up to 20% of tables"
+  ([Suggested workflow for a complex data migration](https://learn.microsoft.com/power-platform/architecture/key-concepts/data-migration/workflow-complex-data-migration))
+  — a disciplined Option D must still prune, not mirror everything.
+  Because it targets the full Siebel object surface rather than a
+  use-case-driven subset, Layer 2 risks being the largest of any option
+  except Option B if scope is not actively bounded.
+- Mobiliar's actual customizations are not documented anywhere in this
+  repository (see the caveat above); a source-schema discovery pass is
+  mandatory before this option can be estimated with any confidence.
+
+#### Conditions that favour Option D
+
+- Migration timeline and cutover risk dominate the decision more than
+  long-term canonical elegance.
+- Deep, multi-decade Siebel customization makes a clean-room redesign
+  (Options A, B, or C) judged too risky to reconstruct correctly without
+  first anchoring to the legacy structure.
+- Mobiliar's Integration Object/EIM extraction tooling is mature and
+  reusable, lowering the cost of building the mirrored bridge.
+- The programme explicitly funds and schedules a second canonicalization
+  wave that converges the mirrored Layer 2 toward Option C, rather than
+  treating Option D as a permanent end state.
+
 ## Comparison
 
-| Criterion | Option A — hardened ERD | Option B — broad P&C in Dataverse | Option C — layered hybrid |
-| --- | --- | --- | --- |
-| Thin-CRM alignment | Strong | Weak unless ADR-0008 is superseded | Strong |
-| Delivery speed | Highest | Lowest | Medium |
-| Canonical semantic depth | Low to medium | Highest | High at contracts; selective in storage |
-| Dataverse footprint | Small | Large | Small to medium |
-| Core-system duplication | Low | High | Low |
-| B2C and B2B extensibility | Medium | High | High |
-| Integration mapping effort | Medium | Medium | Highest initially, reusable later |
-| Data-platform adaptability | Medium | Low to medium | Highest |
-| Operational resilience | Medium to high | High locally | High when projections are selected by SLA |
-| Reversibility | High | Low | High |
-| Governance burden | Medium | High | High but bounded by explicit projection rules |
+| Criterion | Option A — hardened ERD | Option B — broad P&C in Dataverse | Option C — layered hybrid | Option D — Siebel-mirrored |
+| --- | --- | --- | --- | --- |
+| Thin-CRM alignment | Strong | Weak unless ADR-0008 is superseded | Strong | Strong (Policy/Claim/Asset remain projections, not masters) |
+| Delivery speed | Highest | Lowest | Medium | Highest for the initial migration wave; lower once a canonicalization wave is counted |
+| Canonical semantic depth | Low to medium | Highest | High at contracts; selective in storage | Lowest — mirrors legacy vocabulary, not canonical semantics |
+| Dataverse footprint | Small | Large | Small to medium | Medium to large unless actively pruned |
+| Core-system duplication | Low | High | Low | Low (still projections, sourced from Siebel or its successor) |
+| B2C and B2B extensibility | Medium | High | High | Low to medium — legacy shape was not designed for it |
+| Integration mapping effort | Medium | Medium | Highest initially, reusable later | Lowest initially (reuses Siebel's own EIM/Integration Objects), highest later if canonicalized |
+| Data-platform adaptability | Medium | Low to medium | Highest | Medium |
+| Operational resilience | Medium to high | High locally | High when projections are selected by SLA | Medium — inherits legacy resilience characteristics |
+| Reversibility | High | Low | High | Medium — reversible only if a canonicalization wave is actually funded |
+| Governance burden | Medium | High | High but bounded by explicit projection rules | High — must actively prevent legacy technical debt from calcifying |
+| Migration risk (cutover from Siebel) | Medium | Medium to high | Medium | Lowest — this is Option D's defining strength |
 
 ## Decision
 
@@ -339,7 +558,14 @@ Every Layer 2 projection must name:
 Option A remains a valid physical realization when discovery shows that only a
 small persisted projection is required. Option B remains a documented
 alternative only if Mobiliar assigns insurance-processing responsibility to
-CRM and formally revisits ADR-0008.
+CRM and formally revisits ADR-0008. **Option D is documented as a fourth
+alternative specifically for the migration-wave discussion with EA/IT
+stakeholders — it is not selected.** If Option D is adopted for an initial
+migration wave, the programme must explicitly commit to a funded, scheduled
+canonicalization wave that converges the mirrored Layer 2 onto Option C;
+without that commitment, Option D's technical debt and weak canonical
+alignment (see its Disadvantages) become a permanent, not transitional,
+cost.
 
 ## Integration and data-platform validation
 
@@ -373,7 +599,11 @@ Re-open this ADR when any of the following becomes true:
 - a proposal materially changes Account, household, policy-party,
   risk-object, coverage, or jurisdiction boundaries;
 - Microsoft releases a supported industry data model or integration capability
-  that materially changes build, licence, or upgrade trade-offs.
+  that materially changes build, licence, or upgrade trade-offs;
+- Option D is adopted for an initial migration wave but no canonicalization
+  wave is funded or scheduled to converge it onto Option C;
+- source-system discovery reveals Mobiliar's actual Siebel customizations
+  differ materially from the generic patterns illustrated in Option D.
 
 The review records evidence against the comparison criteria rather than
 selecting an option by preference.

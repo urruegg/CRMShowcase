@@ -38,5 +38,8 @@ them. Ownership sits in [SHARED-RESPONSIBILITY.md](./SHARED-RESPONSIBILITY.md)
 
 ## Open
 
-`[TBD — provisioning mechanism and latency expectation toward the analytics
-platform.]`
+Three provisioning-mechanism options for reaching the analytics platform
+(direct Databricks connection, Fabric/OneLake as an accelerator, or a
+zero-copy OneLake shortcut) are evaluated without a final decision in
+[ADR-0024](./adr/ADR-0024-dataverse-to-databricks-integration-pattern.md) —
+pending Enterprise Architect and customer IT/architecture review.
