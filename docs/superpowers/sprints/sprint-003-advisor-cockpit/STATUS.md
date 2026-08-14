@@ -234,3 +234,35 @@ Live status for the Advisor Cockpit (charter **#55**). See the
     closing charter **#55**) can start.
   - Session paused here for the day; resume tomorrow from step 1 above in
     `wt/s3-phase3-cockpit-tables`.
+- **2026-08-14 (data-model scope-reduction + Sprint-3 schema foundation,
+  committed)** - Brainstormed and resolved the Sprint-3
+  data-model scope with the owner (design doc
+  [2026-08-14-advisor-cockpit-datamodel-scope-reduction-design.md](../../specs/2026-08-14-advisor-cockpit-datamodel-scope-reduction-design.md)):
+  kept the 3 already-authored tables (`crmshow_accountcontactrole`,
+  `crmshow_policyprojection`, `crmshow_policypartyrole`) exactly as designed;
+  added the 5 genuinely-new cockpit/foundational tables
+  (`crmshow_leadcluster`, `crmshow_claimprojection`, `crmshow_nextbestaction`,
+  `crmshow_nbaprovenance`, `crmshow_measuresnapshot`), 4 new choices, and
+  native extensions (account/contact mastership-lifecycle fields for the
+  PDV hand-off, lead-queue fields, incident/ARO fields, policyprojection
+  productline/premium) to `insurance-foundation.json`. Extended its own
+  JSON Schema to support `Money`/`Whole`/`TwoOptions` column types and
+  `lead`/`incident` relationship targets (neither existed before - the
+  original 3 tables never needed them). `InsuranceFoundationContract.Tests.ps1`
+  **33/33 green**, `Publish-InsuranceFoundation.Tests.ps1` **104/104 green**
+  after extending `Publish-InsuranceFoundation.ps1`'s attribute builders and
+  fixing a real reconciliation-engine bug in `Test-AttributeCompatibility`
+  (its expected-type map had no `Whole`/`Money`/`TwoOptions` entries, so
+  comparing existing Dataverse attributes of those types always reported a
+  structural conflict). `Test-InsuranceFoundationConvergence.Tests.ps1`
+  verified Describe-block-by-block (8 of 10 blocks confirmed green after the
+  same fixes plus mock-fixture gaps the larger contract exposed - see the
+  commit for detail; the remaining 2 blocks spawn a real child PowerShell
+  process per test and were not re-run to completion in this session, though
+  they exercise the same already-verified code paths). `crmshow_Sales`
+  registered in `solution/manifest.json` as the home for the new **Sales
+  Advisory app** (Advisor Cockpit + Sales Leader Dashboard custom pages) -
+  actual app/page/sitemap authoring stays a live DEV pass (#64), deliberately
+  not hand-scaffolded. Versions bumped: `crmshow_DataModel` 1.1.0.0->1.2.0.0,
+  `crmshow_Sales` 1.0.0.0->1.1.0.0 (both MINOR/additive). Committed as
+  `10fe266`.

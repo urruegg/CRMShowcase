@@ -73,7 +73,7 @@ sys.exit(1 if errors else 0)
 
         $declared = @($Contract.choices.logicalName)
         $findings = [System.Collections.Generic.List[string]]::new()
-        foreach ($extension in $Contract.nativeExtensions) {
+        foreach ($extension in @($Contract.nativeExtensions | Where-Object type -eq 'GlobalChoice')) {
             if ($extension.choice -notin $declared) {
                 $findings.Add(
                     "nativeExtensions/$($extension.table)/$($extension.logicalName): $($extension.choice)"
@@ -192,7 +192,12 @@ Describe 'Insurance Foundation JSON contract' {
         @($contract.tables.logicalName) | Should -Be @(
             'crmshow_accountcontactrole',
             'crmshow_policyprojection',
-            'crmshow_policypartyrole'
+            'crmshow_policypartyrole',
+            'crmshow_leadcluster',
+            'crmshow_claimprojection',
+            'crmshow_nextbestaction',
+            'crmshow_nbaprovenance',
+            'crmshow_measuresnapshot'
         )
     }
 
@@ -208,7 +213,11 @@ Describe 'Insurance Foundation JSON contract' {
             'crmshow_nbachannel',
             'crmshow_productline',
             'crmshow_region',
-            'crmshow_metrictype'
+            'crmshow_metrictype',
+            'crmshow_nbacategory',
+            'crmshow_leadqueuestatus',
+            'crmshow_mastershipstatus',
+            'crmshow_mastersystem'
         )
         @($contract.choices | Select-Object -ExpandProperty solution -Unique) |
             Should -Be @('crmshow_Foundation')
@@ -225,10 +234,14 @@ Describe 'Insurance Foundation JSON contract' {
             )
             crmshow_policystatus = @('Draft','Active','Suspended','Expired','Cancelled')
             crmshow_nbastatus = @('Active','Planned','Accepted','Dismissed')
-            crmshow_nbachannel = @('Call','PhoneAppointment','Email','Teams','OnSite','ClickToCall')
+            crmshow_nbachannel = @('Call','PhoneAppointment','Email','Teams','OnSite','ClickToCall','Task','Appointment')
             crmshow_productline = @('MotorVehicle','HouseholdContents','CommercialProperty','Pension3a','LegalProtection')
             crmshow_region = @('Mittelland','Zurich','Romandie','Ticino')
             crmshow_metrictype = @('GoalAttainment','GrowthYoY','NPS','Automation','Forecast','Conversion','Efficiency','Satisfaction','Quality')
+            crmshow_nbacategory = @('Urgent','Risk','Opportunity','Retention','Insight')
+            crmshow_leadqueuestatus = @('New','InProgress','Bundled','Linking','Primary')
+            crmshow_mastershipstatus = @('CRMOwned','SourceMastered')
+            crmshow_mastersystem = @('PDV')
         }
         foreach ($choice in $contract.choices) {
             @($choice.options.code) | Should -Be $expectedOptions[$choice.logicalName]
@@ -240,7 +253,14 @@ Describe 'Insurance Foundation JSON contract' {
     It 'contains the exact native extensions' {
         $contract = Get-Contract
         @($contract.nativeExtensions.logicalName) |
-            Should -Be @('crmshow_accounttype', 'crmshow_lifecyclestage')
+            Should -Be @(
+                'crmshow_accounttype', 'crmshow_lifecyclestage',
+                'crmshow_mastershipstatus', 'crmshow_mastersystem', 'crmshow_lastsyncedon',
+                'crmshow_mastershipstatus', 'crmshow_mastersystem', 'crmshow_lastsyncedon',
+                'crmshow_consentemail', 'crmshow_consentphone',
+                'crmshow_leadclusterid', 'crmshow_channel', 'crmshow_slalabel', 'crmshow_score', 'crmshow_leadqueuestatus',
+                'crmshow_externalsystem', 'crmshow_externalid', 'crmshow_productline', 'crmshow_openeddate', 'crmshow_slahours'
+            )
         ($contract.nativeExtensions | Where-Object logicalName -eq 'crmshow_accounttype').required |
             Should -BeTrue
         ($contract.nativeExtensions | Where-Object logicalName -eq 'crmshow_lifecyclestage').required |
@@ -253,7 +273,7 @@ Describe 'Insurance Foundation JSON contract' {
             Should -BeNullOrEmpty
 
         $actual = [System.Collections.Generic.List[string]]::new()
-        foreach ($extension in $contract.nativeExtensions) {
+        foreach ($extension in @($contract.nativeExtensions | Where-Object type -eq 'GlobalChoice')) {
             $actual.Add(
                 "$($extension.table)|$($extension.logicalName)|$($extension.choice)"
             )
@@ -269,9 +289,23 @@ Describe 'Insurance Foundation JSON contract' {
         @($actual) | Should -Be @(
             'account|crmshow_accounttype|crmshow_accounttype',
             'contact|crmshow_lifecyclestage|crmshow_contactlifecyclestage',
+            'account|crmshow_mastershipstatus|crmshow_mastershipstatus',
+            'account|crmshow_mastersystem|crmshow_mastersystem',
+            'contact|crmshow_mastershipstatus|crmshow_mastershipstatus',
+            'contact|crmshow_mastersystem|crmshow_mastersystem',
+            'lead|crmshow_leadqueuestatus|crmshow_leadqueuestatus',
+            'incident|crmshow_productline|crmshow_productline',
             'accountcontactrole|crmshow_roletype|crmshow_accountcontactroletype',
+            'policyprojection|crmshow_productline|crmshow_productline',
             'policyprojection|crmshow_status|crmshow_policystatus',
-            'policypartyrole|crmshow_roletype|crmshow_policypartyroletype'
+            'policypartyrole|crmshow_roletype|crmshow_policypartyroletype',
+            'claimprojection|crmshow_productline|crmshow_productline',
+            'nextbestaction|crmshow_channel|crmshow_nbachannel',
+            'nextbestaction|crmshow_category|crmshow_nbacategory',
+            'nextbestaction|crmshow_status|crmshow_nbastatus',
+            'measuresnapshot|crmshow_metric|crmshow_metrictype',
+            'measuresnapshot|crmshow_region|crmshow_region',
+            'measuresnapshot|crmshow_productline|crmshow_productline'
         )
     }
 
@@ -318,13 +352,32 @@ Describe 'Insurance Foundation JSON contract' {
             )
             crmshow_policyprojection = @(
                 'crmshow_name','crmshow_accountid','crmshow_policynumber','crmshow_externalsystem',
-                'crmshow_externalid','crmshow_lineofbusinesscode','crmshow_status',
+                'crmshow_externalid','crmshow_lineofbusinesscode','crmshow_productline','crmshow_productname',
+                'crmshow_annualpremiumamount','crmshow_status',
                 'crmshow_effectivefrom','crmshow_effectiveto','crmshow_sourcelastmodifiedon',
                 'crmshow_retrievedon'
             )
             crmshow_policypartyrole = @(
                 'crmshow_name','crmshow_policyid','crmshow_partyid','crmshow_roletype',
                 'crmshow_validfrom','crmshow_validto','crmshow_sourcesystem','crmshow_sourceid'
+            )
+            crmshow_leadcluster = @('crmshow_name')
+            crmshow_claimprojection = @(
+                'crmshow_name','crmshow_accountid','crmshow_externalsystem','crmshow_externalid',
+                'crmshow_productline','crmshow_title','crmshow_channel','crmshow_status',
+                'crmshow_openeddate','crmshow_slahours'
+            )
+            crmshow_nextbestaction = @(
+                'crmshow_recommendationkey','crmshow_name','crmshow_rationale','crmshow_accountid',
+                'crmshow_leadid','crmshow_channel','crmshow_category','crmshow_aiscore','crmshow_rank',
+                'crmshow_status','crmshow_disclosure'
+            )
+            crmshow_nbaprovenance = @(
+                'crmshow_name','crmshow_nextbestactionid','crmshow_sourcetype','crmshow_reference'
+            )
+            crmshow_measuresnapshot = @(
+                'crmshow_name','crmshow_subject','crmshow_subjecttype','crmshow_metric','crmshow_region',
+                'crmshow_productline','crmshow_asofdate','crmshow_value','crmshow_unit','crmshow_externalsystem'
             )
         }
         foreach ($table in $contract.tables) {
@@ -337,11 +390,27 @@ Describe 'Insurance Foundation JSON contract' {
             )
             crmshow_policyprojection = @(
                 'Text:True','Lookup:True','Text:True','Text:True','Text:True','Text:True',
+                'GlobalChoice:False','Text:False','Money:False',
                 'GlobalChoice:True','DateOnly:True','DateOnly:False','DateTime:True','DateTime:True'
             )
             crmshow_policypartyrole = @(
                 'Text:True','Lookup:True','Customer:True','GlobalChoice:True',
                 'DateOnly:True','DateOnly:False','Text:True','Text:True'
+            )
+            crmshow_leadcluster = @('Text:True')
+            crmshow_claimprojection = @(
+                'Text:True','Lookup:True','Text:True','Text:True','GlobalChoice:False',
+                'Text:True','Text:False','Text:True','DateOnly:True','Whole:False'
+            )
+            crmshow_nextbestaction = @(
+                'Text:True','Text:True','Text:True','Lookup:True','Lookup:False',
+                'GlobalChoice:True','GlobalChoice:True','Whole:True','Whole:True',
+                'GlobalChoice:True','Text:True'
+            )
+            crmshow_nbaprovenance = @('Text:True','Lookup:True','Text:True','Text:True')
+            crmshow_measuresnapshot = @(
+                'Text:True','Text:True','Text:True','GlobalChoice:True','GlobalChoice:False',
+                'GlobalChoice:False','DateOnly:True','Text:True','Text:True','Text:True'
             )
         }
         foreach ($table in $contract.tables) {
@@ -502,6 +571,16 @@ Describe 'Insurance Foundation JSON contract' {
             Should -Be @('crmshow_externalsystem','crmshow_externalid')
         $keys.crmshow_policypartyrole |
             Should -Be @('crmshow_sourcesystem','crmshow_sourceid')
+        $keys.crmshow_leadcluster |
+            Should -Be @('crmshow_name')
+        $keys.crmshow_claimprojection |
+            Should -Be @('crmshow_externalsystem','crmshow_externalid')
+        $keys.crmshow_nextbestaction |
+            Should -Be @('crmshow_recommendationkey')
+        $keys.crmshow_nbaprovenance |
+            Should -Be @('crmshow_nextbestactionid','crmshow_sourcetype','crmshow_reference')
+        $keys.crmshow_measuresnapshot |
+            Should -Be @('crmshow_subject','crmshow_metric','crmshow_asofdate','crmshow_region','crmshow_productline')
     }
 
     It 'uses UserOwned audited non-activity tables' {
@@ -535,7 +614,7 @@ Describe 'Insurance Foundation JSON contract' {
         $contract = Get-Contract
         $policy = $contract.tables | Where-Object logicalName -eq 'crmshow_policyprojection'
         @($policy.excludedConcepts) |
-            Should -Be @('premium','tariff','underwriting','coverageLimit','paymentBalance')
+            Should -Be @('tariff','underwriting','coverageLimit','paymentBalance')
     }
 
     It 'defines the exact lookup relationships and authoring modes' {
@@ -552,6 +631,18 @@ Describe 'Insurance Foundation JSON contract' {
                 'crmshow_policyprojection_partyroles|crmshow_policyid|crmshow_policypartyrole|crmshow_policyprojection|ManyToOne|PolicyProjection provides policy context; party-role records reference it.|InitialTableCreate',
                 'crmshow_customer_policypartyroles|crmshow_partyid|crmshow_policypartyrole|account,contact|ManyToOne|Policy party is an Account or Contact holding the projected role.|CreateCustomerRelationships'
             )
+            crmshow_leadcluster = @()
+            crmshow_claimprojection = @(
+                'crmshow_account_claimprojections|crmshow_accountid|crmshow_claimprojection|account|ManyToOne|Account owns the CRM context for the claim; ClaimProjection references that Account.|InitialTableCreate'
+            )
+            crmshow_nextbestaction = @(
+                'crmshow_account_nextbestactions|crmshow_accountid|crmshow_nextbestaction|account|ManyToOne|Account is the subject of the recommendation; recommendations reference it.|InitialTableCreate',
+                'crmshow_lead_nextbestactions|crmshow_leadid|crmshow_nextbestaction|lead|ManyToOne|Lead is the optional specific subject of the recommendation.|InitialTableCreate'
+            )
+            crmshow_nbaprovenance = @(
+                'crmshow_nextbestaction_provenances|crmshow_nextbestactionid|crmshow_nbaprovenance|crmshow_nextbestaction|ManyToOne|Next-Best-Action is the recommendation cited; provenance rows reference it.|InitialTableCreate'
+            )
+            crmshow_measuresnapshot = @()
         }
         foreach ($table in $contract.tables) {
             $actual = @($table.relationships | ForEach-Object {
@@ -559,6 +650,7 @@ Describe 'Insurance Foundation JSON contract' {
                     ($_.referencedTables -join ','), $_.direction, $_.role, $_.authoring) -join '|'
             })
             $wanted = @($expected[$table.logicalName])
+            if ($wanted.Count -eq 1 -and $null -eq $wanted[0]) { $wanted = @() }
             $actual | Should -Be $wanted
 
             foreach ($relationship in $table.relationships) {
@@ -575,10 +667,17 @@ Describe 'Insurance Foundation JSON contract' {
             crmshow_accountcontactrole = @('crmshow_accountcontactrolevaliddateorder','Table','crmshow_validto is blank or crmshow_validto >= crmshow_validfrom')
             crmshow_policyprojection = @('crmshow_policyprojectioneffectivedateorder','Table','crmshow_effectiveto is blank or crmshow_effectiveto >= crmshow_effectivefrom')
             crmshow_policypartyrole = @('crmshow_policypartyrolevaliddateorder','Table','crmshow_validto is blank or crmshow_validto >= crmshow_validfrom')
+            crmshow_leadcluster = @()
+            crmshow_claimprojection = @()
+            crmshow_nextbestaction = @()
+            crmshow_nbaprovenance = @()
+            crmshow_measuresnapshot = @()
         }
         foreach ($table in $contract.tables) {
-            @($table.businessRules | ForEach-Object { @($_.name,$_.scope,$_.condition) -join '|' }) |
-                Should -Be @($expected[$table.logicalName] -join '|')
+            $actual = @($table.businessRules | ForEach-Object { @($_.name,$_.scope,$_.condition) -join '|' })
+            $rule = $expected[$table.logicalName]
+            $wanted = if ($rule -and $rule.Count -gt 0) { @($rule -join '|') } else { @() }
+            $actual | Should -Be $wanted
         }
     }
 
@@ -586,8 +685,13 @@ Describe 'Insurance Foundation JSON contract' {
         $contract = Get-Contract
         $expected = @{
             crmshow_accountcontactrole = @('crmshow_accountcontactroleadminform','Administration','crmshow_name,crmshow_accountid,crmshow_contactid,crmshow_roletype,crmshow_validfrom,crmshow_validto,crmshow_sourcesystem,crmshow_sourceid')
-            crmshow_policyprojection = @('crmshow_policyprojectionadminform','Administration','crmshow_name,crmshow_accountid,crmshow_policynumber,crmshow_externalsystem,crmshow_externalid,crmshow_lineofbusinesscode,crmshow_status,crmshow_effectivefrom,crmshow_effectiveto,crmshow_sourcelastmodifiedon,crmshow_retrievedon')
+            crmshow_policyprojection = @('crmshow_policyprojectionadminform','Administration','crmshow_name,crmshow_accountid,crmshow_policynumber,crmshow_externalsystem,crmshow_externalid,crmshow_lineofbusinesscode,crmshow_productline,crmshow_productname,crmshow_status,crmshow_effectivefrom,crmshow_effectiveto,crmshow_annualpremiumamount,crmshow_sourcelastmodifiedon,crmshow_retrievedon')
             crmshow_policypartyrole = @('crmshow_policypartyroleadminform','Administration','crmshow_name,crmshow_policyid,crmshow_partyid,crmshow_roletype,crmshow_validfrom,crmshow_validto,crmshow_sourcesystem,crmshow_sourceid')
+            crmshow_leadcluster = @('crmshow_leadclusteradminform','Administration','crmshow_name')
+            crmshow_claimprojection = @('crmshow_claimprojectionadminform','Administration','crmshow_name,crmshow_accountid,crmshow_externalsystem,crmshow_externalid,crmshow_productline,crmshow_title,crmshow_channel,crmshow_status,crmshow_openeddate,crmshow_slahours')
+            crmshow_nextbestaction = @('crmshow_nextbestactionadminform','Administration','crmshow_name,crmshow_rationale,crmshow_accountid,crmshow_leadid,crmshow_channel,crmshow_category,crmshow_aiscore,crmshow_rank,crmshow_status,crmshow_disclosure')
+            crmshow_nbaprovenance = @('crmshow_nbaprovenanceadminform','Administration','crmshow_name,crmshow_nextbestactionid,crmshow_sourcetype,crmshow_reference')
+            crmshow_measuresnapshot = @('crmshow_measuresnapshotadminform','Administration','crmshow_name,crmshow_subject,crmshow_subjecttype,crmshow_metric,crmshow_region,crmshow_productline,crmshow_asofdate,crmshow_value,crmshow_unit,crmshow_externalsystem')
         }
         foreach ($table in $contract.tables) {
             @($table.forms | ForEach-Object { @($_.name,$_.purpose,($_.columns -join ',')) -join '|' }) |
@@ -603,11 +707,26 @@ Describe 'Insurance Foundation JSON contract' {
                 'crmshow_accountcontactroleoverlapview|OverlapReporting|crmshow_accountid,crmshow_contactid,crmshow_roletype,crmshow_validfrom,crmshow_validto|Report distinct AccountContactRole pairs with the same Account, Contact and Role Type where A.Valid From <= coalesce(B.Valid To, open-ended) and B.Valid From <= coalesce(A.Valid To, open-ended).'
             )
             crmshow_policyprojection = @(
-                'crmshow_policyprojectionadminview|Administration|crmshow_name,crmshow_accountid,crmshow_policynumber,crmshow_lineofbusinesscode,crmshow_status,crmshow_effectivefrom,crmshow_effectiveto,crmshow_retrievedon|All PolicyProjection records; no additional record filter.'
+                'crmshow_policyprojectionadminview|Administration|crmshow_name,crmshow_accountid,crmshow_policynumber,crmshow_lineofbusinesscode,crmshow_productline,crmshow_productname,crmshow_status,crmshow_effectivefrom,crmshow_effectiveto,crmshow_annualpremiumamount,crmshow_retrievedon|All PolicyProjection records; no additional record filter.'
             )
             crmshow_policypartyrole = @(
                 'crmshow_policypartyroleadminview|Administration|crmshow_name,crmshow_policyid,crmshow_partyid,crmshow_roletype,crmshow_validfrom,crmshow_validto|All PolicyPartyRole records; no additional record filter.',
                 'crmshow_policypartyroleoverlapview|OverlapReporting|crmshow_policyid,crmshow_partyid,crmshow_roletype,crmshow_validfrom,crmshow_validto|Report distinct PolicyPartyRole pairs with the same Policy Projection, Party and Role Type where A.Valid From <= coalesce(B.Valid To, open-ended) and B.Valid From <= coalesce(A.Valid To, open-ended).'
+            )
+            crmshow_leadcluster = @(
+                'crmshow_leadclusteradminview|Administration|crmshow_name|All Lead Cluster records; no additional record filter.'
+            )
+            crmshow_claimprojection = @(
+                'crmshow_claimprojectionadminview|Administration|crmshow_name,crmshow_accountid,crmshow_productline,crmshow_status,crmshow_openeddate|All ClaimProjection records; no additional record filter.'
+            )
+            crmshow_nextbestaction = @(
+                'crmshow_nextbestactionadminview|Administration|crmshow_name,crmshow_accountid,crmshow_leadid,crmshow_channel,crmshow_category,crmshow_aiscore,crmshow_rank,crmshow_status|All Next-Best-Action records; no additional record filter.'
+            )
+            crmshow_nbaprovenance = @(
+                'crmshow_nbaprovenanceadminview|Administration|crmshow_name,crmshow_nextbestactionid,crmshow_sourcetype,crmshow_reference|All NBA Provenance records; no additional record filter.'
+            )
+            crmshow_measuresnapshot = @(
+                'crmshow_measuresnapshotadminview|Administration|crmshow_name,crmshow_subject,crmshow_metric,crmshow_region,crmshow_productline,crmshow_asofdate,crmshow_value|All Measure Snapshot records; no additional record filter.'
             )
         }
         foreach ($table in $contract.tables) {

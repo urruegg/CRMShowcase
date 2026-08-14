@@ -137,6 +137,9 @@ BeforeAll {
             GlobalChoice = 'Picklist'
             Lookup       = 'Lookup'
             Customer     = 'Customer'
+            Whole        = 'Integer'
+            Money        = 'Money'
+            TwoOptions   = 'Boolean'
         }[[string]$Column.type]
     }
 
@@ -150,14 +153,53 @@ BeforeAll {
             [string]$MetadataId
         )
 
-        return [pscustomobject][ordered]@{
+        $attribute = [ordered]@{
             MetadataId   = $MetadataId
             LogicalName  = [string]$Column.logicalName
             SchemaName   = [string]$Column.schemaName
             AttributeType = script:Get-ColumnAttributeTypeName -Column $Column
             DisplayName  = ConvertTo-LocalizedLabel $Column.metadata.label
             Description  = ConvertTo-LocalizedLabel $Column.metadata.description
+            RequiredLevel = (ConvertTo-RequiredLevel ([bool]$Column.required)).Value
+            IsAuditEnabled = @{ Value = [bool]$Column.auditing }
         }
+
+        switch ([string]$Column.type) {
+            'Text' {
+                $attribute.MaxLength = [int]$Column.maxLength
+            }
+            'DateOnly' {
+                $attribute.Format = 'DateOnly'
+                $attribute.DateTimeBehavior = @{ Value = 'DateOnly' }
+            }
+            'DateTime' {
+                $attribute.Format = 'DateAndTime'
+                $attribute.DateTimeBehavior = @{ Value = 'TimeZoneIndependent' }
+            }
+            'GlobalChoice' {
+                $attribute.GlobalOptionSet = [pscustomobject]@{
+                    Name = [string]$Column.choice
+                }
+            }
+            'Lookup' {
+                $attribute.Targets = @($Column.lookup.targets)
+            }
+            'Customer' {
+                $attribute.Targets = @($Column.lookup.targets)
+            }
+            'Whole' {
+                $attribute.MinValue = [int]$Column.minValue
+                $attribute.MaxValue = [int]$Column.maxValue
+            }
+            'Money' {
+                $attribute.PrecisionSource = 2
+            }
+            'TwoOptions' {
+                $attribute.DefaultValue = $false
+            }
+        }
+
+        return [pscustomobject]$attribute
     }
 
     function script:New-TypedAttributeSnapshot {
@@ -204,6 +246,16 @@ BeforeAll {
             'Customer' {
                 $attribute.AttributeType = 'Customer'
                 $attribute.Targets = @($Column.lookup.targets)
+            }
+            'Whole' {
+                $attribute.MinValue = [int]$Column.minValue
+                $attribute.MaxValue = [int]$Column.maxValue
+            }
+            'Money' {
+                $attribute.PrecisionSource = 2
+            }
+            'TwoOptions' {
+                $attribute.DefaultValue = $false
             }
         }
 
@@ -416,8 +468,10 @@ BeforeAll {
         )
 
         $map = @{
-            account = 'Account'
-            contact = 'Contact'
+            account  = 'Account'
+            contact  = 'Contact'
+            lead     = 'Lead'
+            incident = 'Incident'
         }
 
         foreach ($table in @($Contract.tables)) {
@@ -738,7 +792,7 @@ BeforeAll {
                 script:New-SolutionMembershipResponse -SolutionUniqueName ([string]$extension.solution)
         }
 
-        foreach ($tableLogicalName in @('account', 'contact')) {
+        foreach ($tableLogicalName in @('account', 'contact', 'lead', 'incident')) {
             $nativeExtensions = @($Contract.nativeExtensions | Where-Object {
                     [string]$_.table -ceq $tableLogicalName
                 })
@@ -2778,20 +2832,20 @@ Describe 'Unexpected metadata reverse inventory' {
         $fixture.Responses[(Get-ConvergenceSavedQueryByIdPath -SavedQueryId $viewId)] =
             [pscustomobject]@{
                 savedqueryid     = $viewId
-                name             = 'Active Cases'
-                description      = 'Platform case view.'
-                returnedtypecode = 'incident'
-                fetchxml         = '<fetch version="1.0"><entity name="incident"><attribute name="title" /></entity></fetch>'
-                layoutxml        = '<grid name="resultset" object="112"><row name="incident" id="incidentid"><cell name="title" width="150" /></row></grid>'
+                name             = 'Open Opportunities'
+                description      = 'Platform opportunity view.'
+                returnedtypecode = 'opportunity'
+                fetchxml         = '<fetch version="1.0"><entity name="opportunity"><attribute name="name" /></entity></fetch>'
+                layoutxml        = '<grid name="resultset" object="3"><row name="opportunity" id="opportunityid"><cell name="name" width="150" /></row></grid>'
             }
         $fixture.Responses[(Get-ConvergenceSystemFormByIdPath -FormId $formId)] =
             [pscustomobject]@{
                 formid         = $formId
-                name           = 'Case Main'
-                description    = 'Platform case form.'
-                objecttypecode = 'incident'
+                name           = 'Opportunity Main'
+                description    = 'Platform opportunity form.'
+                objecttypecode = 'opportunity'
                 type           = 2
-                formxml        = '<form><tabs><tab name="general"><columns><column width="100%"><sections><section name="general"><rows><row><cell><control id="title" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="title" /></cell></row></rows></section></sections></column></columns></tab></tabs></form>'
+                formxml        = '<form><tabs><tab name="general"><columns><column width="100%"><sections><section name="general"><rows><row><cell><control id="name" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="name" /></cell></row></rows></section></sections></column></columns></tab></tabs></form>'
             }
         script:Register-ConvergenceTransportMock -Responses $fixture.Responses
 
