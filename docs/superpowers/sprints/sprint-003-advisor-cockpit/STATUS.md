@@ -12,10 +12,10 @@ Live status for the Advisor Cockpit (charter **#55**). See the
 | advisorcockpit-pcf | #62 | DESIGN-SENSITIVE | feat/sprint-003-advisorcockpit-pcf | #70 | ✅ merged | local-first PCF (React18/Fluent v9): faithful layout, Meine Leads Liste/Board/Cockpit, brand-kit tokens, data-source provenance (tint + legend, no badges), UX rubric v1.1 + scorecard; tsc clean, 24/24 vitest |
 | salesleaderdashboard-pcf | #63 | DESIGN-SENSITIVE | feat/sprint-003-salesleaderdashboard-pcf | #74 | ✅ merged | local-first PCF (React18/Fluent v9 + Recharts): Führungsdashboard — scorecard KPIs + forecast confidence band + radar + product/region bars + funnel + GA benchmark; data-mapped to measures.json + provenance (measure vs not-yet-mapped) + DATA-BOM/rubric scorecard; tsc clean, 8/8 vitest |
 | foundation-choices | #56 | EXECUTION-ONLY | feat/sprint-003-foundation-choices | #75 | ✅ merged | +5 cockpit choices (nbastatus/nbachannel/productline/region/metrictype) in 4 languages; contract 1.1.0; authored in DEV by the CD pipeline (2026-08-12) |
-| foundational-tables | #57 | DESIGN-SENSITIVE | — | — | ⏳ DEV-gated | slices 1–5 (mobiliar-data-model-extension) |
-| cockpit-tables | #58 | EXECUTION-ONLY | feat/s3-phase3-cockpit-tables | — | 🚧 WIP | type-system extension (Whole/Multiline) done + green (382/0/2); tables not yet authored - resume in `wt/s3-phase3-cockpit-tables` |
-| seed-pipeline | #60 (follow-up) | EXECUTION-ONLY | — | — | ⏳ DEV-gated | task 5.3; needs the tables to exist for smoke |
-| mda-app | #64 | DESIGN-SENSITIVE | — | — | ⏳ DEV-gated | app + two custom pages |
+| foundational-tables | #57 | DESIGN-SENSITIVE | — | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | 5 tables incl. `crmshow_leadcluster`/`crmshow_claimprojection` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
+| cockpit-tables | #58 | EXECUTION-ONLY | feat/s3-phase3-cockpit-tables | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | `crmshow_nextbestaction`/`crmshow_nbaprovenance`/`crmshow_measuresnapshot` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
+| seed-pipeline | #60 (follow-up) | EXECUTION-ONLY | feat/s3-seed-claims-mapping | #101 (open) | ⏳ in progress | claims.json mapped to `crmshow_claimprojection` + 14/14 Pester; blocked on an account-resolution design decision (no stable seed key on `account`) before it can run live or wire into the CD pipeline; policies.json deferred separately |
+| mda-app | #64 | DESIGN-SENSITIVE | — | #100 (docs) | ⏳ in progress (attended) | both PCF controls wrapped as real, build-verified PCF projects (AdvisorCockpit 259s/8.1MiB, SalesLeaderDashboard 74s/3.97MiB); app module + custom pages + sitemap not yet authored |
 | e2e-verify | #65 | EXECUTION-ONLY | — | — | ⏳ DEV-gated | DEV→TEST evidence |
 | nba-agent | #61 | DESIGN-SENSITIVE | — | — | ⏸ deferred | out of sprint; needs a use-case description |
 
@@ -266,3 +266,84 @@ Live status for the Advisor Cockpit (charter **#55**). See the
   not hand-scaffolded. Versions bumped: `crmshow_DataModel` 1.1.0.0->1.2.0.0,
   `crmshow_Sales` 1.0.0.0->1.1.0.0 (both MINOR/additive). Committed as
   `10fe266`.
+
+- **2026-08-14 (catch-up: #99, CD-DEV run 31805085480, PCF wrap, #100) -**
+  this run log fell behind sprint.md for several merges; recording them here
+  now rather than leaving a silent gap. See [sprint.md](./sprint.md) for the
+  fuller narrative on each.
+  - **PR #99** (unrelated ADR housekeeping, branched before Sprint 3) merged
+    as `759818a`: resolved an ADR-numbering collision where #99 had
+    independently allocated ADR-0024-0033 to 10 new ADRs while `main` had
+    since allocated those same numbers to different, already-merged
+    decisions. Renumbered the PR's ADRs to 0030-0039, rebuilt
+    `docs/adr/README.md`'s index, verified zero broken cross-references.
+  - **CD-DEV run
+    [31805085480](https://github.com/urruegg/CRMShowcase/actions/runs/31805085480)**
+    dispatched against the rescoped schema (commit `d2e05e0`): `validate`
+    12m22s, `author` 9m13s. This is the run that DEV-authored the #56
+    addendum choices, `crmshow_leadcluster`/`crmshow_claimprojection` (#57),
+    and `crmshow_nextbestaction`/`crmshow_nbaprovenance`/`crmshow_measuresnapshot`
+    (#58) live. Intake-export of this newly authored schema into
+    `solution/core/datamodel` source control is still outstanding.
+  - **PCF wrap for #64** (per the owner's explicit scope decision — ship the
+    existing PCF as-is first, polish afterwards): both `AdvisorCockpit` and
+    `SalesLeaderDashboard` now have a real, buildable PCF project under
+    `pcf/` (isolated `package.json`/`tsconfig.json`, `ControlManifest.Input.xml`,
+    rendering the existing component unchanged, no Dataverse binding yet).
+    `control-type="standard"` bundles React 18 + Fluent v9 directly (the
+    platform's own React 16 won't run these components). Builds verified
+    green: `AdvisorCockpit` webpack 259s (bundle.js 8.1 MiB),
+    `SalesLeaderDashboard` 74s (bundle.js 3.97 MiB). App module + sitemap +
+    the 2 custom pages (Maker-Portal-only step) remain outstanding.
+  - **PR #100** bundled the data-model scope-reduction doc fixes, the PCF
+    wrap above, and a CI fix, merged as `e1de1bf`. **Root cause discovered
+    this session: `main` is branch-protected** — direct `git push origin main`
+    fails (`GH006`, required status check `gate1`). Every prior commit that
+    looked "on main" locally (including `10fe266` above) had never actually
+    reached `origin/main` until this PR opened it properly. Corrected
+    workflow now in repo memory: commit locally -> `git branch -f feat/<name>
+    HEAD` -> push the branch -> reset local `main` to `origin/main` ->
+    `gh pr create`. CI (`gate1`) initially failed:
+    `Test-AttributeCompatibility` threw on `crmshow_claimprojection.crmshow_slahours`
+    because `Publish-InsuranceFoundation.Tests.ps1`'s mock-builder functions
+    had never been updated for the `Whole`/`Money`/`TwoOptions` column types
+    added in a prior session. Fixed the mock builders; full suite went to
+    **377 passed, 0 failed, 2 skipped**; `gate1` green; merged.
+
+- **2026-08-14 (seed-pipeline: claims.json mapped; account-resolution
+  blocker confirmed) -** Opened as **PR #101** (`feat/s3-seed-claims-mapping`,
+  not yet merged — CI pending, never self-merging). Full detail in
+  [sprint.md](./sprint.md); summary:
+  - `seed-advisor-cockpit.ps1` gained `ConvertTo-ClaimUpsertBody` +
+    `Get-ClaimUpsertRequests`, wired into `Invoke-AdvisorCockpitSeed` behind
+    a new `-AccountKeyMap` parameter. Also fixed `Get-FixtureManifest`'s
+    alternate key for both `policies.json` and `claims.json` from an
+    incorrect single-column `crmshow_externalid` to the correct composite
+    `[crmshow_externalsystem, crmshow_externalid]` (already expected by
+    `InsuranceFoundationContract.Tests.ps1` — this was a latent bug that
+    would have collided across source systems). 7 new Pester cases;
+    `SeedAdvisorCockpit.Tests.ps1` now **14/14 green**. Change is isolated —
+    confirmed via repo-wide search that this script is only dot-sourced by
+    its own test file.
+  - **Confirmed blocker, not resolved:** neither claims nor policies can run
+    against live Dataverse yet — `account` has no stable, seed-resolvable
+    alternate key (no `crmshow_seedkey` or equivalent exists anywhere in
+    `insurance-foundation.json`; account's only native extensions are
+    `crmshow_accounttype`/`crmshow_mastershipstatus`/`crmshow_mastersystem`/
+    `crmshow_lastsyncedon`). Adding one is a data-model change and, per this
+    repo's own ADR rule, needs an explicit owner design decision rather than
+    a unilateral schema edit — **flagging for review, not guessing.**
+    Policies.json seeding stays separately deferred: missing required fields
+    (`crmshow_policynumber`, `crmshow_lineofbusinesscode`,
+    `crmshow_effectivefrom`, `crmshow_sourcelastmodifiedon`) plus a
+    GlobalChoice `crmshow_status` whose numeric option value isn't derivable
+    from the fixture's German free-text strings without an agreed mapping.
+  - **Session closed here for today.** Resume next session with, in order:
+    (1) owner decision on the account-resolution key (new ADR if a schema
+    change is agreed); (2) once merged, `gh pr merge` review of #101 (human,
+    not self-merge); (3) policies.json mapping once both the account-key and
+    status-value-mapping decisions are made; (4) wire seeding into the CD
+    pipeline with a smoke check (5.3); (5) MDA app "Advisor Cockpit" + the 2
+    custom pages (#64, Maker-Portal-attended step) — the true remaining
+    long pole before #65 (DEV→TEST evidence) can start.
+
