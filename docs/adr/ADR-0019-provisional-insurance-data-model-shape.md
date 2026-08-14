@@ -86,6 +86,19 @@ candidate shapes and establishes a reversible working hypothesis.
 The local intake HTML is discovery evidence, not a deployable schema or
 normative architecture source.
 
+**Update (2026-08-14, chat-captured, not yet a written intake artefact):** the
+owner named the actual core-system landscape this hypothesis has been waiting
+on. **ARO** (Arbeits-Organisations-System) masters insurance offers, contracts
+and claims, including general "Anliegen" case work. **PDV** (Partner Daten
+Verwaltung), hosted on the system referred to as "Host", masters
+party/customer identity — new Accounts/Contacts are born CRM-owned and
+mastership switches to PDV once a contract exists, syncing back to CRM (see
+[2026-08-14-advisor-cockpit-datamodel-scope-reduction-design.md](../superpowers/specs/2026-08-14-advisor-cockpit-datamodel-scope-reduction-design.md)).
+**Kafka on Confluent Cloud** is the event backbone across these systems. This
+only supplies names for the evidence-area questions below — mechanism
+(virtual table vs. event-fed projection), freshness, and volume remain
+**not yet decided**.
+
 ## Decision drivers
 
 The target shape must:

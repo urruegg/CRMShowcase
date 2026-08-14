@@ -29,7 +29,8 @@ BeforeAll {
         return @{
             Text = 'String'; Lookup = 'Lookup'; Customer = 'Customer'
             GlobalChoice = 'Picklist'; DateOnly = 'DateTime'
-            DateTime = 'DateTime'
+            DateTime = 'DateTime'; Whole = 'Integer'; Money = 'Money'
+            TwoOptions = 'Boolean'
         }[$Column.type]
     }
 
@@ -66,6 +67,16 @@ BeforeAll {
             }
             'Customer' {
                 $attribute.Targets = @($Column.lookup.targets)
+            }
+            'Whole' {
+                $attribute.MinValue = $Column.minValue
+                $attribute.MaxValue = $Column.maxValue
+            }
+            'Money' {
+                $attribute.PrecisionSource = 2
+            }
+            'TwoOptions' {
+                $attribute.DefaultValue = $false
             }
         }
         return [pscustomobject]$attribute
@@ -1104,19 +1115,19 @@ Describe 'Insurance Foundation reconciliation' {
         }
 
         $created = @($script:calls | Where-Object Method -eq 'POST')
-        @($created | Where-Object Path -eq '/GlobalOptionSetDefinitions').Count | Should -Be 10
-        @($created | Where-Object Path -eq '/EntityDefinitions').Count | Should -Be 3
-        @($created | Where-Object Path -eq '/PublishXml').Count | Should -Be 6
+        @($created | Where-Object Path -eq '/GlobalOptionSetDefinitions').Count | Should -Be 14
+        @($created | Where-Object Path -eq '/EntityDefinitions').Count | Should -Be 8
+        @($created | Where-Object Path -eq '/PublishXml').Count | Should -Be 16
         foreach ($publish in @($created | Where-Object Path -eq '/PublishXml')) {
             $publish.Body.ParameterXml |
                 Should -Match '^<importexportxml><entities><entity>crmshow_[a-z]+</entity></entities></importexportxml>$'
         }
-        @($created | Where-Object Path -match "EntityDefinitions\(LogicalName='(?:account|contact)'\)/Attributes").Count |
-            Should -Be 2
-        @($created | Where-Object Path -match '/Keys$').Count | Should -Be 3
+        @($created | Where-Object Path -match "EntityDefinitions\(LogicalName='(?:account|contact|lead|incident)'\)/Attributes").Count |
+            Should -Be 20
+        @($created | Where-Object Path -match '/Keys$').Count | Should -Be 8
         @($created | Where-Object Path -eq '/workflows').Count | Should -Be 0
-        @($created | Where-Object Path -eq '/systemforms').Count | Should -Be 3
-        @($created | Where-Object Path -eq '/savedqueries').Count | Should -Be 8
+        @($created | Where-Object Path -eq '/systemforms').Count | Should -Be 8
+        @($created | Where-Object Path -eq '/savedqueries').Count | Should -Be 13
         @($created | Where-Object Path -eq '/roles').Count | Should -Be 2
         $roleActions = @($created | Where-Object Path -match 'AddPrivilegesRole$')
         $roleActions.Count | Should -Be 2
@@ -1132,7 +1143,7 @@ Describe 'Insurance Foundation reconciliation' {
             $_.Path -match '\$select=MetadataId,LogicalName,SchemaName&' -and
             $_.Path -notmatch '\$expand=Attributes'
         })
-        $tableExistenceReads.Count | Should -Be 3
+        $tableExistenceReads.Count | Should -Be 8
         @($tableExistenceReads | Where-Object {
             $_.Path -match "LogicalName eq 'crmshow_accountcontactrole'"
         }).Count | Should -Be 1
@@ -1141,6 +1152,21 @@ Describe 'Insurance Foundation reconciliation' {
         }).Count | Should -Be 1
         @($tableExistenceReads | Where-Object {
             $_.Path -match "LogicalName eq 'crmshow_policypartyrole'"
+        }).Count | Should -Be 1
+        @($tableExistenceReads | Where-Object {
+            $_.Path -match "LogicalName eq 'crmshow_leadcluster'"
+        }).Count | Should -Be 1
+        @($tableExistenceReads | Where-Object {
+            $_.Path -match "LogicalName eq 'crmshow_claimprojection'"
+        }).Count | Should -Be 1
+        @($tableExistenceReads | Where-Object {
+            $_.Path -match "LogicalName eq 'crmshow_nextbestaction'"
+        }).Count | Should -Be 1
+        @($tableExistenceReads | Where-Object {
+            $_.Path -match "LogicalName eq 'crmshow_nbaprovenance'"
+        }).Count | Should -Be 1
+        @($tableExistenceReads | Where-Object {
+            $_.Path -match "LogicalName eq 'crmshow_measuresnapshot'"
         }).Count | Should -Be 1
         $tableMetadataReads = @($script:calls | Where-Object {
             $_.Method -eq 'GET' -and
@@ -1159,6 +1185,7 @@ Describe 'Insurance Foundation reconciliation' {
         $choiceBindings = @(
             $created |
                 Where-Object Path -match '/Attributes$' |
+                Where-Object { $_.Body.'GlobalOptionSet@odata.bind' } |
                 ForEach-Object { $_.Body.'GlobalOptionSet@odata.bind' }
             $created |
                 Where-Object Path -eq '/EntityDefinitions' |
@@ -1182,7 +1209,7 @@ Describe 'Insurance Foundation reconciliation' {
 
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and $_.Path -eq '/GlobalOptionSetDefinitions'
-        }).Count | Should -Be 10
+        }).Count | Should -Be 14
         @($script:calls | Where-Object {
             $_.Method -ne 'GET' -and $_.Path -like '/EntityDefinitions*'
         }) | Should -BeNullOrEmpty
@@ -1209,7 +1236,7 @@ Describe 'Insurance Foundation reconciliation' {
         }) | Should -BeNullOrEmpty
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and $_.Path -eq '/EntityDefinitions'
-        }).Count | Should -Be 3
+        }).Count | Should -Be 8
         @($script:calls | Where-Object {
             $_.Method -ne 'GET' -and $_.Path -eq '/PublishAllXml'
         }).Headers.'MSCRM.SolutionUniqueName' | Should -Be 'crmshow_DataModel'
@@ -1221,10 +1248,10 @@ Describe 'Insurance Foundation reconciliation' {
 
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and $_.Path -eq '/GlobalOptionSetDefinitions'
-        }).Count | Should -Be 10
+        }).Count | Should -Be 14
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and $_.Path -eq '/EntityDefinitions'
-        }).Count | Should -Be 3
+        }).Count | Should -Be 8
         @($script:calls | Where-Object {
             $_.Method -ne 'GET' -and
             ($_.Path -eq '/roles' -or $_.Path -match 'PrivilegesRole$')
@@ -1385,11 +1412,11 @@ Describe 'Insurance Foundation reconciliation' {
         }).Count | Should -BeGreaterOrEqual 2
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and
-            $_.Path -match "EntityDefinitions\(LogicalName='(?:account|contact)'\)/Attributes$"
-        }).Count | Should -Be 2
+            $_.Path -match "EntityDefinitions\(LogicalName='(?:account|contact|lead|incident)'\)/Attributes$"
+        }).Count | Should -Be 20
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and $_.Path -eq '/EntityDefinitions'
-        }).Count | Should -Be 3
+        }).Count | Should -Be 8
     }
 
     It 'publishes the Customer table, confirms visibility, and creates the relationship once' {
@@ -1700,8 +1727,28 @@ Describe 'Insurance Foundation reconciliation' {
             '/GlobalOptionSetDefinitions','/GlobalOptionSetDefinitions',
             '/GlobalOptionSetDefinitions','/GlobalOptionSetDefinitions',
             '/GlobalOptionSetDefinitions','/GlobalOptionSetDefinitions',
+            '/GlobalOptionSetDefinitions','/GlobalOptionSetDefinitions',
+            '/GlobalOptionSetDefinitions','/GlobalOptionSetDefinitions',
             "/EntityDefinitions(LogicalName='account')/Attributes",
             "/EntityDefinitions(LogicalName='contact')/Attributes",
+            "/EntityDefinitions(LogicalName='account')/Attributes",
+            "/EntityDefinitions(LogicalName='account')/Attributes",
+            "/EntityDefinitions(LogicalName='account')/Attributes",
+            "/EntityDefinitions(LogicalName='contact')/Attributes",
+            "/EntityDefinitions(LogicalName='contact')/Attributes",
+            "/EntityDefinitions(LogicalName='contact')/Attributes",
+            "/EntityDefinitions(LogicalName='contact')/Attributes",
+            "/EntityDefinitions(LogicalName='contact')/Attributes",
+            "/EntityDefinitions(LogicalName='lead')/Attributes",
+            "/EntityDefinitions(LogicalName='lead')/Attributes",
+            "/EntityDefinitions(LogicalName='lead')/Attributes",
+            "/EntityDefinitions(LogicalName='lead')/Attributes",
+            "/EntityDefinitions(LogicalName='lead')/Attributes",
+            "/EntityDefinitions(LogicalName='incident')/Attributes",
+            "/EntityDefinitions(LogicalName='incident')/Attributes",
+            "/EntityDefinitions(LogicalName='incident')/Attributes",
+            "/EntityDefinitions(LogicalName='incident')/Attributes",
+            "/EntityDefinitions(LogicalName='incident')/Attributes",
             '/EntityDefinitions','/PublishXml','/PublishXml',
             "/EntityDefinitions(LogicalName='crmshow_accountcontactrole')/Keys",
             '/savedqueries','/SetLocLabels','/SetLocLabels',
@@ -1718,6 +1765,26 @@ Describe 'Insurance Foundation reconciliation' {
             "/EntityDefinitions(LogicalName='crmshow_policypartyrole')/Keys",
             '/savedqueries','/SetLocLabels','/SetLocLabels',
             '/savedqueries','/SetLocLabels','/SetLocLabels',
+            '/savedqueries','/SetLocLabels','/SetLocLabels',
+            '/systemforms','/SetLocLabels','/SetLocLabels',
+            '/EntityDefinitions','/PublishXml','/PublishXml',
+            "/EntityDefinitions(LogicalName='crmshow_leadcluster')/Keys",
+            '/savedqueries','/SetLocLabels','/SetLocLabels',
+            '/systemforms','/SetLocLabels','/SetLocLabels',
+            '/EntityDefinitions','/PublishXml','/PublishXml',
+            "/EntityDefinitions(LogicalName='crmshow_claimprojection')/Keys",
+            '/savedqueries','/SetLocLabels','/SetLocLabels',
+            '/systemforms','/SetLocLabels','/SetLocLabels',
+            '/EntityDefinitions','/PublishXml','/PublishXml',
+            "/EntityDefinitions(LogicalName='crmshow_nextbestaction')/Keys",
+            '/savedqueries','/SetLocLabels','/SetLocLabels',
+            '/systemforms','/SetLocLabels','/SetLocLabels',
+            '/EntityDefinitions','/PublishXml','/PublishXml',
+            "/EntityDefinitions(LogicalName='crmshow_nbaprovenance')/Keys",
+            '/savedqueries','/SetLocLabels','/SetLocLabels',
+            '/systemforms','/SetLocLabels','/SetLocLabels',
+            '/EntityDefinitions','/PublishXml','/PublishXml',
+            "/EntityDefinitions(LogicalName='crmshow_measuresnapshot')/Keys",
             '/savedqueries','/SetLocLabels','/SetLocLabels',
             '/systemforms','/SetLocLabels','/SetLocLabels',
             '/roles',

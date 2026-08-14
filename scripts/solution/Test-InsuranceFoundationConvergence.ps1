@@ -677,18 +677,24 @@ function Get-ConvergenceTypedAttributePath {
     }
 
     $typeName = @{
-        Text     = 'StringAttributeMetadata'
-        DateOnly = 'DateTimeAttributeMetadata'
-        DateTime = 'DateTimeAttributeMetadata'
-        Lookup   = 'LookupAttributeMetadata'
-        Customer = 'LookupAttributeMetadata'
+        Text       = 'StringAttributeMetadata'
+        DateOnly   = 'DateTimeAttributeMetadata'
+        DateTime   = 'DateTimeAttributeMetadata'
+        Lookup     = 'LookupAttributeMetadata'
+        Customer   = 'LookupAttributeMetadata'
+        Whole      = 'IntegerAttributeMetadata'
+        Money      = 'MoneyAttributeMetadata'
+        TwoOptions = 'BooleanAttributeMetadata'
     }[[string]$Column.type]
     $derivedProperties = @{
-        Text     = 'MaxLength'
-        DateOnly = 'Format,DateTimeBehavior'
-        DateTime = 'Format,DateTimeBehavior'
-        Lookup   = 'Targets'
-        Customer = 'Targets'
+        Text       = 'MaxLength'
+        DateOnly   = 'Format,DateTimeBehavior'
+        DateTime   = 'Format,DateTimeBehavior'
+        Lookup     = 'Targets'
+        Customer   = 'Targets'
+        Whole      = 'MinValue,MaxValue'
+        Money      = 'PrecisionSource'
+        TwoOptions = 'DefaultValue'
     }[[string]$Column.type]
 
     if ([string]::IsNullOrWhiteSpace($typeName)) {
