@@ -15,11 +15,31 @@
     Phases 1-3. Until they exist, this script still builds and validates the seed
     plan (Get-SeedPlan) and the analytics upsert requests, which the pipeline seed
     step (Phase 5.3) executes once the tables are present.
+
+    Claims (crmshow_claimprojection) are also mapped to concrete columns, since
+    that table's contract is settled and its fields (name/accountid/
+    externalsystem/externalid/productline/title/channel/status/openeddate/
+    slahours) are plain text/choice/date types with no cross-fixture lookup
+    resolution beyond the owning Account. Resolving crmshow_accountid requires
+    a caller-supplied -AccountKeyMap (seed key -> Account GUID), because no
+    stable, script-resolvable alternate key exists yet on `account` itself
+    (accounts-contacts.json's own crmshow_seedkey column is not yet part of
+    the contract) -- claim upserts are skipped with a warning if the map is
+    not supplied or a referenced account key is missing from it.
+
+    Policies (crmshow_policyprojection) are NOT yet mapped: beyond the same
+    account-resolution gap, the table also requires crmshow_policynumber,
+    crmshow_lineofbusinesscode, crmshow_effectivefrom and
+    crmshow_sourcelastmodifiedon (absent from policies.json today) and a
+    crmshow_status GlobalChoice whose numeric option value is not derivable
+    from the fixture's free-text German status strings without an explicit
+    mapping decision. Left for a follow-up once that mapping is agreed.
 #>
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [string]$EnvironmentUrl,
-    [string]$FixtureRoot
+    [string]$FixtureRoot,
+    [System.Collections.IDictionary]$AccountKeyMap
 )
 
 $ErrorActionPreference = 'Stop'
@@ -40,8 +60,8 @@ function Get-FixtureManifest {
         [pscustomobject]@{ File = 'leads.json'; EntitySet = 'leads'; AlternateKey = @('crmshow_seedkey'); Shape = 'record' }
         [pscustomobject]@{ File = 'activities.json'; EntitySet = 'activitypointers'; AlternateKey = @('crmshow_seedkey'); Shape = 'activities' }
         [pscustomobject]@{ File = 'nba.json'; EntitySet = 'crmshow_nextbestactions'; AlternateKey = @('crmshow_seedkey'); Shape = 'nba' }
-        [pscustomobject]@{ File = 'policies.json'; EntitySet = 'crmshow_policyprojections'; AlternateKey = @('crmshow_externalid'); Shape = 'record' }
-        [pscustomobject]@{ File = 'claims.json'; EntitySet = 'crmshow_claimprojections'; AlternateKey = @('crmshow_externalid'); Shape = 'record' }
+        [pscustomobject]@{ File = 'policies.json'; EntitySet = 'crmshow_policyprojections'; AlternateKey = @('crmshow_externalsystem', 'crmshow_externalid'); Shape = 'record' }
+        [pscustomobject]@{ File = 'claims.json'; EntitySet = 'crmshow_claimprojections'; AlternateKey = @('crmshow_externalsystem', 'crmshow_externalid'); Shape = 'record' }
     )
 }
 
@@ -128,15 +148,75 @@ function Get-MeasureUpsertRequests {
     }
 }
 
+# Maps one claims.json row to its crmshow_claimprojection column body. Requires
+# the caller to resolve the row's accountKey to a live Account GUID via
+# $AccountKeyMap (seed key -> GUID); throws if the key is missing so a broken
+# reference is never silently upserted with a blank required lookup.
+function ConvertTo-ClaimUpsertBody {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] $Row,
+        [Parameter(Mandatory)] [System.Collections.IDictionary]$AccountKeyMap
+    )
+
+    if (-not $AccountKeyMap.Contains([string]$Row.accountKey)) {
+        throw "No resolved Account GUID for accountKey '$($Row.accountKey)' (claim '$($Row.externalId)')."
+    }
+    $accountId = [string]$AccountKeyMap[[string]$Row.accountKey]
+
+    $body = [ordered]@{
+        crmshow_name           = [string]$Row.title
+        'crmshow_accountid@odata.bind' = "/accounts($accountId)"
+        crmshow_externalsystem = [string]$Row.externalSystem
+        crmshow_externalid     = [string]$Row.externalId
+        crmshow_title          = [string]$Row.title
+        crmshow_status         = [string]$Row.status
+        crmshow_openeddate     = [string]$Row.openedDate
+    }
+    if ($null -ne $Row.productLine) { $body.crmshow_productline = [string]$Row.productLine }
+    if ($null -ne $Row.channel) { $body.crmshow_channel = [string]$Row.channel }
+    if ($null -ne $Row.slaHours) { $body.crmshow_slahours = [int]$Row.slaHours }
+    return $body
+}
+
+# Builds the concrete claim-projection upsert requests. Returns an empty array
+# (with a warning, not a throw) when no AccountKeyMap is supplied, since claim
+# seeding is optional until account resolution is wired -- callers that only
+# want the analytics projection are unaffected.
+function Get-ClaimUpsertRequests {
+    [CmdletBinding()]
+    param(
+        [string]$FixtureRoot = $script:FixtureRoot,
+        [System.Collections.IDictionary]$AccountKeyMap
+    )
+
+    if (-not $AccountKeyMap -or $AccountKeyMap.Count -eq 0) {
+        Write-Warning 'Get-ClaimUpsertRequests: no AccountKeyMap supplied; skipping claim upserts.'
+        return @()
+    }
+
+    $group = Get-SeedPlan -FixtureRoot $FixtureRoot | Where-Object { $_.Fixture -eq 'claims.json' }
+    foreach ($row in $group.Records) {
+        $key = [ordered]@{
+            crmshow_externalsystem = [string]$row.externalSystem
+            crmshow_externalid     = [string]$row.externalId
+        }
+        New-DataverseUpsertRequest -EntitySet $group.EntitySet -AlternateKey $key -Body (ConvertTo-ClaimUpsertBody -Row $row -AccountKeyMap $AccountKeyMap)
+    }
+}
+
 function Invoke-AdvisorCockpitSeed {
     [CmdletBinding(SupportsShouldProcess)]
-    param([Parameter(Mandatory)] [string]$EnvironmentUrl)
+    param(
+        [Parameter(Mandatory)] [string]$EnvironmentUrl,
+        [System.Collections.IDictionary]$AccountKeyMap
+    )
 
     $baseUrl = $EnvironmentUrl.TrimEnd('/')
     $plan = Get-SeedPlan
     Write-Output ("Seed plan: {0} fixtures, {1} records." -f $plan.Count, (($plan | Measure-Object -Property Count -Sum).Sum))
 
-    $requests = @(Get-MeasureUpsertRequests)
+    $requests = @(Get-MeasureUpsertRequests) + @(Get-ClaimUpsertRequests -AccountKeyMap $AccountKeyMap)
     foreach ($req in $requests) {
         $url = "$baseUrl/api/data/v9.2$($req.Path)"
         if ($PSCmdlet.ShouldProcess($url, $req.Method)) {
@@ -152,12 +232,12 @@ function Invoke-AdvisorCockpitSeed {
             }
         }
     }
-    Write-Output ("Analytics projection upserts issued: {0}." -f $requests.Count)
+    Write-Output ("Upserts issued: {0}." -f $requests.Count)
 }
 
 if ($MyInvocation.InvocationName -ne '.') {
     if ($EnvironmentUrl) {
-        Invoke-AdvisorCockpitSeed -EnvironmentUrl $EnvironmentUrl
+        Invoke-AdvisorCockpitSeed -EnvironmentUrl $EnvironmentUrl -AccountKeyMap $AccountKeyMap
     }
     else {
         $plan = Get-SeedPlan

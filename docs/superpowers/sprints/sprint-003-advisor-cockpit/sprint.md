@@ -41,7 +41,7 @@ DESIGN-SENSITIVE streams run **attended**; EXECUTION-ONLY may run headless.
 | foundation-choices | 1 | #56 | EXECUTION-ONLY | ✅ merged (PR #75) + addendum DEV-authored (2026-08-14, run 31805085480) |
 | foundational-tables (slices 1–5) | 2 | #57 | DESIGN-SENSITIVE | ✅ DEV-authored (2026-08-14, run 31805085480); source not yet intake-exported |
 | cockpit-tables (nba + provenance) | 3 | #58 | EXECUTION-ONLY | ✅ DEV-authored (2026-08-14, run 31805085480); source not yet intake-exported |
-| seed-pipeline wiring | 5.3 | #60 (follow-up) | EXECUTION-ONLY | ⏳ in progress — tables now exist in DEV |
+| seed-pipeline wiring | 5.3 | #60 (follow-up) | EXECUTION-ONLY | ⏳ in progress — claims mapped + tested (2026-08-14); account-resolution blocker found, policies deferred |
 | mda-app + custom pages | 9 | #64 | DESIGN-SENSITIVE | ⏳ in progress (attended) |
 | e2e DEV→TEST verify | 10 | #65 | EXECUTION-ONLY | ⏳ DEV-gated |
 | nba-agent (Copilot Studio) | 6 | #61 | DESIGN-SENSITIVE | ⏸ deferred (out of sprint) |
@@ -126,6 +126,36 @@ Web API/CLI authoring path — it must be created interactively in Power Apps
 Studio/the Maker Portal. The app-module + sitemap registration is scriptable
 via Web API and remains a planned next step.
 
+**Seed-pipeline wiring for claims started; account-resolution blocker found
+(2026-08-14).** `scripts/solution/seed-advisor-cockpit.ps1` now maps
+`claims.json` to `crmshow_claimprojection`: `ConvertTo-ClaimUpsertBody` +
+`Get-ClaimUpsertRequests` build idempotent PATCH upserts keyed by the
+composite alternate key `[crmshow_externalsystem, crmshow_externalid]`
+(fixed from an incorrect single-column `crmshow_externalid` definition that
+would have collided across source systems). Wired into
+`Invoke-AdvisorCockpitSeed` behind a new `-AccountKeyMap` parameter.
+Verified: 14/14 Pester (`SeedAdvisorCockpit.Tests.ps1`, 7 new cases covering
+field mapping, optional-field omission, missing-account-key failure, and
+request counts).
+**Confirmed blocker (not yet resolved):** neither claims nor policies can
+actually run against live Dataverse yet, because `account` has no stable,
+seed-resolvable alternate key — `crmshow_seedkey` (or equivalent) does not
+exist in `solution/schema/insurance-foundation.json`; account's only native
+extensions are `crmshow_accounttype`, `crmshow_mastershipstatus`,
+`crmshow_mastersystem`, `crmshow_lastsyncedon`. Every fixture's `accountKey`
+(e.g. `ACC-BRUNNER`) is currently a script-external synthetic label with no
+resolution path to a live Account GUID short of a caller-supplied map. Adding
+a stable seed key to `account` is a data-model change and, per this repo's
+own ADR rule ("change to the data model" → open an ADR), should not be made
+unilaterally — flagging for an explicit design decision rather than
+guessing. **Policies deferred separately:** `crmshow_policyprojection` also
+requires `crmshow_policynumber`, `crmshow_lineofbusinesscode`,
+`crmshow_effectivefrom`, `crmshow_sourcelastmodifiedon` (absent from
+`policies.json`) and resolving `crmshow_status` (a GlobalChoice) from the
+fixture's German free-text values ("Aktiv"/"Ablauf") without an agreed
+mapping — left for a follow-up once both the account-key and status-mapping
+decisions are made.
+
 ## Definition of done
 
 - [x] Governance: ADR-0026/0027 + polish-loop pattern recorded (#66).
@@ -135,6 +165,6 @@ via Web API and remains a planned next step.
 - [x] `SalesLeaderDashboard` PCF pixel-faithful to the mockup (#63).
 - [x] Foundation choices authored in DEV (#56 base, PR #75).
 - [x] #56 addendum choices + foundational/cockpit tables authored in DEV (#57/#58, run 31805085480, 2026-08-14) — intake-export into source control still pending.
-- [ ] Seed wired into the CD pipeline with smoke (#60 follow-up / 5.3).
+- [ ] Seed wired into the CD pipeline with smoke (#60 follow-up / 5.3) — claims mapping + tests done (2026-08-14); blocked on an account-resolution design decision (no stable seed key on `account`) before it can run against live Dataverse or wire into the pipeline; policies mapping deferred pending the same decision plus a status-value mapping.
 - [ ] MDA app "Advisor Cockpit" + custom pages (#64) — both controls wrapped as real PCF + build-verified (2026-08-14); app module/sitemap + the 2 custom pages (Maker-Portal-only step) still pending.
 - [ ] E2E DEV→TEST evidence (#65).
