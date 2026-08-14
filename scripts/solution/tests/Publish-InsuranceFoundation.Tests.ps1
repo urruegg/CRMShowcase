@@ -29,7 +29,8 @@ BeforeAll {
         return @{
             Text = 'String'; Lookup = 'Lookup'; Customer = 'Customer'
             GlobalChoice = 'Picklist'; DateOnly = 'DateTime'
-            DateTime = 'DateTime'
+            DateTime = 'DateTime'; Whole = 'Integer'; Money = 'Money'
+            TwoOptions = 'Boolean'
         }[$Column.type]
     }
 
@@ -66,6 +67,16 @@ BeforeAll {
             }
             'Customer' {
                 $attribute.Targets = @($Column.lookup.targets)
+            }
+            'Whole' {
+                $attribute.MinValue = $Column.minValue
+                $attribute.MaxValue = $Column.maxValue
+            }
+            'Money' {
+                $attribute.PrecisionSource = 2
+            }
+            'TwoOptions' {
+                $attribute.DefaultValue = $false
             }
         }
         return [pscustomobject]$attribute
