@@ -14,7 +14,7 @@ Live status for the Advisor Cockpit (charter **#55**). See the
 | foundation-choices | #56 | EXECUTION-ONLY | feat/sprint-003-foundation-choices | #75 | ✅ merged | +5 cockpit choices (nbastatus/nbachannel/productline/region/metrictype) in 4 languages; contract 1.1.0; authored in DEV by the CD pipeline (2026-08-12) |
 | foundational-tables | #57 | DESIGN-SENSITIVE | — | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | 5 tables incl. `crmshow_leadcluster`/`crmshow_claimprojection` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
 | cockpit-tables | #58 | EXECUTION-ONLY | feat/s3-phase3-cockpit-tables | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | `crmshow_nextbestaction`/`crmshow_nbaprovenance`/`crmshow_measuresnapshot` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
-| seed-pipeline | #60 (follow-up) | EXECUTION-ONLY | feat/s3-seed-claims-mapping, feat/s3-account-seedkey, feat/s3-account-keymap-resolver | #101 ✅ merged, #102 ✅ merged, #103 ✅ merged | ⏳ in progress | claims.json mapped to `crmshow_claimprojection` + 14/14 Pester (#101); `crmshow_seedkey` added to `account` (#102, contract 1.2.0); `Get-AccountKeyMap` resolver auto-wired into `Invoke-AdvisorCockpitSeed` (#103, 17/17 Pester) — code-complete end-to-end; blocked only on DEV account seed-key data + CD pipeline wiring; policies.json deferred separately |
+| seed-pipeline | #60 (follow-up) | EXECUTION-ONLY | feat/s3-seed-claims-mapping, feat/s3-account-seedkey, feat/s3-account-keymap-resolver, feat/s3-account-upserts | #101 ✅ merged, #102 ✅ merged, #103 ✅ merged, #104 ✅ merged (docs), account-upserts PR open | ⏳ in progress | claims.json mapped to `crmshow_claimprojection` + 14/14 Pester (#101); `crmshow_seedkey` added to `account` (#102, contract 1.2.0); `Get-AccountKeyMap` resolver auto-wired into `Invoke-AdvisorCockpitSeed` (#103, 17/17 Pester); account upserts (name/crmshow_accounttype/crmshow_seedkey) implemented via POST-or-PATCH-by-GUID since `account` has no registered Dataverse alternate key (2026-08-15, 22/22 Pester) — account/claims now code-complete end-to-end; blocked only on CD pipeline wiring; contacts/roles + policies.json deferred separately |
 | mda-app | #64 | DESIGN-SENSITIVE | — | #100 (docs) | ⏳ in progress (attended) | both PCF controls wrapped as real, build-verified PCF projects (AdvisorCockpit 259s/8.1MiB, SalesLeaderDashboard 74s/3.97MiB); app module + custom pages + sitemap not yet authored |
 | e2e-verify | #65 | EXECUTION-ONLY | — | — | ⏳ DEV-gated | DEV→TEST evidence |
 | nba-agent | #61 | DESIGN-SENSITIVE | — | — | ⏸ deferred | out of sprint; needs a use-case description |
@@ -436,4 +436,60 @@ Live status for the Advisor Cockpit (charter **#55**). See the
     (3) wire seeding into the CD pipeline with a smoke check (5.3); (4) MDA
     app "Advisor Cockpit" + the 2 custom pages (#64, Maker-Portal-attended
     step); (5) E2E DEV→TEST evidence (#65).
+
+- **2026-08-15 (PR #104 docs fix merged; account upserts implemented \u2014
+  `crmshow_seedkey` now actually gets populated) -** Owner confirmed "pr
+  approved" for #104; verified merged (`6f26823`) and synced local `main`.
+  - **PR #104** (docs-only, fixing the self-contradiction noted above) is
+    already reflected in the entries above \u2014 no separate narrative needed.
+  - Implemented the next queued step: `ConvertTo-AccountUpsertBody` +
+    `Get-AccountUpsertRequests` in `seed-advisor-cockpit.ps1`, mapping
+    `accounts-contacts.json`'s **account rows only** (contacts excluded) to
+    `name`, `crmshow_accounttype`, and `crmshow_seedkey`. Added a
+    `ConvertTo-GlobalChoiceValue` helper to resolve the fixture's
+    `Household`/`Business`/`Broker` strings to their Dataverse numeric
+    option values (`100000000 + index`, the same convention
+    `Publish-InsuranceFoundation.ps1` uses) \u2014 safe here because the fixture
+    already uses the choice's own English codes verbatim, unlike
+    policies.json's German free text.
+  - **Key finding mid-implementation:** `account` has no *registered*
+    Dataverse alternate key on `crmshow_seedkey` (deliberate PR #102 scope
+    decision \u2014 native-table alternate keys aren't a supported pipeline
+    capability today), so the claims/policies PATCH-by-alternate-key
+    pattern doesn't apply to accounts. `Get-AccountUpsertRequests` instead
+    resolves each row against the same live-account map `Get-AccountKeyMap`
+    builds, issuing a plain POST for an unresolved seed key or a
+    PATCH-by-GUID for one already known \u2014 idempotent in effect either way.
+  - Verified the `@headers` array-splat mechanism used to conditionally add
+    `If-Match: *` only for PATCH (not POST) requests actually expands to
+    separate CLI arguments as expected (tested directly in the terminal)
+    before trusting it in a code path shared with the already-working
+    measure/claim upserts.
+  - **Known limitation, documented rather than solved:** on a fully empty
+    environment, `Invoke-AdvisorCockpitSeed` resolves `$AccountKeyMap` once
+    up front and uses that same snapshot for both account and claim
+    resolution \u2014 so newly-created accounts' claims won't resolve until a
+    *second* seed run re-queries `Get-AccountKeyMap` fresh. Accepted as an
+    idempotent-by-design characteristic rather than fixed with a bigger
+    two-phase refactor, to keep the change proportionate.
+  - 6 new Pester cases; `SeedAdvisorCockpit.Tests.ps1` now **22/22 green**.
+  - **Caught and fixed the same self-contradiction pattern again** while
+    writing these very docs: added a new paragraph to sprint.md saying
+    account upserts are now implemented, right after an *older* paragraph
+    (from the PR #103 entry) that still claimed "`accounts-contacts.json`
+    seeding itself is still entirely unimplemented." Fixed the older
+    paragraph to stop asserting that, rather than leaving two adjacent
+    paragraphs disagreeing with each other. Lesson already in repo memory
+    (`sprint-docs.md`, "SELF-CONTRADICTION TRAP") \u2014 re-confirms it needs
+    active vigilance every time a new dated paragraph is added near an
+    older one describing the same code area.
+  - **Resume next session with, in order:** (1) policies.json mapping
+    (separate GlobalChoice value-mapping decision needed \u2014 an owner call,
+    not a technical one); (2) wire seeding into the CD pipeline with a
+    smoke check (5.3) \u2014 also the first real chance to observe the
+    two-pass-convergence limitation above against live DEV; (3) contact
+    rows + the `crmshow_accountcontactrole` junction (needed for the
+    fixture's "role" field), a separate increment from account upserts;
+    (4) MDA app "Advisor Cockpit" + the 2 custom pages (#64,
+    Maker-Portal-attended step); (5) E2E DEV→TEST evidence (#65).
 

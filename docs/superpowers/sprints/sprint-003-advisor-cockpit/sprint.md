@@ -41,7 +41,7 @@ DESIGN-SENSITIVE streams run **attended**; EXECUTION-ONLY may run headless.
 | foundation-choices | 1 | #56 | EXECUTION-ONLY | ✅ merged (PR #75) + addendum DEV-authored (2026-08-14, run 31805085480) |
 | foundational-tables (slices 1–5) | 2 | #57 | DESIGN-SENSITIVE | ✅ DEV-authored (2026-08-14, run 31805085480); source not yet intake-exported |
 | cockpit-tables (nba + provenance) | 3 | #58 | EXECUTION-ONLY | ✅ DEV-authored (2026-08-14, run 31805085480); source not yet intake-exported |
-| seed-pipeline wiring | 5.3 | #60 (follow-up) | EXECUTION-ONLY | ⏳ in progress — claims mapping + `crmshow_seedkey` + `Get-AccountKeyMap` resolver all done (2026-08-14/15, PRs #101/#102/#103); code-complete end-to-end, blocked only on DEV account seed-key data + CD pipeline wiring; policies deferred |
+| seed-pipeline wiring | 5.3 | #60 (follow-up) | EXECUTION-ONLY | ⏳ in progress — claims mapping, `crmshow_seedkey`, the `Get-AccountKeyMap` resolver, and account upserts all done (2026-08-14/15); account/claims code-complete end-to-end; still needs CD pipeline wiring; contacts/roles and policies deferred |
 | mda-app + custom pages | 9 | #64 | DESIGN-SENSITIVE | ⏳ in progress (attended) |
 | e2e DEV→TEST verify | 10 | #65 | EXECUTION-ONLY | ⏳ DEV-gated |
 | nba-agent (Copilot Studio) | 6 | #61 | DESIGN-SENSITIVE | ⏸ deferred (out of sprint) |
@@ -185,10 +185,36 @@ seed step (5.3) needs no extra wiring beyond
 `SeedAdvisorCockpit.Tests.ps1` now **17/17 green**. **Net effect: the claims
 seeding path is now code-complete end-to-end** — no remaining code gap. What
 remains is data, not code: no live DEV account has a `crmshow_seedkey` value
-yet (`accounts-contacts.json` seeding itself is still entirely unimplemented
-— only declared in `Get-FixtureManifest`, no `Get-AccountUpsertRequests`
-function exists), and policies.json mapping is still separately deferred
-pending the `crmshow_status` GlobalChoice value-mapping decision above.
+yet — see the next entry for how that data now actually gets created.
+
+**Account upserts implemented, so `crmshow_seedkey` now actually gets
+populated (2026-08-15).** Added `ConvertTo-AccountUpsertBody` +
+`Get-AccountUpsertRequests` to `seed-advisor-cockpit.ps1`, mapping
+`accounts-contacts.json`'s **account rows only** (not contacts) to concrete
+columns: `name`, `crmshow_accounttype` (mapped from the fixture's
+`Household`/`Business`/`Broker` string to its Dataverse numeric option value
+via a new `ConvertTo-GlobalChoiceValue` helper — safe because the fixture
+already uses the exact same English option codes, unlike policies.json's
+German free text), and `crmshow_seedkey`. `segment`/`region`/`owner` have no
+corresponding schema column today and are intentionally not seeded; contact
+rows and the `crmshow_accountcontactrole` junction (needed for the fixture's
+"role" field) are a separate, not-yet-implemented increment.
+
+**Key finding: `account` has no registered Dataverse *alternate key* on
+`crmshow_seedkey`** — a deliberate PR #102 scope decision, since native-table
+alternate keys aren't a supported pipeline capability today. So
+`Get-AccountUpsertRequests` can't reuse the same PATCH-by-alternate-key
+pattern as claims/policies; instead it resolves each row against the same
+live-account map `Get-AccountKeyMap` builds and issues a plain POST (create)
+for a seed key not yet present, or a PATCH-by-GUID (update) for one already
+resolved. **Known limitation, documented rather than solved this round:** on
+a fully empty environment, accounts and claims are resolved from the *same*
+pre-run `$AccountKeyMap` snapshot, so newly-created accounts' claims won't
+resolve until a second seed run re-queries `Get-AccountKeyMap` fresh — an
+acceptable, idempotent-by-design characteristic rather than a bug, but worth
+knowing before assuming one pipeline run fully converges a brand-new
+environment. 6 new Pester cases; `SeedAdvisorCockpit.Tests.ps1` now
+**22/22 green**.
 
 ## Definition of done
 
@@ -199,6 +225,6 @@ pending the `crmshow_status` GlobalChoice value-mapping decision above.
 - [x] `SalesLeaderDashboard` PCF pixel-faithful to the mockup (#63).
 - [x] Foundation choices authored in DEV (#56 base, PR #75).
 - [x] #56 addendum choices + foundational/cockpit tables authored in DEV (#57/#58, run 31805085480, 2026-08-14) — intake-export into source control still pending.
-- [ ] Seed wired into the CD pipeline with smoke (#60 follow-up / 5.3) — claims mapping, `crmshow_seedkey` schema, and the `Get-AccountKeyMap` resolver are all done (2026-08-14/15, PRs #101/#102/#103) — code-complete end-to-end; still needs CD pipeline wiring plus at least one DEV account with a populated `crmshow_seedkey` before it runs live; policies mapping deferred pending a status-value mapping decision.
+- [ ] Seed wired into the CD pipeline with smoke (#60 follow-up / 5.3) — claims mapping, `crmshow_seedkey` schema, the `Get-AccountKeyMap` resolver, and account upserts are all done (2026-08-14/15) — account/claims are code-complete end-to-end; still needs CD pipeline wiring; contact/role seeding and policies mapping (status-value decision) remain separately deferred.
 - [ ] MDA app "Advisor Cockpit" + custom pages (#64) — both controls wrapped as real PCF + build-verified (2026-08-14); app module/sitemap + the 2 custom pages (Maker-Portal-only step) still pending.
 - [ ] E2E DEV→TEST evidence (#65).

@@ -27,6 +27,21 @@
     upserts are skipped with a warning if no account has a seed key yet, or if
     a referenced account key is missing from the resolved map.
 
+    Accounts (accounts-contacts.json, account rows only) are also mapped, using
+    only columns that already exist (name, crmshow_accounttype,
+    crmshow_seedkey) -- segment/region/owner have no corresponding schema
+    column today and are intentionally not seeded. Unlike claims/policies,
+    account has no *registered Dataverse alternate key* on crmshow_seedkey (a
+    deliberate PR #102 scope decision: native-table alternate keys are not a
+    supported pipeline capability today), so the standard
+    PATCH-by-alternate-key URL syntax does not apply here. Get-AccountUpsertRequests
+    instead resolves each row against the live account map (the same one
+    Get-AccountKeyMap builds) and issues a plain POST (create) for a seed key
+    not yet present, or a PATCH-by-GUID (update) for one that is -- both are
+    idempotent in effect. Contact rows and the crmshow_accountcontactrole
+    junction (needed for the fixture's "role" field) are NOT yet mapped; left
+    for a follow-up.
+
     Policies (crmshow_policyprojection) are NOT yet mapped: beyond the same
     account-resolution gap, the table also requires crmshow_policynumber,
     crmshow_lineofbusinesscode, crmshow_effectivefrom and
@@ -108,6 +123,74 @@ function ConvertTo-MeasureUpsertBody {
     if ($null -ne $Row.region) { $body.crmshow_region = [string]$Row.region }
     if ($null -ne $Row.productLine) { $body.crmshow_productline = [string]$Row.productLine }
     return $body
+}
+
+# Fixed offset Dataverse assigns to custom global choice options that don't
+# specify an explicit numeric value (see Publish-InsuranceFoundation.ps1,
+# which uses the same 100000000 + index convention when authoring options).
+$script:GlobalChoiceValueBase = 100000000
+
+# Maps a choice's fixture-facing code string (e.g. "Household") to its
+# Dataverse numeric option value, by position in the given ordered code list.
+# Throws on an unknown code rather than silently seeding a wrong option.
+function ConvertTo-GlobalChoiceValue {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] [string]$Code,
+        [Parameter(Mandatory)] [string[]]$KnownCodes
+    )
+    $index = [Array]::IndexOf($KnownCodes, $Code)
+    if ($index -lt 0) {
+        throw "Unknown choice code '$Code'. Known codes: $($KnownCodes -join ',')."
+    }
+    return $script:GlobalChoiceValueBase + $index
+}
+
+# Maps one accounts-contacts.json account row to its account column body.
+# Only fields with an existing schema column are mapped -- see the script
+# docstring for what's intentionally excluded (segment/region/owner/contacts).
+function ConvertTo-AccountUpsertBody {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] $Row)
+
+    [ordered]@{
+        name                = [string]$Row.name
+        crmshow_accounttype = ConvertTo-GlobalChoiceValue -Code ([string]$Row.accountType) -KnownCodes @('Household', 'Business', 'Broker')
+        crmshow_seedkey     = [string]$Row.key
+    }
+}
+
+# Builds account create/update requests. account has no registered Dataverse
+# alternate key on crmshow_seedkey (see the script docstring), so this cannot
+# use New-DataverseUpsertRequest's PATCH-by-alternate-key pattern like
+# claims/policies. Instead: a plain POST for a seed key absent from
+# $ExistingAccountMap (the same map Get-AccountKeyMap builds), or a
+# PATCH-by-GUID for one already present -- idempotent in effect either way.
+function Get-AccountUpsertRequests {
+    [CmdletBinding()]
+    param(
+        [string]$FixtureRoot = $script:FixtureRoot,
+        [System.Collections.IDictionary]$ExistingAccountMap = [ordered]@{}
+    )
+
+    $group = Get-SeedPlan -FixtureRoot $FixtureRoot | Where-Object { $_.Fixture -eq 'accounts-contacts.json' }
+    foreach ($row in @($group.Records | Where-Object { $_.recordType -eq 'account' })) {
+        $body = ConvertTo-AccountUpsertBody -Row $row
+        if ($ExistingAccountMap -and $ExistingAccountMap.Contains([string]$row.key)) {
+            [pscustomobject]@{
+                Method = 'PATCH'
+                Path   = "/accounts($([string]$ExistingAccountMap[[string]$row.key]))"
+                Body   = $body
+            }
+        }
+        else {
+            [pscustomobject]@{
+                Method = 'POST'
+                Path   = '/accounts'
+                Body   = $body
+            }
+        }
+    }
 }
 
 # Builds a PATCH-upsert request object against an alternate key. Does not execute.
@@ -240,15 +323,17 @@ function Invoke-AdvisorCockpitSeed {
         $AccountKeyMap = Get-AccountKeyMap -EnvironmentUrl $EnvironmentUrl
     }
 
-    $requests = @(Get-MeasureUpsertRequests) + @(Get-ClaimUpsertRequests -AccountKeyMap $AccountKeyMap)
+    $requests = @(Get-MeasureUpsertRequests) + @(Get-AccountUpsertRequests -ExistingAccountMap $AccountKeyMap) + @(Get-ClaimUpsertRequests -AccountKeyMap $AccountKeyMap)
     foreach ($req in $requests) {
         $url = "$baseUrl/api/data/v9.2$($req.Path)"
         if ($PSCmdlet.ShouldProcess($url, $req.Method)) {
             $tmp = [System.IO.Path]::GetTempFileName()
             try {
                 ($req.Body | ConvertTo-Json -Depth 6) | Set-Content -LiteralPath $tmp -Encoding UTF8
+                $headers = @('Content-Type=application/json')
+                if ($req.Method -eq 'PATCH') { $headers += 'If-Match=*' }
                 az rest --method $req.Method --url $url --resource "$baseUrl/" `
-                    --headers 'Content-Type=application/json' 'If-Match=*' `
+                    --headers @headers `
                     --body "@$tmp" --only-show-errors | Out-Null
             }
             finally {

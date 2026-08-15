@@ -124,13 +124,14 @@ Describe 'seed-advisor-cockpit' {
         $requests.Count | Should -Be 0
     }
 
-    It 'includes claim upserts alongside analytics upserts when Invoke-AdvisorCockpitSeed is given an AccountKeyMap' {
+    It 'includes claim and account upserts alongside analytics upserts when Invoke-AdvisorCockpitSeed is given an AccountKeyMap' {
         $map = @{ 'ACC-AEBISCHER' = '44444444-4444-4444-4444-444444444444'; 'ACC-BRUNNER' = '55555555-5555-5555-5555-555555555555' }
         Mock -CommandName az -MockWith { $global:LASTEXITCODE = 0 }
         Invoke-AdvisorCockpitSeed -EnvironmentUrl 'https://example.crm.dynamics.com' -AccountKeyMap $map -Confirm:$false
         $measureCount = (Get-SeedPlan | Where-Object { $_.Shape -eq 'measure' }).Count
+        $accountCount = @((Get-SeedPlan | Where-Object { $_.Fixture -eq 'accounts-contacts.json' }).Records | Where-Object { $_.recordType -eq 'account' }).Count
         $claimCount = (Get-SeedPlan | Where-Object { $_.Fixture -eq 'claims.json' }).Count
-        Should -Invoke -CommandName az -Times ($measureCount + $claimCount) -Exactly
+        Should -Invoke -CommandName az -Times ($measureCount + $accountCount + $claimCount) -Exactly
     }
 
     It 'builds an account key map from live accounts with a resolved crmshow_seedkey' {
@@ -156,7 +157,48 @@ Describe 'seed-advisor-cockpit' {
         Invoke-AdvisorCockpitSeed -EnvironmentUrl 'https://example.crm.dynamics.com' -Confirm:$false
         Should -Invoke -CommandName Get-AccountKeyMap -Times 1 -Exactly
         $measureCount = (Get-SeedPlan | Where-Object { $_.Shape -eq 'measure' }).Count
+        $accountCount = @((Get-SeedPlan | Where-Object { $_.Fixture -eq 'accounts-contacts.json' }).Records | Where-Object { $_.recordType -eq 'account' }).Count
         $claimCount = (Get-SeedPlan | Where-Object { $_.Fixture -eq 'claims.json' }).Count
-        Should -Invoke -CommandName az -Times ($measureCount + $claimCount) -Exactly
+        Should -Invoke -CommandName az -Times ($measureCount + $accountCount + $claimCount) -Exactly
+    }
+
+    It 'converts a known choice code to its Dataverse numeric option value by position' {
+        ConvertTo-GlobalChoiceValue -Code 'Household' -KnownCodes @('Household', 'Business', 'Broker') | Should -Be 100000000
+        ConvertTo-GlobalChoiceValue -Code 'Broker' -KnownCodes @('Household', 'Business', 'Broker') | Should -Be 100000002
+    }
+
+    It 'throws on an unknown choice code rather than guessing a value' {
+        { ConvertTo-GlobalChoiceValue -Code 'Nonprofit' -KnownCodes @('Household', 'Business', 'Broker') } |
+            Should -Throw '*Nonprofit*'
+    }
+
+    It 'converts an account row to its Dataverse column body' {
+        $row = [pscustomobject]@{ recordType = 'account'; key = 'ACC-BRUNNER'; name = 'Haushalt Brunner'; accountType = 'Household' }
+        $body = ConvertTo-AccountUpsertBody -Row $row
+        $body.name | Should -Be 'Haushalt Brunner'
+        $body.crmshow_accounttype | Should -Be 100000000
+        $body.crmshow_seedkey | Should -Be 'ACC-BRUNNER'
+    }
+
+    It 'builds one account upsert request per account row (contacts excluded), split between create and update' {
+        $accountCount = @((Get-SeedPlan | Where-Object { $_.Fixture -eq 'accounts-contacts.json' }).Records | Where-Object { $_.recordType -eq 'account' }).Count
+        $existing = @{ 'ACC-BRUNNER' = '11111111-1111-1111-1111-111111111111' }
+        $requests = @(Get-AccountUpsertRequests -ExistingAccountMap $existing)
+        $requests.Count | Should -Be $accountCount
+
+        $update = $requests | Where-Object { $_.Method -eq 'PATCH' }
+        @($update).Count | Should -Be 1
+        $update.Path | Should -Be '/accounts(11111111-1111-1111-1111-111111111111)'
+
+        $creates = @($requests | Where-Object { $_.Method -eq 'POST' })
+        $creates.Count | Should -Be ($accountCount - 1)
+        $creates | ForEach-Object { $_.Path | Should -Be '/accounts' }
+    }
+
+    It 'creates every account when no ExistingAccountMap is supplied' {
+        $accountCount = @((Get-SeedPlan | Where-Object { $_.Fixture -eq 'accounts-contacts.json' }).Records | Where-Object { $_.recordType -eq 'account' }).Count
+        $requests = @(Get-AccountUpsertRequests)
+        $requests.Count | Should -Be $accountCount
+        $requests | ForEach-Object { $_.Method | Should -Be 'POST' }
     }
 }
