@@ -106,4 +106,39 @@ Describe 'publish-advisor-cockpit-app' {
         { Get-CustomPageIdMap -EnvironmentUrl 'https://example.crm.dynamics.com' -PageUniqueNames @('crmshow_missingpage') } |
             Should -Throw '*crmshow_missingpage*'
     }
+
+    It 'builds an AddAppComponents request for every contract component not already attached' {
+        $contract = Get-AdvisorCockpitAppContract -Path (Join-Path $PSScriptRoot '../../../solution/schema/advisor-cockpit-app.json')
+        $resolvedIds = @{
+            'crmshow_advisorcockpitsitemap'      = '44444444-4444-4444-4444-444444444444'
+            'crmshow_advisorcockpitpage'         = '22222222-2222-2222-2222-222222222222'
+            'crmshow_salesleaderdashboardpage'   = '33333333-3333-3333-3333-333333333333'
+        }
+        $req = Get-AppComponentAddRequests -Components $contract.components -ResolvedIds $resolvedIds -ExistingObjectIds @() -AppId '55555555-5555-5555-5555-555555555555'
+        $req.AppId | Should -Be '55555555-5555-5555-5555-555555555555'
+        @($req.Components).Count | Should -Be 3
+        ($req.Components | Where-Object { $_.sitemapid -eq '44444444-4444-4444-4444-444444444444' }).'@odata.type' | Should -Be 'Microsoft.Dynamics.CRM.sitemap'
+    }
+
+    It 'excludes components already attached to the app' {
+        $contract = Get-AdvisorCockpitAppContract -Path (Join-Path $PSScriptRoot '../../../solution/schema/advisor-cockpit-app.json')
+        $resolvedIds = @{
+            'crmshow_advisorcockpitsitemap'      = '44444444-4444-4444-4444-444444444444'
+            'crmshow_advisorcockpitpage'         = '22222222-2222-2222-2222-222222222222'
+            'crmshow_salesleaderdashboardpage'   = '33333333-3333-3333-3333-333333333333'
+        }
+        $req = Get-AppComponentAddRequests -Components $contract.components -ResolvedIds $resolvedIds -ExistingObjectIds @('44444444-4444-4444-4444-444444444444') -AppId '55555555-5555-5555-5555-555555555555'
+        @($req.Components).Count | Should -Be 2
+    }
+
+    It 'returns a null AddAppComponents request when every component is already attached' {
+        $contract = Get-AdvisorCockpitAppContract -Path (Join-Path $PSScriptRoot '../../../solution/schema/advisor-cockpit-app.json')
+        $resolvedIds = @{
+            'crmshow_advisorcockpitsitemap'      = '44444444-4444-4444-4444-444444444444'
+            'crmshow_advisorcockpitpage'         = '22222222-2222-2222-2222-222222222222'
+            'crmshow_salesleaderdashboardpage'   = '33333333-3333-3333-3333-333333333333'
+        }
+        $req = Get-AppComponentAddRequests -Components $contract.components -ResolvedIds $resolvedIds -ExistingObjectIds @('44444444-4444-4444-4444-444444444444', '22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333') -AppId '55555555-5555-5555-5555-555555555555'
+        $req | Should -BeNullOrEmpty
+    }
 }

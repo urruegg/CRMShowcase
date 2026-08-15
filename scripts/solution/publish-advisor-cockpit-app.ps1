@@ -156,6 +156,57 @@ function Get-CustomPageIdMap {
     return $map
 }
 
+# Maps a contract component to its @odata.type + id property name, since
+# the AddAppComponents payload shape differs per entity type.
+function Get-ComponentODataEntity {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] [string]$Type)
+
+    switch ($Type) {
+        'Sitemap'    { return @{ ODataType = 'Microsoft.Dynamics.CRM.sitemap'; IdProperty = 'sitemapid' } }
+        'CustomPage' { return @{ ODataType = 'Microsoft.Dynamics.CRM.canvasapp'; IdProperty = 'canvasappid' } }
+        default      { throw "No AddAppComponents entity mapping for component type '$Type'." }
+    }
+}
+
+# Builds the AddAppComponents request body for every contract component not
+# already present in $ExistingObjectIds (idempotent -- re-running this after
+# a partial success only adds what's missing). Returns $null when there is
+# nothing left to add, so the caller can skip the Web API call entirely.
+function Get-AppComponentAddRequests {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] $Components,
+        [Parameter(Mandatory)] [System.Collections.IDictionary]$ResolvedIds,
+        [string[]]$ExistingObjectIds = @(),
+        [Parameter(Mandatory)] [string]$AppId
+    )
+
+    $entries = foreach ($component in @($Components)) {
+        $resolvedId = $ResolvedIds[[string]$component.reference]
+        if (-not $resolvedId) {
+            throw "No resolved id for component reference '$($component.reference)' (referenceKind '$($component.referenceKind)')."
+        }
+        if ($ExistingObjectIds -contains $resolvedId) {
+            continue
+        }
+        $entity = Get-ComponentODataEntity -Type $component.type
+        [ordered]@{
+            '@odata.type'    = $entity.ODataType
+            $entity.IdProperty = $resolvedId
+        }
+    }
+
+    if (@($entries).Count -eq 0) {
+        return $null
+    }
+
+    [pscustomobject]@{
+        AppId      = $AppId
+        Components = @($entries)
+    }
+}
+
 if ($MyInvocation.InvocationName -ne '.') {
     if ($EnvironmentUrl) {
         Write-Output 'Dry run scaffold -- publish orchestration lands in a later task.'
