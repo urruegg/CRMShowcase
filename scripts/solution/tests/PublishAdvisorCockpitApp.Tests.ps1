@@ -160,4 +160,17 @@ Describe 'publish-advisor-cockpit-app' {
         { Get-AppRoleAssociationRequests -SecurityRoles @('Unknown Role') -RoleIds @{} -ExistingRoleIds @() -AppId '55555555-5555-5555-5555-555555555555' } |
             Should -Throw '*Unknown Role*'
     }
+
+    It 'issues a GET and returns the parsed JSON response' {
+        Mock -CommandName az -MockWith { '{"appmoduleid":"55555555-5555-5555-5555-555555555555"}' }
+        $result = Invoke-AdvisorCockpitAppRequest -BaseUrl 'https://example.crm.dynamics.com' -Method 'GET' -Path "/appmodules(uniquename='crmshow_advisorcockpitapp')?`$select=appmoduleid"
+        $result.appmoduleid | Should -Be '55555555-5555-5555-5555-555555555555'
+    }
+
+    It 'issues a PATCH with a body and returns null' {
+        Mock -CommandName az -MockWith { $global:LASTEXITCODE = 0 }
+        $result = Invoke-AdvisorCockpitAppRequest -BaseUrl 'https://example.crm.dynamics.com' -Method 'PATCH' -Path "/sitemaps(sitemapnameunique='x')" -Body @{ sitemapname = 'x' }
+        $result | Should -BeNullOrEmpty
+        Should -Invoke -CommandName az -Times 1 -Exactly
+    }
 }

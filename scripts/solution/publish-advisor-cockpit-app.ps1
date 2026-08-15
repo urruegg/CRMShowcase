@@ -236,6 +236,42 @@ function Get-AppRoleAssociationRequests {
     }
 }
 
+# The only function that calls az directly. GET requests return the parsed
+# JSON response; mutating requests (PATCH/POST) write the body to a temp
+# file (avoids command-line length limits / quoting issues) and return
+# null. This single choke point is what every test in this file mocks,
+# instead of mocking az itself for each differently-shaped call.
+function Invoke-AdvisorCockpitAppRequest {
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [Parameter(Mandatory)] [string]$BaseUrl,
+        [Parameter(Mandatory)] [string]$Method,
+        [Parameter(Mandatory)] [string]$Path,
+        $Body
+    )
+
+    $url = "$BaseUrl/api/data/v9.2$Path"
+    if ($Method -eq 'GET') {
+        $response = az rest --method GET --url $url --resource "$BaseUrl/" --only-show-errors
+        if ([string]::IsNullOrWhiteSpace($response)) { return $null }
+        return ($response | ConvertFrom-Json)
+    }
+
+    if (-not $PSCmdlet.ShouldProcess($url, $Method)) { return $null }
+    $tmp = [System.IO.Path]::GetTempFileName()
+    try {
+        ($Body | ConvertTo-Json -Depth 6) | Set-Content -LiteralPath $tmp -Encoding UTF8
+        $headers = @('Content-Type=application/json')
+        if ($Method -eq 'PATCH') { $headers += 'If-Match=*' }
+        az rest --method $Method --url $url --resource "$BaseUrl/" `
+            --headers @headers --body "@$tmp" --only-show-errors | Out-Null
+    }
+    finally {
+        Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
+    }
+    return $null
+}
+
 if ($MyInvocation.InvocationName -ne '.') {
     if ($EnvironmentUrl) {
         Write-Output 'Dry run scaffold -- publish orchestration lands in a later task.'
