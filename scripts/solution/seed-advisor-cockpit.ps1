@@ -20,12 +20,12 @@
     that table's contract is settled and its fields (name/accountid/
     externalsystem/externalid/productline/title/channel/status/openeddate/
     slahours) are plain text/choice/date types with no cross-fixture lookup
-    resolution beyond the owning Account. Resolving crmshow_accountid requires
-    a caller-supplied -AccountKeyMap (seed key -> Account GUID), because no
-    stable, script-resolvable alternate key exists yet on `account` itself
-    (accounts-contacts.json's own crmshow_seedkey column is not yet part of
-    the contract) -- claim upserts are skipped with a warning if the map is
-    not supplied or a referenced account key is missing from it.
+    resolution beyond the owning Account. Resolving crmshow_accountid uses
+    account.crmshow_seedkey (added in PR #102) to build a seed-key -> Account
+    GUID map: Invoke-AdvisorCockpitSeed resolves this map itself at runtime via
+    Get-AccountKeyMap when no -AccountKeyMap is supplied by the caller. Claim
+    upserts are skipped with a warning if no account has a seed key yet, or if
+    a referenced account key is missing from the resolved map.
 
     Policies (crmshow_policyprojection) are NOT yet mapped: beyond the same
     account-resolution gap, the table also requires crmshow_policynumber,
@@ -205,6 +205,26 @@ function Get-ClaimUpsertRequests {
     }
 }
 
+# Queries live Dataverse for every Account whose crmshow_seedkey is set (added
+# in PR #102) and builds the seed-key -> Account GUID map that
+# ConvertTo-ClaimUpsertBody resolves fixture accountKey references against.
+# Returns an empty ordered hashtable (no throw) when none are found yet --
+# Get-ClaimUpsertRequests treats that the same as no map supplied at all.
+function Get-AccountKeyMap {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] [string]$EnvironmentUrl)
+
+    $baseUrl = $EnvironmentUrl.TrimEnd('/')
+    $url = "$baseUrl/api/data/v9.2/accounts?`$select=accountid,crmshow_seedkey&`$filter=crmshow_seedkey ne null"
+    $response = az rest --method GET --url $url --resource "$baseUrl/" --only-show-errors | ConvertFrom-Json
+
+    $map = [ordered]@{}
+    foreach ($account in @($response.value)) {
+        $map[[string]$account.crmshow_seedkey] = [string]$account.accountid
+    }
+    return $map
+}
+
 function Invoke-AdvisorCockpitSeed {
     [CmdletBinding(SupportsShouldProcess)]
     param(
@@ -215,6 +235,10 @@ function Invoke-AdvisorCockpitSeed {
     $baseUrl = $EnvironmentUrl.TrimEnd('/')
     $plan = Get-SeedPlan
     Write-Output ("Seed plan: {0} fixtures, {1} records." -f $plan.Count, (($plan | Measure-Object -Property Count -Sum).Sum))
+
+    if (-not $AccountKeyMap) {
+        $AccountKeyMap = Get-AccountKeyMap -EnvironmentUrl $EnvironmentUrl
+    }
 
     $requests = @(Get-MeasureUpsertRequests) + @(Get-ClaimUpsertRequests -AccountKeyMap $AccountKeyMap)
     foreach ($req in $requests) {

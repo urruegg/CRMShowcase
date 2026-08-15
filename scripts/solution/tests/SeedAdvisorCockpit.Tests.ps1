@@ -132,4 +132,31 @@ Describe 'seed-advisor-cockpit' {
         $claimCount = (Get-SeedPlan | Where-Object { $_.Fixture -eq 'claims.json' }).Count
         Should -Invoke -CommandName az -Times ($measureCount + $claimCount) -Exactly
     }
+
+    It 'builds an account key map from live accounts with a resolved crmshow_seedkey' {
+        Mock -CommandName az -MockWith {
+            '{"value":[{"accountid":"11111111-1111-1111-1111-111111111111","crmshow_seedkey":"ACC-BRUNNER"},{"accountid":"44444444-4444-4444-4444-444444444444","crmshow_seedkey":"ACC-AEBISCHER"}]}'
+        }
+        $map = Get-AccountKeyMap -EnvironmentUrl 'https://example.crm.dynamics.com'
+        $map['ACC-BRUNNER'] | Should -Be '11111111-1111-1111-1111-111111111111'
+        $map['ACC-AEBISCHER'] | Should -Be '44444444-4444-4444-4444-444444444444'
+    }
+
+    It 'returns an empty map when no accounts have a resolved crmshow_seedkey yet' {
+        Mock -CommandName az -MockWith { '{"value":[]}' }
+        $map = Get-AccountKeyMap -EnvironmentUrl 'https://example.crm.dynamics.com'
+        $map.Count | Should -Be 0
+    }
+
+    It 'auto-resolves the AccountKeyMap via Get-AccountKeyMap when the caller supplies none' {
+        Mock -CommandName az -MockWith { $global:LASTEXITCODE = 0 }
+        Mock -CommandName Get-AccountKeyMap -MockWith {
+            @{ 'ACC-AEBISCHER' = '44444444-4444-4444-4444-444444444444'; 'ACC-BRUNNER' = '55555555-5555-5555-5555-555555555555' }
+        }
+        Invoke-AdvisorCockpitSeed -EnvironmentUrl 'https://example.crm.dynamics.com' -Confirm:$false
+        Should -Invoke -CommandName Get-AccountKeyMap -Times 1 -Exactly
+        $measureCount = (Get-SeedPlan | Where-Object { $_.Shape -eq 'measure' }).Count
+        $claimCount = (Get-SeedPlan | Where-Object { $_.Fixture -eq 'claims.json' }).Count
+        Should -Invoke -CommandName az -Times ($measureCount + $claimCount) -Exactly
+    }
 }
