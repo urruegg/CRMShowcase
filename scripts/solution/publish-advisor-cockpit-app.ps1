@@ -207,6 +207,35 @@ function Get-AppComponentAddRequests {
     }
 }
 
+# Builds one $ref associate request per contract security role not already
+# associated with the app. Uses the appmoduleroles_association navigation
+# property directly (POST .../$ref), the standard Web API pattern for
+# adding one member to an existing many-to-many relationship.
+function Get-AppRoleAssociationRequests {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] [string[]]$SecurityRoles,
+        [Parameter(Mandatory)] [System.Collections.IDictionary]$RoleIds,
+        [string[]]$ExistingRoleIds = @(),
+        [Parameter(Mandatory)] [string]$AppId
+    )
+
+    foreach ($roleName in $SecurityRoles) {
+        if (-not $RoleIds.Contains($roleName)) {
+            throw "No resolved role id for security role '$roleName'."
+        }
+        $roleId = $RoleIds[$roleName]
+        if ($ExistingRoleIds -contains $roleId) {
+            continue
+        }
+        [pscustomobject]@{
+            Method = 'POST'
+            Path   = "/appmodules($AppId)/appmoduleroles_association/`$ref"
+            Body   = @{ '@odata.id' = "roles($roleId)" }
+        }
+    }
+}
+
 if ($MyInvocation.InvocationName -ne '.') {
     if ($EnvironmentUrl) {
         Write-Output 'Dry run scaffold -- publish orchestration lands in a later task.'

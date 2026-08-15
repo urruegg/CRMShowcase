@@ -141,4 +141,23 @@ Describe 'publish-advisor-cockpit-app' {
         $req = Get-AppComponentAddRequests -Components $contract.components -ResolvedIds $resolvedIds -ExistingObjectIds @('44444444-4444-4444-4444-444444444444', '22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333') -AppId '55555555-5555-5555-5555-555555555555'
         $req | Should -BeNullOrEmpty
     }
+
+    It 'builds an associate request for each contract security role not already associated' {
+        $roleIds = @{ 'CRM Showcase Insurance Reader' = '66666666-6666-6666-6666-666666666666' }
+        $reqs = @(Get-AppRoleAssociationRequests -SecurityRoles @('CRM Showcase Insurance Reader') -RoleIds $roleIds -ExistingRoleIds @() -AppId '55555555-5555-5555-5555-555555555555')
+        $reqs.Count | Should -Be 1
+        $reqs[0].Path | Should -Be "/appmodules(55555555-5555-5555-5555-555555555555)/appmoduleroles_association/`$ref"
+        $reqs[0].Body.'@odata.id' | Should -Match 'roles\(66666666-6666-6666-6666-666666666666\)'
+    }
+
+    It 'skips a role that is already associated' {
+        $roleIds = @{ 'CRM Showcase Insurance Reader' = '66666666-6666-6666-6666-666666666666' }
+        $reqs = @(Get-AppRoleAssociationRequests -SecurityRoles @('CRM Showcase Insurance Reader') -RoleIds $roleIds -ExistingRoleIds @('66666666-6666-6666-6666-666666666666') -AppId '55555555-5555-5555-5555-555555555555')
+        $reqs.Count | Should -Be 0
+    }
+
+    It 'throws when a contract security role does not resolve to a live role id' {
+        { Get-AppRoleAssociationRequests -SecurityRoles @('Unknown Role') -RoleIds @{} -ExistingRoleIds @() -AppId '55555555-5555-5555-5555-555555555555' } |
+            Should -Throw '*Unknown Role*'
+    }
 }
