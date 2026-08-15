@@ -171,6 +171,18 @@ jobs:
           }
           Write-Output 'Smoke check passed: measure-snapshot records present.'
 
+      - name: Publish Advisor Cockpit app
+        shell: pwsh
+        run: |
+          $root = $env:GITHUB_WORKSPACE
+          . (Join-Path $root 'scripts/solution/publish-advisor-cockpit-app.ps1')
+          $publisherId = (az rest --method GET --url "$env:POWER_PLATFORM_ENV_URL/api/data/v9.2/publishers?`$select=publisherid&`$filter=uniquename eq 'urruegg'" --resource "$env:POWER_PLATFORM_ENV_URL/" --only-show-errors | ConvertFrom-Json).value[0].publisherid
+          $roleId = (az rest --method GET --url "$env:POWER_PLATFORM_ENV_URL/api/data/v9.2/roles?`$select=roleid&`$filter=name eq 'CRM Showcase Insurance Reader'" --resource "$env:POWER_PLATFORM_ENV_URL/" --only-show-errors | ConvertFrom-Json).value[0].roleid
+          if (-not $publisherId) { throw "Publisher 'urruegg' not found in $env:POWER_PLATFORM_ENV_URL -- cannot resolve appmodule.publisherid@odata.bind." }
+          if (-not $roleId) { throw "Security role 'CRM Showcase Insurance Reader' not found in $env:POWER_PLATFORM_ENV_URL -- cannot associate it with the app." }
+          Invoke-AdvisorCockpitAppPublish -EnvironmentUrl $env:POWER_PLATFORM_ENV_URL -PublisherId $publisherId -RoleIds @{ 'CRM Showcase Insurance Reader' = $roleId } -Confirm:$false
+          if ($LASTEXITCODE -ne 0) { throw 'Advisor Cockpit app publish failed.' }
+
       - name: Export managed and unmanaged solutions
         shell: pwsh
         run: |
