@@ -37,4 +37,21 @@ Describe 'publish-advisor-cockpit-app' {
         $body = ConvertTo-SitemapUpsertBody -Sitemap $contract.sitemap
         { [xml]$body.sitemapxml } | Should -Not -Throw
     }
+
+    It 'escapes XML-significant characters in dynamic sitemap values' {
+        $sitemap = [pscustomobject]@{
+            name = 'Test'; uniqueName = 'test'; isAppAware = $true
+            showHome = $false; showPinned = $false; showRecents = $false; enableCollapsibleGroups = $false
+            areas = @([pscustomobject]@{
+                id = 'a1'; title = 'R&D <Ops>'
+                groups = @([pscustomobject]@{
+                    id = 'g1'; title = 'Group "One"'
+                    subAreas = @([pscustomobject]@{ id = 's1'; title = "O'Brien"; pageUniqueName = 'pg1' })
+                })
+            })
+        }
+        $body = ConvertTo-SitemapUpsertBody -Sitemap $sitemap
+        { [xml]$body.sitemapxml } | Should -Not -Throw
+        $body.sitemapxml | Should -Match 'R&amp;D &lt;Ops&gt;'
+    }
 }
