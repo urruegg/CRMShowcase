@@ -25,7 +25,7 @@ Describe 'publish-advisor-cockpit-app' {
         $contract = Get-AdvisorCockpitAppContract -Path (Join-Path $PSScriptRoot '../../../solution/schema/advisor-cockpit-app.json')
         $body = ConvertTo-SitemapUpsertBody -Sitemap $contract.sitemap
         $body.sitemapname | Should -Be 'Advisor Cockpit Sitemap'
-        $body.sitemapnameunique | Should -Be 'crmshow_advisorcockpitsitemap'
+        $body.sitemapnameunique | Should -Be 'crmshow_AdvisorCockpit'
         $body.isappaware | Should -BeTrue
         $body.sitemapxml | Should -Match 'crmshow_advisorcockpitpage'
         $body.sitemapxml | Should -Match 'crmshow_salesleaderdashboardpage'
@@ -55,30 +55,13 @@ Describe 'publish-advisor-cockpit-app' {
         $body.sitemapxml | Should -Match 'R&amp;D &lt;Ops&gt;'
     }
 
-    It 'converts an appModule object to an appmodule upsert body' {
-        # Synthetic fixture -- clientType/formFactor are arbitrary test doubles
-        # here, NOT confirmed real Dataverse values (those remain unresolved
-        # pending the blocked Task 1 research spike). The real contract still
-        # carries the "<CONFIRM-IN-TASK-1>" placeholder for both fields by
-        # design, so it cannot be used as this test's input.
-        # TODO(Task 1): once clientType/formFactor are confirmed and the
-        # placeholders in solution/schema/advisor-cockpit-app.json are
-        # replaced with real values, switch this test back to loading
-        # $contract.appModule via Get-AdvisorCockpitAppContract (see the
-        # sitemap tests above for the pattern) instead of this fixture.
-        $syntheticAppModule = [pscustomobject]@{
-            name           = 'Advisor Cockpit'
-            uniqueName     = 'crmshow_advisorcockpitapp'
-            description    = 'Sales advisory cockpit and leader dashboard for the CRM Showcase.'
-            clientType     = 0
-            formFactor     = 1
-            navigationType = 0
-        }
-        $body = ConvertTo-AppModuleUpsertBody -AppModule $syntheticAppModule -PublisherId '11111111-1111-1111-1111-111111111111'
+    It 'converts the contract appModule section to an appmodule upsert body' {
+        $contract = Get-AdvisorCockpitAppContract -Path (Join-Path $PSScriptRoot '../../../solution/schema/advisor-cockpit-app.json')
+        $body = ConvertTo-AppModuleUpsertBody -AppModule $contract.appModule -PublisherId '11111111-1111-1111-1111-111111111111'
         $body.name | Should -Be 'Advisor Cockpit'
-        $body.uniquename | Should -Be 'crmshow_advisorcockpitapp'
+        $body.uniquename | Should -Be 'crmshow_AdvisorCockpit'
         $body.description | Should -Be 'Sales advisory cockpit and leader dashboard for the CRM Showcase.'
-        $body.clienttype | Should -Be 0
+        $body.clienttype | Should -Be 4
         $body.formfactor | Should -Be 1
         $body.navigationtype | Should -Be 0
         $body.'publisherid@odata.bind' | Should -Be '/publishers(11111111-1111-1111-1111-111111111111)'
@@ -110,7 +93,7 @@ Describe 'publish-advisor-cockpit-app' {
     It 'builds an AddAppComponents request for every contract component not already attached' {
         $contract = Get-AdvisorCockpitAppContract -Path (Join-Path $PSScriptRoot '../../../solution/schema/advisor-cockpit-app.json')
         $resolvedIds = @{
-            'crmshow_advisorcockpitsitemap'      = '44444444-4444-4444-4444-444444444444'
+            'crmshow_AdvisorCockpit'             = '44444444-4444-4444-4444-444444444444'
             'crmshow_advisorcockpitpage'         = '22222222-2222-2222-2222-222222222222'
             'crmshow_salesleaderdashboardpage'   = '33333333-3333-3333-3333-333333333333'
         }
@@ -123,7 +106,7 @@ Describe 'publish-advisor-cockpit-app' {
     It 'excludes components already attached to the app' {
         $contract = Get-AdvisorCockpitAppContract -Path (Join-Path $PSScriptRoot '../../../solution/schema/advisor-cockpit-app.json')
         $resolvedIds = @{
-            'crmshow_advisorcockpitsitemap'      = '44444444-4444-4444-4444-444444444444'
+            'crmshow_AdvisorCockpit'             = '44444444-4444-4444-4444-444444444444'
             'crmshow_advisorcockpitpage'         = '22222222-2222-2222-2222-222222222222'
             'crmshow_salesleaderdashboardpage'   = '33333333-3333-3333-3333-333333333333'
         }
@@ -134,7 +117,7 @@ Describe 'publish-advisor-cockpit-app' {
     It 'returns a null AddAppComponents request when every component is already attached' {
         $contract = Get-AdvisorCockpitAppContract -Path (Join-Path $PSScriptRoot '../../../solution/schema/advisor-cockpit-app.json')
         $resolvedIds = @{
-            'crmshow_advisorcockpitsitemap'      = '44444444-4444-4444-4444-444444444444'
+            'crmshow_AdvisorCockpit'             = '44444444-4444-4444-4444-444444444444'
             'crmshow_advisorcockpitpage'         = '22222222-2222-2222-2222-222222222222'
             'crmshow_salesleaderdashboardpage'   = '33333333-3333-3333-3333-333333333333'
         }
@@ -185,20 +168,6 @@ Describe 'publish-advisor-cockpit-app' {
     }
 
     It 'publishes the sitemap, app module, components and role association end to end' {
-        Mock -CommandName Get-AdvisorCockpitAppContract -MockWith {
-            # appModule.clientType/formFactor are still Task 1's unresolved
-            # "<CONFIRM-IN-TASK-1>" placeholders in the real contract file (the
-            # same known gap the ConvertTo-AppModuleUpsertBody test above works
-            # around with a synthetic fixture) -- read the real contract
-            # directly (not via the function under mock, to avoid recursing
-            # into this same mock) and substitute test doubles for just those
-            # two fields so the orchestrator can be exercised end to end ahead
-            # of Task 1 landing.
-            $contract = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../../solution/schema/advisor-cockpit-app.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-            $contract.appModule.clientType = 0
-            $contract.appModule.formFactor = 1
-            return $contract
-        }
         Mock -CommandName Get-CustomPageIdMap -MockWith {
             @{
                 'crmshow_advisorcockpitpage'       = '22222222-2222-2222-2222-222222222222'
@@ -226,15 +195,6 @@ Describe 'publish-advisor-cockpit-app' {
     }
 
     It 'skips AddAppComponents entirely when every component is already attached' {
-        Mock -CommandName Get-AdvisorCockpitAppContract -MockWith {
-            # See the previous test's comment: substitutes real-value test
-            # doubles for the still-unresolved Task 1 clientType/formFactor
-            # placeholders only; everything else comes from the real contract.
-            $contract = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../../solution/schema/advisor-cockpit-app.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-            $contract.appModule.clientType = 0
-            $contract.appModule.formFactor = 1
-            return $contract
-        }
         Mock -CommandName Get-CustomPageIdMap -MockWith {
             @{
                 'crmshow_advisorcockpitpage'       = '22222222-2222-2222-2222-222222222222'
