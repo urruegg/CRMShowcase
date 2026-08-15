@@ -31,4 +31,10 @@ Describe 'publish-advisor-cockpit-app' {
         $body.sitemapxml | Should -Match 'crmshow_salesleaderdashboardpage'
         $body.sitemapxml | Should -Match '<SiteMap>'
     }
+
+    It 'produces well-formed XML that a strict XML parser can load' {
+        $contract = Get-AdvisorCockpitAppContract -Path (Join-Path $PSScriptRoot '../../../solution/schema/advisor-cockpit-app.json')
+        $body = ConvertTo-SitemapUpsertBody -Sitemap $contract.sitemap
+        { [xml]$body.sitemapxml } | Should -Not -Throw
+    }
 }

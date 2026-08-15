@@ -56,11 +56,18 @@ function ConvertTo-SitemapUpsertBody {
     $areasXml = foreach ($area in @($Sitemap.areas)) {
         $groupsXml = foreach ($group in @($area.groups)) {
             $subAreasXml = foreach ($sub in @($group.subAreas)) {
-                "<SubArea Id=`"$($sub.id)`" Title=`"$($sub.title)`" Url=`"/main.aspx?pagetype=custom&name=$($sub.pageUniqueName)`" />"
+                $subId = [System.Security.SecurityElement]::Escape([string]$sub.id)
+                $subTitle = [System.Security.SecurityElement]::Escape([string]$sub.title)
+                $subPageUniqueName = [System.Security.SecurityElement]::Escape([string]$sub.pageUniqueName)
+                "<SubArea Id=`"$subId`" Title=`"$subTitle`" Url=`"/main.aspx?pagetype=custom&amp;name=$subPageUniqueName`" />"
             }
-            "<Group Id=`"$($group.id)`" Title=`"$($group.title)`">$($subAreasXml -join '')</Group>"
+            $groupId = [System.Security.SecurityElement]::Escape([string]$group.id)
+            $groupTitle = [System.Security.SecurityElement]::Escape([string]$group.title)
+            "<Group Id=`"$groupId`" Title=`"$groupTitle`">$($subAreasXml -join '')</Group>"
         }
-        "<Area Id=`"$($area.id)`" Title=`"$($area.title)`">$($groupsXml -join '')</Area>"
+        $areaId = [System.Security.SecurityElement]::Escape([string]$area.id)
+        $areaTitle = [System.Security.SecurityElement]::Escape([string]$area.title)
+        "<Area Id=`"$areaId`" Title=`"$areaTitle`">$($groupsXml -join '')</Area>"
     }
     $sitemapXml = "<SiteMap>$($areasXml -join '')</SiteMap>"
 
