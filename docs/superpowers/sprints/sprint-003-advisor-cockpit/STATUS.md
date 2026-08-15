@@ -15,7 +15,7 @@ Live status for the Advisor Cockpit (charter **#55**). See the
 | foundational-tables | #57 | DESIGN-SENSITIVE | — | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | 5 tables incl. `crmshow_leadcluster`/`crmshow_claimprojection` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
 | cockpit-tables | #58 | EXECUTION-ONLY | feat/s3-phase3-cockpit-tables | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | `crmshow_nextbestaction`/`crmshow_nbaprovenance`/`crmshow_measuresnapshot` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
 | seed-pipeline | #60 (follow-up) | EXECUTION-ONLY | feat/s3-seed-claims-mapping, feat/s3-account-seedkey, feat/s3-account-keymap-resolver, feat/s3-account-upserts, feat/s3-cd-seed-wiring | #101 ✅ merged, #102 ✅ merged, #103 ✅ merged, #104 ✅ merged (docs), #105 ✅ merged, #106 ✅ merged | ✅ code-complete | claims.json mapped to `crmshow_claimprojection` + 14/14 Pester (#101); `crmshow_seedkey` added to `account` (#102, contract 1.2.0); `Get-AccountKeyMap` resolver auto-wired into `Invoke-AdvisorCockpitSeed` (#103, 17/17 Pester); account upserts (name/crmshow_accounttype/crmshow_seedkey) implemented via POST-or-PATCH-by-GUID since `account` has no registered Dataverse alternate key (#105, 22/22 Pester); `cd-solution-dev.yml` now calls `seed-advisor-cockpit.ps1` after convergence validation (2026-08-15) — code-complete end-to-end, not yet verified against a live dispatch; contacts/roles + policies.json deferred separately |
-| mda-app | #64 | DESIGN-SENSITIVE | — | #100 (docs) | ⏳ in progress (attended) | both PCF controls wrapped as real, build-verified PCF projects (AdvisorCockpit 259s/8.1MiB, SalesLeaderDashboard 74s/3.97MiB); app module + custom pages + sitemap not yet authored |
+| mda-app | #64 | DESIGN-SENSITIVE | feat/s3-mda-app-publish | #100 (docs), #110 | ⏳ #110 open, awaiting review | both PCF controls wrapped as real, build-verified PCF projects (AdvisorCockpit 259s/8.1MiB, SalesLeaderDashboard 74s/3.97MiB); `publish-advisor-cockpit-app.ps1` now implements the sitemap/app-module/component/role reconciliation end to end (10/10 plan tasks, 21/21 Pester) and is wired into `cd-solution-dev.yml` — not yet merged, not yet live-dispatched; blocked on Task 1's `clientType`/`formFactor`/`CustomPage`-componenttype placeholders (az Dataverse auth issue) and the 2 custom pages' Maker-Portal creation |
 | e2e-verify | #65 | EXECUTION-ONLY | — | — | ⏳ DEV-gated | DEV→TEST evidence |
 | nba-agent | #61 | DESIGN-SENSITIVE | — | — | ⏸ deferred | out of sprint; needs a use-case description |
 
@@ -544,6 +544,104 @@ Live status for the Advisor Cockpit (charter **#55**). See the
   resolve the STATUS.md conflict the two PRs' parallel appends created (as
   flagged before either merged). Updated the paragraph below to stop saying
   "once #106 merges" now that it has.
+
+- **2026-08-15 (MDA app publisher, Tasks 1–5 of the implementation plan;
+  `feat/s3-mda-app-publish`, not yet pushed/PR'd) -** Executing
+  [PR #109's plan](../../plans/2026-08-15-advisor-cockpit-mda-app.md) via the
+  subagent-driven-development workflow (implementer → spec-reviewer →
+  code-quality-reviewer per task).
+  - **Task 1 (live Dataverse research spike): blocked, deferred.** `az rest`
+    against `crmshowdev` fails with `Unauthorized`/"Interactive
+    authentication is needed" even after a fresh
+    `az login --use-device-code` re-auth (confirmed correct tenant/account
+    via `az account show`) — `pac org who` connects fine, isolating the
+    problem to how `az` (not `pac`) authenticates against this specific
+    Dataverse resource, not a simple stale-token issue. Root cause not
+    found; not re-attempting further login variations without new
+    information.
+  - **Task 2** (`Get-AdvisorCockpitAppContract` + contract JSON) and
+    **Task 4** (`ConvertTo-SitemapUpsertBody`, including an XML-escaping bug
+    the plan's own example code had — found via spec review, fixed with
+    `[System.Security.SecurityElement]::Escape()` + an adversarial test)
+    are done and reviewed.
+  - **Task 5** (`ConvertTo-AppModuleUpsertBody`) is done and reviewed, with
+    one deliberate, reviewed deviation from the plan's literal test: the
+    contract's `appModule.clientType`/`appModule.formFactor` are still the
+    `"<CONFIRM-IN-TASK-1>"` placeholder (Task 1 above is blocked), and these
+    two values are **not** inline-documented in the public Web API
+    reference the way e.g. `navigationtype` is (confirmed by checking the
+    `appmodule` EntityType page directly), so they cannot be resolved
+    without either live introspection or guessing — and per this repo's
+    "never invent a number" rule, guessing was not an option. `[int]"<CONFIRM-IN-TASK-1>"`
+    throws a cast exception, so the test now uses a synthetic
+    `[pscustomobject]` fixture (arbitrary `clientType`/`formFactor` test
+    doubles, clearly commented as such) instead of the real contract, to
+    exercise the mapping logic without depending on Task 1's still-unknown
+    values. **Follow-up, not yet done:** once Task 1 unblocks and the real
+    values are confirmed, swap this test back to consuming
+    `Get-AdvisorCockpitAppContract`'s real `appModule` output (a `TODO`
+    marker is left in the test file itself at the point of the fixture).
+  - 6/6 Pester green on `PublishAdvisorCockpitApp.Tests.ps1`. Continuing
+    with Tasks 6–10 next.
+  - **Tasks 6, 7, 8** (component-type lookup + `Get-CustomPageIdMap`;
+    idempotent `AddAppComponents` builder; idempotent role-association
+    builder) done and reviewed, no deviations — plan matched cleanly.
+    10/10 → 13/13 → 16/16 Pester green.
+  - **Task 9** (`Invoke-AdvisorCockpitAppRequest` wrapper +
+    `Invoke-AdvisorCockpitAppPublish` orchestrator) done, with the same
+    contract-placeholder deviation as Task 5 (mocks
+    `Get-AdvisorCockpitAppContract` itself, substituting only
+    `clientType`/`formFactor` test doubles, to exercise the real
+    orchestration call sequence ahead of Task 1 landing). Code review
+    independently confirmed (Microsoft Learn fetches, not just asserted)
+    **two real Web API protocol bugs copied from the plan's own example
+    code**, both fixed same-session: (1) `If-Match: *` on the upsert PATCH
+    calls forces update-only semantics — would 404 instead of create on a
+    fresh environment's first run, defeating the script's whole idempotent-
+    upsert purpose; removed. (2) `Get-AppRoleAssociationRequests`'s
+    `@odata.id` was a bare relative segment (`roles(...)`) — Dataverse
+    requires an absolute URL for any associate/`$ref` body; added a
+    `-BaseUrl` parameter and tightened the test assertion from a loose
+    `-Match` to an exact `-Be`. Both bugs were invisible to the mocked
+    Pester suite by design (it never talks to a real server) — recorded in
+    repo memory as a general Dataverse Web API lesson. 20/20 → 21/21
+    Pester green.
+  - **Task 10** (wire into `cd-solution-dev.yml`) done — a "Publish Advisor
+    Cockpit app" step added between "Smoke-check seeded demo data" and
+    "Export managed and unmanaged solutions", resolving the publisher
+    (`urruegg`) and security-role (`CRM Showcase Insurance Reader`) ids via
+    two ad-hoc `az rest` lookups, with explicit not-found guards (beyond
+    the plan's literal text) before calling `Invoke-AdvisorCockpitAppPublish`
+    — no new secrets/permissions, reuses the job's existing OIDC session.
+    **All 10 plan tasks are now code-complete** on `feat/s3-mda-app-publish`.
+  - **Final whole-branch review** (independent of the per-task reviews
+    above): 21/21 on this stream's own tests + full repo suite 359/359
+    passed, 0 failed, 2 skipped (the one known-hanging file,
+    `Test-InsuranceFoundationConvergence.Tests.ps1`, was run separately per
+    its own documented characteristic — confirmed untouched by this
+    branch's diff, zero incremental risk). No secrets, no injection risk,
+    scope clean (5 files, all stream-relevant). Verdict
+    APPROVED_WITH_FOLLOWUPS; non-blocking follow-ups noted for a future
+    pass: `ConvertTo-ComponentTypeValue`/`$script:ComponentTypeValues` is
+    dead code (superseded by `Get-ComponentODataEntity` in Task 7 — zero
+    runtime risk, just vestigial), the orchestrator function lacks the
+    file's otherwise-universal leading rationale comment, and the two new
+    ad-hoc `az rest` lookups in the YAML step don't `TrimEnd('/')` the env
+    URL like the neighboring smoke-check step does (low risk — the
+    orchestrator itself still normalizes this internally).
+  - **Not yet done:** pushing this branch and opening a PR (next step);
+    Task 1's live research spike remains blocked on the unresolved `az`
+    Dataverse auth issue; no live dispatch of the updated pipeline has been
+    attempted.
+
+- **2026-08-15 (branch pushed, PR #110 opened) -** Rebased cleanly onto
+  `origin/main` (PR #109 had merged in the meantime; no conflicts — it only
+  added the plan doc, which this branch doesn't touch). Applied the
+  STATUS.md staleness fix the final review recommended (this paragraph +
+  the `mda-app` row above), then pushed `feat/s3-mda-app-publish` and
+  opened **PR #110**, with the two protocol-bug fixes, the known Task-1
+  limitations, and the non-blocking follow-ups all called out explicitly in
+  the PR description. Not self-merged — awaiting `gate1` CI + human review.
 
 ## Live DEV + TEST evidence
 
