@@ -217,7 +217,8 @@ function Get-AppRoleAssociationRequests {
         [Parameter(Mandatory)] [string[]]$SecurityRoles,
         [Parameter(Mandatory)] [System.Collections.IDictionary]$RoleIds,
         [string[]]$ExistingRoleIds = @(),
-        [Parameter(Mandatory)] [string]$AppId
+        [Parameter(Mandatory)] [string]$AppId,
+        [Parameter(Mandatory)] [string]$BaseUrl
     )
 
     foreach ($roleName in $SecurityRoles) {
@@ -231,7 +232,7 @@ function Get-AppRoleAssociationRequests {
         [pscustomobject]@{
             Method = 'POST'
             Path   = "/appmodules($AppId)/appmoduleroles_association/`$ref"
-            Body   = @{ '@odata.id' = "roles($roleId)" }
+            Body   = @{ '@odata.id' = "$BaseUrl/api/data/v9.2/roles($roleId)" }
         }
     }
 }
@@ -262,7 +263,6 @@ function Invoke-AdvisorCockpitAppRequest {
     try {
         ($Body | ConvertTo-Json -Depth 6) | Set-Content -LiteralPath $tmp -Encoding UTF8
         $headers = @('Content-Type=application/json')
-        if ($Method -eq 'PATCH') { $headers += 'If-Match=*' }
         az rest --method $Method --url $url --resource "$BaseUrl/" `
             --headers @headers --body "@$tmp" --only-show-errors | Out-Null
     }
@@ -309,7 +309,7 @@ function Invoke-AdvisorCockpitAppPublish {
     $existingRoles = (Invoke-AdvisorCockpitAppRequest -BaseUrl $baseUrl -Method 'GET' -Path "/appmodules($appId)/appmoduleroles_association?`$select=roleid").value
     $existingRoleIds = @($existingRoles | ForEach-Object { [string]$_.roleid })
 
-    foreach ($roleReq in @(Get-AppRoleAssociationRequests -SecurityRoles $contract.securityRoles -RoleIds $RoleIds -ExistingRoleIds $existingRoleIds -AppId $appId)) {
+    foreach ($roleReq in @(Get-AppRoleAssociationRequests -SecurityRoles $contract.securityRoles -RoleIds $RoleIds -ExistingRoleIds $existingRoleIds -AppId $appId -BaseUrl $baseUrl)) {
         Invoke-AdvisorCockpitAppRequest -BaseUrl $baseUrl -Method $roleReq.Method -Path $roleReq.Path -Body $roleReq.Body | Out-Null
     }
 

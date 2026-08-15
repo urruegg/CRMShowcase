@@ -144,20 +144,20 @@ Describe 'publish-advisor-cockpit-app' {
 
     It 'builds an associate request for each contract security role not already associated' {
         $roleIds = @{ 'CRM Showcase Insurance Reader' = '66666666-6666-6666-6666-666666666666' }
-        $reqs = @(Get-AppRoleAssociationRequests -SecurityRoles @('CRM Showcase Insurance Reader') -RoleIds $roleIds -ExistingRoleIds @() -AppId '55555555-5555-5555-5555-555555555555')
+        $reqs = @(Get-AppRoleAssociationRequests -SecurityRoles @('CRM Showcase Insurance Reader') -RoleIds $roleIds -ExistingRoleIds @() -AppId '55555555-5555-5555-5555-555555555555' -BaseUrl 'https://example.crm.dynamics.com')
         $reqs.Count | Should -Be 1
         $reqs[0].Path | Should -Be "/appmodules(55555555-5555-5555-5555-555555555555)/appmoduleroles_association/`$ref"
-        $reqs[0].Body.'@odata.id' | Should -Match 'roles\(66666666-6666-6666-6666-666666666666\)'
+        $reqs[0].Body.'@odata.id' | Should -Be 'https://example.crm.dynamics.com/api/data/v9.2/roles(66666666-6666-6666-6666-666666666666)'
     }
 
     It 'skips a role that is already associated' {
         $roleIds = @{ 'CRM Showcase Insurance Reader' = '66666666-6666-6666-6666-666666666666' }
-        $reqs = @(Get-AppRoleAssociationRequests -SecurityRoles @('CRM Showcase Insurance Reader') -RoleIds $roleIds -ExistingRoleIds @('66666666-6666-6666-6666-666666666666') -AppId '55555555-5555-5555-5555-555555555555')
+        $reqs = @(Get-AppRoleAssociationRequests -SecurityRoles @('CRM Showcase Insurance Reader') -RoleIds $roleIds -ExistingRoleIds @('66666666-6666-6666-6666-666666666666') -AppId '55555555-5555-5555-5555-555555555555' -BaseUrl 'https://example.crm.dynamics.com')
         $reqs.Count | Should -Be 0
     }
 
     It 'throws when a contract security role does not resolve to a live role id' {
-        { Get-AppRoleAssociationRequests -SecurityRoles @('Unknown Role') -RoleIds @{} -ExistingRoleIds @() -AppId '55555555-5555-5555-5555-555555555555' } |
+        { Get-AppRoleAssociationRequests -SecurityRoles @('Unknown Role') -RoleIds @{} -ExistingRoleIds @() -AppId '55555555-5555-5555-5555-555555555555' -BaseUrl 'https://example.crm.dynamics.com' } |
             Should -Throw '*Unknown Role*'
     }
 
@@ -172,6 +172,16 @@ Describe 'publish-advisor-cockpit-app' {
         $result = Invoke-AdvisorCockpitAppRequest -BaseUrl 'https://example.crm.dynamics.com' -Method 'PATCH' -Path "/sitemaps(sitemapnameunique='x')" -Body @{ sitemapname = 'x' }
         $result | Should -BeNullOrEmpty
         Should -Invoke -CommandName az -Times 1 -Exactly
+    }
+
+    It 'does not send an If-Match header on PATCH, so upserts can still create a new record' {
+        # If-Match: * on an upsert PATCH forces Dataverse to reject creates with a
+        # 404 (Microsoft Learn, "Perform conditional operations using the Web API").
+        Mock -CommandName az -MockWith { $global:LASTEXITCODE = 0 }
+        Invoke-AdvisorCockpitAppRequest -BaseUrl 'https://example.crm.dynamics.com' -Method 'PATCH' -Path "/sitemaps(sitemapnameunique='x')" -Body @{ sitemapname = 'x' } | Out-Null
+        Should -Invoke -CommandName az -Times 1 -Exactly -ParameterFilter {
+            ($args -join ' ') -notmatch 'If-Match'
+        }
     }
 
     It 'publishes the sitemap, app module, components and role association end to end' {
