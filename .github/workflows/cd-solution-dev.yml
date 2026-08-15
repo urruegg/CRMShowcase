@@ -183,6 +183,16 @@ jobs:
           Invoke-AdvisorCockpitAppPublish -EnvironmentUrl $env:POWER_PLATFORM_ENV_URL -PublisherId $publisherId -RoleIds @{ 'CRM Showcase Insurance Reader' = $roleId } -Confirm:$false
           if ($LASTEXITCODE -ne 0) { throw 'Advisor Cockpit app publish failed.' }
 
+      - name: Sync solution versions to manifest.json
+        shell: pwsh
+        run: |
+          $root = $env:GITHUB_WORKSPACE
+          & (Join-Path $root 'scripts/solution/Set-SolutionVersions.ps1') `
+            -EnvironmentUrl $env:POWER_PLATFORM_ENV_URL `
+            -Build $env:GITHUB_RUN_NUMBER `
+            -Confirm:$false
+          if ($LASTEXITCODE -ne 0) { throw 'Solution version sync failed.' }
+
       - name: Export managed and unmanaged solutions
         shell: pwsh
         run: |
