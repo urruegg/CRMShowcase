@@ -173,4 +173,77 @@ Describe 'publish-advisor-cockpit-app' {
         $result | Should -BeNullOrEmpty
         Should -Invoke -CommandName az -Times 1 -Exactly
     }
+
+    It 'publishes the sitemap, app module, components and role association end to end' {
+        Mock -CommandName Get-AdvisorCockpitAppContract -MockWith {
+            # appModule.clientType/formFactor are still Task 1's unresolved
+            # "<CONFIRM-IN-TASK-1>" placeholders in the real contract file (the
+            # same known gap the ConvertTo-AppModuleUpsertBody test above works
+            # around with a synthetic fixture) -- read the real contract
+            # directly (not via the function under mock, to avoid recursing
+            # into this same mock) and substitute test doubles for just those
+            # two fields so the orchestrator can be exercised end to end ahead
+            # of Task 1 landing.
+            $contract = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../../solution/schema/advisor-cockpit-app.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+            $contract.appModule.clientType = 0
+            $contract.appModule.formFactor = 1
+            return $contract
+        }
+        Mock -CommandName Get-CustomPageIdMap -MockWith {
+            @{
+                'crmshow_advisorcockpitpage'       = '22222222-2222-2222-2222-222222222222'
+                'crmshow_salesleaderdashboardpage' = '33333333-3333-3333-3333-333333333333'
+            }
+        }
+        Mock -CommandName Invoke-AdvisorCockpitAppRequest -MockWith {
+            switch -Regex ($Path) {
+                "appmodules\(uniquename=" { return [pscustomobject]@{ appmoduleid = '55555555-5555-5555-5555-555555555555' } }
+                "sitemaps\(sitemapnameunique=" { return [pscustomobject]@{ sitemapid = '44444444-4444-4444-4444-444444444444' } }
+                '/appmodulecomponents'         { return [pscustomobject]@{ value = @() } }
+                'appmoduleroles_association'   { return [pscustomobject]@{ value = @() } }
+                default                        { return $null }
+            }
+        }
+
+        Invoke-AdvisorCockpitAppPublish -EnvironmentUrl 'https://example.crm.dynamics.com' -PublisherId '11111111-1111-1111-1111-111111111111' -RoleIds @{ 'CRM Showcase Insurance Reader' = '66666666-6666-6666-6666-666666666666' } -Confirm:$false
+
+        Should -Invoke -CommandName Invoke-AdvisorCockpitAppRequest -ParameterFilter { $Method -eq 'PATCH' -and $Path -match 'sitemaps' } -Times 1 -Exactly
+        Should -Invoke -CommandName Invoke-AdvisorCockpitAppRequest -ParameterFilter { $Method -eq 'PATCH' -and $Path -match 'appmodules' } -Times 1 -Exactly
+        Should -Invoke -CommandName Invoke-AdvisorCockpitAppRequest -ParameterFilter { $Method -eq 'POST' -and $Path -eq '/AddAppComponents' } -Times 1 -Exactly
+        Should -Invoke -CommandName Invoke-AdvisorCockpitAppRequest -ParameterFilter { $Method -eq 'POST' -and $Path -match 'appmoduleroles_association' } -Times 1 -Exactly
+        Should -Invoke -CommandName Invoke-AdvisorCockpitAppRequest -ParameterFilter { $Path -match 'ValidateApp' } -Times 1 -Exactly
+        Should -Invoke -CommandName Invoke-AdvisorCockpitAppRequest -ParameterFilter { $Path -eq '/PublishAllXml' } -Times 1 -Exactly
+    }
+
+    It 'skips AddAppComponents entirely when every component is already attached' {
+        Mock -CommandName Get-AdvisorCockpitAppContract -MockWith {
+            # See the previous test's comment: substitutes real-value test
+            # doubles for the still-unresolved Task 1 clientType/formFactor
+            # placeholders only; everything else comes from the real contract.
+            $contract = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../../solution/schema/advisor-cockpit-app.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+            $contract.appModule.clientType = 0
+            $contract.appModule.formFactor = 1
+            return $contract
+        }
+        Mock -CommandName Get-CustomPageIdMap -MockWith {
+            @{
+                'crmshow_advisorcockpitpage'       = '22222222-2222-2222-2222-222222222222'
+                'crmshow_salesleaderdashboardpage' = '33333333-3333-3333-3333-333333333333'
+            }
+        }
+        Mock -CommandName Invoke-AdvisorCockpitAppRequest -MockWith {
+            switch -Regex ($Path) {
+                "appmodules\(uniquename=" { return [pscustomobject]@{ appmoduleid = '55555555-5555-5555-5555-555555555555' } }
+                "sitemaps\(sitemapnameunique=" { return [pscustomobject]@{ sitemapid = '44444444-4444-4444-4444-444444444444' } }
+                '/appmodulecomponents'         { return [pscustomobject]@{ value = @(@{ objectid = '44444444-4444-4444-4444-444444444444' }, @{ objectid = '22222222-2222-2222-2222-222222222222' }, @{ objectid = '33333333-3333-3333-3333-333333333333' }) } }
+                'appmoduleroles_association'   { return [pscustomobject]@{ value = @(@{ roleid = '66666666-6666-6666-6666-666666666666' }) } }
+                default                        { return $null }
+            }
+        }
+
+        Invoke-AdvisorCockpitAppPublish -EnvironmentUrl 'https://example.crm.dynamics.com' -PublisherId '11111111-1111-1111-1111-111111111111' -RoleIds @{ 'CRM Showcase Insurance Reader' = '66666666-6666-6666-6666-666666666666' } -Confirm:$false
+
+        Should -Invoke -CommandName Invoke-AdvisorCockpitAppRequest -ParameterFilter { $Path -eq '/AddAppComponents' } -Times 0 -Exactly
+        Should -Invoke -CommandName Invoke-AdvisorCockpitAppRequest -ParameterFilter { $Method -eq 'POST' -and $Path -match 'appmoduleroles_association' } -Times 0 -Exactly
+    }
 }

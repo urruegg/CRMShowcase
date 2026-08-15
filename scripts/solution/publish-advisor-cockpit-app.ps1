@@ -272,9 +272,56 @@ function Invoke-AdvisorCockpitAppRequest {
     return $null
 }
 
+function Invoke-AdvisorCockpitAppPublish {
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [Parameter(Mandatory)] [string]$EnvironmentUrl,
+        [Parameter(Mandatory)] [string]$PublisherId,
+        [Parameter(Mandatory)] [System.Collections.IDictionary]$RoleIds
+    )
+
+    $baseUrl = $EnvironmentUrl.TrimEnd('/')
+    $contract = Get-AdvisorCockpitAppContract -Path $script:ContractPath
+
+    $pageNames = @($contract.components | Where-Object { $_.referenceKind -eq 'pageUniqueName' } | ForEach-Object { $_.reference })
+    $pageIds = Get-CustomPageIdMap -EnvironmentUrl $baseUrl -PageUniqueNames $pageNames
+
+    $sitemapBody = ConvertTo-SitemapUpsertBody -Sitemap $contract.sitemap
+    Invoke-AdvisorCockpitAppRequest -BaseUrl $baseUrl -Method 'PATCH' -Path "/sitemaps(sitemapnameunique='$($contract.sitemap.uniqueName)')" -Body $sitemapBody | Out-Null
+
+    $appModuleBody = ConvertTo-AppModuleUpsertBody -AppModule $contract.appModule -PublisherId $PublisherId
+    Invoke-AdvisorCockpitAppRequest -BaseUrl $baseUrl -Method 'PATCH' -Path "/appmodules(uniquename='$($contract.appModule.uniqueName)')" -Body $appModuleBody | Out-Null
+
+    $appId = (Invoke-AdvisorCockpitAppRequest -BaseUrl $baseUrl -Method 'GET' -Path "/appmodules(uniquename='$($contract.appModule.uniqueName)')?`$select=appmoduleid").appmoduleid
+    $sitemapId = (Invoke-AdvisorCockpitAppRequest -BaseUrl $baseUrl -Method 'GET' -Path "/sitemaps(sitemapnameunique='$($contract.sitemap.uniqueName)')?`$select=sitemapid").sitemapid
+
+    $resolvedIds = [ordered]@{ $contract.sitemap.uniqueName = $sitemapId }
+    foreach ($key in $pageIds.Keys) { $resolvedIds[$key] = $pageIds[$key] }
+
+    $existingComponents = (Invoke-AdvisorCockpitAppRequest -BaseUrl $baseUrl -Method 'GET' -Path "/appmodulecomponents?`$select=objectid&`$filter=_appmoduleidunique_value eq $appId").value
+    $existingObjectIds = @($existingComponents | ForEach-Object { [string]$_.objectid })
+
+    $addRequest = Get-AppComponentAddRequests -Components $contract.components -ResolvedIds $resolvedIds -ExistingObjectIds $existingObjectIds -AppId $appId
+    if ($addRequest) {
+        Invoke-AdvisorCockpitAppRequest -BaseUrl $baseUrl -Method 'POST' -Path '/AddAppComponents' -Body $addRequest | Out-Null
+    }
+
+    $existingRoles = (Invoke-AdvisorCockpitAppRequest -BaseUrl $baseUrl -Method 'GET' -Path "/appmodules($appId)/appmoduleroles_association?`$select=roleid").value
+    $existingRoleIds = @($existingRoles | ForEach-Object { [string]$_.roleid })
+
+    foreach ($roleReq in @(Get-AppRoleAssociationRequests -SecurityRoles $contract.securityRoles -RoleIds $RoleIds -ExistingRoleIds $existingRoleIds -AppId $appId)) {
+        Invoke-AdvisorCockpitAppRequest -BaseUrl $baseUrl -Method $roleReq.Method -Path $roleReq.Path -Body $roleReq.Body | Out-Null
+    }
+
+    Invoke-AdvisorCockpitAppRequest -BaseUrl $baseUrl -Method 'POST' -Path "/appmodules($appId)/Microsoft.Dynamics.CRM.ValidateApp" -Body @{} | Out-Null
+    Invoke-AdvisorCockpitAppRequest -BaseUrl $baseUrl -Method 'POST' -Path '/PublishAllXml' -Body @{} | Out-Null
+
+    Write-Output "Advisor Cockpit app published: appmoduleid=$appId"
+}
+
 if ($MyInvocation.InvocationName -ne '.') {
     if ($EnvironmentUrl) {
-        Write-Output 'Dry run scaffold -- publish orchestration lands in a later task.'
+        Write-Output 'Invoke-AdvisorCockpitAppPublish requires -PublisherId and -RoleIds; call it directly once those are resolved for your environment.'
     }
     else {
         $contract = Get-AdvisorCockpitAppContract -Path $script:ContractPath
