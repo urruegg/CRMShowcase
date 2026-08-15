@@ -46,6 +46,36 @@ function Get-AdvisorCockpitAppContract {
     return $contract
 }
 
+# Maps the contract's sitemap section to a sitemap upsert body, generating
+# the raw Site Map XML from the structured areas/groups/subAreas -- so the
+# XML itself is never hand-maintained as a giant string in the contract.
+function ConvertTo-SitemapUpsertBody {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] $Sitemap)
+
+    $areasXml = foreach ($area in @($Sitemap.areas)) {
+        $groupsXml = foreach ($group in @($area.groups)) {
+            $subAreasXml = foreach ($sub in @($group.subAreas)) {
+                "<SubArea Id=`"$($sub.id)`" Title=`"$($sub.title)`" Url=`"/main.aspx?pagetype=custom&name=$($sub.pageUniqueName)`" />"
+            }
+            "<Group Id=`"$($group.id)`" Title=`"$($group.title)`">$($subAreasXml -join '')</Group>"
+        }
+        "<Area Id=`"$($area.id)`" Title=`"$($area.title)`">$($groupsXml -join '')</Area>"
+    }
+    $sitemapXml = "<SiteMap>$($areasXml -join '')</SiteMap>"
+
+    [ordered]@{
+        sitemapname             = [string]$Sitemap.name
+        sitemapnameunique       = [string]$Sitemap.uniqueName
+        sitemapxml              = $sitemapXml
+        isappaware              = [bool]$Sitemap.isAppAware
+        showhome                = [bool]$Sitemap.showHome
+        showpinned              = [bool]$Sitemap.showPinned
+        showrecents             = [bool]$Sitemap.showRecents
+        enablecollapsiblegroups = [bool]$Sitemap.enableCollapsibleGroups
+    }
+}
+
 if ($MyInvocation.InvocationName -ne '.') {
     if ($EnvironmentUrl) {
         Write-Output 'Dry run scaffold -- publish orchestration lands in a later task.'

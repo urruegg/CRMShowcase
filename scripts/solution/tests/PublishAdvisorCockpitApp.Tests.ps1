@@ -20,4 +20,15 @@ Describe 'publish-advisor-cockpit-app' {
         '{"sitemap": {}}' | Set-Content -LiteralPath $tmp -Encoding UTF8
         { Get-AdvisorCockpitAppContract -Path $tmp } | Should -Throw '*appModule*'
     }
+
+    It 'converts the contract sitemap section to a sitemapxml payload referencing both custom pages' {
+        $contract = Get-AdvisorCockpitAppContract -Path (Join-Path $PSScriptRoot '../../../solution/schema/advisor-cockpit-app.json')
+        $body = ConvertTo-SitemapUpsertBody -Sitemap $contract.sitemap
+        $body.sitemapname | Should -Be 'Advisor Cockpit Sitemap'
+        $body.sitemapnameunique | Should -Be 'crmshow_advisorcockpitsitemap'
+        $body.isappaware | Should -BeTrue
+        $body.sitemapxml | Should -Match 'crmshow_advisorcockpitpage'
+        $body.sitemapxml | Should -Match 'crmshow_salesleaderdashboardpage'
+        $body.sitemapxml | Should -Match '<SiteMap>'
+    }
 }
