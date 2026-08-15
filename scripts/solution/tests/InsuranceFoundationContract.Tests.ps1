@@ -255,7 +255,7 @@ Describe 'Insurance Foundation JSON contract' {
         @($contract.nativeExtensions.logicalName) |
             Should -Be @(
                 'crmshow_accounttype', 'crmshow_lifecyclestage',
-                'crmshow_mastershipstatus', 'crmshow_mastersystem', 'crmshow_lastsyncedon',
+                'crmshow_mastershipstatus', 'crmshow_mastersystem', 'crmshow_lastsyncedon', 'crmshow_seedkey',
                 'crmshow_mastershipstatus', 'crmshow_mastersystem', 'crmshow_lastsyncedon',
                 'crmshow_consentemail', 'crmshow_consentphone',
                 'crmshow_leadclusterid', 'crmshow_channel', 'crmshow_slalabel', 'crmshow_score', 'crmshow_leadqueuestatus',
@@ -265,6 +265,17 @@ Describe 'Insurance Foundation JSON contract' {
             Should -BeTrue
         ($contract.nativeExtensions | Where-Object logicalName -eq 'crmshow_lifecyclestage').required |
             Should -BeFalse
+    }
+
+    It 'defines crmshow_seedkey on account as an optional Text field for seed-pipeline resolution' {
+        $contract = Get-Contract
+        $seedKey = $contract.nativeExtensions | Where-Object logicalName -eq 'crmshow_seedkey'
+        $seedKey.table | Should -Be 'account'
+        $seedKey.type | Should -Be 'Text'
+        $seedKey.maxLength | Should -Be 100
+        $seedKey.required | Should -BeFalse
+        $seedKey.auditing | Should -BeTrue
+        $seedKey.metadata.mastership | Should -Be 'Configuration'
     }
 
     It 'resolves every choice reference and locks the exact choice mappings' {

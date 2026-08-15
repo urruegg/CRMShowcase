@@ -1123,7 +1123,7 @@ Describe 'Insurance Foundation reconciliation' {
                 Should -Match '^<importexportxml><entities><entity>crmshow_[a-z]+</entity></entities></importexportxml>$'
         }
         @($created | Where-Object Path -match "EntityDefinitions\(LogicalName='(?:account|contact|lead|incident)'\)/Attributes").Count |
-            Should -Be 20
+            Should -Be 21
         @($created | Where-Object Path -match '/Keys$').Count | Should -Be 8
         @($created | Where-Object Path -eq '/workflows').Count | Should -Be 0
         @($created | Where-Object Path -eq '/systemforms').Count | Should -Be 8
@@ -1413,7 +1413,7 @@ Describe 'Insurance Foundation reconciliation' {
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and
             $_.Path -match "EntityDefinitions\(LogicalName='(?:account|contact|lead|incident)'\)/Attributes$"
-        }).Count | Should -Be 20
+        }).Count | Should -Be 21
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and $_.Path -eq '/EntityDefinitions'
         }).Count | Should -Be 8
@@ -1731,6 +1731,7 @@ Describe 'Insurance Foundation reconciliation' {
             '/GlobalOptionSetDefinitions','/GlobalOptionSetDefinitions',
             "/EntityDefinitions(LogicalName='account')/Attributes",
             "/EntityDefinitions(LogicalName='contact')/Attributes",
+            "/EntityDefinitions(LogicalName='account')/Attributes",
             "/EntityDefinitions(LogicalName='account')/Attributes",
             "/EntityDefinitions(LogicalName='account')/Attributes",
             "/EntityDefinitions(LogicalName='account')/Attributes",
