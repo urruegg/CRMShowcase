@@ -15,7 +15,7 @@ Live status for the Advisor Cockpit (charter **#55**). See the
 | foundational-tables | #57 | DESIGN-SENSITIVE | — | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | 5 tables incl. `crmshow_leadcluster`/`crmshow_claimprojection` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
 | cockpit-tables | #58 | EXECUTION-ONLY | feat/s3-phase3-cockpit-tables | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | `crmshow_nextbestaction`/`crmshow_nbaprovenance`/`crmshow_measuresnapshot` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
 | seed-pipeline | #60 (follow-up) | EXECUTION-ONLY | feat/s3-seed-claims-mapping, feat/s3-account-seedkey, feat/s3-account-keymap-resolver, feat/s3-account-upserts, feat/s3-cd-seed-wiring | #101 ✅ merged, #102 ✅ merged, #103 ✅ merged, #104 ✅ merged (docs), #105 ✅ merged, #106 ✅ merged | ✅ code-complete | claims.json mapped to `crmshow_claimprojection` + 14/14 Pester (#101); `crmshow_seedkey` added to `account` (#102, contract 1.2.0); `Get-AccountKeyMap` resolver auto-wired into `Invoke-AdvisorCockpitSeed` (#103, 17/17 Pester); account upserts (name/crmshow_accounttype/crmshow_seedkey) implemented via POST-or-PATCH-by-GUID since `account` has no registered Dataverse alternate key (#105, 22/22 Pester); `cd-solution-dev.yml` now calls `seed-advisor-cockpit.ps1` after convergence validation (2026-08-15) — code-complete end-to-end, not yet verified against a live dispatch; contacts/roles + policies.json deferred separately |
-| mda-app | #64 | DESIGN-SENSITIVE | feat/s3-mda-app-publish | #100 (docs), PR pending | ⏳ code-complete, PR pending | both PCF controls wrapped as real, build-verified PCF projects (AdvisorCockpit 259s/8.1MiB, SalesLeaderDashboard 74s/3.97MiB); `publish-advisor-cockpit-app.ps1` now implements the sitemap/app-module/component/role reconciliation end to end (10/10 plan tasks, 21/21 Pester) and is wired into `cd-solution-dev.yml` — not yet merged, not yet live-dispatched; blocked on Task 1's `clientType`/`formFactor`/`CustomPage`-componenttype placeholders (az Dataverse auth issue) and the 2 custom pages' Maker-Portal creation |
+| mda-app | #64 | DESIGN-SENSITIVE | feat/s3-mda-app-publish | #100 (docs), #110 | ⏳ #110 open, awaiting review | both PCF controls wrapped as real, build-verified PCF projects (AdvisorCockpit 259s/8.1MiB, SalesLeaderDashboard 74s/3.97MiB); `publish-advisor-cockpit-app.ps1` now implements the sitemap/app-module/component/role reconciliation end to end (10/10 plan tasks, 21/21 Pester) and is wired into `cd-solution-dev.yml` — not yet merged, not yet live-dispatched; blocked on Task 1's `clientType`/`formFactor`/`CustomPage`-componenttype placeholders (az Dataverse auth issue) and the 2 custom pages' Maker-Portal creation |
 | e2e-verify | #65 | EXECUTION-ONLY | — | — | ⏳ DEV-gated | DEV→TEST evidence |
 | nba-agent | #61 | DESIGN-SENSITIVE | — | — | ⏸ deferred | out of sprint; needs a use-case description |
 
@@ -633,6 +633,15 @@ Live status for the Advisor Cockpit (charter **#55**). See the
     Task 1's live research spike remains blocked on the unresolved `az`
     Dataverse auth issue; no live dispatch of the updated pipeline has been
     attempted.
+
+- **2026-08-15 (branch pushed, PR #110 opened) -** Rebased cleanly onto
+  `origin/main` (PR #109 had merged in the meantime; no conflicts — it only
+  added the plan doc, which this branch doesn't touch). Applied the
+  STATUS.md staleness fix the final review recommended (this paragraph +
+  the `mda-app` row above), then pushed `feat/s3-mda-app-publish` and
+  opened **PR #110**, with the two protocol-bug fixes, the known Task-1
+  limitations, and the non-blocking follow-ups all called out explicitly in
+  the PR description. Not self-merged — awaiting `gate1` CI + human review.
 
 ## Live DEV + TEST evidence
 
