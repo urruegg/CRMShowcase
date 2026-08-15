@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "publisherUniqueName": "urruegg",
   "sitemap": {
-    "uniqueName": "crmshow_advisorcockpitsitemap",
+    "uniqueName": "crmshow_AdvisorCockpit",
     "name": "Advisor Cockpit Sitemap",
     "isAppAware": true,
     "showHome": false,
@@ -28,15 +28,15 @@
     ]
   },
   "appModule": {
-    "uniqueName": "crmshow_advisorcockpitapp",
+    "uniqueName": "crmshow_AdvisorCockpit",
     "name": "Advisor Cockpit",
     "description": "Sales advisory cockpit and leader dashboard for the CRM Showcase.",
-    "clientType": "<CONFIRM-IN-TASK-1>",
-    "formFactor": "<CONFIRM-IN-TASK-1>",
+    "clientType": 4,
+    "formFactor": 1,
     "navigationType": 0
   },
   "components": [
-    { "type": "Sitemap", "referenceKind": "sitemapUniqueName", "reference": "crmshow_advisorcockpitsitemap" },
+    { "type": "Sitemap", "referenceKind": "sitemapUniqueName", "reference": "crmshow_AdvisorCockpit" },
     { "type": "CustomPage", "referenceKind": "pageUniqueName", "reference": "crmshow_advisorcockpitpage" },
     { "type": "CustomPage", "referenceKind": "pageUniqueName", "reference": "crmshow_salesleaderdashboardpage" }
   ],
