@@ -583,6 +583,29 @@ Live status for the Advisor Cockpit (charter **#55**). See the
     marker is left in the test file itself at the point of the fixture).
   - 6/6 Pester green on `PublishAdvisorCockpitApp.Tests.ps1`. Continuing
     with Tasks 6–10 next.
+  - **Tasks 6, 7, 8** (component-type lookup + `Get-CustomPageIdMap`;
+    idempotent `AddAppComponents` builder; idempotent role-association
+    builder) done and reviewed, no deviations — plan matched cleanly.
+    10/10 → 13/13 → 16/16 Pester green.
+  - **Task 9** (`Invoke-AdvisorCockpitAppRequest` wrapper +
+    `Invoke-AdvisorCockpitAppPublish` orchestrator) done, with the same
+    contract-placeholder deviation as Task 5 (mocks
+    `Get-AdvisorCockpitAppContract` itself, substituting only
+    `clientType`/`formFactor` test doubles, to exercise the real
+    orchestration call sequence ahead of Task 1 landing). Code review
+    independently confirmed (Microsoft Learn fetches, not just asserted)
+    **two real Web API protocol bugs copied from the plan's own example
+    code**, both fixed same-session: (1) `If-Match: *` on the upsert PATCH
+    calls forces update-only semantics — would 404 instead of create on a
+    fresh environment's first run, defeating the script's whole idempotent-
+    upsert purpose; removed. (2) `Get-AppRoleAssociationRequests`'s
+    `@odata.id` was a bare relative segment (`roles(...)`) — Dataverse
+    requires an absolute URL for any associate/`$ref` body; added a
+    `-BaseUrl` parameter and tightened the test assertion from a loose
+    `-Match` to an exact `-Be`. Both bugs were invisible to the mocked
+    Pester suite by design (it never talks to a real server) — recorded in
+    repo memory as a general Dataverse Web API lesson. 20/20 → 21/21
+    Pester green.
 
 ## Live DEV + TEST evidence
 
