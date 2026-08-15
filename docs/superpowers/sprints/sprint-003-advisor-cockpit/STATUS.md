@@ -14,7 +14,7 @@ Live status for the Advisor Cockpit (charter **#55**). See the
 | foundation-choices | #56 | EXECUTION-ONLY | feat/sprint-003-foundation-choices | #75 | ✅ merged | +5 cockpit choices (nbastatus/nbachannel/productline/region/metrictype) in 4 languages; contract 1.1.0; authored in DEV by the CD pipeline (2026-08-12) |
 | foundational-tables | #57 | DESIGN-SENSITIVE | — | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | 5 tables incl. `crmshow_leadcluster`/`crmshow_claimprojection` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
 | cockpit-tables | #58 | EXECUTION-ONLY | feat/s3-phase3-cockpit-tables | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | `crmshow_nextbestaction`/`crmshow_nbaprovenance`/`crmshow_measuresnapshot` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
-| seed-pipeline | #60 (follow-up) | EXECUTION-ONLY | feat/s3-seed-claims-mapping | #101 (open) | ⏳ in progress | claims.json mapped to `crmshow_claimprojection` + 14/14 Pester; blocked on an account-resolution design decision (no stable seed key on `account`) before it can run live or wire into the CD pipeline; policies.json deferred separately |
+| seed-pipeline | #60 (follow-up) | EXECUTION-ONLY | feat/s3-seed-claims-mapping, feat/s3-account-seedkey | #101 ✅ merged, #102 ✅ merged | ⏳ in progress | claims.json mapped to `crmshow_claimprojection` + 14/14 Pester (#101); `crmshow_seedkey` added to `account` (#102, contract 1.2.0); still needs a `Get-AccountKeyMap` resolver + CD pipeline wiring before it can run live; policies.json deferred separately |
 | mda-app | #64 | DESIGN-SENSITIVE | — | #100 (docs) | ⏳ in progress (attended) | both PCF controls wrapped as real, build-verified PCF projects (AdvisorCockpit 259s/8.1MiB, SalesLeaderDashboard 74s/3.97MiB); app module + custom pages + sitemap not yet authored |
 | e2e-verify | #65 | EXECUTION-ONLY | — | — | ⏳ DEV-gated | DEV→TEST evidence |
 | nba-agent | #61 | DESIGN-SENSITIVE | — | — | ⏸ deferred | out of sprint; needs a use-case description |
@@ -346,4 +346,56 @@ Live status for the Advisor Cockpit (charter **#55**). See the
     pipeline with a smoke check (5.3); (5) MDA app "Advisor Cockpit" + the 2
     custom pages (#64, Maker-Portal-attended step) — the true remaining
     long pole before #65 (DEV→TEST evidence) can start.
+
+- **2026-08-14/15 (PR #101 merged; `crmshow_seedkey` gap closed via PR #102;
+  both reviewed and merged by the owner) -**
+  - **PR #101** merged as `79c7b8c` — the claims.json seed mapping above.
+  - While #101 was awaiting review, investigated the account-resolution
+    blocker rather than leaving it fully frozen: found that
+    `seed-advisor-cockpit.ps1`'s own fixture manifest (merged **PR #68**,
+    EXECUTION-ONLY) had **always** declared
+    `AlternateKey = @('crmshow_seedkey')` for `accounts-contacts.json`/
+    `leads.json` — the field itself was simply never authored in
+    `insurance-foundation.json`. Reframed as completing an already-approved
+    design, not a fresh unilateral decision, and implemented directly as
+    **PR #102** (`feat/s3-account-seedkey`, branched separately off `main`
+    to avoid touching #101 mid-review):
+    - Added `account.crmshow_seedkey` (Text, optional, maxLength 100,
+      `mastership: Configuration` — the same category used for every other
+      natural/idempotency key in this contract). Metadata explicit this is
+      demo/seed-pipeline scaffolding only, never a production business
+      field. Contract version `1.1.0` → `1.2.0`.
+    - Scope deliberately narrow: enables resolving a fixture's `accountKey`
+      via a plain OData query; does **not** add a true Dataverse alternate
+      key on the native `account` table (this contract's `alternateKeys`
+      mechanism is custom-table-only today — extending it to native tables
+      is a separable, larger pipeline capability). Design-doc addendum in
+      [2026-08-14-advisor-cockpit-datamodel-scope-reduction-design.md](../../specs/2026-08-14-advisor-cockpit-datamodel-scope-reduction-design.md)
+      also flags the same gap still open on `lead`/`activitypointer`
+      (native) and `crmshow_nextbestaction` (custom, not yet needed).
+    - Fixed 3 `Publish-InsuranceFoundation.Tests.ps1` assertions that
+      hardcode the native-extension count against the real contract file
+      (20 → 21). `InsuranceFoundationContract.Tests.ps1` **29/29 green**,
+      `Publish-InsuranceFoundation.Tests.ps1` **104/104 green**. The ~640s
+      `Test-InsuranceFoundationConvergence.Tests.ps1` was not re-run
+      locally (grep-confirmed its native-extension list is built
+      dynamically from the loaded contract, not hardcoded) — relied on CI.
+    - Flagged in the PR description for Enterprise Architect review per
+      `AGENTS.md` §Authority (data-model changes aren't an agent's call
+      alone), even though the change itself is additive/low-risk. Not
+      self-merged — merged by the owner as `ab41e42`.
+  - **Net effect:** the account-resolution blocker is now **half-closed** —
+    the schema field exists, but claims/policies still cannot run against
+    live Dataverse because nothing yet queries `crmshow_seedkey` to build
+    the `-AccountKeyMap` hashtable `Get-ClaimUpsertRequests` expects.
+  - **Resume next session with, in order:** (1) a `Get-AccountKeyMap`-style
+    resolver in `seed-advisor-cockpit.ps1` — query
+    `GET /accounts?$select=accountid,crmshow_seedkey&$filter=crmshow_seedkey ne null`
+    and build the hashtable (this is the concrete unblock — no further
+    owner decision needed for claims); (2) policies.json mapping, which
+    still separately needs a `crmshow_status` GlobalChoice value-mapping
+    decision plus the missing required fields noted above; (3) wire seeding
+    into the CD pipeline with a smoke check (5.3); (4) MDA app "Advisor
+    Cockpit" + the 2 custom pages (#64, Maker-Portal-attended step); (5) E2E
+    DEV→TEST evidence (#65).
 
