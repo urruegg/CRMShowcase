@@ -1,0 +1,46 @@
+{
+  "contractId": "crmshow.advisor-cockpit-app",
+  "version": "1.0.0",
+  "publisherUniqueName": "urruegg",
+  "sitemap": {
+    "uniqueName": "crmshow_advisorcockpitsitemap",
+    "name": "Advisor Cockpit Sitemap",
+    "isAppAware": true,
+    "showHome": false,
+    "showPinned": false,
+    "showRecents": false,
+    "enableCollapsibleGroups": false,
+    "areas": [
+      {
+        "id": "area_advisorcockpit",
+        "title": "Advisor Cockpit",
+        "groups": [
+          {
+            "id": "group_cockpit",
+            "title": "Cockpit",
+            "subAreas": [
+              { "id": "sub_advisorcockpit", "title": "Beratercockpit", "pageUniqueName": "crmshow_advisorcockpitpage" },
+              { "id": "sub_salesleaderdashboard", "title": "F\u00fchrungsdashboard", "pageUniqueName": "crmshow_salesleaderdashboardpage" }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "appModule": {
+    "uniqueName": "crmshow_advisorcockpitapp",
+    "name": "Advisor Cockpit",
+    "description": "Sales advisory cockpit and leader dashboard for the CRM Showcase.",
+    "clientType": "<CONFIRM-IN-TASK-1>",
+    "formFactor": "<CONFIRM-IN-TASK-1>",
+    "navigationType": 0
+  },
+  "components": [
+    { "type": "Sitemap", "referenceKind": "sitemapUniqueName", "reference": "crmshow_advisorcockpitsitemap" },
+    { "type": "CustomPage", "referenceKind": "pageUniqueName", "reference": "crmshow_advisorcockpitpage" },
+    { "type": "CustomPage", "referenceKind": "pageUniqueName", "reference": "crmshow_salesleaderdashboardpage" }
+  ],
+  "securityRoles": [
+    "CRM Showcase Insurance Reader"
+  ]
+}
