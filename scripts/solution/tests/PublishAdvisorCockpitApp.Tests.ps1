@@ -61,6 +61,11 @@ Describe 'publish-advisor-cockpit-app' {
         # pending the blocked Task 1 research spike). The real contract still
         # carries the "<CONFIRM-IN-TASK-1>" placeholder for both fields by
         # design, so it cannot be used as this test's input.
+        # TODO(Task 1): once clientType/formFactor are confirmed and the
+        # placeholders in solution/schema/advisor-cockpit-app.json are
+        # replaced with real values, switch this test back to loading
+        # $contract.appModule via Get-AdvisorCockpitAppContract (see the
+        # sitemap tests above for the pattern) instead of this fixture.
         $syntheticAppModule = [pscustomobject]@{
             name           = 'Advisor Cockpit'
             uniqueName     = 'crmshow_advisorcockpitapp'

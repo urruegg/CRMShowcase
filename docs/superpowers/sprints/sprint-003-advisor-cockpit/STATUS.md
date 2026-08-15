@@ -545,6 +545,45 @@ Live status for the Advisor Cockpit (charter **#55**). See the
   flagged before either merged). Updated the paragraph below to stop saying
   "once #106 merges" now that it has.
 
+- **2026-08-15 (MDA app publisher, Tasks 1–5 of the implementation plan;
+  `feat/s3-mda-app-publish`, not yet pushed/PR'd) -** Executing
+  [PR #109's plan](../../plans/2026-08-15-advisor-cockpit-mda-app.md) via the
+  subagent-driven-development workflow (implementer → spec-reviewer →
+  code-quality-reviewer per task).
+  - **Task 1 (live Dataverse research spike): blocked, deferred.** `az rest`
+    against `crmshowdev` fails with `Unauthorized`/"Interactive
+    authentication is needed" even after a fresh
+    `az login --use-device-code` re-auth (confirmed correct tenant/account
+    via `az account show`) — `pac org who` connects fine, isolating the
+    problem to how `az` (not `pac`) authenticates against this specific
+    Dataverse resource, not a simple stale-token issue. Root cause not
+    found; not re-attempting further login variations without new
+    information.
+  - **Task 2** (`Get-AdvisorCockpitAppContract` + contract JSON) and
+    **Task 4** (`ConvertTo-SitemapUpsertBody`, including an XML-escaping bug
+    the plan's own example code had — found via spec review, fixed with
+    `[System.Security.SecurityElement]::Escape()` + an adversarial test)
+    are done and reviewed.
+  - **Task 5** (`ConvertTo-AppModuleUpsertBody`) is done and reviewed, with
+    one deliberate, reviewed deviation from the plan's literal test: the
+    contract's `appModule.clientType`/`appModule.formFactor` are still the
+    `"<CONFIRM-IN-TASK-1>"` placeholder (Task 1 above is blocked), and these
+    two values are **not** inline-documented in the public Web API
+    reference the way e.g. `navigationtype` is (confirmed by checking the
+    `appmodule` EntityType page directly), so they cannot be resolved
+    without either live introspection or guessing — and per this repo's
+    "never invent a number" rule, guessing was not an option. `[int]"<CONFIRM-IN-TASK-1>"`
+    throws a cast exception, so the test now uses a synthetic
+    `[pscustomobject]` fixture (arbitrary `clientType`/`formFactor` test
+    doubles, clearly commented as such) instead of the real contract, to
+    exercise the mapping logic without depending on Task 1's still-unknown
+    values. **Follow-up, not yet done:** once Task 1 unblocks and the real
+    values are confirmed, swap this test back to consuming
+    `Get-AdvisorCockpitAppContract`'s real `appModule` output (a `TODO`
+    marker is left in the test file itself at the point of the fixture).
+  - 6/6 Pester green on `PublishAdvisorCockpitApp.Tests.ps1`. Continuing
+    with Tasks 6–10 next.
+
 ## Live DEV + TEST evidence
 
 Required by the [Sprint Operating Model's "Sprint closing" policy](../../SPRINT-OPERATING-MODEL.md#sprint-closing--required-dev--test-evidence)
