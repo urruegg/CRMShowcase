@@ -15,7 +15,7 @@ Live status for the Advisor Cockpit (charter **#55**). See the
 | foundational-tables | #57 | DESIGN-SENSITIVE | — | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | 5 tables incl. `crmshow_leadcluster`/`crmshow_claimprojection` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
 | cockpit-tables | #58 | EXECUTION-ONLY | feat/s3-phase3-cockpit-tables | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | `crmshow_nextbestaction`/`crmshow_nbaprovenance`/`crmshow_measuresnapshot` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
 | seed-pipeline | #60 (follow-up) | EXECUTION-ONLY | feat/s3-seed-claims-mapping, feat/s3-account-seedkey, feat/s3-account-keymap-resolver, feat/s3-account-upserts, feat/s3-cd-seed-wiring | #101 ✅ merged, #102 ✅ merged, #103 ✅ merged, #104 ✅ merged (docs), #105 ✅ merged, #106 ✅ merged | ✅ code-complete | claims.json mapped to `crmshow_claimprojection` + 14/14 Pester (#101); `crmshow_seedkey` added to `account` (#102, contract 1.2.0); `Get-AccountKeyMap` resolver auto-wired into `Invoke-AdvisorCockpitSeed` (#103, 17/17 Pester); account upserts (name/crmshow_accounttype/crmshow_seedkey) implemented via POST-or-PATCH-by-GUID since `account` has no registered Dataverse alternate key (#105, 22/22 Pester); `cd-solution-dev.yml` now calls `seed-advisor-cockpit.ps1` after convergence validation (2026-08-15) — code-complete end-to-end, not yet verified against a live dispatch; contacts/roles + policies.json deferred separately |
-| mda-app | #64 | DESIGN-SENSITIVE | feat/s3-mda-app-publish | #100 (docs), #110 | ⏳ #110 open, awaiting review | both PCF controls wrapped as real, build-verified PCF projects (AdvisorCockpit 259s/8.1MiB, SalesLeaderDashboard 74s/3.97MiB); `publish-advisor-cockpit-app.ps1` now implements the sitemap/app-module/component/role reconciliation end to end (10/10 plan tasks, 21/21 Pester) and is wired into `cd-solution-dev.yml` — not yet merged, not yet live-dispatched; blocked on Task 1's `clientType`/`formFactor`/`CustomPage`-componenttype placeholders (az Dataverse auth issue) and the 2 custom pages' Maker-Portal creation |
+| mda-app | #64 | DESIGN-SENSITIVE | feat/s3-mda-app-publish (deleted, merged) | #100 (docs), #110 ✅ merged | ✅ code-complete, not yet live-dispatched | both PCF controls wrapped as real, build-verified PCF projects (AdvisorCockpit 259s/8.1MiB, SalesLeaderDashboard 74s/3.97MiB); `publish-advisor-cockpit-app.ps1` implements the sitemap/app-module/component/role reconciliation end to end (10/10 plan tasks, 21/21 Pester, 2 Dataverse Web API protocol bugs found+fixed in review) and is wired into `cd-solution-dev.yml` (2026-08-15, merged `75d89c8`) — blocked on Task 1's `clientType`/`formFactor`/`CustomPage`-componenttype placeholders (az Dataverse auth issue) and the 2 custom pages' Maker-Portal creation before a live dispatch can succeed |
 | e2e-verify | #65 | EXECUTION-ONLY | — | — | ⏳ DEV-gated | DEV→TEST evidence |
 | nba-agent | #61 | DESIGN-SENSITIVE | — | — | ⏸ deferred | out of sprint; needs a use-case description |
 
@@ -642,6 +642,19 @@ Live status for the Advisor Cockpit (charter **#55**). See the
   opened **PR #110**, with the two protocol-bug fixes, the known Task-1
   limitations, and the non-blocking follow-ups all called out explicitly in
   the PR description. Not self-merged — awaiting `gate1` CI + human review.
+
+- **2026-08-15 (PR #110 merged as `75d89c8`) -** Owner confirmed "pr
+  approved"; verified merged (squash) via `gh pr view 110`, synced local
+  `main` (fast-forward, `2ce5d4c` → `75d89c8`), deleted
+  `feat/s3-mda-app-publish` locally and on the remote (safe post-merge
+  cleanup). **This closes the full MDA app implementation plan (#64) as
+  code-complete on `main`** — all 10 plan tasks, the two Dataverse Web API
+  protocol-bug fixes, and the CD-DEV wiring are now live in source control.
+  Still outstanding, unrelated to code quality: Task 1's live research spike
+  (az Dataverse auth still broken — `appModule.clientType`/`formFactor` and
+  the `CustomPage` componenttype value remain explicit placeholders), the 2
+  custom pages' Maker-Portal creation, and an actual live dispatch of the
+  updated `cd-solution-dev.yml` against DEV.
 
 ## Live DEV + TEST evidence
 
