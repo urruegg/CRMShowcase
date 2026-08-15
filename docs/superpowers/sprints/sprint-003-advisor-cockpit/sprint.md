@@ -41,7 +41,7 @@ DESIGN-SENSITIVE streams run **attended**; EXECUTION-ONLY may run headless.
 | foundation-choices | 1 | #56 | EXECUTION-ONLY | ✅ merged (PR #75) + addendum DEV-authored (2026-08-14, run 31805085480) |
 | foundational-tables (slices 1–5) | 2 | #57 | DESIGN-SENSITIVE | ✅ DEV-authored (2026-08-14, run 31805085480); source not yet intake-exported |
 | cockpit-tables (nba + provenance) | 3 | #58 | EXECUTION-ONLY | ✅ DEV-authored (2026-08-14, run 31805085480); source not yet intake-exported |
-| seed-pipeline wiring | 5.3 | #60 (follow-up) | EXECUTION-ONLY | ⏳ in progress — claims mapping, `crmshow_seedkey`, the `Get-AccountKeyMap` resolver, and account upserts all done (2026-08-14/15); account/claims code-complete end-to-end; still needs CD pipeline wiring; contacts/roles and policies deferred |
+| seed-pipeline wiring | 5.3 | #60 (follow-up) | EXECUTION-ONLY | ✅ code-complete (2026-08-14/15) — claims mapping, `crmshow_seedkey`, the `Get-AccountKeyMap` resolver, account upserts, and the CD-DEV pipeline step all done; not yet verified live; contacts/roles and policies deferred |
 | mda-app + custom pages | 9 | #64 | DESIGN-SENSITIVE | ⏳ in progress (attended) |
 | e2e DEV→TEST verify | 10 | #65 | EXECUTION-ONLY | ⏳ DEV-gated |
 | nba-agent (Copilot Studio) | 6 | #61 | DESIGN-SENSITIVE | ⏸ deferred (out of sprint) |
@@ -216,6 +216,28 @@ knowing before assuming one pipeline run fully converges a brand-new
 environment. 6 new Pester cases; `SeedAdvisorCockpit.Tests.ps1` now
 **22/22 green**.
 
+**Seed wired into the CD-DEV pipeline (2026-08-15).** Added a "Seed Advisor
+Cockpit demo data" step to `cd-solution-dev.yml`'s `author` job, right after
+"Validate complete demo convergence" and before the solution-package export
+step, calling `seed-advisor-cockpit.ps1 -EnvironmentUrl $env:POWER_PLATFORM_ENV_URL -Confirm:$false`
+— the same invocation style already used by the neighboring "Reconcile
+demo-safe metadata" step (no new auth wiring needed: `az rest` against
+Dataverse already works in this job via the existing `azure/login` OIDC
+sign-in, confirmed by cross-checking `Publish-InsuranceFoundation.ps1`'s
+identical `--resource` usage). A follow-up "Smoke-check seeded demo data"
+step queries `crmshow_measuresnapshots` for at least one record and fails
+the job if none exist — measures are unconditionally seeded every run (no
+account-resolution dependency), so this catches a silently-broken seed step
+without being brittle to the two-pass-convergence nuance below. YAML syntax
+verified with a Python `yaml` parse. **Not yet done: an actual live dispatch
+of the updated pipeline** — this PR only adds the steps; running it against
+live DEV is a separate, deliberate action for a future turn (per this
+session's established convention of never auto-dispatching CD-DEV without
+explicit confirmation). Given the two-pass-convergence limitation noted
+above, the **first** live run against a fresh DEV is expected to create
+accounts and skip claims (warning, not failure); a **second** dispatch is
+expected to then seed claims successfully.
+
 ## Definition of done
 
 - [x] Governance: ADR-0026/0027 + polish-loop pattern recorded (#66).
@@ -225,6 +247,6 @@ environment. 6 new Pester cases; `SeedAdvisorCockpit.Tests.ps1` now
 - [x] `SalesLeaderDashboard` PCF pixel-faithful to the mockup (#63).
 - [x] Foundation choices authored in DEV (#56 base, PR #75).
 - [x] #56 addendum choices + foundational/cockpit tables authored in DEV (#57/#58, run 31805085480, 2026-08-14) — intake-export into source control still pending.
-- [ ] Seed wired into the CD pipeline with smoke (#60 follow-up / 5.3) — claims mapping, `crmshow_seedkey` schema, the `Get-AccountKeyMap` resolver, and account upserts are all done (2026-08-14/15) — account/claims are code-complete end-to-end; still needs CD pipeline wiring; contact/role seeding and policies mapping (status-value decision) remain separately deferred.
+- [x] Seed wired into the CD pipeline with smoke (#60 follow-up / 5.3) — claims mapping, `crmshow_seedkey` schema, the `Get-AccountKeyMap` resolver, account upserts, and the CD-DEV pipeline step are all done (2026-08-14/15) — code-complete end-to-end; not yet verified against a live dispatch (expected to need 2 runs to fully converge a fresh environment, see above); contact/role seeding and policies mapping (status-value decision) remain separately deferred.
 - [ ] MDA app "Advisor Cockpit" + custom pages (#64) — both controls wrapped as real PCF + build-verified (2026-08-14); app module/sitemap + the 2 custom pages (Maker-Portal-only step) still pending.
 - [ ] E2E DEV→TEST evidence (#65).
