@@ -83,4 +83,27 @@ Describe 'publish-advisor-cockpit-app' {
         $body.navigationtype | Should -Be 0
         $body.'publisherid@odata.bind' | Should -Be '/publishers(11111111-1111-1111-1111-111111111111)'
     }
+
+    It 'resolves a known component type label to its Dataverse numeric value' {
+        ConvertTo-ComponentTypeValue -Type 'Sitemap' | Should -Be 62
+    }
+
+    It 'throws on an unknown component type rather than guessing a value' {
+        { ConvertTo-ComponentTypeValue -Type 'Dashboard' } | Should -Throw '*Dashboard*'
+    }
+
+    It 'builds a custom-page uniquename to GUID map from a live canvasapps query' {
+        Mock -CommandName az -MockWith {
+            '{"value":[{"canvasappid":"22222222-2222-2222-2222-222222222222","name":"crmshow_advisorcockpitpage"},{"canvasappid":"33333333-3333-3333-3333-333333333333","name":"crmshow_salesleaderdashboardpage"}]}'
+        }
+        $map = Get-CustomPageIdMap -EnvironmentUrl 'https://example.crm.dynamics.com' -PageUniqueNames @('crmshow_advisorcockpitpage', 'crmshow_salesleaderdashboardpage')
+        $map['crmshow_advisorcockpitpage'] | Should -Be '22222222-2222-2222-2222-222222222222'
+        $map['crmshow_salesleaderdashboardpage'] | Should -Be '33333333-3333-3333-3333-333333333333'
+    }
+
+    It 'throws when a referenced custom page does not exist yet in the environment' {
+        Mock -CommandName az -MockWith { '{"value":[]}' }
+        { Get-CustomPageIdMap -EnvironmentUrl 'https://example.crm.dynamics.com' -PageUniqueNames @('crmshow_missingpage') } |
+            Should -Throw '*crmshow_missingpage*'
+    }
 }

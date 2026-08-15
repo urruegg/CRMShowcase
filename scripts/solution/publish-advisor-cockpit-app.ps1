@@ -105,6 +105,57 @@ function ConvertTo-AppModuleUpsertBody {
     }
 }
 
+# Confirmed appmodulecomponent.componenttype values (Microsoft Learn,
+# fetched 2026-08-15). CustomPage's value is filled in from Task 1's
+# empirical finding -- update the number below once confirmed; every other
+# value here is already documentation-confirmed.
+$script:ComponentTypeValues = @{
+    Entities = 1
+    Views    = 26
+    Forms    = 60
+    Sitemap  = 62
+    CustomPage = -1  # <CONFIRM-IN-TASK-1> -- replace -1 with the real value.
+}
+
+function ConvertTo-ComponentTypeValue {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] [string]$Type)
+
+    if (-not $script:ComponentTypeValues.ContainsKey($Type)) {
+        throw "Unknown component type '$Type'. Known types: $($script:ComponentTypeValues.Keys -join ',')."
+    }
+    return $script:ComponentTypeValues[$Type]
+}
+
+# Resolves each of the given custom-page uniquenames to its live canvasapp
+# GUID. Throws immediately naming the missing page rather than silently
+# building an incomplete map -- a missing custom page means the Maker
+# Portal step (Task 1 Step 3 / design doc) has not happened yet for that
+# page, which the caller needs to know about explicitly.
+function Get-CustomPageIdMap {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] [string]$EnvironmentUrl,
+        [Parameter(Mandatory)] [string[]]$PageUniqueNames
+    )
+
+    $baseUrl = $EnvironmentUrl.TrimEnd('/')
+    $filter = ($PageUniqueNames | ForEach-Object { "name eq '$_'" }) -join ' or '
+    $url = "$baseUrl/api/data/v9.2/canvasapps?`$select=canvasappid,name&`$filter=$filter"
+    $response = az rest --method GET --url $url --resource "$baseUrl/" --only-show-errors | ConvertFrom-Json
+
+    $map = [ordered]@{}
+    foreach ($page in @($response.value)) {
+        $map[[string]$page.name] = [string]$page.canvasappid
+    }
+    foreach ($expected in $PageUniqueNames) {
+        if (-not $map.Contains($expected)) {
+            throw "Custom page '$expected' does not exist yet in $EnvironmentUrl -- create it in the Maker Portal first (see the design doc's Approach A)."
+        }
+    }
+    return $map
+}
+
 if ($MyInvocation.InvocationName -ne '.') {
     if ($EnvironmentUrl) {
         Write-Output 'Dry run scaffold -- publish orchestration lands in a later task.'
