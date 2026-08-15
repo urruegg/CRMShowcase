@@ -14,7 +14,7 @@ Live status for the Advisor Cockpit (charter **#55**). See the
 | foundation-choices | #56 | EXECUTION-ONLY | feat/sprint-003-foundation-choices | #75 | ✅ merged | +5 cockpit choices (nbastatus/nbachannel/productline/region/metrictype) in 4 languages; contract 1.1.0; authored in DEV by the CD pipeline (2026-08-12) |
 | foundational-tables | #57 | DESIGN-SENSITIVE | — | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | 5 tables incl. `crmshow_leadcluster`/`crmshow_claimprojection` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
 | cockpit-tables | #58 | EXECUTION-ONLY | feat/s3-phase3-cockpit-tables | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | `crmshow_nextbestaction`/`crmshow_nbaprovenance`/`crmshow_measuresnapshot` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
-| seed-pipeline | #60 (follow-up) | EXECUTION-ONLY | feat/s3-seed-claims-mapping, feat/s3-account-seedkey, feat/s3-account-keymap-resolver, feat/s3-account-upserts | #101 ✅ merged, #102 ✅ merged, #103 ✅ merged, #104 ✅ merged (docs), account-upserts PR open | ⏳ in progress | claims.json mapped to `crmshow_claimprojection` + 14/14 Pester (#101); `crmshow_seedkey` added to `account` (#102, contract 1.2.0); `Get-AccountKeyMap` resolver auto-wired into `Invoke-AdvisorCockpitSeed` (#103, 17/17 Pester); account upserts (name/crmshow_accounttype/crmshow_seedkey) implemented via POST-or-PATCH-by-GUID since `account` has no registered Dataverse alternate key (2026-08-15, 22/22 Pester) — account/claims now code-complete end-to-end; blocked only on CD pipeline wiring; contacts/roles + policies.json deferred separately |
+| seed-pipeline | #60 (follow-up) | EXECUTION-ONLY | feat/s3-seed-claims-mapping, feat/s3-account-seedkey, feat/s3-account-keymap-resolver, feat/s3-account-upserts, feat/s3-cd-seed-wiring | #101 ✅ merged, #102 ✅ merged, #103 ✅ merged, #104 ✅ merged (docs), #105 ✅ merged, cd-seed-wiring PR open | ✅ code-complete | claims.json mapped to `crmshow_claimprojection` + 14/14 Pester (#101); `crmshow_seedkey` added to `account` (#102, contract 1.2.0); `Get-AccountKeyMap` resolver auto-wired into `Invoke-AdvisorCockpitSeed` (#103, 17/17 Pester); account upserts (name/crmshow_accounttype/crmshow_seedkey) implemented via POST-or-PATCH-by-GUID since `account` has no registered Dataverse alternate key (#105, 22/22 Pester); `cd-solution-dev.yml` now calls `seed-advisor-cockpit.ps1` after convergence validation (2026-08-15) — code-complete end-to-end, not yet verified against a live dispatch; contacts/roles + policies.json deferred separately |
 | mda-app | #64 | DESIGN-SENSITIVE | — | #100 (docs) | ⏳ in progress (attended) | both PCF controls wrapped as real, build-verified PCF projects (AdvisorCockpit 259s/8.1MiB, SalesLeaderDashboard 74s/3.97MiB); app module + custom pages + sitemap not yet authored |
 | e2e-verify | #65 | EXECUTION-ONLY | — | — | ⏳ DEV-gated | DEV→TEST evidence |
 | nba-agent | #61 | DESIGN-SENSITIVE | — | — | ⏸ deferred | out of sprint; needs a use-case description |
@@ -492,4 +492,48 @@ Live status for the Advisor Cockpit (charter **#55**). See the
     fixture's "role" field), a separate increment from account upserts;
     (4) MDA app "Advisor Cockpit" + the 2 custom pages (#64,
     Maker-Portal-attended step); (5) E2E DEV→TEST evidence (#65).
-
+- **2026-08-15 (PR #105 merged; seed step wired into `cd-solution-dev.yml`,
+  stream 5.3 now code-complete) -** Owner confirmed "pr approved" for #105;
+  verified merged (`5d12d10`) and synced local `main`.
+  - Added a "Seed Advisor Cockpit demo data" step to the `author` job in
+    `cd-solution-dev.yml`, right after "Validate complete demo convergence"
+    and before the solution-package export step: calls
+    `seed-advisor-cockpit.ps1 -EnvironmentUrl $env:POWER_PLATFORM_ENV_URL -Confirm:$false`,
+    mirroring the exact invocation style of the neighboring "Reconcile
+    demo-safe metadata" step. No new authentication wiring needed — verified
+    by cross-checking `Publish-InsuranceFoundation.ps1`'s `Invoke-DataverseRequest`
+    uses the identical `az rest --resource $baseUrl/` pattern, so the job's
+    existing `azure/login` OIDC sign-in already covers it.
+  - Added a "Smoke-check seeded demo data" step right after it, querying
+    `crmshow_measuresnapshots` for at least one record and failing the job
+    if none exist — measures are unconditionally seeded every run (no
+    account-resolution dependency), so this is a stable smoke signal that
+    doesn't get tripped up by the two-pass-convergence nuance below.
+  - Verified the modified workflow YAML parses correctly with a Python
+    `yaml.safe_load` check (no native GitHub Actions linter available
+    locally). No PowerShell script logic changed, so no new Pester
+    coverage was needed for this specific change.
+  - **Not yet done: an actual live dispatch of the updated pipeline.** This
+    PR only adds the step — running it against live DEV is a separate,
+    deliberate action for a future turn, consistent with this session's
+    practice of never auto-dispatching CD-DEV without explicit
+    confirmation. Given the two-pass-convergence limitation from the prior
+    entry, the **first** live run against a fresh DEV is expected to create
+    accounts and skip claims (warning, not failure); a **second** dispatch
+    is expected to then seed claims successfully. This is the first real
+    opportunity to observe that behavior against a live environment rather
+    than mocked tests.
+  - `seed-pipeline` stream (5.3) is now **code-complete end-to-end** across
+    all its increments (#101/#102/#103/#105 + this pipeline-wiring PR).
+    Remaining work on this stream is either a live-verification step (not
+    yet run) or explicitly-deferred separate scope (contacts/roles,
+    policies.json).
+  - **Resume next session with, in order:** (1) dispatch `cd-solution-dev.yml`
+    against live DEV (twice, per the two-pass-convergence note) to get the
+    first live evidence of claims seeding actually working end-to-end —
+    this is a deliberate, explicit action, not something to do
+    automatically; (2) policies.json mapping (separate GlobalChoice
+    value-mapping decision needed — an owner call); (3) contact rows + the
+    `crmshow_accountcontactrole` junction (fixture "role" field), a
+    separate increment; (4) MDA app "Advisor Cockpit" + the 2 custom pages
+    (#64, Maker-Portal-attended step); (5) E2E DEV→TEST evidence (#65).
