@@ -43,7 +43,7 @@ DESIGN-SENSITIVE streams run **attended**; EXECUTION-ONLY may run headless.
 | cockpit-tables (nba + provenance) | 3 | #58 | EXECUTION-ONLY | ✅ DEV-authored (2026-08-14, run 31805085480); source not yet intake-exported |
 | seed-pipeline wiring | 5.3 | #60 (follow-up) | EXECUTION-ONLY | ✅ code-complete (2026-08-14/15) — claims mapping, `crmshow_seedkey`, the `Get-AccountKeyMap` resolver, account upserts, and the CD-DEV pipeline step all done; not yet verified live; contacts/roles and policies deferred |
 | mda-app + custom pages | 9 | #64 | DESIGN-SENSITIVE | ⏳ in progress (attended) |
-| e2e DEV→TEST verify | 10 | #65 | EXECUTION-ONLY | ⏳ DEV-gated |
+| e2e DEV→TEST verify | 10 | #65 | EXECUTION-ONLY | ⏳ DEV-gated — must produce a `## Live DEV + TEST evidence` section per the newly-anchored [Sprint Operating Model policy](../../SPRINT-OPERATING-MODEL.md#sprint-closing--required-dev--test-evidence) (2026-08-15) |
 | nba-agent (Copilot Studio) | 6 | #61 | DESIGN-SENSITIVE | ⏸ deferred (out of sprint) |
 
 #56 (foundation-choices, base + addendum) and #57/#58 (foundational + cockpit
@@ -249,4 +249,4 @@ expected to then seed claims successfully.
 - [x] #56 addendum choices + foundational/cockpit tables authored in DEV (#57/#58, run 31805085480, 2026-08-14) — intake-export into source control still pending.
 - [x] Seed wired into the CD pipeline with smoke (#60 follow-up / 5.3) — claims mapping, `crmshow_seedkey` schema, the `Get-AccountKeyMap` resolver, account upserts, and the CD-DEV pipeline step are all done (2026-08-14/15) — code-complete end-to-end; not yet verified against a live dispatch (expected to need 2 runs to fully converge a fresh environment, see above); contact/role seeding and policies mapping (status-value decision) remain separately deferred.
 - [ ] MDA app "Advisor Cockpit" + custom pages (#64) — both controls wrapped as real PCF + build-verified (2026-08-14); app module/sitemap + the 2 custom pages (Maker-Portal-only step) still pending.
-- [ ] E2E DEV→TEST evidence (#65).
+- [ ] E2E DEV→TEST evidence (#65) — per the [Sprint Operating Model's "Sprint closing"](../../SPRINT-OPERATING-MODEL.md#sprint-closing--required-dev--test-evidence) policy (anchored 2026-08-15): needs a `## Live DEV + TEST evidence` section in STATUS.md with (a) DEV run link + offline test pass/fail counts, and (b) a TEST promotion run link + step-by-step result table + TEST-side test/smoke counts, mirroring [sprint-002's promotion evidence](../sprint-002-insurance-foundation-promotion/STATUS.md). Not started — sequentially blocked behind #64 (MDA app).

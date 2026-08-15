@@ -170,6 +170,39 @@ topic A# -> use case -> ADR -> design spec (trunk)
 Every packet, branch, PR and `STATUS.md` row carries `#S` / `#N`, so a whole
 delegated run is auditable end to end.
 
+## Sprint closing — required DEV + TEST evidence
+
+*Anchored 2026-08-15, prompted mid-sprint-003 while its seed-pipeline stream
+was in review (PRs #101–#106).* Grounds
+[ADR-0017](../adr/ADR-0017-alm-everything-through-the-pipeline.md)'s "rollback
+must be demonstrable, not described" in a concrete, checkable requirement for
+every sprint charter, not just sprint-002's promotion-themed one.
+
+**A sprint is not closed on "the code merged to `main`" alone.** Its charter's
+Definition of Done must show, in the sprint's own `STATUS.md`, under a
+`## Live DEV + TEST evidence` heading:
+
+1. **DEV evidence** — the authoring/convergence pipeline (e.g. `cd-solution-dev.yml`)
+   run **green against live DEV**, linked by run URL, with the **offline test
+   suite's pass/fail counts** quoted alongside it (not just "CI is green" as a
+   bare claim — the actual numbers, e.g. "385 passed, 0 failed, 2 skipped").
+2. **TEST evidence** — the same change **promoted to TEST**, linked by run
+   URL, with a step-by-step result table (mirroring
+   [sprint-002's "Live promotion evidence"](./sprints/sprint-002-insurance-foundation-promotion/STATUS.md)
+   — one row per pipeline step, ✅/❌/⚠️, defects found and fixed called out
+   explicitly) and the TEST-side smoke/Pester result counts.
+3. **If a sprint's scope genuinely does not reach TEST** (e.g. a
+   documentation-only or research sprint), its Definition of Done must say so
+   **explicitly, with a reason** — never a silent omission. A missing DEV or
+   TEST evidence line reads as *not done*, not as *not applicable*.
+
+This is a closing-time requirement, not a per-PR one: individual stream PRs
+keep following their own `gate1` + evidence-in-PR convention as before: this
+section is what the **sprint charter's own Definition of Done** checks against
+before anyone calls the sprint closed. See
+[the sprint-charter issue template](../../.github/ISSUE_TEMPLATE/sprint-charter.md)
+for the checklist wording every new sprint charter now carries.
+
 ## The scripts
 
 | Script | Responsibility |
