@@ -15,7 +15,7 @@ Live status for the Advisor Cockpit (charter **#55**). See the
 | foundational-tables | #57 | DESIGN-SENSITIVE | — | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | 5 tables incl. `crmshow_leadcluster`/`crmshow_claimprojection` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
 | cockpit-tables | #58 | EXECUTION-ONLY | feat/s3-phase3-cockpit-tables | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | `crmshow_nextbestaction`/`crmshow_nbaprovenance`/`crmshow_measuresnapshot` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
 | seed-pipeline | #60 (follow-up) | EXECUTION-ONLY | feat/s3-seed-claims-mapping, feat/s3-account-seedkey, feat/s3-account-keymap-resolver, feat/s3-account-upserts, feat/s3-cd-seed-wiring | #101 ✅ merged, #102 ✅ merged, #103 ✅ merged, #104 ✅ merged (docs), #105 ✅ merged, #106 ✅ merged | ✅ code-complete | claims.json mapped to `crmshow_claimprojection` + 14/14 Pester (#101); `crmshow_seedkey` added to `account` (#102, contract 1.2.0); `Get-AccountKeyMap` resolver auto-wired into `Invoke-AdvisorCockpitSeed` (#103, 17/17 Pester); account upserts (name/crmshow_accounttype/crmshow_seedkey) implemented via POST-or-PATCH-by-GUID since `account` has no registered Dataverse alternate key (#105, 22/22 Pester); `cd-solution-dev.yml` now calls `seed-advisor-cockpit.ps1` after convergence validation (2026-08-15) — code-complete end-to-end, not yet verified against a live dispatch; contacts/roles + policies.json deferred separately |
-| mda-app | #64 | DESIGN-SENSITIVE | — | #100 (docs) | ⏳ in progress (attended) | both PCF controls wrapped as real, build-verified PCF projects (AdvisorCockpit 259s/8.1MiB, SalesLeaderDashboard 74s/3.97MiB); app module + custom pages + sitemap not yet authored |
+| mda-app | #64 | DESIGN-SENSITIVE | feat/s3-mda-app-publish | #100 (docs), PR pending | ⏳ code-complete, PR pending | both PCF controls wrapped as real, build-verified PCF projects (AdvisorCockpit 259s/8.1MiB, SalesLeaderDashboard 74s/3.97MiB); `publish-advisor-cockpit-app.ps1` now implements the sitemap/app-module/component/role reconciliation end to end (10/10 plan tasks, 21/21 Pester) and is wired into `cd-solution-dev.yml` — not yet merged, not yet live-dispatched; blocked on Task 1's `clientType`/`formFactor`/`CustomPage`-componenttype placeholders (az Dataverse auth issue) and the 2 custom pages' Maker-Portal creation |
 | e2e-verify | #65 | EXECUTION-ONLY | — | — | ⏳ DEV-gated | DEV→TEST evidence |
 | nba-agent | #61 | DESIGN-SENSITIVE | — | — | ⏸ deferred | out of sprint; needs a use-case description |
 
@@ -606,6 +606,33 @@ Live status for the Advisor Cockpit (charter **#55**). See the
     Pester suite by design (it never talks to a real server) — recorded in
     repo memory as a general Dataverse Web API lesson. 20/20 → 21/21
     Pester green.
+  - **Task 10** (wire into `cd-solution-dev.yml`) done — a "Publish Advisor
+    Cockpit app" step added between "Smoke-check seeded demo data" and
+    "Export managed and unmanaged solutions", resolving the publisher
+    (`urruegg`) and security-role (`CRM Showcase Insurance Reader`) ids via
+    two ad-hoc `az rest` lookups, with explicit not-found guards (beyond
+    the plan's literal text) before calling `Invoke-AdvisorCockpitAppPublish`
+    — no new secrets/permissions, reuses the job's existing OIDC session.
+    **All 10 plan tasks are now code-complete** on `feat/s3-mda-app-publish`.
+  - **Final whole-branch review** (independent of the per-task reviews
+    above): 21/21 on this stream's own tests + full repo suite 359/359
+    passed, 0 failed, 2 skipped (the one known-hanging file,
+    `Test-InsuranceFoundationConvergence.Tests.ps1`, was run separately per
+    its own documented characteristic — confirmed untouched by this
+    branch's diff, zero incremental risk). No secrets, no injection risk,
+    scope clean (5 files, all stream-relevant). Verdict
+    APPROVED_WITH_FOLLOWUPS; non-blocking follow-ups noted for a future
+    pass: `ConvertTo-ComponentTypeValue`/`$script:ComponentTypeValues` is
+    dead code (superseded by `Get-ComponentODataEntity` in Task 7 — zero
+    runtime risk, just vestigial), the orchestrator function lacks the
+    file's otherwise-universal leading rationale comment, and the two new
+    ad-hoc `az rest` lookups in the YAML step don't `TrimEnd('/')` the env
+    URL like the neighboring smoke-check step does (low risk — the
+    orchestrator itself still normalizes this internally).
+  - **Not yet done:** pushing this branch and opening a PR (next step);
+    Task 1's live research spike remains blocked on the unresolved `az`
+    Dataverse auth issue; no live dispatch of the updated pipeline has been
+    attempted.
 
 ## Live DEV + TEST evidence
 
