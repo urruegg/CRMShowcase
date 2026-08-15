@@ -83,6 +83,28 @@ function ConvertTo-SitemapUpsertBody {
     }
 }
 
+# Maps the contract's appModule section to an appmodule upsert body.
+# PublisherId is resolved by the caller (a live lookup, not part of the
+# contract) since the publisher already exists for every other solution
+# component in this repo -- see Get-PublisherId.
+function ConvertTo-AppModuleUpsertBody {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] $AppModule,
+        [Parameter(Mandatory)] [string]$PublisherId
+    )
+
+    [ordered]@{
+        name                        = [string]$AppModule.name
+        uniquename                  = [string]$AppModule.uniqueName
+        description                 = [string]$AppModule.description
+        clienttype                  = [int]$AppModule.clientType
+        formfactor                  = [int]$AppModule.formFactor
+        navigationtype              = [int]$AppModule.navigationType
+        'publisherid@odata.bind'    = "/publishers($PublisherId)"
+    }
+}
+
 if ($MyInvocation.InvocationName -ne '.') {
     if ($EnvironmentUrl) {
         Write-Output 'Dry run scaffold -- publish orchestration lands in a later task.'

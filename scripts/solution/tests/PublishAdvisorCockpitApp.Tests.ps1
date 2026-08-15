@@ -54,4 +54,28 @@ Describe 'publish-advisor-cockpit-app' {
         { [xml]$body.sitemapxml } | Should -Not -Throw
         $body.sitemapxml | Should -Match 'R&amp;D &lt;Ops&gt;'
     }
+
+    It 'converts an appModule object to an appmodule upsert body' {
+        # Synthetic fixture -- clientType/formFactor are arbitrary test doubles
+        # here, NOT confirmed real Dataverse values (those remain unresolved
+        # pending the blocked Task 1 research spike). The real contract still
+        # carries the "<CONFIRM-IN-TASK-1>" placeholder for both fields by
+        # design, so it cannot be used as this test's input.
+        $syntheticAppModule = [pscustomobject]@{
+            name           = 'Advisor Cockpit'
+            uniqueName     = 'crmshow_advisorcockpitapp'
+            description    = 'Sales advisory cockpit and leader dashboard for the CRM Showcase.'
+            clientType     = 0
+            formFactor     = 1
+            navigationType = 0
+        }
+        $body = ConvertTo-AppModuleUpsertBody -AppModule $syntheticAppModule -PublisherId '11111111-1111-1111-1111-111111111111'
+        $body.name | Should -Be 'Advisor Cockpit'
+        $body.uniquename | Should -Be 'crmshow_advisorcockpitapp'
+        $body.description | Should -Be 'Sales advisory cockpit and leader dashboard for the CRM Showcase.'
+        $body.clienttype | Should -Be 0
+        $body.formfactor | Should -Be 1
+        $body.navigationtype | Should -Be 0
+        $body.'publisherid@odata.bind' | Should -Be '/publishers(11111111-1111-1111-1111-111111111111)'
+    }
 }
