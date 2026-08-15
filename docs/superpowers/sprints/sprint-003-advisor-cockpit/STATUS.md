@@ -14,7 +14,7 @@ Live status for the Advisor Cockpit (charter **#55**). See the
 | foundation-choices | #56 | EXECUTION-ONLY | feat/sprint-003-foundation-choices | #75 | ✅ merged | +5 cockpit choices (nbastatus/nbachannel/productline/region/metrictype) in 4 languages; contract 1.1.0; authored in DEV by the CD pipeline (2026-08-12) |
 | foundational-tables | #57 | DESIGN-SENSITIVE | — | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | 5 tables incl. `crmshow_leadcluster`/`crmshow_claimprojection` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
 | cockpit-tables | #58 | EXECUTION-ONLY | feat/s3-phase3-cockpit-tables | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | `crmshow_nextbestaction`/`crmshow_nbaprovenance`/`crmshow_measuresnapshot` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
-| seed-pipeline | #60 (follow-up) | EXECUTION-ONLY | feat/s3-seed-claims-mapping, feat/s3-account-seedkey | #101 ✅ merged, #102 ✅ merged | ⏳ in progress | claims.json mapped to `crmshow_claimprojection` + 14/14 Pester (#101); `crmshow_seedkey` added to `account` (#102, contract 1.2.0); still needs a `Get-AccountKeyMap` resolver + CD pipeline wiring before it can run live; policies.json deferred separately |
+| seed-pipeline | #60 (follow-up) | EXECUTION-ONLY | feat/s3-seed-claims-mapping, feat/s3-account-seedkey, feat/s3-account-keymap-resolver | #101 ✅ merged, #102 ✅ merged, #103 ✅ merged | ⏳ in progress | claims.json mapped to `crmshow_claimprojection` + 14/14 Pester (#101); `crmshow_seedkey` added to `account` (#102, contract 1.2.0); `Get-AccountKeyMap` resolver auto-wired into `Invoke-AdvisorCockpitSeed` (#103, 17/17 Pester) — code-complete end-to-end; blocked only on DEV account seed-key data + CD pipeline wiring; policies.json deferred separately |
 | mda-app | #64 | DESIGN-SENSITIVE | — | #100 (docs) | ⏳ in progress (attended) | both PCF controls wrapped as real, build-verified PCF projects (AdvisorCockpit 259s/8.1MiB, SalesLeaderDashboard 74s/3.97MiB); app module + custom pages + sitemap not yet authored |
 | e2e-verify | #65 | EXECUTION-ONLY | — | — | ⏳ DEV-gated | DEV→TEST evidence |
 | nba-agent | #61 | DESIGN-SENSITIVE | — | — | ⏸ deferred | out of sprint; needs a use-case description |
@@ -398,4 +398,42 @@ Live status for the Advisor Cockpit (charter **#55**). See the
     into the CD pipeline with a smoke check (5.3); (4) MDA app "Advisor
     Cockpit" + the 2 custom pages (#64, Maker-Portal-attended step); (5) E2E
     DEV→TEST evidence (#65).
+
+- **2026-08-15 (`Get-AccountKeyMap` resolver merged, PR #103 as `10d2546` —
+  claims seeding now code-complete end-to-end) -** Owner confirmed "PR is
+  approved"; verified merged and synced local `main`.
+  - Implemented `Get-AccountKeyMap` in `seed-advisor-cockpit.ps1`: queries
+    live Dataverse (`GET /accounts?$select=accountid,crmshow_seedkey&$filter=crmshow_seedkey ne null`)
+    and builds the seed-key -> Account GUID map. `Invoke-AdvisorCockpitSeed`
+    now auto-resolves this map itself when the caller supplies none, so the
+    pipeline seed step (5.3) needs no extra wiring beyond
+    `Invoke-AdvisorCockpitSeed -EnvironmentUrl $url`. An explicit
+    `-AccountKeyMap` is still honored when supplied.
+  - 4 new Pester cases; `SeedAdvisorCockpit.Tests.ps1` now **17/17 green**.
+    Change remains isolated to this script's own test file.
+  - Not self-merged — merged by the owner as `10d2546`.
+  - **Net effect: the claims seeding path is now code-complete
+    end-to-end** — no remaining code gap. What remains is data, not code:
+    no live DEV account has a `crmshow_seedkey` value yet
+    (`accounts-contacts.json` seeding itself is still entirely
+    unimplemented — only declared in `Get-FixtureManifest`, no
+    `Get-AccountUpsertRequests` function exists), and policies.json mapping
+    is still separately deferred pending the `crmshow_status` GlobalChoice
+    value-mapping decision.
+  - **Caught and fixed a doc-staleness bug** while reconciling this: an
+    earlier paragraph in this same PR's own commit had described the
+    resolver as "still not done" — introduced because the sprint.md/
+    STATUS.md reconciliation pass was written *before* the resolver code in
+    the same working session, and the doc text was never revisited
+    afterward. Fixed both files' stream-table rows and narrative text to
+    stop contradicting themselves.
+  - **Resume next session with, in order:** (1) `accounts-contacts.json`
+    seeding — needs a `ConvertTo-AccountUpsertBody`/`Get-AccountUpsertRequests`
+    pair (following the claims TDD pattern) before any live account gets a
+    `crmshow_seedkey`, which is what actually exercises this whole chain
+    end-to-end; (2) policies.json mapping (separate GlobalChoice
+    value-mapping decision needed — an owner call, not a technical one);
+    (3) wire seeding into the CD pipeline with a smoke check (5.3); (4) MDA
+    app "Advisor Cockpit" + the 2 custom pages (#64, Maker-Portal-attended
+    step); (5) E2E DEV→TEST evidence (#65).
 
