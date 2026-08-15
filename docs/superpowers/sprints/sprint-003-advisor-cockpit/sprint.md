@@ -41,7 +41,7 @@ DESIGN-SENSITIVE streams run **attended**; EXECUTION-ONLY may run headless.
 | foundation-choices | 1 | #56 | EXECUTION-ONLY | ✅ merged (PR #75) + addendum DEV-authored (2026-08-14, run 31805085480) |
 | foundational-tables (slices 1–5) | 2 | #57 | DESIGN-SENSITIVE | ✅ DEV-authored (2026-08-14, run 31805085480); source not yet intake-exported |
 | cockpit-tables (nba + provenance) | 3 | #58 | EXECUTION-ONLY | ✅ DEV-authored (2026-08-14, run 31805085480); source not yet intake-exported |
-| seed-pipeline wiring | 5.3 | #60 (follow-up) | EXECUTION-ONLY | ⏳ in progress — claims mapped + tested (2026-08-14); `crmshow_seedkey` schema gap closed (2026-08-15, PR #102); account-GUID resolver + pipeline wiring + policies still pending |
+| seed-pipeline wiring | 5.3 | #60 (follow-up) | EXECUTION-ONLY | ⏳ in progress — claims mapping + `crmshow_seedkey` + `Get-AccountKeyMap` resolver all done (2026-08-14/15, PRs #101/#102/#103); code-complete end-to-end, blocked only on DEV account seed-key data + CD pipeline wiring; policies deferred |
 | mda-app + custom pages | 9 | #64 | DESIGN-SENSITIVE | ⏳ in progress (attended) |
 | e2e DEV→TEST verify | 10 | #65 | EXECUTION-ONLY | ⏳ DEV-gated |
 | nba-agent (Copilot Studio) | 6 | #61 | DESIGN-SENSITIVE | ⏸ deferred (out of sprint) |
@@ -172,11 +172,24 @@ keys aren't a supported pipeline capability at all today, custom-table-only),
 in the [design-doc addendum](../../specs/2026-08-14-advisor-cockpit-datamodel-scope-reduction-design.md).
 Flagged in the PR for Enterprise Architect review per `AGENTS.md` §Authority
 since it's a data-model change, even though additive/low-risk; merged as
-`ab41e42`. **Still not done:** the `Get-AccountKeyMap`-style resolver in
-`seed-advisor-cockpit.ps1` that queries Dataverse by this field and builds
-the `-AccountKeyMap` hashtable `Get-ClaimUpsertRequests` already expects —
-this is the concrete next step before claims (or policies) can actually run
-against live Dataverse.
+`ab41e42`.
+
+**`Get-AccountKeyMap` resolver implemented, closing the code gap
+(2026-08-15, PR #103, merged as `10d2546`).** Added `Get-AccountKeyMap` to
+`seed-advisor-cockpit.ps1`: queries live Dataverse
+(`GET /accounts?$select=accountid,crmshow_seedkey&$filter=crmshow_seedkey ne null`)
+and builds the seed-key → Account GUID map. `Invoke-AdvisorCockpitSeed` now
+auto-resolves this map itself when the caller supplies none, so the pipeline
+seed step (5.3) needs no extra wiring beyond
+`Invoke-AdvisorCockpitSeed -EnvironmentUrl $url`. 4 new Pester cases;
+`SeedAdvisorCockpit.Tests.ps1` now **17/17 green**. **Net effect: the claims
+seeding path is now code-complete end-to-end** — no remaining code gap. What
+remains is data, not code: no live DEV account has a `crmshow_seedkey` value
+yet (`accounts-contacts.json` seeding itself is still entirely unimplemented
+— only declared in `Get-FixtureManifest`, no `Get-AccountUpsertRequests`
+function exists), and policies.json mapping is still separately deferred
+pending the `crmshow_status` GlobalChoice value-mapping decision above.
+
 ## Definition of done
 
 - [x] Governance: ADR-0026/0027 + polish-loop pattern recorded (#66).
@@ -186,6 +199,6 @@ against live Dataverse.
 - [x] `SalesLeaderDashboard` PCF pixel-faithful to the mockup (#63).
 - [x] Foundation choices authored in DEV (#56 base, PR #75).
 - [x] #56 addendum choices + foundational/cockpit tables authored in DEV (#57/#58, run 31805085480, 2026-08-14) — intake-export into source control still pending.
-- [ ] Seed wired into the CD pipeline with smoke (#60 follow-up / 5.3) — claims mapping + tests done (2026-08-14); `crmshow_seedkey` schema gap closed (2026-08-15, PR #102); still needs the `Get-AccountKeyMap` resolver + CD pipeline wiring before it can run against live Dataverse; policies mapping deferred pending a status-value mapping decision.
+- [ ] Seed wired into the CD pipeline with smoke (#60 follow-up / 5.3) — claims mapping, `crmshow_seedkey` schema, and the `Get-AccountKeyMap` resolver are all done (2026-08-14/15, PRs #101/#102/#103) — code-complete end-to-end; still needs CD pipeline wiring plus at least one DEV account with a populated `crmshow_seedkey` before it runs live; policies mapping deferred pending a status-value mapping decision.
 - [ ] MDA app "Advisor Cockpit" + custom pages (#64) — both controls wrapped as real PCF + build-verified (2026-08-14); app module/sitemap + the 2 custom pages (Maker-Portal-only step) still pending.
 - [ ] E2E DEV→TEST evidence (#65).
