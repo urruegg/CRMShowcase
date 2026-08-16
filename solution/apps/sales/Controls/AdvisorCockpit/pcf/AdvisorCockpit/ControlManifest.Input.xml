@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest>
-  <control namespace="crmshow" constructor="AdvisorCockpit" version="1.0.1" display-name-key="AdvisorCockpit" description-key="Advisor Cockpit page-level dashboard (Sprint-003 #62/#64)" control-type="standard">
+  <control namespace="PCF" constructor="AdvisorCockpit" version="1.0.2" display-name-key="CRMShow_AdvisorCockpit" description-key="Advisor Cockpit page-level dashboard (Sprint-003 #62/#64)" control-type="standard">
     <!--
       Standard (not virtual) control-type: this control bundles its own React 18 +
       Fluent UI v9 runtime (see index.ts) instead of using the platform-provided
