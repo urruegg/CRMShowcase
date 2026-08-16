@@ -58,8 +58,10 @@ jobs:
         run: |
           $out = Join-Path $env:RUNNER_TEMP 'promote'
           New-Item -ItemType Directory -Force -Path $out | Out-Null
-          ./scripts/solution/Export-Solution.ps1 -SolutionName crmshow_Foundation -OutFile (Join-Path $out 'crmshow_Foundation_managed.zip') -Managed
-          ./scripts/solution/Export-Solution.ps1 -SolutionName crmshow_DataModel  -OutFile (Join-Path $out 'crmshow_DataModel_managed.zip')  -Managed
+          ./scripts/solution/Export-Solution.ps1 -SolutionName crmshow_Foundation  -OutFile (Join-Path $out 'crmshow_Foundation_managed.zip')  -Managed
+          ./scripts/solution/Export-Solution.ps1 -SolutionName crmshow_DataModel   -OutFile (Join-Path $out 'crmshow_DataModel_managed.zip')   -Managed
+          ./scripts/solution/Export-Solution.ps1 -SolutionName crmshow_Integration -OutFile (Join-Path $out 'crmshow_Integration_managed.zip') -Managed
+          ./scripts/solution/Export-Solution.ps1 -SolutionName crmshow_Sales       -OutFile (Join-Path $out 'crmshow_Sales_managed.zip')       -Managed
       - name: Assert excluded components are absent from the package
         shell: pwsh
         run: |
@@ -117,12 +119,15 @@ jobs:
         run: |
           & ./infra/scripts/Set-DataverseLanguages.ps1 -EnvironmentUrl $env:POWER_PLATFORM_ENV_URL -LocaleId 1033,1031,1036,1040
           if ($LASTEXITCODE -ne 0) { throw 'TEST language preflight failed.' }
-      - name: Import managed (Foundation then DataModel)
+      - name: Import managed (Foundation, DataModel, Integration, Sales)
         shell: pwsh
         run: |
+          # Import order follows solution/manifest.json dependsOn: Foundation <- DataModel/Integration <- Sales.
           $out = Join-Path $env:RUNNER_TEMP 'promote'
-          ./scripts/solution/Import-Solution.ps1 -ZipFile (Join-Path $out 'crmshow_Foundation_managed.zip') -Mode ${{ inputs.mode }} -PublishChanges
-          ./scripts/solution/Import-Solution.ps1 -ZipFile (Join-Path $out 'crmshow_DataModel_managed.zip')  -Mode ${{ inputs.mode }} -PublishChanges
+          ./scripts/solution/Import-Solution.ps1 -ZipFile (Join-Path $out 'crmshow_Foundation_managed.zip')  -Mode ${{ inputs.mode }} -PublishChanges
+          ./scripts/solution/Import-Solution.ps1 -ZipFile (Join-Path $out 'crmshow_DataModel_managed.zip')   -Mode ${{ inputs.mode }} -PublishChanges
+          ./scripts/solution/Import-Solution.ps1 -ZipFile (Join-Path $out 'crmshow_Integration_managed.zip') -Mode ${{ inputs.mode }} -PublishChanges
+          ./scripts/solution/Import-Solution.ps1 -ZipFile (Join-Path $out 'crmshow_Sales_managed.zip')       -Mode ${{ inputs.mode }} -PublishChanges
       - name: Smoke evidence
         shell: pwsh
         run: |
