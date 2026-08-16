@@ -58,7 +58,7 @@ Both systems run in parallel during a defined migration window. A reconciliation
 
 ## Key diagram
 
-The diagram below shows the shared integration surface that applies to every option: ARO publishes case and quote events to Confluent Cloud Kafka; CRM consumes them as read-only projections that feed the AG-F-01 NBA agent in the Advisory Cockpit. This is the decided common contract — the options above differ only in what happens to Opportunity ownership on top of this foundation.
+The diagram below shows the shared integration surface that applies to every option: ARO publishes case and quote events to Confluent Cloud Kafka; CRM consumes them as read-only projections that feed the AG-F-01 NBA agent in the Advisory Cockpit. This common integration surface is assumed across all three options — no option has been selected yet — and they differ only in what happens to Opportunity ownership on top of this foundation.
 
 ```mermaid
 flowchart LR
