@@ -21,7 +21,7 @@
 > GA** are illustrative, following the same convention as ADR-0013's GA
 > territory model. The customer's actual Entra ID group taxonomy, naming
 > convention, and whether groups are already organised by GA are unconfirmed —
-> flagged the same way ADR-0019's Siebel specifics and ADR-0025's
+> flagged the same way ADR-0019's Siebel specifics and ADR-0031's
 > Versicherungsprozesse/Schadenprozesse names were flagged.
 
 ## Context
@@ -67,8 +67,8 @@ This ADR does **not** pick an option. It documents four credible,
 Microsoft-documented patterns — verified against Microsoft Learn, not
 invented — so the Enterprise Architect and the customer's IT stakeholders can
 choose with the trade-offs in front of them, exactly as
-[ADR-0024](./ADR-0024-dataverse-to-databricks-integration-pattern.md) and
-[ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md)
+[ADR-0030](./ADR-0030-dataverse-to-databricks-integration-pattern.md) and
+[ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md)
 did before it.
 
 ## Options
@@ -583,7 +583,7 @@ stakeholder as required reviewers.
   administration versus Dataverse Security Role administration becomes a
   new RACI line in [SHARED-RESPONSIBILITY.md](../SHARED-RESPONSIBILITY.md)
   — A9 — alongside the Confluent Cloud topic ownership question raised in
-  [ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md).
+  [ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md).
 - **Reversibility.** High for Options A, C, and D — native configuration,
   easy to unwind or disable. Medium for Option B — a custom service to
   decommission if replaced later.

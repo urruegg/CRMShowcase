@@ -13,7 +13,7 @@
 | **Upgrade impact** | Low for Option A (native, already-in-product features) · Medium–High for Option B (new tenant-wide Purview configuration, sensitivity label taxonomy design, and licence tier change) · Medium for Option C (spread over time, same end-state cost as Option B but staged) |
 | **CAF methodology** | Secure · Govern — this is squarely a landing-zone security/governance decision about how the customer's tenant-wide compliance posture extends into the CRM's Dataverse/Dynamics 365 surface |
 | **WAF pillar(s)** | Primary: Security (data classification, DLP, auditability) and Operational Excellence (which governance capabilities are actually operated day to day). Trade-off against: Cost Optimization (Purview's fuller capabilities are licence-gated) |
-| **Zero Trust** | Extends the "verify explicitly" and "assume breach" posture already established for identity in [ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md) into the **data** dimension: not just who can access a record, but what sensitivity that record carries, whether it can leave the tenant boundary, and whether that access was subsequently audited |
+| **Zero Trust** | Extends the "verify explicitly" and "assume breach" posture already established for identity in [ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md) into the **data** dimension: not just who can access a record, but what sensitivity that record carries, whether it can leave the tenant boundary, and whether that access was subsequently audited |
 | **Responsible AI** | Directly closes gaps in [docs/COMPLIANCE.md](../COMPLIANCE.md)'s "not legal advice" skeleton: Purview Compliance Manager gives a concrete assessment mechanism for the GDPR/revDSG/financial-regulator-outsourcing `[TBD]` rows; Purview Data Lifecycle Management is the concrete mechanism behind the "Retention & deletion" `[TBD]` row. `AG-F-01`'s NBA-driven outbound and `AG-F-04`'s transcript/summary write-backs must respect whichever DLP/sensitivity posture is chosen — an AI-drafted communication must not bypass a control a human-drafted one would have to pass |
 
 > **Illustrative naming note.** Two mechanisms share the word "DLP" and are
@@ -55,7 +55,7 @@ Three things already decided elsewhere bound this ADR's scope:
    where a DLP or sensitivity-label control could apply — this ADR asks
    *whether and how deeply* to add that control, not whether the outbound
    path itself should change.
-3. [ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md)
+3. [ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md)
    already establishes the Entra-to-security-role identity mechanics and
    explicitly flagged, in its own text, that it "gives a concrete,
    demonstrable answer to the compliance/regulatory attestation question
@@ -71,7 +71,7 @@ Scope, as agreed with the user:
   customer and how (a legal/DPO determination, tracked as `[TBD]` in
   [docs/COMPLIANCE.md](../COMPLIANCE.md)); the consent mechanism itself
   ([ADR-0010](./ADR-0010-consent-per-contact-per-channel.md)); the identity/
-  security-role mechanics ([ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md)).
+  security-role mechanics ([ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md)).
 - **Validating use case.** **AG-F-01 Next-Best-Action Agent** (Advisory
   Cockpit) and **AG-F-04 Conversation Intelligence & Transcript Agent** —
   illustrated below with an advisor sending an AI-assisted, NBA-triggered
@@ -150,7 +150,7 @@ flowchart TD
     subgraph DVA["Dataverse / Dynamics 365"]
         ACCA["Account / Contact / Interaction"]
         AUDITA["Native Dataverse\nauditing (change history)"]
-        ROLESA["Security roles + Business Units\n(ADR-0026)"]
+        ROLESA["Security roles + Business Units\n(ADR-0032)"]
     end
     subgraph PPA["Power Platform admin center"]
         DATAPOLA["Data policies\n(connector classification)"]
@@ -165,7 +165,7 @@ flowchart TD
 | --- | --- | --- |
 | Power Platform admin center — Data policies | Native connector business/non-business/blocked classification | Prevents unsafe connector combinations in flows/apps touching CRM data |
 | Dataverse native auditing | Built-in change-history logging | Who changed what field, when — no separate licence |
-| Security roles + Business Units ([ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md)) | Native access segregation | Already decided elsewhere, reused unchanged |
+| Security roles + Business Units ([ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md)) | Native access segregation | Already decided elsewhere, reused unchanged |
 | Generic tenant-wide Purview posture (if any) | Whatever Purview configuration already exists for Exchange/SharePoint/Teams | Unrelated to CRM specifically — not extended by this option |
 
 - **Pros.** No incremental licence cost — every capability here is already
@@ -376,7 +376,7 @@ flowchart LR
   decisions" section).
 - **Design pattern.** Staged rollout with an explicit evidence-based
   trigger for the next phase — the same phased-coexistence lineage as
-  [ADR-0030](./ADR-0030-crm-lead-campaign-external-landscape.md)'s Part 2
+  [ADR-0036](./ADR-0036-crm-lead-campaign-external-landscape.md)'s Part 2
   Option C.
 - **Licence.** Phase 1 has no incremental cost. Phase 2 incurs Option B's
   full licence cost, but deferred in time, which may better match a
@@ -450,7 +450,7 @@ front of it, not to pre-empt it.
   exists as a draft skeleton with explicit `[TBD]` rows. [ADR-0010](./ADR-0010-consent-per-contact-per-channel.md)
   already establishes the consent gate. [ADR-0016](./ADR-0016-governed-outbound.md)
   already establishes the outbound message routing this ADR's DLP options
-  attach to. [ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md)
+  attach to. [ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md)
   already establishes the identity/security-role mechanics and explicitly
   names this as "the next ADR (Purview)." Every specific Purview capability
   cited above (Data Map/Dataverse scanning, Dynamics 365 email sensitivity
@@ -482,7 +482,7 @@ front of it, not to pre-empt it.
 - If Option C is chosen, agree and record an explicit, measurable Phase 2
   trigger before proceeding, so "phased" does not quietly become
   "permanent Phase 1" by inertia.
-- Re-review once [ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md)
+- Re-review once [ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md)
   moves from proposed to accepted, since its security-role design is a
   direct input to how Purview's classification/audit surfaces map back to
   who is accountable for what.
