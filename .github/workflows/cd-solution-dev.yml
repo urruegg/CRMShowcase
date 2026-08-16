@@ -151,6 +151,48 @@ jobs:
           $exitCode = $LASTEXITCODE
           if ($exitCode -ne 0) { throw 'Demo convergence validation failed.' }
 
+      - name: Seed Advisor Cockpit demo data
+        shell: pwsh
+        run: |
+          $root = $env:GITHUB_WORKSPACE
+          & (Join-Path $root 'scripts/solution/seed-advisor-cockpit.ps1') `
+            -EnvironmentUrl $env:POWER_PLATFORM_ENV_URL `
+            -Confirm:$false
+          if ($LASTEXITCODE -ne 0) { throw 'Advisor Cockpit demo data seeding failed.' }
+
+      - name: Smoke-check seeded demo data
+        shell: pwsh
+        run: |
+          $baseUrl = $env:POWER_PLATFORM_ENV_URL.TrimEnd('/')
+          $url = "$baseUrl/api/data/v9.2/crmshow_measuresnapshots?`$select=crmshow_measuresnapshotid&`$top=1"
+          $response = az rest --method GET --url $url --resource "$baseUrl/" --only-show-errors | ConvertFrom-Json
+          if (@($response.value).Count -lt 1) {
+            throw 'Smoke check failed: no crmshow_measuresnapshot records found after seeding.'
+          }
+          Write-Output 'Smoke check passed: measure-snapshot records present.'
+
+      - name: Publish Advisor Cockpit app
+        shell: pwsh
+        run: |
+          $root = $env:GITHUB_WORKSPACE
+          . (Join-Path $root 'scripts/solution/publish-advisor-cockpit-app.ps1')
+          $publisherId = (az rest --method GET --url "$env:POWER_PLATFORM_ENV_URL/api/data/v9.2/publishers?`$select=publisherid&`$filter=uniquename eq 'urruegg'" --resource "$env:POWER_PLATFORM_ENV_URL/" --only-show-errors | ConvertFrom-Json).value[0].publisherid
+          $roleId = (az rest --method GET --url "$env:POWER_PLATFORM_ENV_URL/api/data/v9.2/roles?`$select=roleid&`$filter=name eq 'CRM Showcase Insurance Reader'" --resource "$env:POWER_PLATFORM_ENV_URL/" --only-show-errors | ConvertFrom-Json).value[0].roleid
+          if (-not $publisherId) { throw "Publisher 'urruegg' not found in $env:POWER_PLATFORM_ENV_URL -- cannot resolve appmodule.publisherid@odata.bind." }
+          if (-not $roleId) { throw "Security role 'CRM Showcase Insurance Reader' not found in $env:POWER_PLATFORM_ENV_URL -- cannot associate it with the app." }
+          Invoke-AdvisorCockpitAppPublish -EnvironmentUrl $env:POWER_PLATFORM_ENV_URL -PublisherId $publisherId -RoleIds @{ 'CRM Showcase Insurance Reader' = $roleId } -Confirm:$false
+          if ($LASTEXITCODE -ne 0) { throw 'Advisor Cockpit app publish failed.' }
+
+      - name: Sync solution versions to manifest.json
+        shell: pwsh
+        run: |
+          $root = $env:GITHUB_WORKSPACE
+          & (Join-Path $root 'scripts/solution/Set-SolutionVersions.ps1') `
+            -EnvironmentUrl $env:POWER_PLATFORM_ENV_URL `
+            -Build $env:GITHUB_RUN_NUMBER `
+            -Confirm:$false
+          if ($LASTEXITCODE -ne 0) { throw 'Solution version sync failed.' }
+
       - name: Export managed and unmanaged solutions
         shell: pwsh
         run: |

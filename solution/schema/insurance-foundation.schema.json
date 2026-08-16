@@ -134,18 +134,70 @@
     "nativeExtension": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["table", "logicalName", "schemaName", "type", "choice", "required", "auditing", "solution", "metadata"],
+      "required": ["table", "logicalName", "schemaName", "type", "required", "auditing", "solution", "metadata"],
       "properties": {
-        "table": { "enum": ["account", "contact"] },
+        "table": { "enum": ["account", "contact", "lead", "incident"] },
         "logicalName": { "$ref": "#/$defs/customLogicalName" },
         "schemaName": { "$ref": "#/$defs/schemaName" },
-        "type": { "const": "GlobalChoice" },
-        "choice": { "$ref": "#/$defs/customLogicalName" },
+        "type": {
+          "enum": ["Text", "DateOnly", "DateTime", "GlobalChoice", "Lookup", "Whole", "TwoOptions"]
+        },
         "required": { "type": "boolean" },
         "auditing": { "type": "boolean" },
+        "maxLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4000
+        },
+        "format": {
+          "enum": ["Text", "DateOnly", "UTC"]
+        },
+        "choice": { "$ref": "#/$defs/customLogicalName" },
+        "lookup": { "$ref": "#/$defs/lookup" },
+        "minValue": { "type": "integer" },
+        "maxValue": { "type": "integer" },
         "solution": { "const": "crmshow_DataModel" },
         "metadata": { "$ref": "#/$defs/semanticMetadata" }
-      }
+      },
+      "oneOf": [
+        {
+          "required": ["maxLength", "format"],
+          "properties": {
+            "type": { "const": "Text" },
+            "format": { "const": "Text" }
+          },
+          "not": { "anyOf": [ { "required": ["lookup"] }, { "required": ["choice"] }, { "required": ["minValue"] }, { "required": ["maxValue"] } ] }
+        },
+        {
+          "required": ["lookup"],
+          "properties": { "type": { "const": "Lookup" } },
+          "not": { "anyOf": [ { "required": ["choice"] }, { "required": ["maxLength"] }, { "required": ["format"] }, { "required": ["minValue"] }, { "required": ["maxValue"] } ] }
+        },
+        {
+          "required": ["choice"],
+          "properties": { "type": { "const": "GlobalChoice" } },
+          "not": { "anyOf": [ { "required": ["lookup"] }, { "required": ["maxLength"] }, { "required": ["format"] }, { "required": ["minValue"] }, { "required": ["maxValue"] } ] }
+        },
+        {
+          "required": ["format"],
+          "properties": { "type": { "const": "DateOnly" }, "format": { "const": "DateOnly" } },
+          "not": { "anyOf": [ { "required": ["lookup"] }, { "required": ["choice"] }, { "required": ["maxLength"] }, { "required": ["minValue"] }, { "required": ["maxValue"] } ] }
+        },
+        {
+          "required": ["format"],
+          "properties": { "type": { "const": "DateTime" }, "format": { "const": "UTC" } },
+          "not": { "anyOf": [ { "required": ["lookup"] }, { "required": ["choice"] }, { "required": ["maxLength"] }, { "required": ["minValue"] }, { "required": ["maxValue"] } ] }
+        },
+        {
+          "required": ["minValue", "maxValue"],
+          "properties": { "type": { "const": "Whole" } },
+          "not": { "anyOf": [ { "required": ["lookup"] }, { "required": ["choice"] }, { "required": ["maxLength"] }, { "required": ["format"] } ] }
+        },
+        {
+          "properties": { "type": { "const": "TwoOptions" } },
+          "not": { "anyOf": [ { "required": ["lookup"] }, { "required": ["choice"] }, { "required": ["maxLength"] }, { "required": ["format"] }, { "required": ["minValue"] }, { "required": ["maxValue"] } ] }
+        }
+      ]
     },
     "lookup": {
       "type": "object",
@@ -158,7 +210,7 @@
           "uniqueItems": true,
           "items": {
             "type": "string",
-            "pattern": "^(?:account|contact|crmshow_[a-z][a-z0-9]*)$"
+            "pattern": "^(?:account|contact|lead|incident|crmshow_[a-z][a-z0-9]*)$"
           }
         },
         "authoring": {
@@ -174,7 +226,7 @@
         "logicalName": { "$ref": "#/$defs/customLogicalName" },
         "schemaName": { "$ref": "#/$defs/schemaName" },
         "type": {
-          "enum": ["Text", "DateOnly", "DateTime", "GlobalChoice", "Lookup", "Customer"]
+          "enum": ["Text", "DateOnly", "DateTime", "GlobalChoice", "Lookup", "Customer", "Whole", "Money", "TwoOptions"]
         },
         "required": { "type": "boolean" },
         "auditing": { "type": "boolean" },
@@ -188,6 +240,8 @@
         },
         "choice": { "$ref": "#/$defs/customLogicalName" },
         "lookup": { "$ref": "#/$defs/lookup" },
+        "minValue": { "type": "integer" },
+        "maxValue": { "type": "integer" },
         "metadata": { "$ref": "#/$defs/semanticMetadata" }
       },
       "oneOf": [
@@ -279,6 +333,50 @@
               { "required": ["maxLength"] }
             ]
           }
+        },
+        {
+          "required": ["minValue", "maxValue"],
+          "properties": {
+            "type": { "const": "Whole" }
+          },
+          "not": {
+            "anyOf": [
+              { "required": ["lookup"] },
+              { "required": ["choice"] },
+              { "required": ["maxLength"] },
+              { "required": ["format"] }
+            ]
+          }
+        },
+        {
+          "properties": {
+            "type": { "const": "Money" }
+          },
+          "not": {
+            "anyOf": [
+              { "required": ["lookup"] },
+              { "required": ["choice"] },
+              { "required": ["maxLength"] },
+              { "required": ["format"] },
+              { "required": ["minValue"] },
+              { "required": ["maxValue"] }
+            ]
+          }
+        },
+        {
+          "properties": {
+            "type": { "const": "TwoOptions" }
+          },
+          "not": {
+            "anyOf": [
+              { "required": ["lookup"] },
+              { "required": ["choice"] },
+              { "required": ["maxLength"] },
+              { "required": ["format"] },
+              { "required": ["minValue"] },
+              { "required": ["maxValue"] }
+            ]
+          }
         }
       ]
     },
@@ -313,7 +411,7 @@
           "uniqueItems": true,
           "items": {
             "type": "string",
-            "pattern": "^(?:account|contact|crmshow_[a-z][a-z0-9]*)$"
+            "pattern": "^(?:account|contact|lead|incident|crmshow_[a-z][a-z0-9]*)$"
           }
         },
         "direction": { "const": "ManyToOne" },
@@ -420,7 +518,7 @@
       "properties": {
         "table": {
           "type": "string",
-          "pattern": "^(?:account|contact|crmshow_[a-z][a-z0-9]*)$"
+          "pattern": "^(?:account|contact|lead|incident|crmshow_[a-z][a-z0-9]*)$"
         },
         "depth": { "const": "Organization" },
         "privileges": {

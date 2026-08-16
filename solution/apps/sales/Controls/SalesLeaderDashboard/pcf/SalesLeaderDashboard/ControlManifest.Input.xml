@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<manifest>
+  <control namespace="PCF" constructor="SalesLeaderDashboard" version="1.0.1" display-name-key="CRMShow_SalesLeaderDashboard" description-key="Sales Leader Dashboard page-level dashboard (Sprint-003 #63/#64)" control-type="standard">
+    <!--
+      Standard (not virtual) control-type: this control bundles its own React 18 +
+      Fluent UI v9 runtime (see index.ts) instead of using the platform-provided
+      React 16 library, because the already-built, already-tested component in
+      ../src/SalesLeaderDashboard.tsx (merged PR #74, 8/8 vitest) uses React 18
+      APIs. Reusing that component as-is (per the polish-loop pattern) requires
+      bundling React 18 rather than adopting the older platform-library version.
+    -->
+    <external-service-usage enabled="false" />
+    <!--
+      PCF schema requires at least one property/data-set node. This control
+      currently renders fixture data internally (see index.ts); this optional
+      property is an unused placeholder until live Dataverse binding lands.
+    -->
+    <property name="boundData" display-name-key="Bound data (reserved)" description-key="Reserved for future Dataverse binding; unused while the control renders fixture data." of-type="SingleLine.Text" usage="input" required="false" />
+    <resources>
+      <code path="index.ts" order="1" />
+    </resources>
+  </control>
+</manifest>

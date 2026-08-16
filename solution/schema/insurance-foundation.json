@@ -1,7 +1,7 @@
 {
   "$schema": "./insurance-foundation.schema.json",
   "contractId": "crmshow.insurance-foundation",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "languages": ["1033", "1031", "1036", "1040"],
   "solutions": ["crmshow_Foundation", "crmshow_DataModel"],
   "choices": [
@@ -221,7 +221,9 @@
         {"code":"Email","metadata":{"label":{"1033":"Email","1031":"E-Mail","1036":"E-mail","1040":"E-mail"},"description":{"1033":"Suggests email as the contact channel, subject to consent.","1031":"Schlägt E-Mail als Kontaktkanal vor, vorbehaltlich der Einwilligung.","1036":"Suggère l’e-mail comme canal, sous réserve du consentement.","1040":"Suggerisce l’e-mail come canale, previo consenso."}}},
         {"code":"Teams","metadata":{"label":{"1033":"Teams","1031":"Teams","1036":"Teams","1040":"Teams"},"description":{"1033":"Suggests a Microsoft Teams meeting as the channel.","1031":"Schlägt eine Microsoft-Teams-Besprechung als Kanal vor.","1036":"Suggère une réunion Microsoft Teams comme canal.","1040":"Suggerisce una riunione Microsoft Teams come canale."}}},
         {"code":"OnSite","metadata":{"label":{"1033":"On-Site","1031":"Vor Ort","1036":"Sur place","1040":"In loco"},"description":{"1033":"Suggests an in-person, on-site meeting.","1031":"Schlägt ein persönliches Treffen vor Ort vor.","1036":"Suggère une rencontre en personne sur place.","1040":"Suggerisce un incontro di persona in loco."}}},
-        {"code":"ClickToCall","metadata":{"label":{"1033":"Click-to-Call","1031":"Click-to-Call","1036":"Clic pour appeler","1040":"Clic per chiamare"},"description":{"1033":"Suggests an assisted click-to-call initiated from the cockpit.","1031":"Schlägt einen unterstützten Click-to-Call aus dem Cockpit vor.","1036":"Suggère un clic pour appeler assisté depuis le cockpit.","1040":"Suggerisce un clic per chiamare assistito dal cockpit."}}}
+        {"code":"ClickToCall","metadata":{"label":{"1033":"Click-to-Call","1031":"Click-to-Call","1036":"Clic pour appeler","1040":"Clic per chiamare"},"description":{"1033":"Suggests an assisted click-to-call initiated from the cockpit.","1031":"Schlägt einen unterstützten Click-to-Call aus dem Cockpit vor.","1036":"Suggère un clic pour appeler assisté depuis le cockpit.","1040":"Suggerisce un clic per chiamare assistito dal cockpit."}}},
+        {"code":"Task","metadata":{"label":{"1033":"Task","1031":"Aufgabe","1036":"Tâche","1040":"Attività"},"description":{"1033":"Suggests creating or completing a work task rather than a customer-facing contact.","1031":"Schlägt das Erstellen oder Erledigen einer Arbeitsaufgabe statt eines Kundenkontakts vor.","1036":"Suggère de créer ou de terminer une tâche de travail plutôt qu'un contact client.","1040":"Suggerisce di creare o completare un'attività di lavoro anziché un contatto con il cliente."}}},
+        {"code":"Appointment","metadata":{"label":{"1033":"Appointment","1031":"Termin","1036":"Rendez-vous","1040":"Appuntamento"},"description":{"1033":"Suggests a scheduled appointment without specifying the modality; use a more specific channel when the modality is known.","1031":"Schlägt einen vereinbarten Termin vor, ohne die Modalität festzulegen; bei bekannter Modalität einen spezifischeren Kanal verwenden.","1036":"Suggère un rendez-vous planifié sans préciser la modalité; utiliser un canal plus précis lorsque la modalité est connue.","1040":"Suggerisce un appuntamento pianificato senza specificare la modalità; usare un canale più specifico quando la modalità è nota."}}}
       ]
     },
     {
@@ -292,6 +294,79 @@
         {"code":"Satisfaction","metadata":{"label":{"1033":"Satisfaction","1031":"Zufriedenheit","1036":"Satisfaction","1040":"Soddisfazione"},"description":{"1033":"Customer-satisfaction measure.","1031":"Kennzahl zur Kundenzufriedenheit.","1036":"Mesure de la satisfaction client.","1040":"Misura della soddisfazione del cliente."}}},
         {"code":"Quality","metadata":{"label":{"1033":"Quality","1031":"Qualität","1036":"Qualité","1040":"Qualità"},"description":{"1033":"Quality measure, in percent.","1031":"Qualitätskennzahl, in Prozent.","1036":"Mesure de qualité, en pourcentage.","1040":"Misura di qualità, in percentuale."}}}
       ]
+    },
+    {
+      "logicalName":"crmshow_nbacategory","schemaName":"crmshow_NbaCategory","solution":"crmshow_Foundation",
+      "metadata":{
+        "label":{"1033":"Next-Best-Action Category","1031":"Kategorie der nächstbesten Aktion","1036":"Catégorie de la prochaine meilleure action","1040":"Categoria della prossima azione migliore"},
+        "description":{
+          "1033":"CRM-owned urgency/opportunity grouping for an advisory Next-Best-Action recommendation, used for triage; it is never an automated customer-facing act.",
+          "1031":"CRM-eigene Dringlichkeits-/Chancen-Gruppierung einer beratenden Next-Best-Action-Empfehlung zur Triage; sie ist nie eine automatisierte kundengerichtete Handlung.",
+          "1036":"Regroupement CRM d'urgence/d'opportunité pour une recommandation de prochaine meilleure action, utilisé pour le tri; ce n'est jamais un acte client automatisé.",
+          "1040":"Raggruppamento CRM di urgenza/opportunità per una raccomandazione Next-Best-Action, usato per la selezione; non è mai un'azione automatica verso il cliente."
+        },
+        "mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Advisory recommendation triage only; agents recommend, humans decide.","lifecycle":"Set when the recommendation is produced; may be re-evaluated."
+      },
+      "options":[
+        {"code":"Urgent","metadata":{"label":{"1033":"Urgent","1031":"Dringend","1036":"Urgent","1040":"Urgente"},"description":{"1033":"A time-boxed recommendation that loses value quickly if not actioned soon.","1031":"Eine zeitkritische Empfehlung, die schnell an Wert verliert, wenn sie nicht bald bearbeitet wird.","1036":"Une recommandation limitée dans le temps qui perd rapidement de la valeur si elle n'est pas traitée bientôt.","1040":"Una raccomandazione a tempo che perde rapidamente valore se non affrontata a breve."}}},
+        {"code":"Risk","metadata":{"label":{"1033":"Risk","1031":"Risiko","1036":"Risque","1040":"Rischio"},"description":{"1033":"A recommendation flagging exposure to churn, lapse, or service failure.","1031":"Eine Empfehlung, die auf ein Risiko für Abwanderung, Vertragsablauf oder Servicemangel hinweist.","1036":"Une recommandation signalant un risque d'attrition, d'échéance ou de défaillance de service.","1040":"Una raccomandazione che segnala il rischio di abbandono, scadenza o disservizio."}}},
+        {"code":"Opportunity","metadata":{"label":{"1033":"Opportunity","1031":"Chance","1036":"Opportunité","1040":"Opportunità"},"description":{"1033":"A recommendation identifying potential upsell, cross-sell, or new demand.","1031":"Eine Empfehlung, die mögliches Zusatz- oder Cross-Selling-Potenzial oder neue Nachfrage aufzeigt.","1036":"Une recommandation identifiant un potentiel de vente additionnelle, croisée ou une nouvelle demande.","1040":"Una raccomandazione che individua un potenziale di upsell, cross-sell o nuova domanda."}}},
+        {"code":"Retention","metadata":{"label":{"1033":"Retention","1031":"Retention","1036":"Rétention","1040":"Fidelizzazione"},"description":{"1033":"A recommendation aimed at keeping an existing relationship or contract in force.","1031":"Eine Empfehlung mit dem Ziel, eine bestehende Beziehung oder einen bestehenden Vertrag zu erhalten.","1036":"Une recommandation visant à maintenir une relation ou un contrat existant.","1040":"Una raccomandazione volta a mantenere in vigore una relazione o un contratto esistente."}}},
+        {"code":"Insight","metadata":{"label":{"1033":"Insight","1031":"Insight","1036":"Insight","1040":"Insight"},"description":{"1033":"An informational recommendation without required action, such as a scheduling or efficiency observation.","1031":"Eine informative Empfehlung ohne erforderliche Handlung, zum Beispiel eine Terminplanungs- oder Effizienzbeobachtung.","1036":"Une recommandation informative sans action requise, par exemple une observation de planification ou d'efficacité.","1040":"Una raccomandazione informativa senza azione richiesta, ad esempio un'osservazione di pianificazione o efficienza."}}}
+      ]
+    },
+    {
+      "logicalName":"crmshow_leadqueuestatus","schemaName":"crmshow_LeadQueueStatus","solution":"crmshow_Foundation",
+      "metadata":{
+        "label":{"1033":"Lead Queue Status","1031":"Status der Lead-Warteschlange","1036":"Statut de la file d'attente des leads","1040":"Stato della coda dei lead"},
+        "description":{
+          "1033":"CRM-owned triage/queue position of a Lead in the advisor's daily work queue; distinct from the native Lead status which governs qualification itself.",
+          "1031":"CRM-eigene Triage-/Warteschlangenposition eines Leads in der täglichen Arbeitswarteschlange der Beratungsperson; unterscheidet sich vom nativen Lead-Status, der die Qualifizierung selbst steuert.",
+          "1036":"Position de tri CRM d'un lead dans la file d'attente quotidienne du conseiller; distincte du statut natif du lead qui régit la qualification elle-même.",
+          "1040":"Posizione di selezione CRM di un lead nella coda di lavoro quotidiana del consulente; distinta dallo stato nativo del lead che governa la qualificazione stessa."
+        },
+        "mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Advisor work-queue triage only; does not replace native Lead qualification status.","lifecycle":"Changes as the advisor triages the daily lead queue."
+      },
+      "options":[
+        {"code":"New","metadata":{"label":{"1033":"New","1031":"Neu","1036":"Nouveau","1040":"Nuovo"},"description":{"1033":"A lead newly placed in the advisor's queue, not yet triaged.","1031":"Ein neu in die Warteschlange der Beratungsperson eingereihter, noch nicht gesichteter Lead.","1036":"Un lead nouvellement placé dans la file d'attente du conseiller, pas encore trié.","1040":"Un lead appena inserito nella coda del consulente, non ancora selezionato."}}},
+        {"code":"InProgress","metadata":{"label":{"1033":"In Progress","1031":"In Arbeit","1036":"En cours","1040":"In corso"},"description":{"1033":"A lead the advisor is actively working.","1031":"Ein Lead, an dem die Beratungsperson aktiv arbeitet.","1036":"Un lead que le conseiller traite activement.","1040":"Un lead su cui il consulente sta lavorando attivamente."}}},
+        {"code":"Bundled","metadata":{"label":{"1033":"Bundled","1031":"Gebündelt","1036":"Groupé","1040":"Raggruppato"},"description":{"1033":"A lead grouped with related leads for the same household or business into one visit or contact.","1031":"Ein Lead, der mit verwandten Leads desselben Haushalts oder Unternehmens zu einem Besuch oder Kontakt gebündelt wurde.","1036":"Un lead regroupé avec des leads apparentés du même ménage ou de la même entreprise en une seule visite ou un seul contact.","1040":"Un lead raggruppato con lead correlati dello stesso nucleo familiare o impresa in un'unica visita o contatto."}}},
+        {"code":"Linking","metadata":{"label":{"1033":"Linking","1031":"Verknüpfen","1036":"À relier","1040":"Da collegare"},"description":{"1033":"A lead pending an explicit link to its household or business cluster.","1031":"Ein Lead, dessen Verknüpfung zu seinem Haushalts- oder Unternehmenscluster noch aussteht.","1036":"Un lead en attente d'un lien explicite avec son groupe ménage ou entreprise.","1040":"Un lead in attesa di un collegamento esplicito al proprio cluster familiare o aziendale."}}},
+        {"code":"Primary","metadata":{"label":{"1033":"Primary","1031":"Primär","1036":"Prioritaire","1040":"Prioritario"},"description":{"1033":"The lead an advisor should act on first within its cluster or queue.","1031":"Der Lead, den die Beratungsperson innerhalb seines Clusters oder der Warteschlange zuerst bearbeiten sollte.","1036":"Le lead sur lequel le conseiller doit agir en premier au sein de son groupe ou de sa file d'attente.","1040":"Il lead su cui il consulente deve agire per primo all'interno del proprio cluster o coda."}}}
+      ]
+    },
+    {
+      "logicalName":"crmshow_mastershipstatus","schemaName":"crmshow_MastershipStatus","solution":"crmshow_Foundation",
+      "metadata":{
+        "label":{"1033":"Mastership Status","1031":"Datenführungsstatus","1036":"Statut de maîtrise des données","1040":"Stato di gestione dei dati"},
+        "description":{
+          "1033":"Whether this Account or Contact's core identity data is currently authored in CRM or mastered by the core insurance system; it does not affect CRM relationship ownership or record access.",
+          "1031":"Gibt an, ob die Kernidentitätsdaten dieses Kontos oder Kontakts derzeit im CRM erfasst oder vom Versicherungs-Kernsystem geführt werden; betrifft weder die CRM-Beziehungsverantwortung noch den Datensatzzugriff.",
+          "1036":"Indique si les données d'identité principales de ce compte ou contact sont actuellement saisies dans le CRM ou gérées par le système central d'assurance; n'affecte ni la responsabilité relationnelle CRM ni l'accès à l'enregistrement.",
+          "1040":"Indica se i dati identificativi principali di questo account o contatto sono attualmente gestiti nel CRM o dal sistema centrale assicurativo; non incide sulla responsabilità relazionale CRM né sull'accesso al record."
+        },
+        "mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Technical integration visibility on the standard form only; not a relationship or access control.","lifecycle":"Switches from CRMOwned to SourceMastered once the core system takes over identity mastership."
+      },
+      "options":[
+        {"code":"CRMOwned","metadata":{"label":{"1033":"CRM-Owned","1031":"CRM-geführt","1036":"Géré par le CRM","1040":"Gestito dal CRM"},"description":{"1033":"This record's core identity data is currently authored and maintained in CRM, typically during the prospect stage before a contract exists.","1031":"Die Kernidentitätsdaten dieses Datensatzes werden derzeit im CRM erfasst und gepflegt, typischerweise in der Interessentenphase vor Vertragsabschluss.","1036":"Les données d'identité principales de cet enregistrement sont actuellement saisies et gérées dans le CRM, généralement pendant la phase de prospect avant l'existence d'un contrat.","1040":"I dati identificativi principali di questo record sono attualmente redatti e mantenuti nel CRM, tipicamente nella fase di potenziale cliente prima dell'esistenza di un contratto."}}},
+        {"code":"SourceMastered","metadata":{"label":{"1033":"Source-Mastered","1031":"Quellgeführt","1036":"Géré par la source","1040":"Gestito dalla fonte"},"description":{"1033":"This record's core identity data is mastered by the core insurance system and synced back to CRM; CRM should not be treated as authoritative for these attributes.","1031":"Die Kernidentitätsdaten dieses Datensatzes werden vom Versicherungs-Kernsystem geführt und ins CRM zurücksynchronisiert; das CRM ist für diese Attribute nicht massgebend.","1036":"Les données d'identité principales de cet enregistrement sont gérées par le système central d'assurance et resynchronisées vers le CRM; le CRM ne doit pas être considéré comme faisant autorité pour ces attributs.","1040":"I dati identificativi principali di questo record sono gestiti dal sistema centrale assicurativo e risincronizzati verso il CRM; il CRM non deve essere considerato autorevole per questi attributi."}}}
+      ]
+    },
+    {
+      "logicalName":"crmshow_mastersystem","schemaName":"crmshow_MasterSystem","solution":"crmshow_Foundation",
+      "metadata":{
+        "label":{"1033":"Master System","1031":"Führendes System","1036":"Système maître","1040":"Sistema master"},
+        "description":{
+          "1033":"Names the external system currently mastering this Account or Contact's core identity data, when mastership has switched away from CRM; blank while CRM-owned.",
+          "1031":"Benennt das externe System, das derzeit die Kernidentitätsdaten dieses Kontos oder Kontakts führt, sofern die Führung vom CRM abgegeben wurde; leer solange CRM-geführt.",
+          "1036":"Nomme le système externe qui gère actuellement les données d'identité principales de ce compte ou contact, lorsque la maîtrise a été transférée hors du CRM; vide tant que géré par le CRM.",
+          "1040":"Indica il sistema esterno che attualmente gestisce i dati identificativi principali di questo account o contatto, quando la gestione è passata dal CRM; vuoto finché gestito dal CRM."
+        },
+        "mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Technical integration visibility on the standard form only.","lifecycle":"Populated when mastership switches away from CRM."
+      },
+      "options":[
+        {"code":"PDV","metadata":{"label":{"1033":"PDV","1031":"PDV","1036":"PDV","1040":"PDV"},"description":{"1033":"Partner Daten Verwaltung — the insurer's core partner/party data management system.","1031":"Partner Daten Verwaltung — das Kernsystem des Versicherers für Partner-/Kundenstammdaten.","1036":"Partner Daten Verwaltung — le système central de gestion des données partenaires/clients de l'assureur.","1040":"Partner Daten Verwaltung — il sistema centrale dell'assicuratore per la gestione dei dati anagrafici dei partner."}}}
+      ]
     }
   ],
   "nativeExtensions": [
@@ -319,6 +394,253 @@
           "1040":"Maturità facoltativa della relazione gestita dal CRM con una persona esistente; non è stato di polizza o rischio né consenso marketing."
         },
         "mastership":"CRMOwned","sensitivity":"Personal","permittedUse":"Relationship management, not consent or eligibility.","lifecycle":"May change with reviewed CRM relationship maturity."
+      }
+    },
+    {
+      "table":"account","logicalName":"crmshow_mastershipstatus","schemaName":"crmshow_MastershipStatus","type":"GlobalChoice","choice":"crmshow_mastershipstatus","required":true,"auditing":true,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Mastership Status","1031":"Datenführungsstatus","1036":"Statut de maîtrise des données","1040":"Stato di gestione dei dati"},
+        "description":{
+          "1033":"Whether this Account's core identity data is currently authored in CRM (prospect stage) or mastered by the core insurance system (PDV) once a contract exists; technical integration status only, shown on the standard form.",
+          "1031":"Gibt an, ob die Kernidentitätsdaten dieses Kontos derzeit im CRM erfasst werden (Interessentenphase) oder vom Versicherungs-Kernsystem (PDV) geführt werden, sobald ein Vertrag besteht; rein technischer Integrationsstatus auf dem Standardformular.",
+          "1036":"Indique si les données d'identité principales de ce compte sont actuellement saisies dans le CRM (phase de prospect) ou gérées par le système central d'assurance (PDV) dès qu'un contrat existe; statut technique d'intégration affiché sur le formulaire standard.",
+          "1040":"Indica se i dati identificativi principali di questo account sono attualmente gestiti nel CRM (fase di potenziale cliente) o dal sistema centrale assicurativo (PDV) una volta esistente un contratto; stato tecnico di integrazione mostrato sul modulo standard."
+        },
+        "mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Technical integration visibility on the standard form only.","lifecycle":"Defaults to CRMOwned at creation; switches to SourceMastered once PDV takes over."
+      }
+    },
+    {
+      "table":"account","logicalName":"crmshow_mastersystem","schemaName":"crmshow_MasterSystem","type":"GlobalChoice","choice":"crmshow_mastersystem","required":false,"auditing":true,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Master System","1031":"Führendes System","1036":"Système maître","1040":"Sistema master"},
+        "description":{
+          "1033":"The external system mastering this Account's core identity data once mastership has switched away from CRM; blank while CRM-owned.",
+          "1031":"Das externe System, das die Kernidentitätsdaten dieses Kontos führt, sobald die Führung vom CRM abgegeben wurde; leer solange CRM-geführt.",
+          "1036":"Le système externe qui gère les données d'identité principales de ce compte une fois la maîtrise transférée hors du CRM; vide tant que géré par le CRM.",
+          "1040":"Il sistema esterno che gestisce i dati identificativi principali di questo account una volta trasferita la gestione dal CRM; vuoto finché gestito dal CRM."
+        },
+        "mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Technical integration visibility on the standard form only.","lifecycle":"Populated when crmshow_mastershipstatus switches to SourceMastered."
+      }
+    },
+    {
+      "table":"account","logicalName":"crmshow_lastsyncedon","schemaName":"crmshow_LastSyncedOn","type":"DateTime","format":"UTC","required":false,"auditing":true,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Last Synced On","1031":"Zuletzt synchronisiert am","1036":"Dernière synchronisation le","1040":"Ultima sincronizzazione il"},
+        "description":{
+          "1033":"UTC instant of the last successful sync of this Account's core identity data from its master system; blank while CRM-owned.",
+          "1031":"UTC-Zeitpunkt der letzten erfolgreichen Synchronisation der Kernidentitätsdaten dieses Kontos aus dem führenden System; leer solange CRM-geführt.",
+          "1036":"Instant UTC de la dernière synchronisation réussie des données d'identité principales de ce compte depuis son système maître; vide tant que géré par le CRM.",
+          "1040":"Istante UTC dell'ultima sincronizzazione riuscita dei dati identificativi principali di questo account dal sistema master; vuoto finché gestito dal CRM."
+        },
+        "mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Technical integration freshness indicator on the standard form only.","lifecycle":"Updated on every successful sync from the master system."
+      }
+    },
+    {
+      "table":"account","logicalName":"crmshow_seedkey","schemaName":"crmshow_SeedKey","type":"Text","maxLength":100,"format":"Text","required":false,"auditing":true,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Seed Key","1031":"Seed-Schlüssel","1036":"Clé de seed","1040":"Chiave di seed"},
+        "description":{
+          "1033":"Demo-only synthetic identifier letting the pipeline seed loader resolve this Account idempotently from fixture data; not a production business field, never shown on a form, and carries no meaning outside the showcase's own seed scripts.",
+          "1031":"Rein demobezogener synthetischer Bezeichner, der es dem Pipeline-Seed-Loader ermöglicht, dieses Konto anhand von Fixture-Daten idempotent aufzulösen; kein Geschäftsfeld, wird auf keinem Formular angezeigt und hat ausserhalb der Seed-Skripte des Showcases keine Bedeutung.",
+          "1036":"Identifiant synthétique réservé à la démonstration, permettant au chargeur de seed du pipeline de résoudre ce compte de façon idempotente à partir des données de fixture ; ce n'est pas un champ métier, jamais affiché sur un formulaire, et sans signification hors des scripts de seed de la démo.",
+          "1040":"Identificatore sintetico solo dimostrativo che consente al loader di seed della pipeline di risolvere questo account in modo idempotente a partire dai dati fixture; non è un campo di business, non viene mai mostrato su un modulo e non ha alcun significato al di fuori degli script di seed della demo."
+        },
+        "mastership":"Configuration","sensitivity":"Internal","permittedUse":"Dataverse seed-pipeline resolution only \u2014 not a production business field, never shown on a form or used in a business decision.","lifecycle":"Set once by the seed loader at demo-data creation; not maintained afterwards."
+      }
+    },
+    {
+      "table":"contact","logicalName":"crmshow_mastershipstatus","schemaName":"crmshow_MastershipStatus","type":"GlobalChoice","choice":"crmshow_mastershipstatus","required":true,"auditing":true,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Mastership Status","1031":"Datenführungsstatus","1036":"Statut de maîtrise des données","1040":"Stato di gestione dei dati"},
+        "description":{
+          "1033":"Whether this Contact's core identity data is currently authored in CRM (prospect stage) or mastered by the core insurance system (PDV) once a contract exists; technical integration status only, shown on the standard form.",
+          "1031":"Gibt an, ob die Kernidentitätsdaten dieses Kontakts derzeit im CRM erfasst werden (Interessentenphase) oder vom Versicherungs-Kernsystem (PDV) geführt werden, sobald ein Vertrag besteht; rein technischer Integrationsstatus auf dem Standardformular.",
+          "1036":"Indique si les données d'identité principales de ce contact sont actuellement saisies dans le CRM (phase de prospect) ou gérées par le système central d'assurance (PDV) dès qu'un contrat existe; statut technique d'intégration affiché sur le formulaire standard.",
+          "1040":"Indica se i dati identificativi principali di questo contatto sono attualmente gestiti nel CRM (fase di potenziale cliente) o dal sistema centrale assicurativo (PDV) una volta esistente un contratto; stato tecnico di integrazione mostrato sul modulo standard."
+        },
+        "mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Technical integration visibility on the standard form only.","lifecycle":"Defaults to CRMOwned at creation; switches to SourceMastered once PDV takes over."
+      }
+    },
+    {
+      "table":"contact","logicalName":"crmshow_mastersystem","schemaName":"crmshow_MasterSystem","type":"GlobalChoice","choice":"crmshow_mastersystem","required":false,"auditing":true,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Master System","1031":"Führendes System","1036":"Système maître","1040":"Sistema master"},
+        "description":{
+          "1033":"The external system mastering this Contact's core identity data once mastership has switched away from CRM; blank while CRM-owned.",
+          "1031":"Das externe System, das die Kernidentitätsdaten dieses Kontakts führt, sobald die Führung vom CRM abgegeben wurde; leer solange CRM-geführt.",
+          "1036":"Le système externe qui gère les données d'identité principales de ce contact une fois la maîtrise transférée hors du CRM; vide tant que géré par le CRM.",
+          "1040":"Il sistema esterno che gestisce i dati identificativi principali di questo contatto una volta trasferita la gestione dal CRM; vuoto finché gestito dal CRM."
+        },
+        "mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Technical integration visibility on the standard form only.","lifecycle":"Populated when crmshow_mastershipstatus switches to SourceMastered."
+      }
+    },
+    {
+      "table":"contact","logicalName":"crmshow_lastsyncedon","schemaName":"crmshow_LastSyncedOn","type":"DateTime","format":"UTC","required":false,"auditing":true,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Last Synced On","1031":"Zuletzt synchronisiert am","1036":"Dernière synchronisation le","1040":"Ultima sincronizzazione il"},
+        "description":{
+          "1033":"UTC instant of the last successful sync of this Contact's core identity data from its master system; blank while CRM-owned.",
+          "1031":"UTC-Zeitpunkt der letzten erfolgreichen Synchronisation der Kernidentitätsdaten dieses Kontakts aus dem führenden System; leer solange CRM-geführt.",
+          "1036":"Instant UTC de la dernière synchronisation réussie des données d'identité principales de ce contact depuis son système maître; vide tant que géré par le CRM.",
+          "1040":"Istante UTC dell'ultima sincronizzazione riuscita dei dati identificativi principali di questo contatto dal sistema master; vuoto finché gestito dal CRM."
+        },
+        "mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Technical integration freshness indicator on the standard form only.","lifecycle":"Updated on every successful sync from the master system."
+      }
+    },
+    {
+      "table":"contact","logicalName":"crmshow_consentemail","schemaName":"crmshow_ConsentEmail","type":"TwoOptions","required":false,"auditing":true,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Consent — Email","1031":"Einwilligung — E-Mail","1036":"Consentement — E-mail","1040":"Consenso — E-mail"},
+        "description":{
+          "1033":"A simple per-channel consent flag for email contact; this is a minimal stand-in for the full per-contact/per-channel/per-purpose consent model in ADR-0010 and must never gate a real send on its own.",
+          "1031":"Ein einfaches Kanal-Einwilligungskennzeichen für die Kontaktaufnahme per E-Mail; dies ist ein minimaler Platzhalter für das vollständige Einwilligungsmodell je Kontakt/Kanal/Zweck aus ADR-0010 und darf allein keinen echten Versand freigeben.",
+          "1036":"Un simple indicateur de consentement par canal pour le contact par e-mail; il s'agit d'un substitut minimal au modèle complet de consentement par contact/canal/finalité de l'ADR-0010 et ne doit jamais, à lui seul, autoriser un envoi réel.",
+          "1040":"Un semplice indicatore di consenso per canale per il contatto via e-mail; è un sostituto minimo del modello completo di consenso per contatto/canale/finalità dell'ADR-0010 e non deve mai, da solo, autorizzare un invio reale."
+        },
+        "mastership":"CRMOwned","sensitivity":"Personal","permittedUse":"Demo-scale display only; not a compliant consent gate.","lifecycle":"Set when captured; superseded by the full crmshow_consent table when built."
+      }
+    },
+    {
+      "table":"contact","logicalName":"crmshow_consentphone","schemaName":"crmshow_ConsentPhone","type":"TwoOptions","required":false,"auditing":true,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Consent — Phone","1031":"Einwilligung — Telefon","1036":"Consentement — Téléphone","1040":"Consenso — Telefono"},
+        "description":{
+          "1033":"A simple per-channel consent flag for phone contact; this is a minimal stand-in for the full per-contact/per-channel/per-purpose consent model in ADR-0010 and must never gate a real send on its own.",
+          "1031":"Ein einfaches Kanal-Einwilligungskennzeichen für die Kontaktaufnahme per Telefon; dies ist ein minimaler Platzhalter für das vollständige Einwilligungsmodell je Kontakt/Kanal/Zweck aus ADR-0010 und darf allein keinen echten Versand freigeben.",
+          "1036":"Un simple indicateur de consentement par canal pour le contact téléphonique; il s'agit d'un substitut minimal au modèle complet de consentement par contact/canal/finalité de l'ADR-0010 et ne doit jamais, à lui seul, autoriser un envoi réel.",
+          "1040":"Un semplice indicatore di consenso per canale per il contatto telefonico; è un sostituto minimo del modello completo di consenso per contatto/canale/finalità dell'ADR-0010 e non deve mai, da solo, autorizzare un invio reale."
+        },
+        "mastership":"CRMOwned","sensitivity":"Personal","permittedUse":"Demo-scale display only; not a compliant consent gate.","lifecycle":"Set when captured; superseded by the full crmshow_consent table when built."
+      }
+    },
+    {
+      "table":"lead","logicalName":"crmshow_leadclusterid","schemaName":"crmshow_LeadClusterId","type":"Lookup","lookup":{"targets":["crmshow_leadcluster"],"authoring":"InitialTableCreate"},"required":false,"auditing":true,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Lead Cluster","1031":"Lead-Cluster","1036":"Groupe de leads","1040":"Cluster di lead"},
+        "description":{
+          "1033":"Optional bundle of related Leads for the same household or business, used to plan one visit or contact and prevent over-contacting; blank for a single, unbundled Lead.",
+          "1031":"Optionales Bündel verwandter Leads desselben Haushalts oder Unternehmens zur Planung eines gemeinsamen Besuchs oder Kontakts und zur Vermeidung von Übererreichung; leer bei einem einzelnen, ungebündelten Lead.",
+          "1036":"Regroupement facultatif de leads apparentés du même ménage ou de la même entreprise, utilisé pour planifier une visite ou un contact commun et éviter les sollicitations excessives; vide pour un lead unique, non groupé.",
+          "1040":"Raggruppamento facoltativo di lead correlati dello stesso nucleo familiare o impresa, usato per pianificare un'unica visita o contatto ed evitare contatti eccessivi; vuoto per un lead singolo, non raggruppato."
+        },
+        "mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Lead-queue planning and over-contact prevention only.","lifecycle":"Set when the lead is grouped; may change as clustering is re-evaluated."
+      }
+    },
+    {
+      "table":"lead","logicalName":"crmshow_channel","schemaName":"crmshow_Channel","type":"Text","maxLength":100,"format":"Text","required":false,"auditing":true,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Channel","1031":"Kanal","1036":"Canal","1040":"Canale"},
+        "description":{
+          "1033":"Free-text display of the channel through which this Lead reached the advisor's queue (e.g. online journey, referral, campaign); display only, not a governed choice.",
+          "1031":"Freitext-Anzeige des Kanals, über den dieser Lead in die Warteschlange der Beratungsperson gelangt ist (z. B. Online-Journey, Empfehlung, Kampagne); reine Anzeige, keine gesteuerte Auswahlliste.",
+          "1036":"Affichage en texte libre du canal par lequel ce lead a atteint la file d'attente du conseiller (par ex. parcours en ligne, recommandation, campagne); affichage uniquement, pas une liste de choix gouvernée.",
+          "1040":"Visualizzazione in testo libero del canale tramite cui questo lead ha raggiunto la coda del consulente (per es. percorso online, referral, campagna); solo visualizzazione, non un elenco di scelta governato."
+        },
+        "mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Cockpit display only.","lifecycle":"Set when the lead is created; not re-evaluated."
+      }
+    },
+    {
+      "table":"lead","logicalName":"crmshow_slalabel","schemaName":"crmshow_SlaLabel","type":"Text","maxLength":50,"format":"Text","required":false,"auditing":true,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"SLA Label","1031":"SLA-Bezeichnung","1036":"Libellé SLA","1040":"Etichetta SLA"},
+        "description":{
+          "1033":"A short display label for the advisor's response-time expectation (e.g. \"4h\", \"Today\", \"Tomorrow\"); a display hint only, not a computed or enforced service-level engine.",
+          "1031":"Eine kurze Anzeigebezeichnung für die Reaktionszeiterwartung der Beratungsperson (z. B. \"4h\", \"Heute\", \"Morgen\"); nur ein Anzeigehinweis, keine berechnete oder erzwungene Service-Level-Engine.",
+          "1036":"Un court libellé d'affichage pour le délai de réponse attendu du conseiller (par ex. \"4h\", \"Aujourd'hui\", \"Demain\"); un simple indice d'affichage, pas un moteur de niveau de service calculé ou imposé.",
+          "1040":"Una breve etichetta di visualizzazione per il tempo di risposta atteso dal consulente (per es. \"4h\", \"Oggi\", \"Domani\"); solo un'indicazione di visualizzazione, non un motore di livello di servizio calcolato o imposto."
+        },
+        "mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Cockpit display only; not an enforced SLA.","lifecycle":"Set when the lead is created; may be updated manually."
+      }
+    },
+    {
+      "table":"lead","logicalName":"crmshow_score","schemaName":"crmshow_Score","type":"Whole","minValue":0,"maxValue":100,"required":false,"auditing":true,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Score","1031":"Score","1036":"Score","1040":"Punteggio"},
+        "description":{
+          "1033":"A CRM-displayed 0-100 prioritization score for this Lead, sourced from the seed/analytics projection; not the native Dataverse predictive lead score.",
+          "1031":"Ein im CRM angezeigter Priorisierungswert von 0-100 für diesen Lead, stammend aus der Seed-/Analytics-Projektion; nicht der native Dataverse-Predictive-Lead-Score.",
+          "1036":"Un score de priorisation de 0 à 100 affiché dans le CRM pour ce lead, issu de la projection de départ/analytique; ce n'est pas le score prédictif natif de Dataverse.",
+          "1040":"Un punteggio di priorizzazione da 0 a 100 mostrato nel CRM per questo lead, proveniente dalla proiezione seed/analitica; non è il punteggio predittivo nativo di Dataverse."
+        },
+        "mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Lead-queue prioritization display only.","lifecycle":"Refreshed by the seed/analytics projection."
+      }
+    },
+    {
+      "table":"lead","logicalName":"crmshow_leadqueuestatus","schemaName":"crmshow_LeadQueueStatus","type":"GlobalChoice","choice":"crmshow_leadqueuestatus","required":false,"auditing":true,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Lead Queue Status","1031":"Status der Lead-Warteschlange","1036":"Statut de la file d'attente des leads","1040":"Stato della coda dei lead"},
+        "description":{
+          "1033":"The advisor's triage/queue position for this Lead (new, in progress, bundled, linking, primary); distinct from the native Lead status, which governs qualification.",
+          "1031":"Die Triage-/Warteschlangenposition der Beratungsperson für diesen Lead (neu, in Arbeit, gebündelt, zu verknüpfen, primär); unterscheidet sich vom nativen Lead-Status, der die Qualifizierung steuert.",
+          "1036":"La position de tri/file d'attente du conseiller pour ce lead (nouveau, en cours, groupé, à relier, prioritaire); distincte du statut natif du lead, qui régit la qualification.",
+          "1040":"La posizione di selezione/coda del consulente per questo lead (nuovo, in corso, raggruppato, da collegare, prioritario); distinta dallo stato nativo del lead, che governa la qualificazione."
+        },
+        "mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Advisor work-queue triage display only.","lifecycle":"Changes as the advisor triages the daily lead queue."
+      }
+    },
+    {
+      "table":"incident","logicalName":"crmshow_externalsystem","schemaName":"crmshow_ExternalSystem","type":"Text","maxLength":100,"format":"Text","required":false,"auditing":true,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"External System","1031":"Externes System","1036":"Système externe","1040":"Sistema esterno"},
+        "description":{
+          "1033":"Stable non-secret source-system code defining the namespace of External ID for a Case originating from the core insurance system (e.g. ARO); blank for a CRM-originated Case.",
+          "1031":"Stabiler, nicht geheimer Quellsystemcode als Namensraum der externen ID für einen Vorgang aus dem Versicherungs-Kernsystem (z. B. ARO); leer bei einem CRM-eigenen Vorgang.",
+          "1036":"Code stable et non secret du système source définissant l'espace de noms de l'identifiant externe pour un dossier provenant du système central d'assurance (par ex. ARO); vide pour un dossier créé dans le CRM.",
+          "1040":"Codice stabile e non segreto del sistema fonte che definisce lo spazio dei nomi dell'ID esterno per un caso proveniente dal sistema centrale assicurativo (per es. ARO); vuoto per un caso creato nel CRM."
+        },
+        "mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Integration namespace, never credentials.","lifecycle":"Set when the Case is projected from the core system."
+      }
+    },
+    {
+      "table":"incident","logicalName":"crmshow_externalid","schemaName":"crmshow_ExternalId","type":"Text","maxLength":200,"format":"Text","required":false,"auditing":true,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"External ID","1031":"Externe ID","1036":"Identifiant externe","1040":"ID esterno"},
+        "description":{
+          "1033":"Opaque source record identifier within External System for reconciliation, used for a Case projected from the core insurance system; not a customer-facing number.",
+          "1031":"Opake Quell-Datensatzkennung innerhalb des externen Systems für den Abgleich, verwendet für einen aus dem Versicherungs-Kernsystem projizierten Vorgang; keine kundenorientierte Nummer.",
+          "1036":"Identifiant opaque de l'enregistrement dans le système externe pour rapprochement, utilisé pour un dossier projeté depuis le système central d'assurance; il n'est pas destiné au client.",
+          "1040":"Identificativo opaco del record nel sistema esterno per riconciliazione, usato per un caso proiettato dal sistema centrale assicurativo; non è un numero rivolto al cliente."
+        },
+        "mastership":"SourceProjection","sensitivity":"Confidential","permittedUse":"Reconciliation and idempotent integration only.","lifecycle":"Set when the Case is projected from the core system."
+      }
+    },
+    {
+      "table":"incident","logicalName":"crmshow_productline","schemaName":"crmshow_ProductLine","type":"GlobalChoice","choice":"crmshow_productline","required":false,"auditing":true,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Product Line","1031":"Produktlinie","1036":"Ligne de produits","1040":"Linea di prodotti"},
+        "description":{
+          "1033":"CRM-owned analytical product-line grouping for this Case, reusing the same steering/reporting dimension as Policy and Measure; not a rating or product-administration category.",
+          "1031":"CRM-eigene analytische Produktlinien-Gruppierung für diesen Vorgang, unter Verwendung derselben Steuerungs-/Reporting-Dimension wie Police und Kennzahl; keine Tarifierungs- oder Produktverwaltungskategorie.",
+          "1036":"Regroupement analytique CRM de la ligne de produits pour ce dossier, reprenant la même dimension de pilotage/reporting que la police et la mesure; pas une catégorie de tarification ou d'administration.",
+          "1040":"Raggruppamento analitico CRM della linea di prodotti per questo caso, che riutilizza la stessa dimensione di governo/reporting di polizza e misura; non una categoria tariffaria o amministrativa."
+        },
+        "mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Analytics and steering grouping only.","lifecycle":"Set when the Case is created or projected."
+      }
+    },
+    {
+      "table":"incident","logicalName":"crmshow_openeddate","schemaName":"crmshow_OpenedDate","type":"DateOnly","format":"DateOnly","required":false,"auditing":true,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Opened Date","1031":"Eröffnungsdatum","1036":"Date d'ouverture","1040":"Data di apertura"},
+        "description":{
+          "1033":"The date the source system reports this Case as opened; distinct from the native Dataverse row-creation timestamp, which reflects CRM projection time, not the source's own timeline.",
+          "1031":"Das Datum, an dem das Quellsystem diesen Vorgang als eröffnet meldet; unterscheidet sich vom nativen Dataverse-Erstellungszeitstempel, der die CRM-Projektionszeit und nicht die Zeitlinie der Quelle widerspiegelt.",
+          "1036":"La date à laquelle le système source signale ce dossier comme ouvert; distincte de l'horodatage natif de création Dataverse, qui reflète le moment de la projection CRM, pas la chronologie de la source.",
+          "1040":"La data in cui il sistema fonte segnala questo caso come aperto; distinta dal timestamp nativo di creazione di Dataverse, che riflette il momento della proiezione CRM, non la cronologia della fonte."
+        },
+        "mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Case-timeline context only.","lifecycle":"Set when the Case is projected; not updated afterward."
+      }
+    },
+    {
+      "table":"incident","logicalName":"crmshow_slahours","schemaName":"crmshow_SlaHours","type":"Whole","minValue":0,"maxValue":999,"required":false,"auditing":true,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"SLA Hours","1031":"SLA-Stunden","1036":"Heures SLA","1040":"Ore SLA"},
+        "description":{
+          "1033":"A display-only response-time expectation in hours for this Case, sourced from the core system; not a computed or enforced service-level engine.",
+          "1031":"Eine reine Anzeige-Reaktionszeiterwartung in Stunden für diesen Vorgang, stammend aus dem Kernsystem; keine berechnete oder erzwungene Service-Level-Engine.",
+          "1036":"Un délai de réponse attendu, en heures, affiché uniquement pour ce dossier, provenant du système central; pas un moteur de niveau de service calculé ou imposé.",
+          "1040":"Un tempo di risposta atteso, in ore, mostrato solo per questo caso, proveniente dal sistema centrale; non un motore di livello di servizio calcolato o imposto."
+        },
+        "mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Case display only; not an enforced SLA.","lifecycle":"Set when the Case is projected; may be refreshed."
       }
     }
   ],
@@ -445,6 +767,18 @@
           "metadata":{"label":{"1033":"Line of Business Code","1031":"Geschäftsbereichscode","1036":"Code de branche d’assurance","1040":"Codice ramo assicurativo"},"description":{"1033":"Canonical, language-neutral line-of-business code mapped from the source for filtering; localized display text is resolved outside this field.","1031":"Kanonischer, sprachneutraler Geschäftsbereichscode aus der Quelle für Filterung; lokalisierte Anzeigetexte werden ausserhalb dieses Felds aufgelöst.","1036":"Code canonique et neutre linguistiquement de la branche, mappé depuis la source pour le filtrage; le libellé localisé est résolu ailleurs.","1040":"Codice canonico e indipendente dalla lingua del ramo, mappato dalla fonte per i filtri; il testo localizzato è risolto altrove."},"mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Canonical filtering and integration mapping."}
         },
         {
+          "logicalName":"crmshow_productline","schemaName":"crmshow_ProductLine","type":"GlobalChoice","required":false,"auditing":true,"choice":"crmshow_productline",
+          "metadata":{"label":{"1033":"Product Line","1031":"Produktlinie","1036":"Ligne de produits","1040":"Linea di prodotti"},"description":{"1033":"CRM-owned analytical product-line grouping for this policy, reusing the same steering/reporting dimension as Claim and Measure; distinct from the source's own crmshow_lineofbusinesscode, which carries a raw, language-neutral source code rather than a CRM-facing category.","1031":"CRM-eigene analytische Produktlinien-Gruppierung dieser Police, unter Verwendung derselben Steuerungs-/Reporting-Dimension wie Schaden und Kennzahl; unterscheidet sich vom quelleigenen crmshow_lineofbusinesscode, der einen rohen, sprachneutralen Quellcode statt einer CRM-Kategorie trägt.","1036":"Regroupement analytique CRM de la ligne de produits pour cette police, reprenant la même dimension de pilotage/reporting que le sinistre et la mesure; distinct du crmshow_lineofbusinesscode propre à la source, qui porte un code source brut et neutre linguistiquement plutôt qu'une catégorie CRM.","1040":"Raggruppamento analitico CRM della linea di prodotti per questa polizza, che riutilizza la stessa dimensione di governo/reporting di sinistro e misura; distinto dal crmshow_lineofbusinesscode proprio della fonte, che porta un codice fonte grezzo e indipendente dalla lingua anziché una categoria CRM."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Analytics and steering grouping only."}
+        },
+        {
+          "logicalName":"crmshow_productname","schemaName":"crmshow_ProductName","type":"Text","required":false,"auditing":true,"maxLength":200,"format":"Text",
+          "metadata":{"label":{"1033":"Product Name","1031":"Produktname","1036":"Nom du produit","1040":"Nome del prodotto"},"description":{"1033":"The source-supplied specific product name (e.g. \"Motor Fleet\"), more granular than crmshow_productline's five canonical categories; for cockpit display only.","1031":"Der von der Quelle gelieferte spezifische Produktname (z. B. \"Motorfahrzeug Flotte\"), feiner als die fünf kanonischen Kategorien von crmshow_productline; nur für die Cockpit-Anzeige.","1036":"Le nom de produit spécifique fourni par la source (par ex. \"Flotte de véhicules\"), plus granulaire que les cinq catégories canoniques de crmshow_productline; pour l'affichage dans le cockpit uniquement.","1040":"Il nome di prodotto specifico fornito dalla fonte (per es. \"Flotta veicoli\"), più granulare delle cinque categorie canoniche di crmshow_productline; solo per la visualizzazione nel cockpit."},"mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Cockpit display only."}
+        },
+        {
+          "logicalName":"crmshow_annualpremiumamount","schemaName":"crmshow_AnnualPremiumAmount","type":"Money","required":false,"auditing":true,
+          "metadata":{"label":{"1033":"Annual Premium (Display)","1031":"Jahresprämie (Anzeige)","1036":"Prime annuelle (affichage)","1040":"Premio annuo (visualizzazione)"},"description":{"1033":"A source-reported display amount for CRM context only; CRM does not calculate, quote, rate, or administer premium, and this field must never be presented as a binding price.","1031":"Ein von der Quelle gemeldeter Anzeigebetrag ausschliesslich für den CRM-Kontext; das CRM berechnet, offeriert, tarifiert oder verwaltet keine Prämien, und dieses Feld darf nie als verbindlicher Preis dargestellt werden.","1036":"Un montant d'affichage rapporté par la source, à des fins de contexte CRM uniquement; le CRM ne calcule, ne cote, ne tarife ni n'administre de prime, et ce champ ne doit jamais être présenté comme un prix contraignant.","1040":"Un importo di visualizzazione riportato dalla fonte, solo per il contesto CRM; il CRM non calcola, quota, tariffa o amministra premi, e questo campo non deve mai essere presentato come un prezzo vincolante."},"mastership":"SourceProjection","sensitivity":"Confidential","permittedUse":"Cockpit display only; never a quote, rate, or binding price.","lifecycle":"Refreshed when the source premium amount changes."}
+        },
+        {
           "logicalName":"crmshow_status","schemaName":"crmshow_Status","type":"GlobalChoice","required":true,"auditing":true,"choice":"crmshow_policystatus",
           "metadata":{"label":{"1033":"Mapped Policy Status","1031":"Abgebildeter Policenstatus","1036":"Statut de police mappé","1040":"Stato polizza mappato"},"description":{"1033":"Canonical CRM status mapped from the authoritative policy state; it does not replace source status or authorize policy mutation.","1031":"Kanonischer CRM-Status, aus dem massgebenden Policenzustand abgebildet; er ersetzt den Quellstatus nicht und erlaubt keine Policenänderung.","1036":"Statut CRM canonique mappé depuis l’état maître de la police; il ne remplace pas le statut source et n’autorise aucune modification.","1040":"Stato CRM canonico mappato dallo stato autorevole della polizza; non sostituisce lo stato fonte né autorizza modifiche."},"mastership":"SourceProjection","sensitivity":"Confidential","permittedUse":"CRM context and filtering only.","lifecycle":"Refreshed when the source policy status changes."}
         },
@@ -487,18 +821,18 @@
       ],
       "views":[
         {
-          "name":"crmshow_policyprojectionadminview","purpose":"Administration","columns":["crmshow_name","crmshow_accountid","crmshow_policynumber","crmshow_lineofbusinesscode","crmshow_status","crmshow_effectivefrom","crmshow_effectiveto","crmshow_retrievedon"],
+          "name":"crmshow_policyprojectionadminview","purpose":"Administration","columns":["crmshow_name","crmshow_accountid","crmshow_policynumber","crmshow_lineofbusinesscode","crmshow_productline","crmshow_productname","crmshow_status","crmshow_effectivefrom","crmshow_effectiveto","crmshow_annualpremiumamount","crmshow_retrievedon"],
           "filterIntent":"All PolicyProjection records; no additional record filter.",
-          "metadata":{"label":{"1033":"Policy Projections","1031":"Policenprojektionen","1036":"Projections de police","1040":"Proiezioni di polizza"},"description":{"1033":"Minimal administration list for authorized review of policy context and projection freshness; it exposes no premium, rating or payment balance.","1031":"Minimale Verwaltungsliste zur berechtigten Prüfung von Policenkontext und Projektionsaktualität; ohne Prämie, Tarifierung oder Zahlungssaldo.","1036":"Liste d’administration minimale pour examiner le contexte de police et la fraîcheur de projection; aucun montant de prime, tarif ou solde de paiement.","1040":"Elenco amministrativo minimo per esaminare contesto di polizza e attualità della proiezione; non espone premio, tariffa o saldo pagamenti."},"mastership":"Configuration","sensitivity":"Confidential","permittedUse":"Authorized source-projection stewardship."}
+          "metadata":{"label":{"1033":"Policy Projections","1031":"Policenprojektionen","1036":"Projections de police","1040":"Proiezioni di polizza"},"description":{"1033":"Minimal administration list for authorized review of policy context and projection freshness; the premium shown is a source-reported display figure only — rating, tariff and payment-balance detail stay outside CRM.","1031":"Minimale Verwaltungsliste zur berechtigten Prüfung von Policenkontext und Projektionsaktualität; die angezeigte Prämie ist nur ein von der Quelle gemeldeter Anzeigewert — Tarifierung und Zahlungssaldo bleiben ausserhalb des CRM.","1036":"Liste d’administration minimale pour examiner le contexte de police et la fraîcheur de projection; la prime affichée est un simple montant d’affichage rapporté par la source — tarification et solde de paiement restent hors CRM.","1040":"Elenco amministrativo minimo per esaminare contesto di polizza e attualità della proiezione; il premio mostrato è solo una cifra di visualizzazione riportata dalla fonte — tariffazione e saldo pagamenti restano esterni al CRM."},"mastership":"Configuration","sensitivity":"Confidential","permittedUse":"Authorized source-projection stewardship."}
         }
       ],
       "forms":[
         {
-          "name":"crmshow_policyprojectionadminform","purpose":"Administration","columns":["crmshow_name","crmshow_accountid","crmshow_policynumber","crmshow_externalsystem","crmshow_externalid","crmshow_lineofbusinesscode","crmshow_status","crmshow_effectivefrom","crmshow_effectiveto","crmshow_sourcelastmodifiedon","crmshow_retrievedon"],
+          "name":"crmshow_policyprojectionadminform","purpose":"Administration","columns":["crmshow_name","crmshow_accountid","crmshow_policynumber","crmshow_externalsystem","crmshow_externalid","crmshow_lineofbusinesscode","crmshow_productline","crmshow_productname","crmshow_status","crmshow_effectivefrom","crmshow_effectiveto","crmshow_annualpremiumamount","crmshow_sourcelastmodifiedon","crmshow_retrievedon"],
           "metadata":{"label":{"1033":"Policy Projection Administration","1031":"Verwaltung Policenprojektion","1036":"Administration de la projection de police","1040":"Amministrazione proiezione di polizza"},"description":{"1033":"Form for authorized inspection and reconciliation of projected policy context. Correct business facts in the authoritative source, then refresh CRM; this form performs no premium or rate calculation, underwriting or risk acceptance, putting coverage into force, cancellation or termination, payment administration, or source-policy alteration.","1031":"Formular zur berechtigten Prüfung und Abstimmung des projizierten Policenkontexts. Fachliche Sachverhalte sind in der massgebenden Quelle zu korrigieren und danach im CRM zu aktualisieren; dieses Formular führt keine Prämien- oder Tarifberechnung, kein Underwriting oder keine Risikoannahme und keine Stornierung, Beendigung, Zahlungsverwaltung oder Änderung der Quellpolice durch und kann keinen Versicherungsschutz in Kraft setzen.","1036":"Formulaire d’inspection autorisée et de rapprochement du contexte de police projeté. Les faits métier sont corrigés dans la source faisant autorité, puis le CRM est actualisé; ce formulaire n’effectue aucun calcul de prime ou de tarif, aucune souscription ou acceptation du risque, ne peut mettre les garanties en vigueur, résilier ou mettre fin à la police, administrer les paiements ni modifier la police source.","1040":"Modulo per l’ispezione autorizzata e la riconciliazione del contesto di polizza proiettato. I fatti aziendali vengono corretti nella fonte autorevole e poi il CRM viene aggiornato; il modulo non esegue calcoli di premio o tariffa, assunzione o accettazione del rischio, non può mettere in vigore la copertura, annullare o cessare la polizza, amministrare pagamenti né modificare la polizza fonte."},"mastership":"Configuration","sensitivity":"Confidential","permittedUse":"Authorized source-projection stewardship."}
         }
       ],
-      "excludedConcepts":["premium","tariff","underwriting","coverageLimit","paymentBalance"]
+      "excludedConcepts":["tariff","underwriting","coverageLimit","paymentBalance"]
     },
     {
       "logicalName":"crmshow_policypartyrole","schemaName":"crmshow_PolicyPartyRole","ownership":"UserOwned","auditing":true,"isActivity":false,"solution":"crmshow_DataModel",
@@ -581,6 +915,350 @@
         {
           "name":"crmshow_policypartyroleadminform","purpose":"Administration","columns":["crmshow_name","crmshow_policyid","crmshow_partyid","crmshow_roletype","crmshow_validfrom","crmshow_validto","crmshow_sourcesystem","crmshow_sourceid"],
           "metadata":{"label":{"1033":"Policy Party Role Administration","1031":"Verwaltung Policenparteienrolle","1036":"Administration du rôle de partie à la police","1040":"Amministrazione ruolo della parte di polizza"},"description":{"1033":"Form for authorized inspection and reconciliation of projected policy-party roles. Correct business facts in the authoritative source, then refresh CRM; this form performs no premium or rate calculation, underwriting or risk acceptance, putting coverage into force, cancellation or termination, payment administration, or source-policy alteration.","1031":"Formular zur berechtigten Prüfung und Abstimmung projizierter Policenparteienrollen. Fachliche Sachverhalte sind in der massgebenden Quelle zu korrigieren und danach im CRM zu aktualisieren; dieses Formular führt keine Prämien- oder Tarifberechnung, kein Underwriting oder keine Risikoannahme und keine Stornierung, Beendigung, Zahlungsverwaltung oder Änderung der Quellpolice durch und kann keinen Versicherungsschutz in Kraft setzen.","1036":"Formulaire d’inspection autorisée et de rapprochement des rôles projetés de partie à la police. Les faits métier sont corrigés dans la source faisant autorité, puis le CRM est actualisé; ce formulaire n’effectue aucun calcul de prime ou de tarif, aucune souscription ou acceptation du risque, ne peut mettre les garanties en vigueur, résilier ou mettre fin à la police, administrer les paiements ni modifier la police source.","1040":"Modulo per l’ispezione autorizzata e la riconciliazione dei ruoli proiettati delle parti di polizza. I fatti aziendali vengono corretti nella fonte autorevole e poi il CRM viene aggiornato; il modulo non esegue calcoli di premio o tariffa, assunzione o accettazione del rischio, non può mettere in vigore la copertura, annullare o cessare la polizza, amministrare pagamenti né modificare la polizza fonte."},"mastership":"Configuration","sensitivity":"Personal","permittedUse":"Authorized source-projection stewardship."}
+        }
+      ]
+    },
+    {
+      "logicalName":"crmshow_leadcluster","schemaName":"crmshow_LeadCluster","ownership":"UserOwned","auditing":true,"isActivity":false,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Lead Cluster","1031":"Lead-Cluster","1036":"Groupe de leads","1040":"Cluster di lead"},
+        "description":{
+          "1033":"A named bundle of related Leads for the same household or business, used to plan one visit or contact and prevent over-contacting; it is not a demand or qualification record itself.",
+          "1031":"Ein benanntes Bündel verwandter Leads desselben Haushalts oder Unternehmens zur Planung eines gemeinsamen Besuchs oder Kontakts und zur Vermeidung von Übererreichung; kein eigener Nachfrage- oder Qualifizierungsdatensatz.",
+          "1036":"Un regroupement nommé de leads apparentés du même ménage ou de la même entreprise, utilisé pour planifier une visite ou un contact commun et éviter les sollicitations excessives; ce n'est pas en soi un enregistrement de demande ou de qualification.",
+          "1040":"Un raggruppamento denominato di lead correlati dello stesso nucleo familiare o impresa, usato per pianificare un'unica visita o contatto ed evitare contatti eccessivi; non è di per sé un record di domanda o qualificazione."
+        },
+        "mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Lead-queue planning and over-contact prevention only.","lifecycle":"Created when leads are bundled; may be renamed or dissolved as clustering is re-evaluated."
+      },
+      "columns":[
+        {
+          "logicalName":"crmshow_name","schemaName":"crmshow_Name","type":"Text","required":true,"auditing":true,"maxLength":200,"format":"Text",
+          "metadata":{"label":{"1033":"Cluster Name","1031":"Cluster-Name","1036":"Nom du groupe","1040":"Nome del cluster"},"description":{"1033":"Human-readable name for the cluster, normally the household or business name, for cockpit display, navigation, and uniqueness.","1031":"Lesbarer Name des Clusters, üblicherweise der Haushalts- oder Unternehmensname, für die Cockpit-Anzeige, Navigation und Eindeutigkeit.","1036":"Nom lisible du groupe, généralement celui du ménage ou de l'entreprise, pour l'affichage, la navigation et l'unicité dans le cockpit.","1040":"Nome leggibile del cluster, normalmente quello del nucleo familiare o dell'impresa, per la visualizzazione, la navigazione e l'unicità nel cockpit."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Display, record navigation, and uniqueness only."}
+        }
+      ],
+      "alternateKeys":[
+        {
+          "name":"crmshow_leadclusternamekey","schemaName":"crmshow_LeadClusterNameKey","columns":["crmshow_name"],
+          "metadata":{"label":{"1033":"Lead Cluster Name Key","1031":"Namensschlüssel Lead-Cluster","1036":"Clé de nom du groupe de leads","1040":"Chiave nome del cluster di lead"},"description":{"1033":"Prevents two Lead Clusters from sharing the same name.","1031":"Verhindert, dass zwei Lead-Cluster denselben Namen tragen.","1036":"Empêche que deux groupes de leads portent le même nom.","1040":"Impedisce che due cluster di lead abbiano lo stesso nome."},"mastership":"Configuration","sensitivity":"Internal","permittedUse":"Dataverse uniqueness enforcement only."}
+        }
+      ],
+      "relationships":[],
+      "businessRules":[],
+      "views":[
+        {
+          "name":"crmshow_leadclusteradminview","purpose":"Administration","columns":["crmshow_name"],
+          "filterIntent":"All Lead Cluster records; no additional record filter.",
+          "metadata":{"label":{"1033":"Lead Clusters","1031":"Lead-Cluster","1036":"Groupes de leads","1040":"Cluster di lead"},"description":{"1033":"Minimal administration list of Lead Clusters for authorized review.","1031":"Minimale Verwaltungsliste der Lead-Cluster für die berechtigte Prüfung.","1036":"Liste d'administration minimale des groupes de leads pour un examen autorisé.","1040":"Elenco amministrativo minimo dei cluster di lead per la revisione autorizzata."},"mastership":"Configuration","sensitivity":"Internal","permittedUse":"Authorized stewardship under role security."}
+        }
+      ],
+      "forms":[
+        {
+          "name":"crmshow_leadclusteradminform","purpose":"Administration","columns":["crmshow_name"],
+          "metadata":{"label":{"1033":"Lead Cluster Administration","1031":"Verwaltung Lead-Cluster","1036":"Administration du groupe de leads","1040":"Amministrazione cluster di lead"},"description":{"1033":"Minimal form for authorized stewardship of a Lead Cluster's name.","1031":"Minimales Formular für die berechtigte Pflege des Namens eines Lead-Clusters.","1036":"Formulaire minimal pour la gestion autorisée du nom d'un groupe de leads.","1040":"Modulo minimo per la gestione autorizzata del nome di un cluster di lead."},"mastership":"Configuration","sensitivity":"Internal","permittedUse":"Authorized stewardship."}
+        }
+      ]
+    },
+    {
+      "logicalName":"crmshow_claimprojection","schemaName":"crmshow_ClaimProjection","ownership":"UserOwned","auditing":true,"isActivity":false,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Claim Projection","1031":"Schadenprojektion","1036":"Projection de sinistre","1040":"Proiezione di sinistro"},
+        "description":{
+          "1033":"Thin, source-mastered claim context projected into CRM for relationship and service work; reserves, loss cause, and payment administration remain outside CRM.",
+          "1031":"Schlanker, quellengeführter Schadenkontext im CRM für Beziehungs- und Servicearbeit; Reserven, Schadenursache und Zahlungsverwaltung bleiben ausserhalb.",
+          "1036":"Contexte de sinistre allégé, maîtrisé à la source et projeté dans le CRM pour le travail relationnel et de service; réserves, cause du sinistre et administration des paiements restent hors CRM.",
+          "1040":"Contesto di sinistro essenziale, gestito alla fonte e proiettato nel CRM per il lavoro relazionale e di servizio; riserve, causa del sinistro e amministrazione dei pagamenti restano esterne."
+        },
+        "mastership":"SourceProjection","sensitivity":"Confidential","permittedUse":"Authorized CRM context; never claims administration.","lifecycle":"Refreshed from its source and retained rather than hard-deleted."
+      },
+      "columns":[
+        {
+          "logicalName":"crmshow_name","schemaName":"crmshow_Name","type":"Text","required":true,"auditing":true,"maxLength":200,"format":"Text",
+          "metadata":{"label":{"1033":"Claim Display Name","1031":"Schaden-Anzeigename","1036":"Nom d'affichage du sinistre","1040":"Nome visualizzato del sinistro"},"description":{"1033":"Human-readable projection name, normally derived from the source claim number, for CRM navigation; it is not an immutable source key.","1031":"Lesbarer Projektionsname, üblicherweise aus der Quell-Schadennummer abgeleitet, zur CRM-Navigation; keine unveränderliche Quellkennung.","1036":"Nom lisible de la projection, généralement dérivé du numéro de sinistre source, pour la navigation CRM; ce n'est pas une clé source immuable.","1040":"Nome leggibile della proiezione, normalmente derivato dal numero di sinistro fonte, per la navigazione CRM; non è una chiave fonte immutabile."},"mastership":"SourceProjection","sensitivity":"Confidential","permittedUse":"Display and record navigation only."}
+        },
+        {
+          "logicalName":"crmshow_accountid","schemaName":"crmshow_AccountId","type":"Lookup","required":true,"auditing":false,"lookup":{"targets":["account"],"authoring":"InitialTableCreate"},
+          "metadata":{"label":{"1033":"Account","1031":"Konto","1036":"Compte","1040":"Account"},"description":{"1033":"Household, Business or Broker Account that owns the CRM context for this claim; Contacts participate only through roles and never own the projection.","1031":"Haushalts-, Unternehmens- oder Maklerkonto als Träger des CRM-Kontexts dieses Schadens; Kontakte nehmen nur über Rollen teil und besitzen die Projektion nie.","1036":"Compte Ménage, Entreprise ou Courtier portant le contexte CRM de ce sinistre; les contacts participent uniquement par des rôles et ne possèdent jamais la projection.","1040":"Account Nucleo familiare, Impresa o Broker assicurativo che detiene il contesto CRM di questo sinistro; i contatti partecipano solo tramite ruoli e non possiedono mai la proiezione."},"mastership":"CRMOwned","sensitivity":"Confidential","permittedUse":"Claim navigation under record security."}
+        },
+        {
+          "logicalName":"crmshow_externalsystem","schemaName":"crmshow_ExternalSystem","type":"Text","required":true,"auditing":true,"maxLength":100,"format":"Text",
+          "metadata":{"label":{"1033":"External System","1031":"Externes System","1036":"Système externe","1040":"Sistema esterno"},"description":{"1033":"Stable non-secret source-system code defining the namespace of External ID (e.g. ARO); identifies no environment endpoint and contains no credential.","1031":"Stabiler, nicht geheimer Quellsystemcode als Namensraum der externen ID (z. B. ARO); weder Umgebungsendpunkt noch Zugangsdaten.","1036":"Code stable et non secret du système source définissant l'espace de noms de l'identifiant externe (par ex. ARO); ni point d'accès d'environnement ni secret.","1040":"Codice stabile e non segreto del sistema fonte che definisce lo spazio dei nomi dell'ID esterno (per es. ARO); non contiene endpoint o credenziali."},"mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Integration namespace, never credentials."}
+        },
+        {
+          "logicalName":"crmshow_externalid","schemaName":"crmshow_ExternalId","type":"Text","required":true,"auditing":true,"maxLength":200,"format":"Text",
+          "metadata":{"label":{"1033":"External ID","1031":"Externe ID","1036":"Identifiant externe","1040":"ID esterno"},"description":{"1033":"Immutable opaque claim record identifier within External System, used for idempotent synchronization; not customer-facing evidence.","1031":"Unveränderliche opake Schaden-Datensatzkennung im externen System für idempotente Synchronisation; kein kundenorientierter Nachweis.","1036":"Identifiant opaque immuable du sinistre dans le système externe, utilisé pour la synchronisation idempotente; ce n'est pas une preuve destinée au client.","1040":"Identificativo opaco immutabile del record di sinistro nel sistema esterno, usato per sincronizzazione idempotente; non è prova per il cliente."},"mastership":"SourceProjection","sensitivity":"Confidential","permittedUse":"Reconciliation and idempotent integration only."}
+        },
+        {
+          "logicalName":"crmshow_productline","schemaName":"crmshow_ProductLine","type":"GlobalChoice","required":false,"auditing":true,"choice":"crmshow_productline",
+          "metadata":{"label":{"1033":"Product Line","1031":"Produktlinie","1036":"Ligne de produits","1040":"Linea di prodotti"},"description":{"1033":"CRM-owned analytical product-line grouping for this claim, reusing the same steering/reporting dimension as Policy and Measure; not a rating or claims-administration category.","1031":"CRM-eigene analytische Produktlinien-Gruppierung dieses Schadens, unter Verwendung derselben Steuerungs-/Reporting-Dimension wie Police und Kennzahl; keine Tarifierungs- oder Schadenverwaltungskategorie.","1036":"Regroupement analytique CRM de la ligne de produits pour ce sinistre, reprenant la même dimension de pilotage/reporting que la police et la mesure; pas une catégorie de tarification ou d'administration des sinistres.","1040":"Raggruppamento analitico CRM della linea di prodotti per questo sinistro, che riutilizza la stessa dimensione di governo/reporting di polizza e misura; non una categoria tariffaria o di amministrazione sinistri."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Analytics and steering grouping only."}
+        },
+        {
+          "logicalName":"crmshow_title","schemaName":"crmshow_Title","type":"Text","required":true,"auditing":true,"maxLength":200,"format":"Text",
+          "metadata":{"label":{"1033":"Title","1031":"Titel","1036":"Titre","1040":"Titolo"},"description":{"1033":"Short source-supplied description of the claim (e.g. \"Windshield damage, delivery van\"), for cockpit display.","1031":"Kurze, aus der Quelle stammende Beschreibung des Schadens (z. B. \"Glasbruch Lieferwagen\"), für die Cockpit-Anzeige.","1036":"Courte description fournie par la source du sinistre (par ex. \"Bris de glace, camionnette\"), pour l'affichage dans le cockpit.","1040":"Breve descrizione fornita dalla fonte del sinistro (per es. \"Rottura vetro, furgone\"), per la visualizzazione nel cockpit."},"mastership":"SourceProjection","sensitivity":"Confidential","permittedUse":"Cockpit display only."}
+        },
+        {
+          "logicalName":"crmshow_channel","schemaName":"crmshow_Channel","type":"Text","required":false,"auditing":true,"maxLength":100,"format":"Text",
+          "metadata":{"label":{"1033":"Channel","1031":"Kanal","1036":"Canal","1040":"Canale"},"description":{"1033":"Free-text display of the channel through which this claim was reported (e.g. assistance partner, portal); display only, not a governed choice.","1031":"Freitext-Anzeige des Kanals, über den dieser Schaden gemeldet wurde (z. B. Assistance-Partner, Portal); reine Anzeige, keine gesteuerte Auswahlliste.","1036":"Affichage en texte libre du canal par lequel ce sinistre a été signalé (par ex. partenaire d'assistance, portail); affichage uniquement, pas une liste de choix gouvernée.","1040":"Visualizzazione in testo libero del canale tramite cui questo sinistro è stato segnalato (per es. partner di assistenza, portale); solo visualizzazione, non un elenco di scelta governato."},"mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Cockpit display only."}
+        },
+        {
+          "logicalName":"crmshow_status","schemaName":"crmshow_Status","type":"Text","required":true,"auditing":true,"maxLength":100,"format":"Text",
+          "metadata":{"label":{"1033":"Status","1031":"Status","1036":"Statut","1040":"Stato"},"description":{"1033":"Free-text claim status as reported by the source system; it does not replace source status or authorize claims administration.","1031":"Freitext-Schadenstatus laut Quellsystem; er ersetzt den Quellstatus nicht und erlaubt keine Schadenverwaltung.","1036":"Statut de sinistre en texte libre tel que rapporté par le système source; il ne remplace pas le statut source et n'autorise aucune administration des sinistres.","1040":"Stato del sinistro in testo libero come segnalato dal sistema fonte; non sostituisce lo stato fonte né autorizza l'amministrazione dei sinistri."},"mastership":"SourceProjection","sensitivity":"Confidential","permittedUse":"CRM context and filtering only.","lifecycle":"Refreshed when the source claim status changes."}
+        },
+        {
+          "logicalName":"crmshow_openeddate","schemaName":"crmshow_OpenedDate","type":"DateOnly","required":true,"auditing":true,"format":"DateOnly",
+          "metadata":{"label":{"1033":"Opened Date","1031":"Eröffnungsdatum","1036":"Date d'ouverture","1040":"Data di apertura"},"description":{"1033":"The date the source system reports this claim as opened.","1031":"Das Datum, an dem das Quellsystem diesen Schaden als eröffnet meldet.","1036":"La date à laquelle le système source signale ce sinistre comme ouvert.","1040":"La data in cui il sistema fonte segnala questo sinistro come aperto."},"mastership":"SourceProjection","sensitivity":"Confidential","permittedUse":"Claim-timeline context only.","lifecycle":"Set when the claim is projected; not updated afterward."}
+        },
+        {
+          "logicalName":"crmshow_slahours","schemaName":"crmshow_SlaHours","type":"Whole","required":false,"auditing":true,"minValue":0,"maxValue":999,
+          "metadata":{"label":{"1033":"SLA Hours","1031":"SLA-Stunden","1036":"Heures SLA","1040":"Ore SLA"},"description":{"1033":"A display-only response-time expectation in hours for this claim, sourced from the core system; not a computed or enforced service-level engine.","1031":"Eine reine Anzeige-Reaktionszeiterwartung in Stunden für diesen Schaden, stammend aus dem Kernsystem; keine berechnete oder erzwungene Service-Level-Engine.","1036":"Un délai de réponse attendu, en heures, affiché uniquement pour ce sinistre, provenant du système central; pas un moteur de niveau de service calculé ou imposé.","1040":"Un tempo di risposta atteso, in ore, mostrato solo per questo sinistro, proveniente dal sistema centrale; non un motore di livello di servizio calcolato o imposto."},"mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Claim display only; not an enforced SLA.","lifecycle":"Set when the claim is projected; may be refreshed."}
+        }
+      ],
+      "alternateKeys":[
+        {
+          "name":"crmshow_claimprojectionexternalkey","schemaName":"crmshow_ClaimProjectionExternalKey","columns":["crmshow_externalsystem","crmshow_externalid"],
+          "metadata":{"label":{"1033":"Claim Projection External Key","1031":"Externer Schlüssel der Schadenprojektion","1036":"Clé externe de la projection de sinistre","1040":"Chiave esterna della proiezione di sinistro"},"description":{"1033":"Uniquely identifies one projected claim by source namespace and immutable source identifier for idempotent synchronization.","1031":"Identifiziert eine Schadenprojektion eindeutig durch Quellnamensraum und unveränderliche Quellkennung für idempotente Synchronisation.","1036":"Identifie de façon unique un sinistre projeté par son espace de noms source et son identifiant immuable pour une synchronisation idempotente.","1040":"Identifica univocamente un sinistro proiettato tramite spazio dei nomi e identificativo immutabile della fonte per sincronizzazione idempotente."},"mastership":"Configuration","sensitivity":"Confidential","permittedUse":"Dataverse uniqueness and integration upsert."}
+        }
+      ],
+      "relationships":[
+        {
+          "name":"crmshow_account_claimprojections","schemaName":"crmshow_Account_ClaimProjections","lookupColumn":"crmshow_accountid","referencingTable":"crmshow_claimprojection","referencedTables":["account"],"direction":"ManyToOne","role":"Account owns the CRM context for the claim; ClaimProjection references that Account.","authoring":"InitialTableCreate",
+          "metadata":{"label":{"1033":"Account Claim Projections","1031":"Schadenprojektionen des Kontos","1036":"Projections de sinistre du compte","1040":"Proiezioni di sinistro dell'account"},"description":{"1033":"Many claim projections reference one Account; the direction keeps claim context at Account and does not make any Contact its owner.","1031":"Viele Schadenprojektionen verweisen auf ein Konto; die Richtung hält den Schadenkontext am Konto und macht keinen Kontakt zum Eigentümer.","1036":"Plusieurs projections de sinistre référencent un compte; le sens maintient le contexte au compte sans rendre un contact propriétaire.","1040":"Più proiezioni di sinistro fanno riferimento a un account; la direzione mantiene il contesto sull'account senza renderne proprietario un contatto."},"mastership":"CRMOwned","sensitivity":"Confidential","permittedUse":"Navigate Account claim context."}
+        }
+      ],
+      "businessRules":[],
+      "views":[
+        {
+          "name":"crmshow_claimprojectionadminview","purpose":"Administration","columns":["crmshow_name","crmshow_accountid","crmshow_productline","crmshow_status","crmshow_openeddate"],
+          "filterIntent":"All ClaimProjection records; no additional record filter.",
+          "metadata":{"label":{"1033":"Claim Projections","1031":"Schadenprojektionen","1036":"Projections de sinistre","1040":"Proiezioni di sinistro"},"description":{"1033":"Minimal administration list for authorized review of claim context; it exposes no reserve, loss-cause, or payment detail.","1031":"Minimale Verwaltungsliste zur berechtigten Prüfung des Schadenkontexts; ohne Reserven-, Ursachen- oder Zahlungsdetails.","1036":"Liste d'administration minimale pour examiner le contexte du sinistre; aucun détail de réserve, de cause ou de paiement.","1040":"Elenco amministrativo minimo per esaminare il contesto del sinistro; non espone dettagli su riserve, causa o pagamenti."},"mastership":"Configuration","sensitivity":"Confidential","permittedUse":"Authorized source-projection stewardship."}
+        }
+      ],
+      "forms":[
+        {
+          "name":"crmshow_claimprojectionadminform","purpose":"Administration","columns":["crmshow_name","crmshow_accountid","crmshow_externalsystem","crmshow_externalid","crmshow_productline","crmshow_title","crmshow_channel","crmshow_status","crmshow_openeddate","crmshow_slahours"],
+          "metadata":{"label":{"1033":"Claim Projection Administration","1031":"Verwaltung Schadenprojektion","1036":"Administration de la projection de sinistre","1040":"Amministrazione proiezione di sinistro"},"description":{"1033":"Form for authorized inspection and reconciliation of projected claim context. Correct business facts in the authoritative source, then refresh CRM; this form performs no reserve, loss-cause, or payment administration.","1031":"Formular zur berechtigten Prüfung und Abstimmung des projizierten Schadenkontexts. Fachliche Sachverhalte sind in der massgebenden Quelle zu korrigieren und danach im CRM zu aktualisieren; dieses Formular verwaltet weder Reserven noch Ursachen oder Zahlungen.","1036":"Formulaire d'inspection autorisée et de rapprochement du contexte de sinistre projeté. Les faits métier sont corrigés dans la source faisant autorité, puis le CRM est actualisé; ce formulaire n'administre ni réserve, ni cause, ni paiement.","1040":"Modulo per l'ispezione autorizzata e la riconciliazione del contesto di sinistro proiettato. I fatti aziendali vengono corretti nella fonte autorevole e poi il CRM viene aggiornato; il modulo non amministra riserve, causa o pagamenti."},"mastership":"Configuration","sensitivity":"Confidential","permittedUse":"Authorized source-projection stewardship."}
+        }
+      ],
+      "excludedConcepts":["paymentBalance"]
+    },
+    {
+      "logicalName":"crmshow_nextbestaction","schemaName":"crmshow_NextBestAction","ownership":"UserOwned","auditing":true,"isActivity":false,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Next-Best-Action","1031":"Nächstbeste Aktion","1036":"Prochaine meilleure action","1040":"Prossima azione migliore"},
+        "description":{
+          "1033":"An advisory recommendation for an Account, optionally tied to a Lead, produced by CRM logic or an agent; it proposes an action for a human advisor and never performs one itself.",
+          "1031":"Eine beratende Empfehlung für ein Konto, optional mit einem Lead verknüpft, erstellt durch CRM-Logik oder einen Agenten; sie schlägt einer beratenden Person eine Aktion vor und führt diese nie selbst aus.",
+          "1036":"Une recommandation consultative pour un compte, optionnellement liée à un lead, produite par la logique CRM ou un agent; elle propose une action à un conseiller humain et ne l'exécute jamais elle-même.",
+          "1040":"Una raccomandazione consultiva per un account, opzionalmente collegata a un lead, prodotta dalla logica CRM o da un agente; propone un'azione a un consulente umano e non la esegue mai da sola."
+        },
+        "mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Advisory recommendation only; agents recommend, humans decide (ADR-0014).","lifecycle":"Progresses as a human accepts, plans, or dismisses the recommendation (crmshow_nbastatus)."
+      },
+      "columns":[
+        {
+          "logicalName":"crmshow_recommendationkey","schemaName":"crmshow_RecommendationKey","type":"Text","required":true,"auditing":true,"maxLength":100,"format":"Text",
+          "metadata":{"label":{"1033":"Recommendation Key","1031":"Empfehlungsschlüssel","1036":"Clé de recommandation","1040":"Chiave della raccomandazione"},"description":{"1033":"A stable, CRM- or agent-assigned natural key for this recommendation, used for idempotent seeding and reconciliation; not shown to the advisor as a business identifier.","1031":"Ein stabiler, vom CRM oder Agenten vergebener natürlicher Schlüssel dieser Empfehlung, verwendet für idempotentes Seeding und den Abgleich; wird der Beratungsperson nicht als Geschäftskennung angezeigt.","1036":"Une clé naturelle stable, attribuée par le CRM ou l'agent, pour cette recommandation, utilisée pour l'amorçage idempotent et le rapprochement; non affichée au conseiller comme identifiant métier.","1040":"Una chiave naturale stabile, assegnata dal CRM o dall'agente, per questa raccomandazione, usata per il seeding idempotente e la riconciliazione; non mostrata al consulente come identificativo di business."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Idempotent seeding and reconciliation only."}
+        },
+        {
+          "logicalName":"crmshow_name","schemaName":"crmshow_Name","type":"Text","required":true,"auditing":true,"maxLength":200,"format":"Text",
+          "metadata":{"label":{"1033":"Title","1031":"Titel","1036":"Titre","1040":"Titolo"},"description":{"1033":"Short, advisor-facing headline for the recommendation, shown on the cockpit's recommendation card.","1031":"Kurze, für die Beratungsperson sichtbare Überschrift der Empfehlung, angezeigt auf der Empfehlungskarte im Cockpit.","1036":"Titre court destiné au conseiller pour la recommandation, affiché sur la carte de recommandation du cockpit.","1040":"Titolo breve rivolto al consulente per la raccomandazione, mostrato sulla scheda di raccomandazione del cockpit."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Cockpit display only."}
+        },
+        {
+          "logicalName":"crmshow_rationale","schemaName":"crmshow_Rationale","type":"Text","required":true,"auditing":true,"maxLength":2000,"format":"Text",
+          "metadata":{"label":{"1033":"Rationale","1031":"Begründung","1036":"Justification","1040":"Motivazione"},"description":{"1033":"Advisor-facing explanation of why this recommendation was produced, grounded in the cited provenance rows; never presented as customer evidence.","1031":"Für die Beratungsperson sichtbare Erklärung, warum diese Empfehlung erstellt wurde, gestützt auf die zitierten Herkunftsdatensätze; nie als Kundennachweis darzustellen.","1036":"Explication destinée au conseiller sur la raison de cette recommandation, fondée sur les enregistrements de provenance cités; jamais présentée comme preuve client.","1040":"Spiegazione rivolta al consulente sul motivo della raccomandazione, basata sui record di provenienza citati; mai presentata come prova per il cliente."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Cockpit display and RAI transparency only."}
+        },
+        {
+          "logicalName":"crmshow_accountid","schemaName":"crmshow_AccountId","type":"Lookup","required":true,"auditing":false,"lookup":{"targets":["account"],"authoring":"InitialTableCreate"},
+          "metadata":{"label":{"1033":"Account","1031":"Konto","1036":"Compte","1040":"Account"},"description":{"1033":"The Account this recommendation concerns; every recommendation is Account-scoped even when it also names a Lead.","1031":"Das Konto, auf das sich diese Empfehlung bezieht; jede Empfehlung ist kontobezogen, auch wenn zusätzlich ein Lead genannt wird.","1036":"Le compte concerné par cette recommandation; toute recommandation est rattachée à un compte, même lorsqu'un lead est également mentionné.","1040":"L'account a cui si riferisce questa raccomandazione; ogni raccomandazione è associata a un account, anche quando è indicato anche un lead."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Recommendation scoping and navigation."}
+        },
+        {
+          "logicalName":"crmshow_leadid","schemaName":"crmshow_LeadId","type":"Lookup","required":false,"auditing":false,"lookup":{"targets":["lead"],"authoring":"InitialTableCreate"},
+          "metadata":{"label":{"1033":"Lead","1031":"Lead","1036":"Lead","1040":"Lead"},"description":{"1033":"The specific Lead this recommendation relates to, when applicable; blank for Account-level recommendations with no single associated Lead.","1031":"Der spezifische Lead, auf den sich diese Empfehlung bezieht, sofern zutreffend; leer bei kontobezogenen Empfehlungen ohne einzelnen zugehörigen Lead.","1036":"Le lead spécifique auquel se rapporte cette recommandation, le cas échéant; vide pour les recommandations au niveau du compte sans lead unique associé.","1040":"Il lead specifico a cui si riferisce questa raccomandazione, se applicabile; vuoto per raccomandazioni a livello di account senza un lead singolo associato."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Recommendation scoping and navigation."}
+        },
+        {
+          "logicalName":"crmshow_channel","schemaName":"crmshow_Channel","type":"GlobalChoice","required":true,"auditing":true,"choice":"crmshow_nbachannel",
+          "metadata":{"label":{"1033":"Channel","1031":"Kanal","1036":"Canal","1040":"Canale"},"description":{"1033":"CRM-suggested contact channel for this recommendation; a suggestion only, never bypassing per-channel consent.","1031":"CRM-eigener vorgeschlagener Kontaktkanal für diese Empfehlung; nur ein Vorschlag, umgeht nie die kanalbezogene Einwilligung.","1036":"Canal de contact suggéré par le CRM pour cette recommandation; une simple suggestion, ne contournant jamais le consentement par canal.","1040":"Canale di contatto suggerito dal CRM per questa raccomandazione; solo un suggerimento, che non elude mai il consenso per canale."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Channel suggestion only."}
+        },
+        {
+          "logicalName":"crmshow_category","schemaName":"crmshow_Category","type":"GlobalChoice","required":true,"auditing":true,"choice":"crmshow_nbacategory",
+          "metadata":{"label":{"1033":"Category","1031":"Kategorie","1036":"Catégorie","1040":"Categoria"},"description":{"1033":"Urgency/opportunity grouping used to triage this recommendation among others in the advisor's queue.","1031":"Dringlichkeits-/Chancen-Gruppierung zur Triage dieser Empfehlung unter den übrigen in der Warteschlange der Beratungsperson.","1036":"Regroupement d'urgence/d'opportunité utilisé pour trier cette recommandation parmi les autres dans la file d'attente du conseiller.","1040":"Raggruppamento di urgenza/opportunità usato per selezionare questa raccomandazione tra le altre nella coda del consulente."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Cockpit triage display only."}
+        },
+        {
+          "logicalName":"crmshow_aiscore","schemaName":"crmshow_AiScore","type":"Whole","required":true,"auditing":true,"minValue":0,"maxValue":100,
+          "metadata":{"label":{"1033":"AI Score","1031":"KI-Score","1036":"Score IA","1040":"Punteggio IA"},"description":{"1033":"A 0-100 confidence/priority score for this recommendation, produced by CRM logic or an agent; advisory only and never a customer-facing decision.","1031":"Ein 0-100-Konfidenz-/Prioritätswert dieser Empfehlung, erstellt durch CRM-Logik oder einen Agenten; rein beratend und nie eine kundengerichtete Entscheidung.","1036":"Un score de confiance/priorité de 0 à 100 pour cette recommandation, produit par la logique CRM ou un agent; purement consultatif et jamais une décision destinée au client.","1040":"Un punteggio di fiducia/priorità da 0 a 100 per questa raccomandazione, prodotto dalla logica CRM o da un agente; solo consultivo e mai una decisione rivolta al cliente."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Cockpit triage display only."}
+        },
+        {
+          "logicalName":"crmshow_rank","schemaName":"crmshow_Rank","type":"Whole","required":true,"auditing":true,"minValue":1,"maxValue":999,
+          "metadata":{"label":{"1033":"Rank","1031":"Rang","1036":"Rang","1040":"Posizione"},"description":{"1033":"The advisor-facing display order of this recommendation among the day's recommendations; 1 is shown first.","1031":"Die für die Beratungsperson sichtbare Anzeigereihenfolge dieser Empfehlung unter den Tagesempfehlungen; 1 wird zuerst angezeigt.","1036":"L'ordre d'affichage destiné au conseiller de cette recommandation parmi celles du jour; 1 est affiché en premier.","1040":"L'ordine di visualizzazione rivolto al consulente di questa raccomandazione tra quelle del giorno; 1 viene mostrato per primo."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Cockpit display ordering only."}
+        },
+        {
+          "logicalName":"crmshow_status","schemaName":"crmshow_Status","type":"GlobalChoice","required":true,"auditing":true,"choice":"crmshow_nbastatus",
+          "metadata":{"label":{"1033":"Status","1031":"Status","1036":"Statut","1040":"Stato"},"description":{"1033":"Advisory lifecycle of this recommendation (active, planned, accepted, dismissed); the human decision is the learning signal.","1031":"Beratender Lebenszyklus dieser Empfehlung (aktiv, geplant, angenommen, verworfen); die menschliche Entscheidung ist das Lernsignal.","1036":"Cycle de vie consultatif de cette recommandation (active, planifiée, acceptée, écartée); la décision humaine est le signal d'apprentissage.","1040":"Ciclo di vita consultivo di questa raccomandazione (attiva, pianificata, accettata, ignorata); la decisione umana è il segnale di apprendimento."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Advisory lifecycle tracking only."}
+        },
+        {
+          "logicalName":"crmshow_disclosure","schemaName":"crmshow_Disclosure","type":"Text","required":true,"auditing":true,"maxLength":100,"format":"Text",
+          "metadata":{"label":{"1033":"Disclosure","1031":"Offenlegung","1036":"Divulgation","1040":"Divulgazione"},"description":{"1033":"Advisor-facing disclosure that this recommendation is AI-assisted, defaulting to \"AI-assisted\"; required by Responsible AI transparency (ADR-0014).","1031":"Für die Beratungsperson sichtbare Offenlegung, dass diese Empfehlung KI-unterstützt ist, standardmässig \"KI-unterstützt\"; erforderlich gemäss Responsible-AI-Transparenz (ADR-0014).","1036":"Divulgation destinée au conseiller que cette recommandation est assistée par IA, par défaut \"Assistée par IA\"; requise par la transparence Responsible AI (ADR-0014).","1040":"Divulgazione rivolta al consulente che questa raccomandazione è assistita dall'IA, per impostazione predefinita \"Assistita da IA\"; richiesta dalla trasparenza Responsible AI (ADR-0014)."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Responsible-AI transparency display only.","lifecycle":"Set when the recommendation is produced; not expected to change."}
+        }
+      ],
+      "alternateKeys":[
+        {
+          "name":"crmshow_nextbestactionrecommendationkey","schemaName":"crmshow_NextBestActionRecommendationKey","columns":["crmshow_recommendationkey"],
+          "metadata":{"label":{"1033":"Next-Best-Action Recommendation Key","1031":"Empfehlungsschlüssel Nächstbeste Aktion","1036":"Clé de recommandation de la prochaine meilleure action","1040":"Chiave di raccomandazione della prossima azione migliore"},"description":{"1033":"Uniquely identifies a recommendation by its natural key for idempotent seeding.","1031":"Identifiziert eine Empfehlung anhand ihres natürlichen Schlüssels eindeutig für idempotentes Seeding.","1036":"Identifie de façon unique une recommandation par sa clé naturelle pour un amorçage idempotent.","1040":"Identifica in modo univoco una raccomandazione tramite la sua chiave naturale per il seeding idempotente."},"mastership":"Configuration","sensitivity":"Internal","permittedUse":"Dataverse uniqueness and integration upsert."}
+        }
+      ],
+      "relationships":[
+        {
+          "name":"crmshow_account_nextbestactions","schemaName":"crmshow_Account_NextBestActions","lookupColumn":"crmshow_accountid","referencingTable":"crmshow_nextbestaction","referencedTables":["account"],"direction":"ManyToOne","role":"Account is the subject of the recommendation; recommendations reference it.","authoring":"InitialTableCreate",
+          "metadata":{"label":{"1033":"Account Next-Best-Actions","1031":"Nächstbeste Aktionen des Kontos","1036":"Prochaines meilleures actions du compte","1040":"Prossime azioni migliori dell'account"},"description":{"1033":"Many recommendations reference one Account; the direction expresses recommendation scope, not customer-facing authority.","1031":"Viele Empfehlungen verweisen auf ein Konto; die Richtung beschreibt den Empfehlungsumfang, keine kundengerichtete Befugnis.","1036":"Plusieurs recommandations référencent un compte; le sens exprime la portée de la recommandation, non une autorité destinée au client.","1040":"Più raccomandazioni fanno riferimento a un account; la direzione esprime l'ambito della raccomandazione, non un'autorità verso il cliente."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Navigate Account to its recommendations."}
+        },
+        {
+          "name":"crmshow_lead_nextbestactions","schemaName":"crmshow_Lead_NextBestActions","lookupColumn":"crmshow_leadid","referencingTable":"crmshow_nextbestaction","referencedTables":["lead"],"direction":"ManyToOne","role":"Lead is the optional specific subject of the recommendation.","authoring":"InitialTableCreate",
+          "metadata":{"label":{"1033":"Lead Next-Best-Actions","1031":"Nächstbeste Aktionen des Leads","1036":"Prochaines meilleures actions du lead","1040":"Prossime azioni migliori del lead"},"description":{"1033":"Many recommendations may optionally reference one Lead; blank when the recommendation is Account-level only.","1031":"Mehrere Empfehlungen können optional auf einen Lead verweisen; leer, wenn die Empfehlung nur kontobezogen ist.","1036":"Plusieurs recommandations peuvent référencer facultativement un lead; vide lorsque la recommandation est uniquement au niveau du compte.","1040":"Più raccomandazioni possono opzionalmente fare riferimento a un lead; vuoto quando la raccomandazione è solo a livello di account."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Navigate Lead to its recommendations."}
+        }
+      ],
+      "businessRules":[],
+      "views":[
+        {
+          "name":"crmshow_nextbestactionadminview","purpose":"Administration","columns":["crmshow_name","crmshow_accountid","crmshow_leadid","crmshow_channel","crmshow_category","crmshow_aiscore","crmshow_rank","crmshow_status"],
+          "filterIntent":"All Next-Best-Action records; no additional record filter.",
+          "metadata":{"label":{"1033":"Next-Best-Actions","1031":"Nächstbeste Aktionen","1036":"Prochaines meilleures actions","1040":"Prossime azioni migliori"},"description":{"1033":"Minimal administration list of recommendations for authorized review of the advisory queue.","1031":"Minimale Verwaltungsliste der Empfehlungen zur berechtigten Prüfung der beratenden Warteschlange.","1036":"Liste d'administration minimale des recommandations pour un examen autorisé de la file consultative.","1040":"Elenco amministrativo minimo delle raccomandazioni per la revisione autorizzata della coda consultiva."},"mastership":"Configuration","sensitivity":"Internal","permittedUse":"Authorized stewardship under role security."}
+        }
+      ],
+      "forms":[
+        {
+          "name":"crmshow_nextbestactionadminform","purpose":"Administration","columns":["crmshow_name","crmshow_rationale","crmshow_accountid","crmshow_leadid","crmshow_channel","crmshow_category","crmshow_aiscore","crmshow_rank","crmshow_status","crmshow_disclosure"],
+          "metadata":{"label":{"1033":"Next-Best-Action Administration","1031":"Verwaltung Nächstbeste Aktion","1036":"Administration de la prochaine meilleure action","1040":"Amministrazione prossima azione migliore"},"description":{"1033":"Form for authorized inspection of a recommendation's rationale, scoring, and lifecycle status.","1031":"Formular zur berechtigten Prüfung von Begründung, Bewertung und Lebenszyklusstatus einer Empfehlung.","1036":"Formulaire d'inspection autorisée de la justification, du score et du statut de cycle de vie d'une recommandation.","1040":"Modulo per l'ispezione autorizzata di motivazione, punteggio e stato del ciclo di vita di una raccomandazione."},"mastership":"Configuration","sensitivity":"Internal","permittedUse":"Authorized stewardship."}
+        }
+      ]
+    },
+    {
+      "logicalName":"crmshow_nbaprovenance","schemaName":"crmshow_NbaProvenance","ownership":"UserOwned","auditing":true,"isActivity":false,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"NBA Provenance","1031":"NBA-Herkunft","1036":"Provenance NBA","1040":"Provenienza NBA"},
+        "description":{
+          "1033":"One cited source signal supporting a Next-Best-Action recommendation, satisfying the Responsible-AI requirement that every recommendation shows what it is grounded in; not itself customer evidence.",
+          "1031":"Ein zitiertes Quellsignal, das eine Next-Best-Action-Empfehlung stützt und die Responsible-AI-Anforderung erfüllt, dass jede Empfehlung ihre Grundlage zeigt; kein eigener Kundennachweis.",
+          "1036":"Un signal source cité appuyant une recommandation de prochaine meilleure action, satisfaisant l'exigence Responsible AI selon laquelle chaque recommandation montre son fondement; ce n'est pas en soi une preuve client.",
+          "1040":"Un segnale fonte citato a supporto di una raccomandazione Next-Best-Action, che soddisfa il requisito Responsible AI secondo cui ogni raccomandazione mostra il proprio fondamento; non è di per sé prova per il cliente."
+        },
+        "mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Responsible-AI transparency display only.","lifecycle":"Created with its parent recommendation; not expected to change afterward."
+      },
+      "columns":[
+        {
+          "logicalName":"crmshow_name","schemaName":"crmshow_Name","type":"Text","required":true,"auditing":true,"maxLength":200,"format":"Text",
+          "metadata":{"label":{"1033":"Provenance Name","1031":"Herkunftsname","1036":"Nom de la provenance","1040":"Nome della provenienza"},"description":{"1033":"Human-readable record name derived from the source type and reference, for navigation only.","1031":"Aus Quelltyp und Referenz abgeleiteter lesbarer Datensatzname, nur zur Navigation.","1036":"Nom d'enregistrement lisible dérivé du type de source et de la référence, uniquement pour la navigation.","1040":"Nome del record leggibile derivato da tipo e riferimento della fonte, solo per la navigazione."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Display and navigation only."}
+        },
+        {
+          "logicalName":"crmshow_nextbestactionid","schemaName":"crmshow_NextBestActionId","type":"Lookup","required":true,"auditing":false,"lookup":{"targets":["crmshow_nextbestaction"],"authoring":"InitialTableCreate"},
+          "metadata":{"label":{"1033":"Next-Best-Action","1031":"Nächstbeste Aktion","1036":"Prochaine meilleure action","1040":"Prossima azione migliore"},"description":{"1033":"The recommendation this provenance row supports.","1031":"Die Empfehlung, die durch diesen Herkunftsdatensatz gestützt wird.","1036":"La recommandation que cette ligne de provenance appuie.","1040":"La raccomandazione supportata da questa riga di provenienza."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Navigate a recommendation to its cited sources."}
+        },
+        {
+          "logicalName":"crmshow_sourcetype","schemaName":"crmshow_SourceType","type":"Text","required":true,"auditing":true,"maxLength":50,"format":"Text",
+          "metadata":{"label":{"1033":"Source Type","1031":"Quellart","1036":"Type de source","1040":"Tipo di fonte"},"description":{"1033":"The kind of record this citation points to (e.g. lead, measure, task, claim, policy, activity); a display tag, not a typed lookup, because a recommendation may cite any of several unrelated tables.","1031":"Die Art des Datensatzes, auf den dieses Zitat verweist (z. B. Lead, Kennzahl, Aufgabe, Schaden, Police, Aktivität); ein Anzeigekennzeichen, kein typisierter Lookup, da eine Empfehlung mehrere unterschiedliche Tabellen zitieren kann.","1036":"Le type d'enregistrement auquel cette citation renvoie (par ex. lead, mesure, tâche, sinistre, police, activité); une étiquette d'affichage, pas une recherche typée, car une recommandation peut citer plusieurs tables différentes.","1040":"Il tipo di record a cui rimanda questa citazione (per es. lead, misura, attività, sinistro, polizza, attività di agenda); un'etichetta di visualizzazione, non una ricerca tipizzata, poiché una raccomandazione può citare diverse tabelle non correlate."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Responsible-AI transparency display only."}
+        },
+        {
+          "logicalName":"crmshow_reference","schemaName":"crmshow_Reference","type":"Text","required":true,"auditing":true,"maxLength":200,"format":"Text",
+          "metadata":{"label":{"1033":"Reference","1031":"Referenz","1036":"Référence","1040":"Riferimento"},"description":{"1033":"The natural or business key of the cited record (e.g. a Lead key, a Policy external ID, or a composite measure key); may reference a record outside this solution's own tables.","1031":"Der natürliche oder geschäftliche Schlüssel des zitierten Datensatzes (z. B. ein Lead-Schlüssel, eine externe Policen-ID oder ein zusammengesetzter Kennzahlschlüssel); kann auf einen Datensatz ausserhalb der Tabellen dieser Lösung verweisen.","1036":"La clé naturelle ou métier de l'enregistrement cité (par ex. une clé de lead, un identifiant externe de police ou une clé de mesure composite); peut référencer un enregistrement en dehors des tables propres de cette solution.","1040":"La chiave naturale o di business del record citato (per es. una chiave di lead, un ID esterno di polizza o una chiave di misura composita); può fare riferimento a un record al di fuori delle tabelle proprie di questa soluzione."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Responsible-AI transparency display only."}
+        }
+      ],
+      "alternateKeys":[
+        {
+          "name":"crmshow_nbaprovenancecitationkey","schemaName":"crmshow_NbaProvenanceCitationKey","columns":["crmshow_nextbestactionid","crmshow_sourcetype","crmshow_reference"],
+          "metadata":{"label":{"1033":"NBA Provenance Citation Key","1031":"NBA-Herkunftszitatschlüssel","1036":"Clé de citation de provenance NBA","1040":"Chiave di citazione della provenienza NBA"},"description":{"1033":"Prevents the same recommendation from citing the same source record twice.","1031":"Verhindert, dass dieselbe Empfehlung denselben Quelldatensatz zweimal zitiert.","1036":"Empêche la même recommandation de citer deux fois le même enregistrement source.","1040":"Impedisce che la stessa raccomandazione citi due volte lo stesso record fonte."},"mastership":"Configuration","sensitivity":"Internal","permittedUse":"Dataverse uniqueness enforcement only."}
+        }
+      ],
+      "relationships":[
+        {
+          "name":"crmshow_nextbestaction_provenances","schemaName":"crmshow_NextBestAction_Provenances","lookupColumn":"crmshow_nextbestactionid","referencingTable":"crmshow_nbaprovenance","referencedTables":["crmshow_nextbestaction"],"direction":"ManyToOne","role":"Next-Best-Action is the recommendation cited; provenance rows reference it.","authoring":"InitialTableCreate",
+          "metadata":{"label":{"1033":"Next-Best-Action Provenances","1031":"Herkunftsnachweise der Nächstbesten Aktion","1036":"Provenances de la prochaine meilleure action","1040":"Provenienze della prossima azione migliore"},"description":{"1033":"Many provenance rows reference one recommendation; the direction expresses citation, not source-record ownership.","1031":"Viele Herkunftsdatensätze verweisen auf eine Empfehlung; die Richtung beschreibt das Zitat, kein Eigentum am Quelldatensatz.","1036":"Plusieurs lignes de provenance référencent une recommandation; le sens exprime la citation, non la propriété de l'enregistrement source.","1040":"Più righe di provenienza fanno riferimento a una raccomandazione; la direzione esprime la citazione, non la proprietà del record fonte."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Navigate a recommendation to its cited sources."}
+        }
+      ],
+      "businessRules":[],
+      "views":[
+        {
+          "name":"crmshow_nbaprovenanceadminview","purpose":"Administration","columns":["crmshow_name","crmshow_nextbestactionid","crmshow_sourcetype","crmshow_reference"],
+          "filterIntent":"All NBA Provenance records; no additional record filter.",
+          "metadata":{"label":{"1033":"NBA Provenance","1031":"NBA-Herkunft","1036":"Provenance NBA","1040":"Provenienza NBA"},"description":{"1033":"Minimal administration list of cited sources behind recommendations, for authorized review.","1031":"Minimale Verwaltungsliste der zitierten Quellen hinter Empfehlungen, zur berechtigten Prüfung.","1036":"Liste d'administration minimale des sources citées derrière les recommandations, pour un examen autorisé.","1040":"Elenco amministrativo minimo delle fonti citate dietro le raccomandazioni, per la revisione autorizzata."},"mastership":"Configuration","sensitivity":"Internal","permittedUse":"Authorized stewardship under role security."}
+        }
+      ],
+      "forms":[
+        {
+          "name":"crmshow_nbaprovenanceadminform","purpose":"Administration","columns":["crmshow_name","crmshow_nextbestactionid","crmshow_sourcetype","crmshow_reference"],
+          "metadata":{"label":{"1033":"NBA Provenance Administration","1031":"Verwaltung NBA-Herkunft","1036":"Administration de la provenance NBA","1040":"Amministrazione provenienza NBA"},"description":{"1033":"Minimal form for authorized stewardship of a cited provenance row.","1031":"Minimales Formular für die berechtigte Pflege eines zitierten Herkunftsdatensatzes.","1036":"Formulaire minimal pour la gestion autorisée d'une ligne de provenance citée.","1040":"Modulo minimo per la gestione autorizzata di una riga di provenienza citata."},"mastership":"Configuration","sensitivity":"Internal","permittedUse":"Authorized stewardship."}
+        }
+      ]
+    },
+    {
+      "logicalName":"crmshow_measuresnapshot","schemaName":"crmshow_MeasureSnapshot","ownership":"UserOwned","auditing":true,"isActivity":false,"solution":"crmshow_DataModel",
+      "metadata":{
+        "label":{"1033":"Measure Snapshot","1031":"Kennzahlen-Schnappschuss","1036":"Instantané de mesure","1040":"Istantanea di misura"},
+        "description":{
+          "1033":"A materialized, read-only projection of one analytics measure at a point in time, standing in for a live Databricks feed in the showcase (ADR-0026); CRM never computes these values.",
+          "1031":"Eine materialisierte, schreibgeschützte Projektion einer Analytics-Kennzahl zu einem Zeitpunkt, die im Showcase einen Live-Databricks-Feed ersetzt (ADR-0026); das CRM berechnet diese Werte nie selbst.",
+          "1036":"Une projection matérialisée et en lecture seule d'une mesure analytique à un instant donné, remplaçant un flux Databricks en direct dans la démonstration (ADR-0026); le CRM ne calcule jamais ces valeurs.",
+          "1040":"Una proiezione materializzata e in sola lettura di una misura analitica in un dato momento, che sostituisce un flusso Databricks live nella demo (ADR-0026); il CRM non calcola mai questi valori."
+        },
+        "mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Read-only analytics display only.","lifecycle":"Refreshed on each scheduled/seeded load; superseded rows are replaced, not history-tracked here."
+      },
+      "columns":[
+        {
+          "logicalName":"crmshow_name","schemaName":"crmshow_Name","type":"Text","required":true,"auditing":true,"maxLength":200,"format":"Text",
+          "metadata":{"label":{"1033":"Snapshot Name","1031":"Schnappschuss-Name","1036":"Nom de l'instantané","1040":"Nome dell'istantanea"},"description":{"1033":"Human-readable name derived from subject, metric, and as-of date, for navigation only.","1031":"Aus Subjekt, Kennzahl und Stichtag abgeleiteter lesbarer Name, nur zur Navigation.","1036":"Nom lisible dérivé du sujet, de la mesure et de la date de référence, uniquement pour la navigation.","1040":"Nome leggibile derivato da soggetto, misura e data di riferimento, solo per la navigazione."},"mastership":"CRMOwned","sensitivity":"Internal","permittedUse":"Display and navigation only."}
+        },
+        {
+          "logicalName":"crmshow_subject","schemaName":"crmshow_Subject","type":"Text","required":true,"auditing":true,"maxLength":200,"format":"Text",
+          "metadata":{"label":{"1033":"Subject","1031":"Subjekt","1036":"Sujet","1040":"Soggetto"},"description":{"1033":"The entity this measure describes (e.g. a General Agency, region, or portfolio code); a source-supplied natural key, not a Dataverse row reference.","1031":"Die Entität, die diese Kennzahl beschreibt (z. B. eine Generalagentur, Region oder ein Portfoliocode); ein von der Quelle gelieferter natürlicher Schlüssel, kein Dataverse-Datensatzverweis.","1036":"L'entité que décrit cette mesure (par ex. une agence générale, une région ou un code de portefeuille); une clé naturelle fournie par la source, pas une référence d'enregistrement Dataverse.","1040":"L'entità descritta da questa misura (per es. un'agenzia generale, una regione o un codice di portafoglio); una chiave naturale fornita dalla fonte, non un riferimento a un record Dataverse."},"mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Analytics grouping and filtering only."}
+        },
+        {
+          "logicalName":"crmshow_subjecttype","schemaName":"crmshow_SubjectType","type":"Text","required":true,"auditing":true,"maxLength":50,"format":"Text",
+          "metadata":{"label":{"1033":"Subject Type","1031":"Subjekttyp","1036":"Type de sujet","1040":"Tipo di soggetto"},"description":{"1033":"The kind of Subject this row describes (e.g. lead, account, ga, region, product, portfolio), per the measure-snapshot consumption contract.","1031":"Die Art des in dieser Zeile beschriebenen Subjekts (z. B. Lead, Konto, Generalagentur, Region, Produkt, Portfolio) gemäss dem Measure-Snapshot-Konsumvertrag.","1036":"Le type de sujet décrit par cette ligne (par ex. lead, compte, agence générale, région, produit, portefeuille), selon le contrat de consommation measure-snapshot.","1040":"Il tipo di soggetto descritto da questa riga (per es. lead, account, agenzia generale, regione, prodotto, portafoglio), secondo il contratto di consumo measure-snapshot."},"mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Analytics grouping and filtering only."}
+        },
+        {
+          "logicalName":"crmshow_metric","schemaName":"crmshow_Metric","type":"GlobalChoice","required":true,"auditing":true,"choice":"crmshow_metrictype",
+          "metadata":{"label":{"1033":"Metric","1031":"Kennzahl","1036":"Mesure","1040":"Misura"},"description":{"1033":"Canonical measure type this row reports (e.g. goal attainment, growth, NPS); an analytical classification, not a source KPI definition.","1031":"Kanonischer Kennzahlentyp dieser Zeile (z. B. Zielerreichung, Wachstum, NPS); eine analytische Klassifikation, keine Quell-KPI-Definition.","1036":"Type de mesure canonique rapporté par cette ligne (par ex. atteinte des objectifs, croissance, NPS); une classification analytique, pas une définition de KPI source.","1040":"Tipo di misura canonico riportato da questa riga (per es. raggiungimento obiettivi, crescita, NPS); una classificazione analitica, non una definizione di KPI fonte."},"mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Analytical classification only."}
+        },
+        {
+          "logicalName":"crmshow_region","schemaName":"crmshow_Region","type":"GlobalChoice","required":false,"auditing":true,"choice":"crmshow_region",
+          "metadata":{"label":{"1033":"Region","1031":"Region","1036":"Région","1040":"Regione"},"description":{"1033":"Optional market/region dimension for this measure; blank when the measure is not region-specific.","1031":"Optionale Markt-/Regionsdimension dieser Kennzahl; leer, wenn die Kennzahl nicht regionsspezifisch ist.","1036":"Dimension marché/région facultative pour cette mesure; vide lorsque la mesure n'est pas spécifique à une région.","1040":"Dimensione mercato/regione facoltativa per questa misura; vuota quando la misura non è specifica per regione."},"mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Analytics grouping and filtering only."}
+        },
+        {
+          "logicalName":"crmshow_productline","schemaName":"crmshow_ProductLine","type":"GlobalChoice","required":false,"auditing":true,"choice":"crmshow_productline",
+          "metadata":{"label":{"1033":"Product Line","1031":"Produktlinie","1036":"Ligne de produits","1040":"Linea di prodotti"},"description":{"1033":"Optional product-line dimension for this measure; blank when the measure is not product-specific.","1031":"Optionale Produktliniendimension dieser Kennzahl; leer, wenn die Kennzahl nicht produktspezifisch ist.","1036":"Dimension de ligne de produits facultative pour cette mesure; vide lorsque la mesure n'est pas spécifique à un produit.","1040":"Dimensione di linea di prodotti facoltativa per questa misura; vuota quando la misura non è specifica per prodotto."},"mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Analytics grouping and filtering only."}
+        },
+        {
+          "logicalName":"crmshow_asofdate","schemaName":"crmshow_AsOfDate","type":"DateOnly","required":true,"auditing":true,"format":"DateOnly",
+          "metadata":{"label":{"1033":"As Of Date","1031":"Stichtag","1036":"Date de référence","1040":"Data di riferimento"},"description":{"1033":"The date this measure value is valid as of, per the source's own reporting cadence.","1031":"Das Datum, zu dem dieser Kennzahlwert laut der eigenen Berichtsfrequenz der Quelle gültig ist.","1036":"La date à laquelle cette valeur de mesure est valable, selon la cadence de reporting propre à la source.","1040":"La data alla quale questo valore di misura è valido, secondo la cadenza di reporting propria della fonte."},"mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Analytics freshness and time-series context only."}
+        },
+        {
+          "logicalName":"crmshow_value","schemaName":"crmshow_Value","type":"Text","required":true,"auditing":true,"maxLength":50,"format":"Text",
+          "metadata":{"label":{"1033":"Value","1031":"Wert","1036":"Valeur","1040":"Valore"},"description":{"1033":"The numeric measure value as reported by the source, carried as text to preserve the source's own formatting and precision across heterogeneous metric units; CRM does not recompute it.","1031":"Der von der Quelle gemeldete numerische Kennzahlwert, als Text geführt, um Formatierung und Genauigkeit der Quelle über heterogene Kennzahleinheiten hinweg zu erhalten; das CRM berechnet ihn nicht neu.","1036":"La valeur numérique de la mesure telle que rapportée par la source, conservée en texte pour préserver son formatage et sa précision d'origine à travers des unités de mesure hétérogènes; le CRM ne la recalcule pas.","1040":"Il valore numerico della misura come riportato dalla fonte, conservato come testo per preservarne formattazione e precisione originali tra unità di misura eterogenee; il CRM non lo ricalcola."},"mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Analytics display only."}
+        },
+        {
+          "logicalName":"crmshow_unit","schemaName":"crmshow_Unit","type":"Text","required":true,"auditing":true,"maxLength":20,"format":"Text",
+          "metadata":{"label":{"1033":"Unit","1031":"Einheit","1036":"Unité","1040":"Unità"},"description":{"1033":"The unit of crmshow_value as reported by the source (e.g. percent, count, CHF thousand).","1031":"Die Einheit von crmshow_value laut Quelle (z. B. Prozent, Anzahl, Tsd. CHF).","1036":"L'unité de crmshow_value telle que rapportée par la source (par ex. pourcentage, nombre, milliers de CHF).","1040":"L'unità di crmshow_value come riportata dalla fonte (per es. percentuale, conteggio, migliaia di CHF)."},"mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Analytics display only."}
+        },
+        {
+          "logicalName":"crmshow_externalsystem","schemaName":"crmshow_ExternalSystem","type":"Text","required":true,"auditing":true,"maxLength":100,"format":"Text",
+          "metadata":{"label":{"1033":"External System","1031":"Externes System","1036":"Système externe","1040":"Sistema esterno"},"description":{"1033":"Stable non-secret code naming the analytics source of this measure (e.g. \"databricks-mock\" in the showcase); identifies no environment endpoint and contains no credential.","1031":"Stabiler, nicht geheimer Code der Analytics-Quelle dieser Kennzahl (z. B. \"databricks-mock\" im Showcase); weder Umgebungsendpunkt noch Zugangsdaten.","1036":"Code stable et non secret nommant la source analytique de cette mesure (par ex. \"databricks-mock\" dans la démonstration); ni point d'accès d'environnement ni secret.","1040":"Codice stabile e non segreto che indica la fonte analitica di questa misura (per es. \"databricks-mock\" nella demo); non contiene endpoint o credenziali."},"mastership":"SourceProjection","sensitivity":"Internal","permittedUse":"Integration namespace, never credentials."}
+        }
+      ],
+      "alternateKeys":[
+        {
+          "name":"crmshow_measuresnapshotkey","schemaName":"crmshow_MeasureSnapshotKey","columns":["crmshow_subject","crmshow_metric","crmshow_asofdate","crmshow_region","crmshow_productline"],
+          "metadata":{"label":{"1033":"Measure Snapshot Key","1031":"Kennzahlen-Schnappschuss-Schlüssel","1036":"Clé d'instantané de mesure","1040":"Chiave dell'istantanea di misura"},"description":{"1033":"Uniquely identifies one measure value by subject, metric, as-of date, region, and product line for idempotent seeding.","1031":"Identifiziert einen Kennzahlwert eindeutig durch Subjekt, Kennzahl, Stichtag, Region und Produktlinie für idempotentes Seeding.","1036":"Identifie de façon unique une valeur de mesure par sujet, mesure, date de référence, région et ligne de produits pour un amorçage idempotent.","1040":"Identifica in modo univoco un valore di misura tramite soggetto, misura, data di riferimento, regione e linea di prodotti per il seeding idempotente."},"mastership":"Configuration","sensitivity":"Internal","permittedUse":"Dataverse uniqueness and integration upsert."}
+        }
+      ],
+      "relationships":[],
+      "businessRules":[],
+      "views":[
+        {
+          "name":"crmshow_measuresnapshotadminview","purpose":"Administration","columns":["crmshow_name","crmshow_subject","crmshow_metric","crmshow_region","crmshow_productline","crmshow_asofdate","crmshow_value"],
+          "filterIntent":"All Measure Snapshot records; no additional record filter.",
+          "metadata":{"label":{"1033":"Measure Snapshots","1031":"Kennzahlen-Schnappschüsse","1036":"Instantanés de mesure","1040":"Istantanee di misura"},"description":{"1033":"Minimal administration list of projected analytics measures for authorized review.","1031":"Minimale Verwaltungsliste projizierter Analytics-Kennzahlen für die berechtigte Prüfung.","1036":"Liste d'administration minimale des mesures analytiques projetées, pour un examen autorisé.","1040":"Elenco amministrativo minimo delle misure analitiche proiettate, per la revisione autorizzata."},"mastership":"Configuration","sensitivity":"Internal","permittedUse":"Authorized stewardship under role security."}
+        }
+      ],
+      "forms":[
+        {
+          "name":"crmshow_measuresnapshotadminform","purpose":"Administration","columns":["crmshow_name","crmshow_subject","crmshow_subjecttype","crmshow_metric","crmshow_region","crmshow_productline","crmshow_asofdate","crmshow_value","crmshow_unit","crmshow_externalsystem"],
+          "metadata":{"label":{"1033":"Measure Snapshot Administration","1031":"Verwaltung Kennzahlen-Schnappschuss","1036":"Administration de l'instantané de mesure","1040":"Amministrazione istantanea di misura"},"description":{"1033":"Minimal form for authorized stewardship of a projected analytics measure.","1031":"Minimales Formular für die berechtigte Pflege einer projizierten Analytics-Kennzahl.","1036":"Formulaire minimal pour la gestion autorisée d'une mesure analytique projetée.","1040":"Modulo minimo per la gestione autorizzata di una misura analitica proiettata."},"mastership":"Configuration","sensitivity":"Internal","permittedUse":"Authorized stewardship."}
         }
       ]
     }

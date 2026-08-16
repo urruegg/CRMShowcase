@@ -156,6 +156,17 @@ function ConvertTo-RequiredLevel {
     return @{ Value = $(if ($Required) { 'ApplicationRequired' } else { 'None' }) }
 }
 
+function New-DefaultBooleanOptionSet {
+    # No per-column True/False label override exists in the contract; every
+    # TwoOptions column uses this generic Yes/No pair in all four languages.
+    $trueLabel = @{ '1033' = 'Yes'; '1031' = 'Ja'; '1036' = 'Oui'; '1040' = 'Sì' }
+    $falseLabel = @{ '1033' = 'No'; '1031' = 'Nein'; '1036' = 'Non'; '1040' = 'No' }
+    return [ordered]@{
+        TrueOption = @{ Value = 1; Label = (ConvertTo-LocalizedLabel $trueLabel) }
+        FalseOption = @{ Value = 0; Label = (ConvertTo-LocalizedLabel $falseLabel) }
+    }
+}
+
 function New-CompleteLocalizedMetadataUpdateBody {
     param(
         [Parameter(Mandatory)] $Existing,
@@ -254,6 +265,22 @@ function New-AttributeMetadata {
         'Customer' {
             $common['@odata.type'] = 'Microsoft.Dynamics.CRM.LookupAttributeMetadata'
             $common.Targets = @($Column.lookup.targets)
+        }
+        'Whole' {
+            $common['@odata.type'] = 'Microsoft.Dynamics.CRM.IntegerAttributeMetadata'
+            $common.Format = 'None'
+            $common.MinValue = [int]$Column.minValue
+            $common.MaxValue = [int]$Column.maxValue
+        }
+        'Money' {
+            $common['@odata.type'] = 'Microsoft.Dynamics.CRM.MoneyAttributeMetadata'
+            # PrecisionSource 2 = use the organization's currency precision; the
+            # contract does not carry a per-field precision override.
+            $common.PrecisionSource = 2
+        }
+        'TwoOptions' {
+            $common['@odata.type'] = 'Microsoft.Dynamics.CRM.BooleanAttributeMetadata'
+            $common.OptionSet = New-DefaultBooleanOptionSet
         }
         default { throw "Unsupported attribute type '$($Column.type)' for '$($Column.logicalName)'." }
     }
@@ -703,7 +730,7 @@ function Assert-InsuranceFoundationIntegrity {
                 throw "Relationship '$($relationship.name)' is referentially invalid."
             }
             foreach ($target in $relationship.referencedTables) {
-                if ($target -notin @('account', 'contact') -and $target -notin $tableNames) {
+                if ($target -notin @('account', 'contact', 'lead', 'incident') -and $target -notin $tableNames) {
                     throw "Relationship target '$target' is undeclared."
                 }
             }
@@ -1094,6 +1121,7 @@ function Test-AttributeCompatibility {
     $expectedType = @{
         Text = 'String'; DateOnly = 'DateTime'; DateTime = 'DateTime'
         GlobalChoice = 'Picklist'; Lookup = 'Lookup'; Customer = 'Customer'
+        Whole = 'Integer'; Money = 'Money'; TwoOptions = 'Boolean'
     }[$Column.type]
     $actualType = [string]$Existing.AttributeType
     if ($actualType -and $actualType -ne $expectedType) {
@@ -1114,6 +1142,15 @@ function Test-AttributeCompatibility {
         }
         if ([int]$Existing.MaxLength -lt [int]$Column.maxLength) {
             throw "Structural length conflict for '$Owner/$($Column.logicalName)'."
+        }
+    }
+    if ($Column.type -eq 'Whole') {
+        if ($null -eq $Existing.MinValue -or $null -eq $Existing.MaxValue) {
+            throw "Incomplete typed integer metadata for '$Owner/$($Column.logicalName)'."
+        }
+        if ([int]$Existing.MinValue -ne [int]$Column.minValue -or
+            [int]$Existing.MaxValue -ne [int]$Column.maxValue) {
+            throw "Structural range conflict for '$Owner/$($Column.logicalName)'."
         }
     }
     if ($Column.type -eq 'GlobalChoice') {
@@ -1172,6 +1209,9 @@ function Get-TypedAttributeMetadata {
         DateTime = 'DateTimeAttributeMetadata'
         Lookup = 'LookupAttributeMetadata'
         Customer = 'LookupAttributeMetadata'
+        Whole = 'IntegerAttributeMetadata'
+        Money = 'MoneyAttributeMetadata'
+        TwoOptions = 'BooleanAttributeMetadata'
     }[$Column.type]
     $derivedProperties = @{
         Text = 'MaxLength'
@@ -1179,6 +1219,9 @@ function Get-TypedAttributeMetadata {
         DateTime = 'Format,DateTimeBehavior'
         Lookup = 'Targets'
         Customer = 'Targets'
+        Whole = 'MinValue,MaxValue'
+        Money = 'PrecisionSource'
+        TwoOptions = 'DefaultValue'
     }[$Column.type]
     if (-not $type) {
         throw "Unsupported typed metadata query for '$($Column.type)' column '$($Column.logicalName)'."

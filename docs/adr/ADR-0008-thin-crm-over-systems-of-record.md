@@ -56,6 +56,14 @@ eligibility are *invoked*, never *reimplemented*.
 - **Cost:** integration quality becomes load-bearing. See
   [ADR-0011](./ADR-0011-event-driven-cascade.md) and
   [../INTEGRATION.md](../INTEGRATION.md).
+- **Party mastership lifecycle (2026-08-14):** the same thin-CRM principle
+  extends to Account/Contact identity, not only Policy/Claim/Quote. A new
+  relationship is born CRM-owned (prospect stage); once a contract exists,
+  mastership of party data switches to the core system (PDV) and syncs back
+  to CRM. Modeled as `crmshow_mastershipstatus` (CRMOwned/SourceMastered),
+  `crmshow_mastersystem` (choice, e.g. PDV), and `crmshow_lastsyncedon` on
+  both `account` and `contact` — see
+  [2026-08-14-advisor-cockpit-datamodel-scope-reduction-design.md](../superpowers/specs/2026-08-14-advisor-cockpit-datamodel-scope-reduction-design.md).
 
 ## Competitive note
 
