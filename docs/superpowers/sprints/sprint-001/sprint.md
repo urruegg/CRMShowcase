@@ -7,7 +7,7 @@
 | **Status** | In progress |
 | **Design spec** | [2026-08-11-delegated-sprint-operating-model-design.md](../../specs/2026-08-11-delegated-sprint-operating-model-design.md) |
 | **Plan** | [2026-08-11-delegated-sprint-operating-model.md](../../plans/2026-08-11-delegated-sprint-operating-model.md) |
-| **ADR** | [ADR-0023](../../../adr/ADR-0023-delegated-sprint-operating-model.md) |
+| **ADR** | [ADR-0040](../../../adr/ADR-0040-delegated-sprint-operating-model.md) |
 | **Operating model** | [SPRINT-OPERATING-MODEL.md](../../SPRINT-OPERATING-MODEL.md) |
 | **Status board** | [STATUS.md](./STATUS.md) |
 
@@ -44,7 +44,7 @@ Each stream becomes a stream-handover issue and carries a
 - [ ] `SPRINT-OPERATING-MODEL.md`, `HANDOVER-CONTRACT.md`, `INTAKE-CONTRACT.md`
       and the packet template committed via PR to `main`.
 - [ ] All `scripts/orchestration/*` covered by green Pester tests.
-- [ ] `ADR-0023-delegated-sprint-operating-model.md` recorded.
+- [ ] `ADR-0040-delegated-sprint-operating-model.md` recorded.
 - [ ] Sprint Charter issue `#S` and at least one Stream issue `#N` created.
 - [ ] One **smoke stream** dispatched end to end through the real wrapper
       (worktree → dispatch → commit → PR → merge → retire), evidence in

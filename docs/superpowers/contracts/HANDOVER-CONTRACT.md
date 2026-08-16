@@ -7,7 +7,7 @@
 | **Applies to** | Every delegated stream in the sprint operating model |
 | **Machine-readable source** | [handover-packet.template.md](./handover-packet.template.md) |
 | **Parsed by** | [Read-HandoverPacket.ps1](../../../scripts/orchestration/Read-HandoverPacket.ps1) |
-| **Related** | [SPRINT-OPERATING-MODEL.md](../SPRINT-OPERATING-MODEL.md) · [INTAKE-CONTRACT.md](./INTAKE-CONTRACT.md) · [ADR-0023](../../adr/ADR-0023-delegated-sprint-operating-model.md) · [design spec](../specs/2026-08-11-delegated-sprint-operating-model-design.md) · [SUPERPOWERS_CONTRACT.md](../../../SUPERPOWERS_CONTRACT.md) |
+| **Related** | [SPRINT-OPERATING-MODEL.md](../SPRINT-OPERATING-MODEL.md) · [INTAKE-CONTRACT.md](./INTAKE-CONTRACT.md) · [ADR-0040](../../adr/ADR-0040-delegated-sprint-operating-model.md) · [design spec](../specs/2026-08-11-delegated-sprint-operating-model-design.md) · [SUPERPOWERS_CONTRACT.md](../../../SUPERPOWERS_CONTRACT.md) |
 
 ---
 
@@ -62,7 +62,7 @@ branches on this field and nothing else.
   be launched headless.** The wrapper refuses a headless launch and prints an
   attended, interactive plan-mode command instead, preserving the human review
   and clarification loop. This is the enforced form of *"design is never
-  autopilot-approved"* ([ADR-0023](../../adr/ADR-0023-delegated-sprint-operating-model.md)).
+  autopilot-approved"* ([ADR-0040](../../adr/ADR-0040-delegated-sprint-operating-model.md)).
 
 **Rule:** a `DESIGN-SENSITIVE` packet is never launched headless. Choosing the
 class is a control-plane decision made when the stream issue is written, not
@@ -82,7 +82,7 @@ pattern). Fields use the `- **Field:** value` syntax the parser matches.
 - **Autonomy class:** EXECUTION-ONLY
 - **Branch:** feat/sprint-001-toolchain
 - **Worktree:** C:\Users\urruegg\source\urruegg\wt\sprint-001-toolchain
-- **Approved design ref:** ADR-0023 + docs/superpowers/specs/2026-08-11-delegated-sprint-operating-model-design.md
+- **Approved design ref:** ADR-0040 + docs/superpowers/specs/2026-08-11-delegated-sprint-operating-model-design.md
 
 ## Goal / Definition of Done
 

@@ -1,4 +1,4 @@
-# ADR-0023 - Delegated sprint operating model (Copilot CLI control plane)
+# ADR-0040 - Delegated sprint operating model (Copilot CLI control plane)
 
 | Field | Value |
 | --- | --- |

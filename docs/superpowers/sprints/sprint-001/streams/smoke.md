@@ -6,7 +6,7 @@
 - **Autonomy class:** EXECUTION-ONLY
 - **Branch:** feat/sprint-001-smoke
 - **Worktree:** C:\Users\urruegg\source\urruegg\wt\sprint-001-smoke
-- **Approved design ref:** ADR-0023
+- **Approved design ref:** ADR-0040
 
 ## Goal / Definition of Done
 

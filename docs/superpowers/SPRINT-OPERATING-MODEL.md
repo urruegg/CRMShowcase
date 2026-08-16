@@ -7,7 +7,7 @@
 | **Scope** | How humans and agents run a sprint as a team in this repo |
 | **Autonomy** | Agents recommend and prepare; a human reviews design and merges (execution-only streams may auto-merge on green CI — [ADR-0028](../adr/ADR-0028-scoped-auto-merge-execution-only.md)) |
 | **Contracts** | [HANDOVER-CONTRACT.md](./contracts/HANDOVER-CONTRACT.md) · [INTAKE-CONTRACT.md](./contracts/INTAKE-CONTRACT.md) |
-| **Decision record** | [ADR-0023](../adr/ADR-0023-delegated-sprint-operating-model.md) |
+| **Decision record** | [ADR-0040](../adr/ADR-0040-delegated-sprint-operating-model.md) |
 | **Design spec** | [2026-08-11-delegated-sprint-operating-model-design.md](./specs/2026-08-11-delegated-sprint-operating-model-design.md) |
 | **Related** | [ADR-0014](../adr/ADR-0014-agents-advisory-by-design.md) · [ADR-0017](../adr/ADR-0017-alm-everything-through-the-pipeline.md) · [SUPERPOWERS_CONTRACT.md](../../SUPERPOWERS_CONTRACT.md) · [COPILOT-BUILD-GUIDE.md](../COPILOT-BUILD-GUIDE.md) |
 
