@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <manifest>
-  <control namespace="crmshow" constructor="SalesLeaderDashboard" version="1.0.0" display-name-key="SalesLeaderDashboard" description-key="Sales Leader Dashboard page-level dashboard (Sprint-003 #63/#64)" control-type="standard">
+  <control namespace="PCF" constructor="SalesLeaderDashboard" version="1.0.1" display-name-key="CRMShow_SalesLeaderDashboard" description-key="Sales Leader Dashboard page-level dashboard (Sprint-003 #63/#64)" control-type="standard">
     <!--
       Standard (not virtual) control-type: this control bundles its own React 18 +
       Fluent UI v9 runtime (see index.ts) instead of using the platform-provided
