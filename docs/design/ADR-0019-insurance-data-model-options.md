@@ -123,7 +123,7 @@ Keep the same CRM-owned foundation as Options A/C (Account, Contact, effective-d
 
 ## Key diagram
 
-The diagram below depicts the accepted Option C (layered hybrid) and shows how the four layers relate:
+The diagram below depicts Option C (layered hybrid) — the working-hypothesis option pending Contoso Insurance integration and data-platform discovery — and shows how the four layers relate:
 
 ```mermaid
 flowchart TD
@@ -171,7 +171,7 @@ flowchart TD
 
 ## Validate this live
 
-Open `docs/adr/ADR-0019-provisional-insurance-data-model-shape.md` to see the full technical rationale and the accepted decision. Cross-check against `docs/design/contoso-insurance-data-model-extension.md` for the concrete Dataverse table/column implementation of the chosen option.
+Open `docs/adr/ADR-0019-provisional-insurance-data-model-shape.md` to see the full technical rationale and the current status of the decision. Cross-check against `docs/design/contoso-insurance-data-model-extension.md` for the concrete Dataverse table/column implementation of the chosen option.
 
 ## Decision
 

@@ -65,7 +65,7 @@ The admin manually sets each `systemuser`'s Business Unit and Security Role via 
 
 ## Key diagram
 
-The diagram below depicts the accepted Entra-to-Power-Platform role-mapping flow for Option A — the native, config-only path that directly links an Entra Security Group to a Dataverse Business Unit-scoped group team, resolving GA territory access at sign-in without custom code.
+The diagram below depicts an illustrative Entra-to-Power-Platform role-mapping flow using Option A as the example — the native, config-only path that directly links an Entra Security Group to a Dataverse Business Unit-scoped group team, resolving GA territory access at sign-in without custom code. No option has been selected yet; this diagram illustrates one of the four credible options, not a decided architecture.
 
 ```mermaid
 flowchart LR
@@ -94,7 +94,7 @@ flowchart LR
 
 ## Validate this live
 
-Open `docs/adr/ADR-0032-entra-power-platform-dynamics365-identity-access-management.md` for the full technical rationale and accepted decision.
+Open `docs/adr/ADR-0032-entra-power-platform-dynamics365-identity-access-management.md` for the full technical rationale. Note that no option has been selected — this ADR is an open working hypothesis pending Enterprise Architect and customer IT/architect stakeholder review.
 
 ## Decision
 

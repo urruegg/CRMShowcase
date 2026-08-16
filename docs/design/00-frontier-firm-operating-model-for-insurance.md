@@ -34,13 +34,14 @@ This repo is the worked example of the method above, applied to the Contoso Insu
 
 - Control-plane inventory: `docs/FRONTIER-OPERATING-MODEL.md` section 5.
 - Role mapping onto this repo's named agents: `docs/FRONTIER-OPERATING-MODEL.md` section 6.
-- Roadmap phasing: `docs/FRONTIER-OPERATING-MODEL.md` section 9.
 - HITL/governance guardrails: `docs/FRONTIER-OPERATING-MODEL.md` section 7.
+- Work IQ <-> GitHub pattern (documented only): `docs/FRONTIER-OPERATING-MODEL.md` section 8.
+- Roadmap phasing: `docs/FRONTIER-OPERATING-MODEL.md` section 9.
 - The concrete artefacts this method produced: the 11 ADR-linked pattern docs in this same folder - see `docs/design/README.md` for the full index.
 
 ## Validate this live
 
-During the demo, open `docs/FRONTIER-OPERATING-MODEL.md` and walk section by section (section 5 control planes -> section 6 role mapping -> section 9 roadmap -> section 7 governance) to show this is a real, repo-grounded method, not a slide-only framework. Then open `docs/superpowers/sprints/` to show the requirement -> ADR -> design-pattern -> deployed-evidence loop this repo actually runs.
+During the demo, open `docs/FRONTIER-OPERATING-MODEL.md` and walk section by section (section 5 control planes -> section 6 role mapping -> section 7 governance -> section 8 Work IQ pattern -> section 9 roadmap) to show this is a real, repo-grounded method, not a slide-only framework. Then open `docs/superpowers/sprints/` to show the requirement -> ADR -> design-pattern -> deployed-evidence loop this repo actually runs.
 
 ## Decision
 
