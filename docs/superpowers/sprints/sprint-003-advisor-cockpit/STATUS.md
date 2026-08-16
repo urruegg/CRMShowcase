@@ -15,8 +15,8 @@ Live status for the Advisor Cockpit (charter **#55**). See the
 | foundational-tables | #57 | DESIGN-SENSITIVE | — | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | 5 tables incl. `crmshow_leadcluster`/`crmshow_claimprojection` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
 | cockpit-tables | #58 | EXECUTION-ONLY | feat/s3-phase3-cockpit-tables | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | `crmshow_nextbestaction`/`crmshow_nbaprovenance`/`crmshow_measuresnapshot` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
 | seed-pipeline | #60 (follow-up) | EXECUTION-ONLY | feat/s3-seed-claims-mapping, feat/s3-account-seedkey, feat/s3-account-keymap-resolver, feat/s3-account-upserts, feat/s3-cd-seed-wiring | #101 ✅ merged, #102 ✅ merged, #103 ✅ merged, #104 ✅ merged (docs), #105 ✅ merged, #106 ✅ merged | ✅ code-complete | claims.json mapped to `crmshow_claimprojection` + 14/14 Pester (#101); `crmshow_seedkey` added to `account` (#102, contract 1.2.0); `Get-AccountKeyMap` resolver auto-wired into `Invoke-AdvisorCockpitSeed` (#103, 17/17 Pester); account upserts (name/crmshow_accounttype/crmshow_seedkey) implemented via POST-or-PATCH-by-GUID since `account` has no registered Dataverse alternate key (#105, 22/22 Pester); `cd-solution-dev.yml` now calls `seed-advisor-cockpit.ps1` after convergence validation (2026-08-15) — code-complete end-to-end, not yet verified against a live dispatch; contacts/roles + policies.json deferred separately |
-| mda-app | #64 | DESIGN-SENSITIVE | feat/s3-mda-app-publish (deleted, merged), feat/s3-solution-version-sync-and-app-reconcile (deleted, merged), fix/pcf-control-import-scaffolding | #100 (docs), #110 ✅ merged, #112 ✅ merged, #114 ⏳ open | ✅ both PCF controls now live-imported in DEV | `publish-advisor-cockpit-app.ps1` implements the sitemap/app-module/component/role reconciliation end to end (10/10 plan tasks, 21/21 Pester, 2 Dataverse Web API protocol bugs found+fixed in review) and is wired into `cd-solution-dev.yml` (2026-08-15, merged `75d89c8`); owner manually authored the app module + sitemap live in DEV (`crmshow_AdvisorCockpit`) while diagnosing why the app wasn't visible — contract reconciled to match, real `clientType=4`/`formFactor=1` confirmed (#112, merged `306c9b6`); `Set-SolutionVersions.ps1` closes a repo-wide gap where manifest.json-declared versions never reached live Dataverse; Custom Page hosting approach abandoned in favour of Contact Form hosting; `pac pcf push` root-caused to 3 hand-scaffolding defects (missing `.targets` imports, control manifest not in a `<ControlName>/` subfolder causing the compiled solution-packager task to silently drop it from `<CustomControls>`, missing eslint config/deps) — **not** a missing VS workload; both `crmshow_crmshow.AdvisorCockpit` and `crmshow_crmshow.SalesLeaderDashboard` now confirmed as real components of `crmshow_Sales` via `pac solution export` (#114) |
-| e2e-verify | #65 | EXECUTION-ONLY | — | — | ⏳ DEV-gated | DEV→TEST evidence |
+| mda-app | #64 | DESIGN-SENSITIVE | feat/s3-mda-app-publish (deleted, merged), feat/s3-solution-version-sync-and-app-reconcile (deleted, merged), fix/pcf-control-import-scaffolding (deleted, merged), fix/pcf-control-naming (deleted, merged) | #100 (docs), #110 ✅ merged, #112 ✅ merged, #114 ✅ merged, #115 ✅ merged | ✅ both PCF controls live-imported in DEV under final names | `publish-advisor-cockpit-app.ps1` implements the sitemap/app-module/component/role reconciliation end to end (10/10 plan tasks, 21/21 Pester, 2 Dataverse Web API protocol bugs found+fixed in review) and is wired into `cd-solution-dev.yml` (2026-08-15, merged `75d89c8`); owner manually authored the app module + sitemap live in DEV (`crmshow_AdvisorCockpit`) while diagnosing why the app wasn't visible — contract reconciled to match, real `clientType=4`/`formFactor=1` confirmed (#112, merged `306c9b6`); `Set-SolutionVersions.ps1` closes a repo-wide gap where manifest.json-declared versions never reached live Dataverse; Custom Page hosting approach abandoned in favour of Contact Form hosting; `pac pcf push` root-caused to 3 hand-scaffolding defects (missing `.targets` imports, control manifest not in a `<ControlName>/` subfolder causing the compiled solution-packager task to silently drop it from `<CustomControls>`, missing eslint config/deps) — **not** a missing VS workload; both `crmshow_crmshow.AdvisorCockpit` and `crmshow_crmshow.SalesLeaderDashboard` confirmed as real components of `crmshow_Sales` via `pac solution export` (#114); **follow-up naming fix (#115, merged):** technical names shortened to `crmshow_PCF.AdvisorCockpit` / `crmshow_PCF.SalesLeaderDashboard` (namespace `crmshow` was redundant with the `crmshow` publisher prefix — Dataverse's `<prefix>_<namespace>.<constructor>` dot is a hard platform constraint, confirmed via Microsoft Learn) with distinct display names `CRMShow_AdvisorCockpit` / `CRMShow_SalesLeaderDashboard`; the resulting orphaned `crmshow_crmshow.*` components were deleted from DEV via the Maker Portal (no `pac` CLI path exists for single-component deletion), verified via `pac solution export` showing only the two `crmshow_PCF.*` controls remain |
+| e2e-verify | #65 | EXECUTION-ONLY | — | — | ⏳ DEV-gated | DEV→TEST evidence; #64 now complete, this stream is next |
 | nba-agent | #61 | DESIGN-SENSITIVE | — | — | ⏸ deferred | out of sprint; needs a use-case description |
 
 ## Run log
@@ -731,13 +731,38 @@ Live status for the Advisor Cockpit (charter **#55**). See the
   `pac solution export --name crmshow_Sales` confirms
   `crmshow_crmshow.AdvisorCockpit` and
   `crmshow_crmshow.SalesLeaderDashboard` as real `<CustomControls>`
-  components. Landed in **PR #114** (open, not self-merged). Root cause and
+  components. Landed in **PR #114** (merged). Root cause and
   diagnostic technique recorded in `/memories/repo/pcf-build-deps.md`.
   Still outstanding: binding the imported control to the `nickname` field
   on the Contact form (blocked on observing the real form-XML `<control>`
   structure Dataverse assigns once done once), confirming whether the
   `pageUniqueName` references in `advisor-cockpit-app.json` are now moot,
   and an actual live dispatch of `cd-solution-dev.yml` against DEV.
+
+- **2026-08-16 (naming cleanup + DEV orphan deletion, PR #115) -** Owner
+  asked to shorten the redundant `crmshow_crmshow.<Name>` technical names
+  (the `namespace` duplicated the `crmshow` publisher prefix). Changed each
+  manifest's `namespace` from `crmshow` to `PCF` — Dataverse's
+  `<prefix>_<namespace>.<constructor>` dot is a hard, unavoidable platform
+  constraint (confirmed via Microsoft Learn), so `crmshow_PCF.<Name>` is the
+  closest achievable fix — with distinct display names
+  `CRMShow_AdvisorCockpit` / `CRMShow_SalesLeaderDashboard`. Re-pushed both
+  via `pac pcf push --solution-unique-name crmshow_Sales`; verified via a
+  fresh export. Landed in **PR #115** (merged). Because Dataverse treats a
+  namespace change as a new component rather than a rename, this left the
+  old `crmshow_crmshow.AdvisorCockpit` / `crmshow_crmshow.SalesLeaderDashboard`
+  as orphans in DEV. Owner then explicitly approved deleting them: no `pac`
+  CLI command exists to delete a single solution component (`pac solution
+  delete` only deletes a whole solution), so the deletion was done via
+  Maker Portal browser automation instead. A two-item batch delete failed
+  twice with a genuine Dataverse backend `SQL timeout expired` error;
+  deleting one control at a time succeeded both times. Verified via a fresh
+  `pac solution export`: only `crmshow_PCF.AdvisorCockpit` /
+  `crmshow_PCF.SalesLeaderDashboard` remain in `<CustomControls>`. Technique
+  and gotchas recorded in
+  `/memories/repo/dataverse-maker-portal-browser-automation.md`. With this,
+  stream **#64 (mda-app) is complete**; stream **#65 (e2e-verify, DEV→TEST
+  promotion)** is next.
 
 ## Live DEV + TEST evidence
 
@@ -760,14 +785,21 @@ and to produce the first live evidence of the seed + smoke steps actually
 running (including observing the documented two-pass-convergence behavior).
 Not yet done.
 
-**TEST evidence — not started.** No promotion of this sprint's schema/data to
-TEST has been attempted. Sequentially blocked behind #64 (MDA app + custom
-pages) per this sprint's own dependency chain — TEST evidence only makes
-sense once there is a complete, DEV-verified surface to promote. Tracked as
-stream `e2e-verify` (#65) in the table above.
+**TEST evidence — not started, now unblocked.** No promotion of this
+sprint's schema/data to TEST has been attempted yet. It was sequentially
+blocked behind #64 (MDA app + custom pages), which is now complete
+(2026-08-16, PRs #110/#112/#114/#115 all merged) — TEST evidence work is
+starting under stream `e2e-verify` (#65) in the table above.
 
-**Reason TEST has not yet been reached (explicit, per the anchored policy —
-not a silent omission):** sprint-003's own remaining path is
+**Gap found while starting #65:** `cd-solution-test.yml` today only
+exports/imports `crmshow_Foundation` and `crmshow_DataModel` — it does not
+include `crmshow_Sales` (the solution holding the Advisor Cockpit MDA app +
+both PCF controls). This solution needs to be added to the promotion
+pipeline before a TEST dispatch can produce any evidence of this sprint's
+actual surface.
+
+**Reason TEST had not been reached until now (explicit, per the anchored
+policy — not a silent omission):** sprint-003's own path was
 schema/seed-pipeline (this document) → MDA app + PCF ALM wrap (#64) → *then*
-DEV→TEST promotion (#65). TEST evidence is intentionally sequenced last, not
-skipped.
+DEV→TEST promotion (#65). TEST evidence was intentionally sequenced last,
+not skipped.
