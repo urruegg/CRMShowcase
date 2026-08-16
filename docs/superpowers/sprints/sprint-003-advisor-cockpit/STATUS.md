@@ -16,7 +16,7 @@ Live status for the Advisor Cockpit (charter **#55**). See the
 | cockpit-tables | #58 | EXECUTION-ONLY | feat/s3-phase3-cockpit-tables | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | `crmshow_nextbestaction`/`crmshow_nbaprovenance`/`crmshow_measuresnapshot` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
 | seed-pipeline | #60 (follow-up) | EXECUTION-ONLY | feat/s3-seed-claims-mapping, feat/s3-account-seedkey, feat/s3-account-keymap-resolver, feat/s3-account-upserts, feat/s3-cd-seed-wiring | #101 ✅ merged, #102 ✅ merged, #103 ✅ merged, #104 ✅ merged (docs), #105 ✅ merged, #106 ✅ merged | ✅ code-complete | claims.json mapped to `crmshow_claimprojection` + 14/14 Pester (#101); `crmshow_seedkey` added to `account` (#102, contract 1.2.0); `Get-AccountKeyMap` resolver auto-wired into `Invoke-AdvisorCockpitSeed` (#103, 17/17 Pester); account upserts (name/crmshow_accounttype/crmshow_seedkey) implemented via POST-or-PATCH-by-GUID since `account` has no registered Dataverse alternate key (#105, 22/22 Pester); `cd-solution-dev.yml` now calls `seed-advisor-cockpit.ps1` after convergence validation (2026-08-15) — code-complete end-to-end, not yet verified against a live dispatch; contacts/roles + policies.json deferred separately |
 | mda-app | #64 | DESIGN-SENSITIVE | feat/s3-mda-app-publish (deleted, merged), feat/s3-solution-version-sync-and-app-reconcile (deleted, merged), fix/pcf-control-import-scaffolding (deleted, merged), fix/pcf-control-naming (deleted, merged) | #100 (docs), #110 ✅ merged, #112 ✅ merged, #114 ✅ merged, #115 ✅ merged | ✅ both PCF controls live-imported in DEV under final names | `publish-advisor-cockpit-app.ps1` implements the sitemap/app-module/component/role reconciliation end to end (10/10 plan tasks, 21/21 Pester, 2 Dataverse Web API protocol bugs found+fixed in review) and is wired into `cd-solution-dev.yml` (2026-08-15, merged `75d89c8`); owner manually authored the app module + sitemap live in DEV (`crmshow_AdvisorCockpit`) while diagnosing why the app wasn't visible — contract reconciled to match, real `clientType=4`/`formFactor=1` confirmed (#112, merged `306c9b6`); `Set-SolutionVersions.ps1` closes a repo-wide gap where manifest.json-declared versions never reached live Dataverse; Custom Page hosting approach abandoned in favour of Contact Form hosting; `pac pcf push` root-caused to 3 hand-scaffolding defects (missing `.targets` imports, control manifest not in a `<ControlName>/` subfolder causing the compiled solution-packager task to silently drop it from `<CustomControls>`, missing eslint config/deps) — **not** a missing VS workload; both `crmshow_crmshow.AdvisorCockpit` and `crmshow_crmshow.SalesLeaderDashboard` confirmed as real components of `crmshow_Sales` via `pac solution export` (#114); **follow-up naming fix (#115, merged):** technical names shortened to `crmshow_PCF.AdvisorCockpit` / `crmshow_PCF.SalesLeaderDashboard` (namespace `crmshow` was redundant with the `crmshow` publisher prefix — Dataverse's `<prefix>_<namespace>.<constructor>` dot is a hard platform constraint, confirmed via Microsoft Learn) with distinct display names `CRMShow_AdvisorCockpit` / `CRMShow_SalesLeaderDashboard`; the resulting orphaned `crmshow_crmshow.*` components were deleted from DEV via the Maker Portal (no `pac` CLI path exists for single-component deletion), verified via `pac solution export` showing only the two `crmshow_PCF.*` controls remain |
-| e2e-verify | #65 | EXECUTION-ONLY | — | — | ⏳ DEV-gated | DEV→TEST evidence; #64 now complete, this stream is next |
+| e2e-verify | #65 | EXECUTION-ONLY | feat/s3-test-promote-sales | #118 ⏳ open | 🚧 in progress | DEV dispatch `31962217108` found a pre-existing lead-lookup metadata bug (blocks a fully-green DEV run, not this stream's own work); TEST dispatch `31963834793` rejected by environment protection (needs PR #118 merged to `main` first) |
 | nba-agent | #61 | DESIGN-SENSITIVE | — | — | ⏸ deferred | out of sprint; needs a use-case description |
 
 ## Run log
@@ -764,6 +764,25 @@ Live status for the Advisor Cockpit (charter **#55**). See the
   stream **#64 (mda-app) is complete**; stream **#65 (e2e-verify, DEV→TEST
   promotion)** is next.
 
+- **2026-08-16 (e2e-verify started; DEV dispatch found a new bug; TEST
+  dispatch confirmed the branch-protection gate) -** Opened **PR #117**
+  (this STATUS.md reconciliation) and **PR #118** (adds
+  `crmshow_Integration`/`crmshow_Sales` to `cd-solution-test.yml`, since
+  neither was wired into the TEST promotion pipeline). Dispatched a fresh
+  `cd-solution-dev.yml` on `main` (run `31962217108`) to refresh the stale
+  DEV evidence noted below — it failed partway through `author`, surfacing
+  a genuine, pre-existing bug unrelated to this sprint's PCF/mda-app work:
+  `Publish-InsuranceFoundation.ps1` tries to create the
+  `crmshow_leadclusterid` Lookup column on `lead` via a plain metadata
+  Attributes POST, which Dataverse rejects for Lookup types. Then dispatched
+  `cd-solution-test.yml` from PR #118's branch to exercise the new
+  Sales-promotion logic — GitHub rejected it outright with *"Branch
+  ... is not allowed to deploy to dev due to environment protection
+  rules"*, confirming the `dev`/`test` Environments only accept dispatches
+  from `main`. Both PRs are open, un-merged, and were **not self-merged**
+  by the agent per the sprint operating model. Full detail in the evidence
+  section immediately below.
+
 ## Live DEV + TEST evidence
 
 Required by the [Sprint Operating Model's "Sprint closing" policy](../../SPRINT-OPERATING-MODEL.md#sprint-closing--required-dev--test-evidence)
@@ -773,17 +792,30 @@ sprint can be called closed. Mirrors the structure of
 — one row per pipeline step, run links, and actual test-count evidence, not
 bare claims.
 
-**DEV evidence — stale, a fresh run is needed.** The most recent
-confirmed-green live DEV run is
+**DEV evidence — fresh run attempted (2026-08-16), failed; found a new,
+pre-existing bug.** Dispatched
+[31962217108](https://github.com/urruegg/CRMShowcase/actions/runs/31962217108)
+against `main`: `validate` green (offline suite passed); `author` reached
+`Reconcile demo-safe metadata` and failed there —
+`Publish-InsuranceFoundation.ps1` POSTs the new `crmshow_leadclusterid`
+Lookup column (`lead` → `crmshow_leadcluster`, added per the schema in
+`solution/schema/insurance-foundation.json`, ADR-0009) straight to
+`EntityDefinitions(LogicalName='lead')/Attributes`, which Dataverse's
+metadata Web API rejects for Lookup-type attributes
+(`0x80040203: Attribute of type LookupAttributeMetadata cannot be created
+through the SDK`) — lookups must be created via the relationship-creation
+endpoint instead. This is the first live run to exercise this code path
+(the prior confirmed-green run,
 [31805085480](https://github.com/urruegg/CRMShowcase/actions/runs/31805085480)
-(2026-08-14, before the seed-pipeline PRs in this document): `validate`
-12m22s, `author` 9m13s, full offline suite green. That run predates
-PRs #101–#106 (claims/`crmshow_seedkey`/`Get-AccountKeyMap`/account
-upserts/seed+smoke pipeline steps), all of which are now merged to `main` —
-**a new dispatch is needed** to author anything still pending intake-export
-and to produce the first live evidence of the seed + smoke steps actually
-running (including observing the documented two-pass-convergence behavior).
-Not yet done.
+from 2026-08-14, predates it). Everything the script reconciled *before*
+that step (account/contact fields incl. `crmshow_seedkey`,
+`crmshow_mastershipstatus`, `crmshow_mastersystem`, `crmshow_lastsyncedon`,
+`crmshow_consentemail`, `crmshow_consentphone`) succeeded and is live in
+DEV — Dataverse metadata changes are not transactional across the whole
+script, so this is a partial-but-not-corrupt state. **Not yet fixed** —
+tracked as a new gap under foundational-tables (#57); needs the lookup/
+relationship creation call fixed in `Publish-InsuranceFoundation.ps1` (or
+its underlying Dataverse client) before a fully green DEV run is possible.
 
 **TEST evidence — not started, now unblocked.** No promotion of this
 sprint's schema/data to TEST has been attempted yet. It was sequentially
@@ -794,9 +826,23 @@ starting under stream `e2e-verify` (#65) in the table above.
 **Gap found while starting #65:** `cd-solution-test.yml` today only
 exports/imports `crmshow_Foundation` and `crmshow_DataModel` — it does not
 include `crmshow_Sales` (the solution holding the Advisor Cockpit MDA app +
-both PCF controls). This solution needs to be added to the promotion
-pipeline before a TEST dispatch can produce any evidence of this sprint's
-actual surface.
+both PCF controls), nor its dependency `crmshow_Integration`. Fixed in
+**PR #118** (open, not yet merged): adds both to the `export-from-dev` and
+`import-to-test` jobs, importing in `solution/manifest.json` `dependsOn`
+order (Foundation → DataModel → Integration → Sales).
+
+**TEST dispatch attempted (2026-08-16), rejected by environment protection
+— confirms the governance model is working as intended.** Dispatching
+`cd-solution-test.yml` from PR #118's branch
+([31963834793](https://github.com/urruegg/CRMShowcase/actions/runs/31963834793))
+was rejected outright by GitHub before any step ran: *"Branch
+'feat/s3-test-promote-sales' is not allowed to deploy to dev due to
+environment protection rules."* The `dev`/`test` GitHub Environments are
+restricted to deployments from `main` — so PR #118 (and ideally #117) must
+be reviewed and merged first; per this repo's sprint operating model, that
+merge is **not self-service by the agent** ("PR intake, never self-merge —
+human merge"). Once merged, re-dispatch `cd-solution-test.yml` from `main`
+to produce the first-ever TEST evidence for this sprint.
 
 **Reason TEST had not been reached until now (explicit, per the anchored
 policy — not a silent omission):** sprint-003's own path was
