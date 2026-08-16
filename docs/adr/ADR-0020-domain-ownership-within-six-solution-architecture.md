@@ -35,7 +35,7 @@ The repository already defines six deployable Dataverse solutions:
 - `crmshow_Service`;
 - `crmshow_Marketing`.
 
-The Mobiliar intake also establishes semantic domains including party and
+The Contoso Insurance intake also establishes semantic domains including party and
 relationship, consent, sales and demand, policy/claim/quote projections,
 service and assistance, marketing, broker/distribution, orchestration, and
 integration.
@@ -320,7 +320,7 @@ The current hypothesis is:
 - Sales, Service, and Marketing share party, consent, and insurance context.
 - ADR-0019 keeps policy, claim, quote, rating, underwriting, and settlement
   systems authoritative.
-- The Mobiliar BOM mapping already assigns source artefacts to the current six
+- The Contoso Insurance BOM mapping already assigns source artefacts to the current six
   target solutions.
 
 ### Inferred
@@ -406,5 +406,5 @@ is not equivalent to an accepted irreversible commitment.
 The approach avoids both a monolithic unmanaged CRM solution and a
 micro-solution architecture that copies software-service boundaries into
 Dataverse without operational benefit. It retains auditable ALM boundaries,
-canonical domain ownership, and the ability to adapt once Mobiliar's core
+canonical domain ownership, and the ability to adapt once Contoso Insurance's core
 systems and data platform are understood.

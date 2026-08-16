@@ -1,4 +1,4 @@
-﻿[
+[
     {
         "componentType":  "AppModule",
         "logicalName":  "cr7e8_AdvisorCockpit",
@@ -3634,9 +3634,9 @@
     },
     {
         "componentType":  "Bot",
-        "logicalName":  "cr7e8_Mobiliar",
-        "displayName":  "cr7e8_Mobiliar",
-        "sourcePath":  "bots/cr7e8_Mobiliar/bot.xml",
+        "logicalName":  "cr7e8_ContosoInsurance",
+        "displayName":  "cr7e8_ContosoInsurance",
+        "sourcePath":  "bots/cr7e8_ContosoInsurance/bot.xml",
         "parent":  "",
         "dependencies":  [
 
@@ -3655,9 +3655,9 @@
     },
     {
         "componentType":  "BotComponent",
-        "logicalName":  "cr7e8_Mobiliar.gpt.default",
-        "displayName":  "cr7e8_Mobiliar.gpt.default",
-        "sourcePath":  "botcomponents/cr7e8_Mobiliar.gpt.default/botcomponent.xml",
+        "logicalName":  "cr7e8_ContosoInsurance.gpt.default",
+        "displayName":  "cr7e8_ContosoInsurance.gpt.default",
+        "sourcePath":  "botcomponents/cr7e8_ContosoInsurance.gpt.default/botcomponent.xml",
         "parent":  "",
         "dependencies":  [
 
@@ -3676,9 +3676,9 @@
     },
     {
         "componentType":  "BotComponent",
-        "logicalName":  "cr7e8_Mobiliar.settings.Ivr",
-        "displayName":  "cr7e8_Mobiliar.settings.Ivr",
-        "sourcePath":  "botcomponents/cr7e8_Mobiliar.settings.Ivr/botcomponent.xml",
+        "logicalName":  "cr7e8_ContosoInsurance.settings.Ivr",
+        "displayName":  "cr7e8_ContosoInsurance.settings.Ivr",
+        "sourcePath":  "botcomponents/cr7e8_ContosoInsurance.settings.Ivr/botcomponent.xml",
         "parent":  "",
         "dependencies":  [
 
@@ -3697,9 +3697,9 @@
     },
     {
         "componentType":  "BotComponent",
-        "logicalName":  "cr7e8_Mobiliar.topic.AnsweringMachineDetection",
-        "displayName":  "cr7e8_Mobiliar.topic.AnsweringMachineDetection",
-        "sourcePath":  "botcomponents/cr7e8_Mobiliar.topic.AnsweringMachineDetection/botcomponent.xml",
+        "logicalName":  "cr7e8_ContosoInsurance.topic.AnsweringMachineDetection",
+        "displayName":  "cr7e8_ContosoInsurance.topic.AnsweringMachineDetection",
+        "sourcePath":  "botcomponents/cr7e8_ContosoInsurance.topic.AnsweringMachineDetection/botcomponent.xml",
         "parent":  "",
         "dependencies":  [
 
@@ -3718,9 +3718,9 @@
     },
     {
         "componentType":  "BotComponent",
-        "logicalName":  "cr7e8_Mobiliar.topic.ConversationStart",
-        "displayName":  "cr7e8_Mobiliar.topic.ConversationStart",
-        "sourcePath":  "botcomponents/cr7e8_Mobiliar.topic.ConversationStart/botcomponent.xml",
+        "logicalName":  "cr7e8_ContosoInsurance.topic.ConversationStart",
+        "displayName":  "cr7e8_ContosoInsurance.topic.ConversationStart",
+        "sourcePath":  "botcomponents/cr7e8_ContosoInsurance.topic.ConversationStart/botcomponent.xml",
         "parent":  "",
         "dependencies":  [
 
@@ -3739,9 +3739,9 @@
     },
     {
         "componentType":  "BotComponent",
-        "logicalName":  "cr7e8_Mobiliar.topic.EndofConversation",
-        "displayName":  "cr7e8_Mobiliar.topic.EndofConversation",
-        "sourcePath":  "botcomponents/cr7e8_Mobiliar.topic.EndofConversation/botcomponent.xml",
+        "logicalName":  "cr7e8_ContosoInsurance.topic.EndofConversation",
+        "displayName":  "cr7e8_ContosoInsurance.topic.EndofConversation",
+        "sourcePath":  "botcomponents/cr7e8_ContosoInsurance.topic.EndofConversation/botcomponent.xml",
         "parent":  "",
         "dependencies":  [
 
@@ -3760,9 +3760,9 @@
     },
     {
         "componentType":  "BotComponent",
-        "logicalName":  "cr7e8_Mobiliar.topic.Escalate",
-        "displayName":  "cr7e8_Mobiliar.topic.Escalate",
-        "sourcePath":  "botcomponents/cr7e8_Mobiliar.topic.Escalate/botcomponent.xml",
+        "logicalName":  "cr7e8_ContosoInsurance.topic.Escalate",
+        "displayName":  "cr7e8_ContosoInsurance.topic.Escalate",
+        "sourcePath":  "botcomponents/cr7e8_ContosoInsurance.topic.Escalate/botcomponent.xml",
         "parent":  "",
         "dependencies":  [
 
@@ -3781,9 +3781,9 @@
     },
     {
         "componentType":  "BotComponent",
-        "logicalName":  "cr7e8_Mobiliar.topic.Fallback",
-        "displayName":  "cr7e8_Mobiliar.topic.Fallback",
-        "sourcePath":  "botcomponents/cr7e8_Mobiliar.topic.Fallback/botcomponent.xml",
+        "logicalName":  "cr7e8_ContosoInsurance.topic.Fallback",
+        "displayName":  "cr7e8_ContosoInsurance.topic.Fallback",
+        "sourcePath":  "botcomponents/cr7e8_ContosoInsurance.topic.Fallback/botcomponent.xml",
         "parent":  "",
         "dependencies":  [
 
@@ -3802,9 +3802,9 @@
     },
     {
         "componentType":  "BotComponent",
-        "logicalName":  "cr7e8_Mobiliar.topic.Goodbye",
-        "displayName":  "cr7e8_Mobiliar.topic.Goodbye",
-        "sourcePath":  "botcomponents/cr7e8_Mobiliar.topic.Goodbye/botcomponent.xml",
+        "logicalName":  "cr7e8_ContosoInsurance.topic.Goodbye",
+        "displayName":  "cr7e8_ContosoInsurance.topic.Goodbye",
+        "sourcePath":  "botcomponents/cr7e8_ContosoInsurance.topic.Goodbye/botcomponent.xml",
         "parent":  "",
         "dependencies":  [
 
@@ -3823,9 +3823,9 @@
     },
     {
         "componentType":  "BotComponent",
-        "logicalName":  "cr7e8_Mobiliar.topic.Greeting",
-        "displayName":  "cr7e8_Mobiliar.topic.Greeting",
-        "sourcePath":  "botcomponents/cr7e8_Mobiliar.topic.Greeting/botcomponent.xml",
+        "logicalName":  "cr7e8_ContosoInsurance.topic.Greeting",
+        "displayName":  "cr7e8_ContosoInsurance.topic.Greeting",
+        "sourcePath":  "botcomponents/cr7e8_ContosoInsurance.topic.Greeting/botcomponent.xml",
         "parent":  "",
         "dependencies":  [
 
@@ -3844,9 +3844,9 @@
     },
     {
         "componentType":  "BotComponent",
-        "logicalName":  "cr7e8_Mobiliar.topic.MultipleTopicsMatched",
-        "displayName":  "cr7e8_Mobiliar.topic.MultipleTopicsMatched",
-        "sourcePath":  "botcomponents/cr7e8_Mobiliar.topic.MultipleTopicsMatched/botcomponent.xml",
+        "logicalName":  "cr7e8_ContosoInsurance.topic.MultipleTopicsMatched",
+        "displayName":  "cr7e8_ContosoInsurance.topic.MultipleTopicsMatched",
+        "sourcePath":  "botcomponents/cr7e8_ContosoInsurance.topic.MultipleTopicsMatched/botcomponent.xml",
         "parent":  "",
         "dependencies":  [
 
@@ -3865,9 +3865,9 @@
     },
     {
         "componentType":  "BotComponent",
-        "logicalName":  "cr7e8_Mobiliar.topic.OnError",
-        "displayName":  "cr7e8_Mobiliar.topic.OnError",
-        "sourcePath":  "botcomponents/cr7e8_Mobiliar.topic.OnError/botcomponent.xml",
+        "logicalName":  "cr7e8_ContosoInsurance.topic.OnError",
+        "displayName":  "cr7e8_ContosoInsurance.topic.OnError",
+        "sourcePath":  "botcomponents/cr7e8_ContosoInsurance.topic.OnError/botcomponent.xml",
         "parent":  "",
         "dependencies":  [
 
@@ -3886,9 +3886,9 @@
     },
     {
         "componentType":  "BotComponent",
-        "logicalName":  "cr7e8_Mobiliar.topic.ResetConversation",
-        "displayName":  "cr7e8_Mobiliar.topic.ResetConversation",
-        "sourcePath":  "botcomponents/cr7e8_Mobiliar.topic.ResetConversation/botcomponent.xml",
+        "logicalName":  "cr7e8_ContosoInsurance.topic.ResetConversation",
+        "displayName":  "cr7e8_ContosoInsurance.topic.ResetConversation",
+        "sourcePath":  "botcomponents/cr7e8_ContosoInsurance.topic.ResetConversation/botcomponent.xml",
         "parent":  "",
         "dependencies":  [
 
@@ -3907,9 +3907,9 @@
     },
     {
         "componentType":  "BotComponent",
-        "logicalName":  "cr7e8_Mobiliar.topic.Search",
-        "displayName":  "cr7e8_Mobiliar.topic.Search",
-        "sourcePath":  "botcomponents/cr7e8_Mobiliar.topic.Search/botcomponent.xml",
+        "logicalName":  "cr7e8_ContosoInsurance.topic.Search",
+        "displayName":  "cr7e8_ContosoInsurance.topic.Search",
+        "sourcePath":  "botcomponents/cr7e8_ContosoInsurance.topic.Search/botcomponent.xml",
         "parent":  "",
         "dependencies":  [
 
@@ -3928,9 +3928,9 @@
     },
     {
         "componentType":  "BotComponent",
-        "logicalName":  "cr7e8_Mobiliar.topic.Signin",
-        "displayName":  "cr7e8_Mobiliar.topic.Signin",
-        "sourcePath":  "botcomponents/cr7e8_Mobiliar.topic.Signin/botcomponent.xml",
+        "logicalName":  "cr7e8_ContosoInsurance.topic.Signin",
+        "displayName":  "cr7e8_ContosoInsurance.topic.Signin",
+        "sourcePath":  "botcomponents/cr7e8_ContosoInsurance.topic.Signin/botcomponent.xml",
         "parent":  "",
         "dependencies":  [
 
@@ -3949,9 +3949,9 @@
     },
     {
         "componentType":  "BotComponent",
-        "logicalName":  "cr7e8_Mobiliar.topic.Silence",
-        "displayName":  "cr7e8_Mobiliar.topic.Silence",
-        "sourcePath":  "botcomponents/cr7e8_Mobiliar.topic.Silence/botcomponent.xml",
+        "logicalName":  "cr7e8_ContosoInsurance.topic.Silence",
+        "displayName":  "cr7e8_ContosoInsurance.topic.Silence",
+        "sourcePath":  "botcomponents/cr7e8_ContosoInsurance.topic.Silence/botcomponent.xml",
         "parent":  "",
         "dependencies":  [
 
@@ -3970,9 +3970,9 @@
     },
     {
         "componentType":  "BotComponent",
-        "logicalName":  "cr7e8_Mobiliar.topic.StartOver",
-        "displayName":  "cr7e8_Mobiliar.topic.StartOver",
-        "sourcePath":  "botcomponents/cr7e8_Mobiliar.topic.StartOver/botcomponent.xml",
+        "logicalName":  "cr7e8_ContosoInsurance.topic.StartOver",
+        "displayName":  "cr7e8_ContosoInsurance.topic.StartOver",
+        "sourcePath":  "botcomponents/cr7e8_ContosoInsurance.topic.StartOver/botcomponent.xml",
         "parent":  "",
         "dependencies":  [
 
@@ -3991,9 +3991,9 @@
     },
     {
         "componentType":  "BotComponent",
-        "logicalName":  "cr7e8_Mobiliar.topic.ThankYou",
-        "displayName":  "cr7e8_Mobiliar.topic.ThankYou",
-        "sourcePath":  "botcomponents/cr7e8_Mobiliar.topic.ThankYou/botcomponent.xml",
+        "logicalName":  "cr7e8_ContosoInsurance.topic.ThankYou",
+        "displayName":  "cr7e8_ContosoInsurance.topic.ThankYou",
+        "sourcePath":  "botcomponents/cr7e8_ContosoInsurance.topic.ThankYou/botcomponent.xml",
         "parent":  "",
         "dependencies":  [
 
@@ -4012,9 +4012,9 @@
     },
     {
         "componentType":  "BotComponent",
-        "logicalName":  "cr7e8_Mobiliar.topic.UnknownDtmfKey",
-        "displayName":  "cr7e8_Mobiliar.topic.UnknownDtmfKey",
-        "sourcePath":  "botcomponents/cr7e8_Mobiliar.topic.UnknownDtmfKey/botcomponent.xml",
+        "logicalName":  "cr7e8_ContosoInsurance.topic.UnknownDtmfKey",
+        "displayName":  "cr7e8_ContosoInsurance.topic.UnknownDtmfKey",
+        "sourcePath":  "botcomponents/cr7e8_ContosoInsurance.topic.UnknownDtmfKey/botcomponent.xml",
         "parent":  "",
         "dependencies":  [
 
@@ -4033,9 +4033,9 @@
     },
     {
         "componentType":  "BotComponent",
-        "logicalName":  "cr7e8_Mobiliar.topic.UnrecognizedSpeech",
-        "displayName":  "cr7e8_Mobiliar.topic.UnrecognizedSpeech",
-        "sourcePath":  "botcomponents/cr7e8_Mobiliar.topic.UnrecognizedSpeech/botcomponent.xml",
+        "logicalName":  "cr7e8_ContosoInsurance.topic.UnrecognizedSpeech",
+        "displayName":  "cr7e8_ContosoInsurance.topic.UnrecognizedSpeech",
+        "sourcePath":  "botcomponents/cr7e8_ContosoInsurance.topic.UnrecognizedSpeech/botcomponent.xml",
         "parent":  "",
         "dependencies":  [
 
@@ -20427,9 +20427,9 @@
     },
     {
         "componentType":  "WebResource",
-        "logicalName":  "cr7e8_mobiliarlogo",
-        "displayName":  "mobiliar-logo",
-        "sourcePath":  "WebResources/cr7e8_mobiliarlogo",
+        "logicalName":  "cr7e8_contosoinsurancelogo",
+        "displayName":  "contoso-insurance-logo",
+        "sourcePath":  "WebResources/cr7e8_contosoinsurancelogo",
         "parent":  "",
         "dependencies":  [
 

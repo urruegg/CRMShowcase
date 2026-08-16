@@ -162,7 +162,7 @@ Each `AG-E-01`–`AG-E-10` has a matching chatmode in [.github/chatmodes/](./.gi
 | **AG-E-09** Integration Engineer | API contracts, events, error handling, versioning | [integration-engineer.agent.md](./.github/agents/integration-engineer.agent.md) |
 | **AG-E-10** Insurance Domain Expert | Insurance-vertical challenger; complements AG-E-05 | [insurance-domain-expert.agent.md](./.github/agents/insurance-domain-expert.agent.md) |
 | **AG-E-11** UX Designer | MDA / D365 (Sales · Service · Marketing) experience: out-of-box config → Fluent UI v9 PCF → Copilot Studio adaptive cards | [ux-designer.agent.md](./.github/agents/ux-designer.agent.md) |
-| **AG-E-12** Frontier Firm Guide | Keeps the showcase aligned to Microsoft Frontier Firm thinking (insurance; Mobiliar analog); cross-cutting challenger | [frontier.agent.md](./.github/agents/frontier.agent.md) |
+| **AG-E-12** Frontier Firm Guide | Keeps the showcase aligned to Microsoft Frontier Firm thinking (insurance; Contoso Insurance analog); cross-cutting challenger | [frontier.agent.md](./.github/agents/frontier.agent.md) |
 
 ### Imported conditional specialists
 

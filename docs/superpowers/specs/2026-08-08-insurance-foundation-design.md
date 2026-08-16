@@ -23,7 +23,7 @@ case is built:
 1. the Account-centred insurance model can represent households, businesses
    and brokers without turning Dataverse into a policy-administration system;
 2. effective-dated people-to-account and policy-party roles can represent the
-   relationships needed by Mobiliar private and business customers;
+   relationships needed by Contoso Insurance private and business customers;
 3. EN, DE, FR and IT metadata can be governed, authored and validated as part
    of the schema in DEV;
 4. the reviewed DEV state can yield exact managed and unmanaged solution
@@ -341,7 +341,7 @@ does not modify out-of-box roles or claim persona-based smoke evidence.
 
 Dataverse auditing is enabled for the custom tables and material columns.
 Export evidence, and any future fixtures or deployment evidence, contain only
-synthetic, clearly labelled Contoso data. No Mobiliar customer data or
+synthetic, clearly labelled Contoso data. No Contoso Insurance customer data or
 exported CRM records enter source control, logs or tests.
 
 ## 9. Deferred fixtures and persona security smoke tests

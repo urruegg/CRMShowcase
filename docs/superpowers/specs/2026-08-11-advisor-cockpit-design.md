@@ -5,8 +5,8 @@
 | **Status** | Draft — pending user approval |
 | **Date** | 2026-08-11 |
 | **Deciders** | Repo owner · AG-E-03 Enterprise Architect · AG-E-08 Dataverse Modeler · AG-E-06 Responsible-AI Officer |
-| **Related** | [ADR-0006](../../adr/ADR-0006-account-centre-of-gravity.md) · [ADR-0007](../../adr/ADR-0007-portfolio-at-account.md) · [ADR-0008](../../adr/ADR-0008-thin-crm-over-systems-of-record.md) · [ADR-0009](../../adr/ADR-0009-lead-as-interest-on-existing-person.md) · [ADR-0014](../../adr/ADR-0014-agents-advisory-by-design.md) · [ADR-0018](../../adr/ADR-0018-analytics-split-crm-vs-databricks.md) · [ADR-0019](../../adr/ADR-0019-provisional-insurance-data-model-shape.md) · [ADR-0020](../../adr/ADR-0020-domain-ownership-within-six-solution-architecture.md) · [ADR-0021](../../adr/ADR-0021-multilingual-semantic-dataverse-metadata.md) · **new: ADR-0026, ADR-0027** · [mobiliar-data-model-extension](../../design/mobiliar-data-model-extension.md) · [ANALYTICS.md](../../ANALYTICS.md) · [INTEGRATION.md](../../INTEGRATION.md) |
-| **Source** | BA rapid prototype in the Mobiliar prod tenant. **Pixel ground truth = the unpacked HTML web resources** `cr7e8_sharedpage01advisorcockpit` (cockpit) and `cr7e8_sharedpage12v2salessteeringcockpit` (steering) under `intake/mobiliar/source/WebResources/` — **local-only** (sourceOnly, customer-branded; not committed). Interim screenshots in `docs/ideas/uc-01-advisor-cockpit/` are superseded and may be removed. |
+| **Related** | [ADR-0006](../../adr/ADR-0006-account-centre-of-gravity.md) · [ADR-0007](../../adr/ADR-0007-portfolio-at-account.md) · [ADR-0008](../../adr/ADR-0008-thin-crm-over-systems-of-record.md) · [ADR-0009](../../adr/ADR-0009-lead-as-interest-on-existing-person.md) · [ADR-0014](../../adr/ADR-0014-agents-advisory-by-design.md) · [ADR-0018](../../adr/ADR-0018-analytics-split-crm-vs-databricks.md) · [ADR-0019](../../adr/ADR-0019-provisional-insurance-data-model-shape.md) · [ADR-0020](../../adr/ADR-0020-domain-ownership-within-six-solution-architecture.md) · [ADR-0021](../../adr/ADR-0021-multilingual-semantic-dataverse-metadata.md) · **new: ADR-0026, ADR-0027** · [contoso-insurance-data-model-extension](../../design/contoso-insurance-data-model-extension.md) · [ANALYTICS.md](../../ANALYTICS.md) · [INTEGRATION.md](../../INTEGRATION.md) |
+| **Source** | BA rapid prototype in the Contoso Insurance prod tenant. **Pixel ground truth = the unpacked HTML web resources** `cr7e8_sharedpage01advisorcockpit` (cockpit) and `cr7e8_sharedpage12v2salessteeringcockpit` (steering) under `intake/contoso-insurance/source/WebResources/` — **local-only** (sourceOnly, customer-branded; not committed). Interim screenshots in `docs/ideas/uc-01-advisor-cockpit/` are superseded and may be removed. |
 | **Licence** | 🧩 configuration / own build. Native Sales/Copilot Studio capabilities require capability-level validation. |
 | **Maturity** | Design. No runtime AI capability is approved by this document; the NBA agent requires separate RAI review (AG-E-06). |
 
@@ -19,7 +19,7 @@ Dataverse data model → mocked data-platform analytics → React/Fluent PCF →
 Copilot NBA agent → MDA app, end to end through the pipeline to TEST.
 
 This sprint is **delivery slice 6** of the
-[Mobiliar data-model design](../../design/mobiliar-data-model-extension.md); it
+[Contoso Insurance data-model design](../../design/contoso-insurance-data-model-extension.md); it
 takes a dependency on slices 1–5 (the foundational insurance tables), which are
 therefore **built as part of this sprint** (see §3).
 
@@ -100,7 +100,7 @@ row; the load is an idempotent upsert; Databricks stays authoritative
 Cross-checked against Microsoft's **Common Data Model — Property & Casualty**
 (semantic reference per ADR-0019: Policy, Coverage, Claim, ClaimRevision,
 Agency, PolicyAgency, InsuredAsset, AuthorizedJurisdiction) and the established
-[insurance model](../../design/mobiliar-data-model-extension.md). CDM is used as
+[insurance model](../../design/contoso-insurance-data-model-extension.md). CDM is used as
 **canonical vocabulary at the contract layer, not one persisted table per
 entity** (ADR-0019).
 
@@ -258,4 +258,4 @@ docs/
 - [Power Apps component framework](https://learn.microsoft.com/power-apps/developer/component-framework/overview)
 - [Fluent UI React v9](https://react.fluentui.dev/)
 - [Copilot Studio](https://learn.microsoft.com/microsoft-copilot-studio/) · [Responsible AI standard](https://learn.microsoft.com/azure/machine-learning/concept-responsible-ai)
-- [mobiliar-data-model-extension](../../design/mobiliar-data-model-extension.md) · [ADR-0019](../../adr/ADR-0019-provisional-insurance-data-model-shape.md) · [ANALYTICS.md](../../ANALYTICS.md) · [INTEGRATION.md](../../INTEGRATION.md)
+- [contoso-insurance-data-model-extension](../../design/contoso-insurance-data-model-extension.md) · [ADR-0019](../../adr/ADR-0019-provisional-insurance-data-model-shape.md) · [ANALYTICS.md](../../ANALYTICS.md) · [INTEGRATION.md](../../INTEGRATION.md)

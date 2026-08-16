@@ -381,7 +381,7 @@ flowchart LR
 - **Pros.** Lowest business risk of the three — realistic for a highly
   customised legacy system where hidden dependencies are likely (the same
   caution [ADR-0019](./ADR-0019-provisional-insurance-data-model-shape.md)
-  applies to the Mobiliar Siebel-mirrored option). Lets the CRM Opportunity
+  applies to the Contoso Insurance Siebel-mirrored option). Lets the CRM Opportunity
   model be validated against real advisor workflows before full commitment.
   Rollback is possible per-GA at any point during the window. Matches the
   well-understood Strangler Fig pattern for legacy modernisation.
@@ -452,7 +452,7 @@ customer's IT/architecture stakeholders to weigh together. Option C follows
 the customary caution applied elsewhere in this repository to highly
 customised legacy landscapes (the same caution
 [ADR-0019](./ADR-0019-provisional-insurance-data-model-shape.md) applies to
-Mobiliar's Siebel-mirrored option), but it is not presented as a
+Contoso Insurance's Siebel-mirrored option), but it is not presented as a
 recommendation — Option B may be entirely appropriate if ARO's Opportunity
 data and business rules turn out to be simpler than assumed, and Option A
 remains valid if the customer decides the migration is not worth the

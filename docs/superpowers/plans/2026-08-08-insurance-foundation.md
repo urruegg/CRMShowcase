@@ -26,7 +26,7 @@
 
 The implementation branch must be created in an isolated worktree using the
 `using-git-worktrees` skill. Preserve the untracked
-`intake/mobiliar/ideas/` and `.superpowers/` directories.
+`intake/contoso-insurance/ideas/` and `.superpowers/` directories.
 
 ## File map
 
@@ -541,7 +541,7 @@ privileges.
 - EN/DE/FR/IT label and semantic-description objects for every component;
 - ownership (`UserOwned`), auditing, activity flags and solution ownership.
 
-Use stable English logical names from the design. Do not invent Mobiliar
+Use stable English logical names from the design. Do not invent Contoso Insurance
 licensing claims, customer names or source-system codes. Translations must be
 reviewed by the CRM Domain Expert, Insurance Domain Expert and
 Responsible-AI Officer before this task is accepted.
@@ -827,7 +827,7 @@ Use only:
 - external IDs such as `SYN-POL-HH-001`.
 
 Do not include email addresses, telephone numbers, street addresses, contract
-values or Mobiliar source identifiers.
+values or Contoso Insurance source identifiers.
 
 Assign fixed RFC 4122 GUIDs under the repository's synthetic namespace to
 every Account and Contact fixture. Use those GUIDs as the Dataverse primary

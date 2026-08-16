@@ -12,7 +12,7 @@ Live status for the Advisor Cockpit (charter **#55**). See the
 | advisorcockpit-pcf | #62 | DESIGN-SENSITIVE | feat/sprint-003-advisorcockpit-pcf | #70 | ✅ merged | local-first PCF (React18/Fluent v9): faithful layout, Meine Leads Liste/Board/Cockpit, brand-kit tokens, data-source provenance (tint + legend, no badges), UX rubric v1.1 + scorecard; tsc clean, 24/24 vitest |
 | salesleaderdashboard-pcf | #63 | DESIGN-SENSITIVE | feat/sprint-003-salesleaderdashboard-pcf | #74 | ✅ merged | local-first PCF (React18/Fluent v9 + Recharts): Führungsdashboard — scorecard KPIs + forecast confidence band + radar + product/region bars + funnel + GA benchmark; data-mapped to measures.json + provenance (measure vs not-yet-mapped) + DATA-BOM/rubric scorecard; tsc clean, 8/8 vitest |
 | foundation-choices | #56 | EXECUTION-ONLY | feat/sprint-003-foundation-choices | #75 | ✅ merged | +5 cockpit choices (nbastatus/nbachannel/productline/region/metrictype) in 4 languages; contract 1.1.0; authored in DEV by the CD pipeline (2026-08-12) |
-| foundational-tables | #57 | DESIGN-SENSITIVE | — | — | ⏳ DEV-gated | slices 1–5 (mobiliar-data-model-extension) |
+| foundational-tables | #57 | DESIGN-SENSITIVE | — | — | ⏳ DEV-gated | slices 1–5 (contoso-insurance-data-model-extension) |
 | cockpit-tables | #58 | EXECUTION-ONLY | feat/s3-phase3-cockpit-tables | — | 🚧 WIP | type-system extension (Whole/Multiline) done + green (382/0/2); tables not yet authored - resume in `wt/s3-phase3-cockpit-tables` |
 | seed-pipeline | #60 (follow-up) | EXECUTION-ONLY | — | — | ⏳ DEV-gated | task 5.3; needs the tables to exist for smoke |
 | mda-app | #64 | DESIGN-SENSITIVE | — | — | ⏳ DEV-gated | app + two custom pages |

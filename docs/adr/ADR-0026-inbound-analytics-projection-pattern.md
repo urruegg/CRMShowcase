@@ -71,7 +71,7 @@ options remain valid reusable patterns for future scenarios.
   the demo tenant has no Azure subscription (data platform must be mocked);
   ADR-0008 keeps the platform authoritative and the CRM copy read-only.
 - **Inferred:** daily/hourly freshness is adequate for the surfaced measures.
-- **Evidence still required:** the real Mobiliar core-system/data-platform
+- **Evidence still required:** the real Contoso Insurance core-system/data-platform
   integration (API/event/latency) — will select the production producer for
   Option A (or move a measure to B/C).
 

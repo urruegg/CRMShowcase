@@ -1,14 +1,14 @@
-# Mobiliar Prototype Intake and Data-Model Baseline Implementation Plan
+# Contoso Insurance Prototype Intake and Data-Model Baseline Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Export and sanitize the Mobiliar prototype solution, generate a reusable artefact BOM and domain map, and document the CRM Showcase target data-model delta without deploying prototype components or records.
+**Goal:** Export and sanitize the Contoso Insurance prototype solution, generate a reusable artefact BOM and domain map, and document the CRM Showcase target data-model delta without deploying prototype components or records.
 
-**Architecture:** The unmanaged source solution is exported to ignored temporary storage and unpacked into an ignored local `intake/mobiliar/source/` snapshot. Focused PowerShell scripts verify source-environment targeting, identify unsafe content, and derive deterministic sanitized JSON/CSV inventories from `Solution.xml`, entity metadata, and component folders. Review outputs map prototype evidence to the existing six target solution containers without changing those deployable solutions.
+**Architecture:** The unmanaged source solution is exported to ignored temporary storage and unpacked into an ignored local `intake/contoso-insurance/source/` snapshot. Focused PowerShell scripts verify source-environment targeting, identify unsafe content, and derive deterministic sanitized JSON/CSV inventories from `Solution.xml`, entity metadata, and component folders. Review outputs map prototype evidence to the existing six target solution containers without changing those deployable solutions.
 
 **Tech Stack:** Power Platform CLI 1.43.6, PowerShell 5.1+, Pester 5, XML/JSON/CSV, GitHub CLI.
 
-**Reference spec:** [`docs/superpowers/specs/2026-08-08-mobiliar-prototype-intake-design.md`](../specs/2026-08-08-mobiliar-prototype-intake-design.md)
+**Reference spec:** [`docs/superpowers/specs/2026-08-08-contoso-insurance-prototype-intake-design.md`](../specs/2026-08-08-contoso-insurance-prototype-intake-design.md)
 
 ---
 
@@ -16,7 +16,7 @@
 
 ```text
 .gitignore
-intake/mobiliar/
+intake/contoso-insurance/
   README.md
   source/
   bom/
@@ -34,11 +34,11 @@ scripts/solution/
     Test-IntakeSnapshot.Tests.ps1
 docs/
   BACKLOG.md
-  design/mobiliar-data-model-extension.md
-  superpowers/plans/2026-08-08-mobiliar-prototype-intake.md
+  design/contoso-insurance-data-model-extension.md
+  superpowers/plans/2026-08-08-contoso-insurance-prototype-intake.md
 ```
 
-`intake/mobiliar/source/` is local evidence only and is ignored because the
+`intake/contoso-insurance/source/` is local evidence only and is ignored because the
 repository is public. The deployment manifest does not reference it.
 
 ---
@@ -47,7 +47,7 @@ repository is public. The deployment manifest does not reference it.
 
 **Files:**
 - Modify: `.gitignore`
-- Create: `intake/mobiliar/README.md`
+- Create: `intake/contoso-insurance/README.md`
 - Modify: `docs/BACKLOG.md`
 
 - [ ] **Step 1: Add ignored raw-export locations**
@@ -64,7 +64,7 @@ intake/**/source/
 
 - [ ] **Step 2: Document the evidence-only boundary**
 
-Create `intake/mobiliar/README.md` stating that the folder contains a sanitized
+Create `intake/contoso-insurance/README.md` stating that the folder contains a sanitized
 unpacked prototype snapshot, is never deployed, contains no Dataverse records,
 and must be regenerated with the scripts in this plan.
 
@@ -76,7 +76,7 @@ domain map, target data-model design, and feature issue/evidence.
 - [ ] **Step 4: Commit**
 
 ```powershell
-git add .gitignore intake/mobiliar/README.md docs/BACKLOG.md
+git add .gitignore intake/contoso-insurance/README.md docs/BACKLOG.md
 git commit -m "chore(sprint-2): establish prototype intake boundary"
 ```
 
@@ -120,9 +120,9 @@ Run with a deliberately incorrect expected organization:
 ```powershell
 ./scripts/solution/Export-Solution.ps1 `
   -Environment $env:PROTOTYPE_SOURCE_ENV_URL `
-  -ExpectedOrganization NotMobiliar `
-  -SolutionName Mobiliar `
-  -OutFile intake/mobiliar/.raw/rejected.zip
+  -ExpectedOrganization NotContoso Insurance `
+  -SolutionName Contoso Insurance `
+  -OutFile intake/contoso-insurance/.raw/rejected.zip
 ```
 
 Expected: command throws before export.
@@ -282,13 +282,13 @@ git commit -m "feat(intake): block unsafe prototype snapshot content"
 
 ---
 
-### Task 5: Export, unpack, sanitize, and inventory Mobiliar
+### Task 5: Export, unpack, sanitize, and inventory Contoso Insurance
 
 **Files:**
-- Create locally: `intake/mobiliar/source/` (ignored)
-- Create: `intake/mobiliar/bom/artefacts.json`
-- Create: `intake/mobiliar/bom/artefacts.csv`
-- Create: `intake/mobiliar/bom/README.md`
+- Create locally: `intake/contoso-insurance/source/` (ignored)
+- Create: `intake/contoso-insurance/bom/artefacts.json`
+- Create: `intake/contoso-insurance/bom/artefacts.csv`
+- Create: `intake/contoso-insurance/bom/README.md`
 
 - [ ] **Step 1: Verify source and solution**
 
@@ -297,7 +297,7 @@ pac org who --environment $env:PROTOTYPE_SOURCE_ENV_URL
 pac solution list --environment $env:PROTOTYPE_SOURCE_ENV_URL
 ```
 
-Expected: organization `Mobiliar` and solution unique name `Mobiliar`.
+Expected: organization `Contoso Insurance` and solution unique name `Contoso Insurance`.
 
 - [ ] **Step 2: Export to ignored storage**
 
@@ -305,8 +305,8 @@ Expected: organization `Mobiliar` and solution unique name `Mobiliar`.
 ./scripts/solution/Export-Solution.ps1 `
   -Environment $env:PROTOTYPE_SOURCE_ENV_URL `
   -ExpectedOrganization $env:PROTOTYPE_SOURCE_ORG_NAME `
-  -SolutionName Mobiliar `
-  -OutFile intake/mobiliar/.raw/Mobiliar.zip
+  -SolutionName Contoso Insurance `
+  -OutFile intake/contoso-insurance/.raw/Contoso Insurance.zip
 ```
 
 Expected: unmanaged ZIP exists only under `.raw`.
@@ -314,13 +314,13 @@ Expected: unmanaged ZIP exists only under `.raw`.
 - [ ] **Step 3: Unpack and validate**
 
 ```powershell
-Remove-Item intake/mobiliar/source -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item intake/contoso-insurance/source -Recurse -Force -ErrorAction SilentlyContinue
 ./scripts/solution/Unpack-Solution.ps1 `
-  -ZipFile intake/mobiliar/.raw/Mobiliar.zip `
-  -Folder intake/mobiliar/source
+  -ZipFile intake/contoso-insurance/.raw/Contoso Insurance.zip `
+  -Folder intake/contoso-insurance/source
 . ./scripts/solution/Test-IntakeSnapshot.ps1
 Test-IntakeSnapshot `
-  -Path intake/mobiliar/source `
+  -Path intake/contoso-insurance/source `
   -ForbiddenEnvironmentHost ([uri]$env:PROTOTYPE_SOURCE_ENV_URL).Host
 ```
 
@@ -331,9 +331,9 @@ values or exclude affected customer-content artefacts, then rerun.
 
 ```powershell
 ./scripts/solution/New-SolutionBom.ps1 `
-  -SourceFolder intake/mobiliar/source `
-  -JsonPath intake/mobiliar/bom/artefacts.json `
-  -CsvPath intake/mobiliar/bom/artefacts.csv
+  -SourceFolder intake/contoso-insurance/source `
+  -JsonPath intake/contoso-insurance/bom/artefacts.json `
+  -CsvPath intake/contoso-insurance/bom/artefacts.csv
 ```
 
 Expected: JSON and CSV contain the same item count.
@@ -347,8 +347,8 @@ records were exported.
 - [ ] **Step 6: Commit**
 
 ```powershell
-git add intake/mobiliar/bom
-git commit -m "feat(intake): capture sanitized Mobiliar solution inventory"
+git add intake/contoso-insurance/bom
+git commit -m "feat(intake): capture sanitized Contoso Insurance solution inventory"
 ```
 
 ---
@@ -356,8 +356,8 @@ git commit -m "feat(intake): capture sanitized Mobiliar solution inventory"
 ### Task 6: Map domains and design the target model
 
 **Files:**
-- Create: `intake/mobiliar/mappings/domain-map.csv`
-- Create: `docs/design/mobiliar-data-model-extension.md`
+- Create: `intake/contoso-insurance/mappings/domain-map.csv`
+- Create: `docs/design/contoso-insurance-data-model-extension.md`
 
 - [ ] **Step 1: Classify every BOM item**
 
@@ -370,8 +370,8 @@ solution, disposition, rationale, licence review, and maturity review.
 Compare composite keys from BOM and map:
 
 ```powershell
-$bom = Get-Content intake/mobiliar/bom/artefacts.json -Raw | ConvertFrom-Json
-$map = Import-Csv intake/mobiliar/mappings/domain-map.csv
+$bom = Get-Content intake/contoso-insurance/bom/artefacts.json -Raw | ConvertFrom-Json
+$map = Import-Csv intake/contoso-insurance/mappings/domain-map.csv
 $bomKeys = $bom | ForEach-Object { "$($_.componentType)|$($_.logicalName)|$($_.parent)" }
 $mapKeys = $map | ForEach-Object { "$($_.componentType)|$($_.logicalName)|$($_.parent)" }
 Compare-Object $bomKeys $mapKeys
@@ -399,8 +399,8 @@ Every source table must appear in a source-to-target decision matrix.
 - [ ] **Step 4: Commit**
 
 ```powershell
-git add intake/mobiliar/mappings/domain-map.csv docs/design/mobiliar-data-model-extension.md
-git commit -m "docs: map Mobiliar artefacts to CRM Showcase target model"
+git add intake/contoso-insurance/mappings/domain-map.csv docs/design/contoso-insurance-data-model-extension.md
+git commit -m "docs: map Contoso Insurance artefacts to CRM Showcase target model"
 ```
 
 ---
@@ -441,7 +441,7 @@ Expected: no whitespace errors; only intended files before the final commit.
 Use title:
 
 ```text
-[Feature] Sprint 2 - Mobiliar prototype intake and data-model baseline
+[Feature] Sprint 2 - Contoso Insurance prototype intake and data-model baseline
 ```
 
 Apply `enhancement` and `power-platform`. Link the spec, plan, BOM summary,

@@ -12,7 +12,7 @@
 
 Build the `SalesLeaderDashboard` page-level PCF (React 18 + Fluent UI v9 +
 Recharts), pixel-faithful to the local HTML ground truth
-`intake/mobiliar/source/WebResources/cr7e8_sharedpage12v2salessteeringcockpit`
+`intake/contoso-insurance/source/WebResources/cr7e8_sharedpage12v2salessteeringcockpit`
 (git-ignored, local-only), reading the Phase-5 `measures.json` projection for
 local development.
 

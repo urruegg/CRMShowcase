@@ -1,7 +1,7 @@
-# Mobiliar prototype intake
+# Contoso Insurance prototype intake
 
 This folder contains review artefacts derived from a local, unpacked snapshot
-of the Mobiliar rapid prototype.
+of the Contoso Insurance rapid prototype.
 
 ## Boundary
 
@@ -21,10 +21,10 @@ of the Mobiliar rapid prototype.
 
 1. Export with `scripts/solution/Export-Solution.ps1`, specifying the source
    environment and expected organization explicitly.
-2. Unpack locally to the ignored `intake/mobiliar/source/` folder with
+2. Unpack locally to the ignored `intake/contoso-insurance/source/` folder with
    `scripts/solution/Unpack-Solution.ps1`.
 3. Validate with `scripts/solution/Test-IntakeSnapshot.ps1`.
 4. Generate the BOM with `scripts/solution/New-SolutionBom.ps1`.
 
 The governing design is
-[`docs/superpowers/specs/2026-08-08-mobiliar-prototype-intake-design.md`](../../docs/superpowers/specs/2026-08-08-mobiliar-prototype-intake-design.md).
+[`docs/superpowers/specs/2026-08-08-contoso-insurance-prototype-intake-design.md`](../../docs/superpowers/specs/2026-08-08-contoso-insurance-prototype-intake-design.md).
