@@ -15,7 +15,7 @@ Live status for the Advisor Cockpit (charter **#55**). See the
 | foundational-tables | #57 | DESIGN-SENSITIVE | — | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | 5 tables incl. `crmshow_leadcluster`/`crmshow_claimprojection` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
 | cockpit-tables | #58 | EXECUTION-ONLY | feat/s3-phase3-cockpit-tables | #100 (docs) | ✅ DEV-authored (run 31805085480, 2026-08-14) | `crmshow_nextbestaction`/`crmshow_nbaprovenance`/`crmshow_measuresnapshot` authored live in DEV; source intake-export into `solution/core/datamodel` still pending |
 | seed-pipeline | #60 (follow-up) | EXECUTION-ONLY | feat/s3-seed-claims-mapping, feat/s3-account-seedkey, feat/s3-account-keymap-resolver, feat/s3-account-upserts, feat/s3-cd-seed-wiring | #101 ✅ merged, #102 ✅ merged, #103 ✅ merged, #104 ✅ merged (docs), #105 ✅ merged, #106 ✅ merged | ✅ code-complete | claims.json mapped to `crmshow_claimprojection` + 14/14 Pester (#101); `crmshow_seedkey` added to `account` (#102, contract 1.2.0); `Get-AccountKeyMap` resolver auto-wired into `Invoke-AdvisorCockpitSeed` (#103, 17/17 Pester); account upserts (name/crmshow_accounttype/crmshow_seedkey) implemented via POST-or-PATCH-by-GUID since `account` has no registered Dataverse alternate key (#105, 22/22 Pester); `cd-solution-dev.yml` now calls `seed-advisor-cockpit.ps1` after convergence validation (2026-08-15) — code-complete end-to-end, not yet verified against a live dispatch; contacts/roles + policies.json deferred separately |
-| mda-app | #64 | DESIGN-SENSITIVE | feat/s3-mda-app-publish (deleted, merged) | #100 (docs), #110 ✅ merged | ✅ code-complete, not yet live-dispatched | both PCF controls wrapped as real, build-verified PCF projects (AdvisorCockpit 259s/8.1MiB, SalesLeaderDashboard 74s/3.97MiB); `publish-advisor-cockpit-app.ps1` implements the sitemap/app-module/component/role reconciliation end to end (10/10 plan tasks, 21/21 Pester, 2 Dataverse Web API protocol bugs found+fixed in review) and is wired into `cd-solution-dev.yml` (2026-08-15, merged `75d89c8`) — blocked on Task 1's `clientType`/`formFactor`/`CustomPage`-componenttype placeholders (az Dataverse auth issue) and the 2 custom pages' Maker-Portal creation before a live dispatch can succeed |
+| mda-app | #64 | DESIGN-SENSITIVE | feat/s3-mda-app-publish (deleted, merged), feat/s3-solution-version-sync-and-app-reconcile (deleted, merged) | #100 (docs), #110 ✅ merged, #112 ✅ merged | ✅ code-complete, custom page finishing in Maker Portal | both PCF controls wrapped as real, build-verified PCF projects (AdvisorCockpit 259s/8.1MiB, SalesLeaderDashboard 74s/3.97MiB); `publish-advisor-cockpit-app.ps1` implements the sitemap/app-module/component/role reconciliation end to end (10/10 plan tasks, 21/21 Pester, 2 Dataverse Web API protocol bugs found+fixed in review) and is wired into `cd-solution-dev.yml` (2026-08-15, merged `75d89c8`); owner manually authored the app module + sitemap live in DEV (`crmshow_AdvisorCockpit`) while diagnosing why the app wasn't visible — contract reconciled to match, real `clientType=4`/`formFactor=1` confirmed (#112, merged `306c9b6`); `Set-SolutionVersions.ps1` closes a repo-wide gap where manifest.json-declared versions never reached live Dataverse; custom page (hosting the PCF control) still being finished by the owner in Maker Portal, not yet reconfirmed attached via a fresh export |
 | e2e-verify | #65 | EXECUTION-ONLY | — | — | ⏳ DEV-gated | DEV→TEST evidence |
 | nba-agent | #61 | DESIGN-SENSITIVE | — | — | ⏸ deferred | out of sprint; needs a use-case description |
 
@@ -655,6 +655,53 @@ Live status for the Advisor Cockpit (charter **#55**). See the
   the `CustomPage` componenttype value remain explicit placeholders), the 2
   custom pages' Maker-Portal creation, and an actual live dispatch of the
   updated `cd-solution-dev.yml` against DEV.
+
+- **2026-08-15 (owner reported app missing from DEV Power Apps; investigated,
+  brainstormed, PR #112 merged as `306c9b6`) -** Owner opened the DEV Apps
+  page and did not see the Advisor Cockpit app despite PR #110 having
+  merged. Investigated with hard evidence rather than guessing:
+  - `gh run list` showed CD-DEV's last run predates PR #110 — the publish
+    code has never actually executed against DEV. Confirmed via a direct
+    `pac solution export` (`pac` auth works; `az` still doesn't) that
+    `crmshow_Sales`'s live `customizations.xml` was completely empty.
+  - Separately found, and the owner flagged as **critical**: `manifest.json`
+    declares `crmshow_Foundation`/`crmshow_DataModel`/`crmshow_Sales` at
+    1.1.0.0/1.2.0.0/1.1.0.0, but live DEV showed **all solutions stuck at
+    1.0.0.0** — `Bump-Version.ps1` existed with correct, tested semver math
+    but was never called by any pipeline script.
+  - Brainstormed the resolution live with the owner (real-time Q&A, not
+    autonomous) — design doc at
+    [2026-08-15-solution-versioning-and-mda-app-live-resolution-design.md](../../specs/2026-08-15-solution-versioning-and-mda-app-live-resolution-design.md).
+  - While diagnosing, the owner manually created the app module + sitemap
+    live in DEV via Maker Portal (both named `crmshow_AdvisorCockpit`,
+    confirmed via a shared browser session) — reconciled the contract to
+    match instead of creating a duplicate, and captured the now-confirmed
+    real `clientType=4`/`formFactor=1` directly from that live record,
+    resolving Task 1's placeholder blocker with real data instead of a
+    guess (or the originally-planned throwaway diagnostic dispatch, which
+    turned out to be unnecessary).
+  - The owner also explored an "innovative approach" (transform the PCF
+    control's own source into a code-based Custom Page's format, for full
+    GitHub-Copilot-driven authoring) using the AI-generated custom page as
+    a Rosetta Stone. Captured the real captured React source as evidence
+    ([2026-08-15-generative-custom-page-captured-source.tsx](../../specs/2026-08-15-generative-custom-page-captured-source.tsx))
+    and brainstormed it explicitly — **deliberately deferred as a separate,
+    later-stage research spike** (unproven feasibility, would have put
+    open-ended risk on #64's critical path), not pursued in this PR.
+  - Shipped as **PR #112**: `Set-SolutionVersions.ps1` (new — syncs all 6
+    manifest-declared solutions' live versions, wired into
+    `cd-solution-dev.yml`), the contract reconciliation, and the design
+    doc + captured evidence. 8/8 new Pester green;
+    `PublishAdvisorCockpitApp.Tests.ps1` 21/21; full repo suite 367/367
+    passed, 0 failed, 2 skipped. Owner confirmed "pr is approved"; verified
+    merged (`306c9b6`), synced local `main`, deleted
+    `feat/s3-solution-version-sync-and-app-reconcile` locally and remotely.
+  - **Still open:** the custom page itself (hosting the PCF control) is
+    still being finished by the owner directly in Maker Portal — not yet
+    reconfirmed attached to the app/solution via a fresh `pac solution
+    export`. Once confirmed, the next live CD-DEV dispatch should both
+    author the app for the first time and sync all solution versions in
+    the same run.
 
 ## Live DEV + TEST evidence
 
