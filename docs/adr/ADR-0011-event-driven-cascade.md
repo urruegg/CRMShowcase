@@ -46,4 +46,4 @@ with an effective date; the CRM identifies the impact set but **does not re-rate
   carries the events is now evaluated — the customer uses Kafka on Confluent
   Cloud, and four candidate integration patterns (both inbound and outbound)
   are documented without a final decision in
-  [ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md).
+  [ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md).

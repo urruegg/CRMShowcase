@@ -1,10 +1,10 @@
-# Sprint 2 - Mobiliar Prototype Intake and Data-Model Baseline
+# Sprint 2 - Contoso Insurance Prototype Intake and Data-Model Baseline
 
 | Field | Value |
 | --- | --- |
 | Status | Approved for implementation |
 | Date | 2026-08-08 |
-| Source | Mobiliar rapid-prototype solution in an isolated demo environment |
+| Source | Contoso Insurance rapid-prototype solution in an isolated demo environment |
 | Target | CRM Frontier Firm Showcase development lifecycle |
 | Owners | AG-E-03 Enterprise Architect, AG-E-08 Dataverse Modeler |
 | Related | ADR-0006 through ADR-0010, ADR-0017, ADR-0019 |
@@ -13,7 +13,7 @@
 
 ## Purpose
 
-Preserve the Mobiliar RFP prototype as inspectable evidence, inventory its
+Preserve the Contoso Insurance RFP prototype as inspectable evidence, inventory its
 solution artefacts, map them to CRM Showcase domains, and define the target
 data-model extensions required to rebuild useful capabilities within the
 governed CRM Showcase architecture.
@@ -40,7 +40,7 @@ component is imported into CRM Showcase DEV during this sprint.
 ## Non-goals
 
 - Exporting or migrating Dataverse records.
-- Importing the Mobiliar solution into CRM Showcase DEV or TEST.
+- Importing the Contoso Insurance solution into CRM Showcase DEV or TEST.
 - Preserving the source publisher or schema prefix in the target model.
 - Rebuilding apps, flows, plug-ins, or integrations in this sprint.
 - Treating prototype behaviour as an approved requirement.
@@ -72,7 +72,7 @@ The source snapshot is isolated from deployable solutions:
 
 ```text
 intake/
-  mobiliar/
+  contoso-insurance/
     README.md
     source/                  ignored local unpacked source snapshot
     bom/
@@ -84,7 +84,7 @@ intake/
 
 docs/
   design/
-    mobiliar-data-model-extension.md
+    contoso-insurance-data-model-extension.md
 ```
 
 The raw ZIP and unpacked source remain outside Git. The repository is public,
@@ -98,7 +98,7 @@ deployed accidentally.
 
 1. Authenticate interactively to the isolated source demo environment.
 2. Verify the connected organization before export.
-3. Export the unmanaged `Mobiliar` solution to session-local temporary storage.
+3. Export the unmanaged `Contoso Insurance` solution to session-local temporary storage.
 4. Unpack it with Power Platform CLI.
 5. Scan text and package metadata for credentials, connection values,
    environment identifiers, URLs, email addresses, phone-like values, and

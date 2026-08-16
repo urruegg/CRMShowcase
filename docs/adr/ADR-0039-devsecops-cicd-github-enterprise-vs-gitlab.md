@@ -13,7 +13,7 @@
 | **Upgrade impact** | Low for whichever platform is already the customer's engineering standard (reuses existing governance, identity, and pipeline investment) · Medium–High for migrating an existing estate to a new platform · Medium for Option C (only the CRM/Power-Platform repo domain moves, not the whole engineering estate) |
 | **CAF methodology** | Ready · Manage — platform choice is a foundational "Ready" decision, and CI/CD operating discipline is an ongoing "Manage" concern |
 | **WAF pillar(s)** | Primary: Operational Excellence (release automation, developer experience, tooling consistency) and Security (pipeline identity, secret handling, code-scanning coverage). Trade-off against: Cost Optimization (licence tiers differ materially between options) |
-| **Zero Trust** | Regardless of platform, the same posture already established for this showcase's own CI in [ADR-0002](./ADR-0002-oidc-federation-for-github-actions-to-entra.md) and generalised for Power Platform/Dynamics 365 access in [ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md) applies: workload identity federation over stored secrets, least-privilege service identities, and no long-lived credentials. This ADR is about **which platform hosts that pipeline**, not a new identity mechanism |
+| **Zero Trust** | Regardless of platform, the same posture already established for this showcase's own CI in [ADR-0002](./ADR-0002-oidc-federation-for-github-actions-to-entra.md) and generalised for Power Platform/Dynamics 365 access in [ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md) applies: workload identity federation over stored secrets, least-privilege service identities, and no long-lived credentials. This ADR is about **which platform hosts that pipeline**, not a new identity mechanism |
 | **Responsible AI** | Any AI-assisted code change (via GitHub Copilot's agentic features, GitLab Duo, or Copilot's IDE-level assistant, depending on the option) still passes through the same human-reviewed pull/merge-request gate before reaching an environment — no option here grants an AI agent unattended commit rights to a protected branch, matching the same agents-advisory posture already established for runtime agents in [ADR-0014](./ADR-0014-agents-advisory-by-design.md) |
 
 > **Illustrative naming note.** This ADR is about the customer's **target
@@ -78,7 +78,7 @@ Scope, as agreed with the user:
   CI (already decided, ADR-0002/0003/0004/0005); re-deciding
   [ADR-0017](./ADR-0017-alm-everything-through-the-pipeline.md)'s
   pipeline-only rule itself; re-deciding
-  [ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md)'s
+  [ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md)'s
   identity mechanics.
 - **Validating use case.** A concrete **"shipping a change to the Advisory
   Cockpit"** scenario — a developer fixes or extends the `AG-F-01`
@@ -134,7 +134,7 @@ flowchart TD
         COPILOTA["GitHub Copilot suite\n(Chat, Coding Agent, review, Autofix)"]
         AGSECA["GitHub Advanced Security\n(CodeQL, secret scanning, push protection)"]
     end
-    subgraph DVA["Dataverse environments\n(ADR-0031 topology)"]
+    subgraph DVA["Dataverse environments\n(ADR-0037 topology)"]
         ENVA["Target environment(s)"]
     end
 
@@ -147,7 +147,7 @@ flowchart TD
 | Endpoint | Capability / service | Role |
 | --- | --- | --- |
 | GitHub Enterprise Cloud org | Source hosting, PR/issue workflow | Single platform for all CRM/Power Platform repos |
-| Entra ID SSO + SCIM (optionally EMU) | Identity federation | Reuses the same Entra tenant already governing Dataverse access ([ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md)) |
+| Entra ID SSO + SCIM (optionally EMU) | Identity federation | Reuses the same Entra tenant already governing Dataverse access ([ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md)) |
 | GitHub Actions + Power Platform GitHub Actions | Native, first-party CI/CD automation | Documented Microsoft-shipped ALM path ([pcf-alm.instructions.md](../../.github/instructions/pcf-alm.instructions.md)) |
 | GitHub Copilot suite (Chat, Coding Agent, code review, Autofix) | Full agentic developer assistance | Coding Agent can resolve an Issue and open a PR autonomously; still gated by human PR review |
 | GitHub Advanced Security (CodeQL, secret scanning, push protection) | Native security scanning | Same mechanism already relied on for this showcase repo ([SECURITY.md](../SECURITY.md)) |
@@ -178,7 +178,7 @@ sequenceDiagram
     participant GH as GitHub Enterprise (PR)
     participant SEC as GitHub Advanced Security
     participant CI as GitHub Actions (Power Platform Actions)
-    participant ENV as Dataverse environment (ADR-0031)
+    participant ENV as Dataverse environment (ADR-0037)
 
     DEV->>COP: Assigns an Issue - fix NBA card rendering
     COP->>GH: Coding Agent opens a PR with the fix
@@ -229,7 +229,7 @@ flowchart TD
     subgraph IDEB["Developer IDE"]
         COPILOTIDE["GitHub Copilot\n(Chat/completions only)"]
     end
-    subgraph DVB["Dataverse environments\n(ADR-0031 topology)"]
+    subgraph DVB["Dataverse environments\n(ADR-0037 topology)"]
         ENVB["Target environment(s)"]
     end
 
@@ -281,7 +281,7 @@ sequenceDiagram
     participant DUO as GitLab Duo
     participant SCAN as GitLab native scanning
     participant CI as GitLab CI/CD (calls pac CLI)
-    participant ENV as Dataverse environment (ADR-0031)
+    participant ENV as Dataverse environment (ADR-0037)
 
     DEV->>IDECOP: Asks Copilot Chat for help fixing NBA card rendering
     DEV->>GL: Opens a merge request with the fix
@@ -320,8 +320,8 @@ Platform repository domain** specifically moves to GitHub Enterprise, to
 get the full agentic Copilot experience where the CRM engineering team
 works day to day. This mirrors the same domain-scoped-coexistence pattern
 already used for the customer's estate in
-[ADR-0028](./ADR-0028-aro-case-task-management-integration-pattern.md)
-and [ADR-0030](./ADR-0030-crm-lead-campaign-external-landscape.md).
+[ADR-0034](./ADR-0034-aro-case-task-management-integration-pattern.md)
+and [ADR-0036](./ADR-0036-crm-lead-campaign-external-landscape.md).
 
 ```mermaid
 flowchart LR
@@ -344,7 +344,7 @@ flowchart LR
 | --- | --- | --- |
 | GitLab (core systems domain) | Hosts Versicherungsprozesse/Schadenprozesse repos | Unchanged for teams outside CRM |
 | GitHub Enterprise (CRM/Power Platform domain) | Hosts CRM repos, full Copilot suite + Advanced Security | Matches Option A exactly, scoped to one domain |
-| Cross-platform traceability mechanism (new) | Linking a GitLab-tracked epic/issue to a GitHub PR, or a shared work-tracking tool (e.g. Azure Boards/Jira) spanning both | Only needed where a change genuinely spans both domains (e.g. the Kafka event contract in [ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md)) |
+| Cross-platform traceability mechanism (new) | Linking a GitLab-tracked epic/issue to a GitHub PR, or a shared work-tracking tool (e.g. Azure Boards/Jira) spanning both | Only needed where a change genuinely spans both domains (e.g. the Kafka event contract in [ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md)) |
 
 - **Pros.** CRM engineering gets the full GitHub Copilot agentic
   experience without requiring the whole engineering organisation to
@@ -354,14 +354,14 @@ flowchart LR
 - **Cons.** Introduces a genuinely new problem neither Option A nor Option
   B has: **cross-platform traceability** for any change that spans both
   domains — for example, a Kafka event-contract change
-  ([ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md))
+  ([ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md))
   touching both a GitLab-hosted core-systems repo and a GitHub-hosted CRM
   repo needs a way to link the two, which neither platform provides
   natively out of the box. Two platforms to administer, secure, and keep
   identity-federated instead of one.
 - **Design pattern.** Domain-scoped platform coexistence — the same
   lineage as this repository's own phased-coexistence options in
-  ADR-0028/ADR-0030, applied to tooling rather than data.
+  ADR-0034/ADR-0036, applied to tooling rather than data.
 - **Licence.** GitHub Enterprise/Copilot/Advanced Security for the CRM
   domain (as Option A), plus whatever GitLab tier the core-systems domain
   already pays for (largely a sunk cost if GitLab is already the
@@ -377,7 +377,7 @@ sequenceDiagram
     participant COP as GitHub Copilot (full suite, CRM domain)
     participant GH as GitHub Enterprise (CRM repo, PR)
     participant CI as GitHub Actions (Power Platform Actions)
-    participant ENV as Dataverse environment (ADR-0031)
+    participant ENV as Dataverse environment (ADR-0037)
     participant GL as GitLab (core systems domain, unaffected)
 
     DEV->>COP: Fixes NBA card rendering, assisted by full Copilot suite
@@ -403,7 +403,7 @@ flowchart TD
 
 **Note.** For the common CRM-only case, Option C looks identical to Option
 A — the trade-off only appears the moment a change genuinely spans both
-domains, exactly like Option C's counterparts in ADR-0031/ADR-0028's hybrid
+domains, exactly like Option C's counterparts in ADR-0037/ADR-0034's hybrid
 patterns.
 
 ## Comparison — DevSecOps platform options
@@ -454,7 +454,7 @@ that confirmation, all three remain credible on pure technical merit.
   Option A/C) or an open question itself; and, if Option C is considered,
   a concrete inventory of which changes genuinely span the GitLab and
   GitHub domains today (e.g. how often the Kafka contract in
-  [ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md)
+  [ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md)
   actually changes) to size the cross-platform traceability problem
   realistically.
 
@@ -470,7 +470,7 @@ that confirmation, all three remain credible on pure technical merit.
   historically span both the GitLab core-systems domain and the CRM
   domain, to properly size the cross-platform traceability mechanism
   needed rather than over- or under-building it.
-- Re-review once [ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md)
+- Re-review once [ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md)
   (the Kafka integration pattern) moves from proposed to accepted, since
   it is the most likely source of genuinely cross-domain changes under
   Option C.

@@ -11,7 +11,7 @@
 | **Licence** | 🧩 configuration / own build; Dynamics 365 and Power Platform entitlements validated per environment |
 | **Upgrade impact** | Additive MINOR; managed `crmshow_Foundation` and `crmshow_DataModel` promoted to TEST; no destructive upgrade |
 | **Depends on** | Proof #1 delegation toolchain (`scripts/orchestration/*`, PR #45). This branch is stacked on `docs/delegated-sprint-operating-model`; rebase onto `main` after #45 merges. |
-| **Related** | [Insurance Foundation spec](./2026-08-08-insurance-foundation-design.md) · new **ADR-0024** (effective-date integrity options) · [OR-001](../../requirements/OR-001-effective-date-integrity.md) · [ADR-0004](../../adr/ADR-0004-ci-plane-app-registrations-and-github-environments.md) · [ADR-0017](../../adr/ADR-0017-alm-everything-through-the-pipeline.md) · [ADR-0019](../../adr/ADR-0019-provisional-insurance-data-model-shape.md) · [ADR-0023](../../adr/ADR-0023-delegated-sprint-operating-model.md) · [SPRINT-OPERATING-MODEL](../SPRINT-OPERATING-MODEL.md) |
+| **Related** | [Insurance Foundation spec](./2026-08-08-insurance-foundation-design.md) · new **ADR-0024** (effective-date integrity options) · [OR-001](../../requirements/OR-001-effective-date-integrity.md) · [ADR-0004](../../adr/ADR-0004-ci-plane-app-registrations-and-github-environments.md) · [ADR-0017](../../adr/ADR-0017-alm-everything-through-the-pipeline.md) · [ADR-0019](../../adr/ADR-0019-provisional-insurance-data-model-shape.md) · [ADR-0040](../../adr/ADR-0040-delegated-sprint-operating-model.md) · [SPRINT-OPERATING-MODEL](../SPRINT-OPERATING-MODEL.md) |
 | **Frameworks** | CAF Adopt, Govern, Manage · WAF Operational Excellence, Reliability, Security · Zero Trust · Responsible AI (accountability, transparency) |
 
 ---

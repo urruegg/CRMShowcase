@@ -13,7 +13,7 @@
 | **Upgrade impact** | High for Option A (every native D365/Copilot Studio feature investment must be re-built by hand in Angular) · Medium for Option C · Low for Option B (Microsoft maintains the UI) |
 | **CAF methodology** | Plan · Adopt — this is a target-application-architecture decision, not an environment or governance change |
 | **WAF pillar(s)** | Primary: Operational Excellence (one UX to build and maintain vs. two) and Performance Efficiency (latency/consistency of the advisor's daily workflow). Trade-off against: Cost Optimization (Option A's ongoing custom-build cost) |
-| **Zero Trust** | Orthogonal to this ADR — every option authenticates through the same Entra ID token and Conditional Access posture established in [ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md); this ADR only changes **where** that token is used to reach CRM's surfaces, not how identity is verified |
+| **Zero Trust** | Orthogonal to this ADR — every option authenticates through the same Entra ID token and Conditional Access posture established in [ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md); this ADR only changes **where** that token is used to reach CRM's surfaces, not how identity is verified |
 | **Responsible AI** | Whichever option is chosen, AI-drafted content (NBA rationale, Copilot chat replies) must remain disclosed as AI-assisted and grounded in retrieved CRM context ([docs/AI.md](../AI.md)); Option A carries the added burden of re-implementing that disclosure/grounding UX by hand instead of inheriting it from Copilot Studio's native surface |
 
 > **Illustrative naming note.** "B2E" (Business-to-Employee), its Angular
@@ -22,7 +22,7 @@
 > described by the customer. The shell's actual extensibility model (whether
 > it supports embedding third-party widgets, its own SSO implementation
 > details, its release cadence) is not independently confirmed and is
-> flagged the same way ADR-0019's Siebel specifics and ADR-0025's
+> flagged the same way ADR-0019's Siebel specifics and ADR-0031's
 > Versicherungsprozesse/Schadenprozesse names were flagged.
 
 ## Context
@@ -33,7 +33,7 @@ layer for all systems, end to end, per user role," whose job is to
 orchestrate the front ends of every subsystem for every employee and to let
 the user **jump ("Absprung") into the advisory process** with the actual
 core systems (Versicherungsprozesse, Schadenprozesse, and — per
-[ADR-0028](./ADR-0028-aro-case-task-management-integration-pattern.md) — the
+[ADR-0034](./ADR-0034-aro-case-task-management-integration-pattern.md) — the
 dedicated case/task system **ARO**). Each of those core systems keeps its own
 native UI; B2E is the role-based home screen and launcher, not a
 re-implementation of their screens.
@@ -56,7 +56,7 @@ Scope, as agreed with the user:
 - **In scope.** Where the CRM-native surfaces (Advisor Cockpit forms, NBA
   cards, embedded Copilot Studio chat) are rendered and how B2E reaches
   them — for the internal-facing personas already scoped by
-  [ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md).
+  [ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md).
 - **Out of scope, deliberately.** Redesigning B2E itself, or changing how
   the *other* core systems (Versicherungsprozesse, Schadenprozesse, ARO) are
   launched from B2E — those patterns are assumed to stay as they are today.
@@ -66,9 +66,9 @@ Scope, as agreed with the user:
 
 This ADR does **not** pick an option. It documents three credible patterns —
 grounded in Microsoft-documented mechanisms, not invented — exactly as
-[ADR-0024](./ADR-0024-dataverse-to-databricks-integration-pattern.md),
-[ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md),
-and [ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md)
+[ADR-0030](./ADR-0030-dataverse-to-databricks-integration-pattern.md),
+[ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md),
+and [ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md)
 did before it.
 
 ## Options
@@ -476,7 +476,7 @@ running two integration mechanisms at once.
 
 Reopen this ADR when: the customer's IT team documents B2E's actual
 architecture and extensibility model; a journey-mapping exercise with real
-advisors is run against the existing cross-launch pattern; [ADR-0028](./ADR-0028-aro-case-task-management-integration-pattern.md)
+advisors is run against the existing cross-launch pattern; [ADR-0034](./ADR-0034-aro-case-task-management-integration-pattern.md)
 (ARO integration) clarifies exactly how the "Absprung" mechanism works
 today, since that is the closest working precedent for Option B/C's
 endpoint table; or a proof-of-concept of Option C's glance widget is built
@@ -493,12 +493,12 @@ stakeholder as required reviewers.
   Next-Best-Action, `AG-F-03` Case Management prefill, and `AG-F-04`
   Conversation Intelligence agents are actually delivered to the advisor —
   cross-reference [AGENTS.md](../../AGENTS.md) once decided.
-- **Contract with ADR-0026.** The Entra ID token and Conditional Access
-  posture from [ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md)
+- **Contract with ADR-0032.** The Entra ID token and Conditional Access
+  posture from [ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md)
   underpins all three options equally — this ADR does not change that
   model, only how the resulting token is used to reach CRM's surfaces.
-- **Contract with ADR-0028.** The ARO integration pattern
-  ([ADR-0028](./ADR-0028-aro-case-task-management-integration-pattern.md))
+- **Contract with ADR-0034.** The ARO integration pattern
+  ([ADR-0034](./ADR-0034-aro-case-task-management-integration-pattern.md))
   should use the same UX-placement answer this ADR eventually settles on,
   for consistency across the B2E landscape's core systems.
 - **Reversibility.** Highest for Option B (native, nothing custom to

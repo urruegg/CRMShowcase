@@ -6,7 +6,7 @@
 | **Date** | 2026-08-11 |
 | **Applies to** | Every delegated stream returning to `main` |
 | **Enforced by** | [Complete-StreamIntake.ps1](../../../scripts/orchestration/Complete-StreamIntake.ps1) · [Remove-SprintWorktree.ps1](../../../scripts/orchestration/Remove-SprintWorktree.ps1) · branch protection + CODEOWNERS + CI + evals |
-| **Related** | [SPRINT-OPERATING-MODEL.md](../SPRINT-OPERATING-MODEL.md) · [HANDOVER-CONTRACT.md](./HANDOVER-CONTRACT.md) · [ADR-0023](../../adr/ADR-0023-delegated-sprint-operating-model.md) · [ADR-0017](../../adr/ADR-0017-alm-everything-through-the-pipeline.md) · [design spec](../specs/2026-08-11-delegated-sprint-operating-model-design.md) |
+| **Related** | [SPRINT-OPERATING-MODEL.md](../SPRINT-OPERATING-MODEL.md) · [HANDOVER-CONTRACT.md](./HANDOVER-CONTRACT.md) · [ADR-0040](../../adr/ADR-0040-delegated-sprint-operating-model.md) · [ADR-0017](../../adr/ADR-0017-alm-everything-through-the-pipeline.md) · [design spec](../specs/2026-08-11-delegated-sprint-operating-model-design.md) |
 
 ---
 
@@ -54,7 +54,7 @@ Merge to `main` is therefore always performed by a named human, gated by:
 - **Evals** — where AI behaviour changed, the eval gate must pass.
 
 This keeps a human accountable for every change that lands on the trunk, which
-is the [ADR-0023](../../adr/ADR-0023-delegated-sprint-operating-model.md)
+is the [ADR-0040](../../adr/ADR-0040-delegated-sprint-operating-model.md)
 accountability position and the answer to the A8 / A9 governance questions.
 
 ## Retirement rule — dirty trees are guarded

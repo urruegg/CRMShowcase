@@ -1,6 +1,6 @@
-# Mobiliar prototype artefact BOM
+# Contoso Insurance prototype artefact BOM
 
-Generated on 2026-08-08 from the unmanaged `Mobiliar` solution with Power
+Generated on 2026-08-08 from the unmanaged `Contoso Insurance` solution with Power
 Platform CLI 1.43.6 and enriched with filtered Dataverse model metadata for
 package-omitted table definitions.
 

@@ -9,11 +9,11 @@
 | **Deciders** | `AG-E-07` Data Engineer & Scientist (accountable — master-data quality, matching, sync design) · `AG-E-09` Integration Engineer (event/batch contracts) · `AG-E-03` Enterprise Architect · `AG-E-08` Dataverse Modeler (Account/Contact schema impact) · customer IT/Architect (`P-06`) |
 | **Topic area** | A2 — Data model, data architecture, 360° customer view · A3 — Integration, interfaces, system orchestration |
 | **Use case** | Illustrated with **AG-F-01 Next-Best-Action Agent** (Advisory Cockpit) walk-throughs below each option |
-| **Licence** | `[TBD]` — Option A needs a batch/ETL tool licence (e.g. Azure Data Factory or Power Platform Dataflows consumption); Option B reuses whichever Confluent Cloud/connector licensing model [ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md) settles on; Option C needs both |
-| **Upgrade impact** | Low for Option A (a standard batch/ETL job) · Medium for Option B (new Kafka topics + consumer, reuses ADR-0025's mechanism) · Medium–High for Option C (both pipelines plus reconciliation logic to maintain and eventually simplify) |
+| **Licence** | `[TBD]` — Option A needs a batch/ETL tool licence (e.g. Azure Data Factory or Power Platform Dataflows consumption); Option B reuses whichever Confluent Cloud/connector licensing model [ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md) settles on; Option C needs both |
+| **Upgrade impact** | Low for Option A (a standard batch/ETL job) · Medium for Option B (new Kafka topics + consumer, reuses ADR-0031's mechanism) · Medium–High for Option C (both pipelines plus reconciliation logic to maintain and eventually simplify) |
 | **CAF methodology** | Plan · Ready — this is a data-foundation decision that other capabilities (AG-F-01 scoring, AG-F-05 matching, the ADR-0011 event cascade) depend on being in place first |
 | **WAF pillar(s)** | Primary: Reliability (identity data freshness and consistency) and Security (PII handling in a party master-data flow). Trade-off against: Performance Efficiency / Cost Optimization (real-time infrastructure vs. batch tooling cost) |
-| **Zero Trust** | The PDV↔CRM flow, whichever mechanism is chosen, reuses the same verified-service-identity, least-privilege posture already established for core-system integration in [ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md) and [ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md) — no new identity pattern is introduced here |
+| **Zero Trust** | The PDV↔CRM flow, whichever mechanism is chosen, reuses the same verified-service-identity, least-privilege posture already established for core-system integration in [ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md) and [ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md) — no new identity pattern is introduced here |
 | **Responsible AI** | `AG-F-01`'s Next-Best-Action scoring and `AG-F-05`'s identity-resolution matching are only as trustworthy as the party data feeding them; a stale, duplicated, or wrongly-matched party record risks a recommendation being surfaced against the wrong household. `AG-F-05`'s existing guardrail — it never silently merges a golden record; a merge is always a human-approved act — is directly load-bearing here (see the origination/identity-resolution policy section below), and must stay visible in whichever sync mechanism is chosen |
 
 > **Illustrative naming note.** "PDV" (Partner-Daten-Verwaltung) and its role
@@ -27,7 +27,7 @@
 > way." The same applies to whether CRM may ever originate a party record
 > before PDV does. Both axes are treated as genuinely open design questions
 > in the options below, not as settled facts. Topic and file names are
-> illustrative, following the same convention as ADR-0025's.
+> illustrative, following the same convention as ADR-0031's.
 
 ## Context
 
@@ -85,7 +85,7 @@ Scope, as agreed with the user:
   Marketing campaign migration, both deferred to the still-to-be-written
   CRM lead/opportunity/campaign external-landscape ADR. ARO's case/claim/
   quote integration and Opportunity migration, already fully covered in
-  [ADR-0028](./ADR-0028-aro-case-task-management-integration-pattern.md).
+  [ADR-0034](./ADR-0034-aro-case-task-management-integration-pattern.md).
 - **Validating use case.** **AG-F-01 Next-Best-Action Agent** (Advisory
   Cockpit) — illustrated below: an NBA card is only as trustworthy as the
   household's underlying identity and contact-detail accuracy, ultimately
@@ -95,11 +95,11 @@ This ADR does **not** pick an option. It documents three credible
 synchronisation patterns, plus the orthogonal origination-policy question,
 so the Enterprise Architect and the customer's IT stakeholders can choose
 with the trade-offs in front of them, exactly as
-[ADR-0024](./ADR-0024-dataverse-to-databricks-integration-pattern.md),
-[ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md),
-[ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md),
-[ADR-0027](./ADR-0027-crm-ux-placement-in-b2e-landscape.md), and
-[ADR-0028](./ADR-0028-aro-case-task-management-integration-pattern.md) did
+[ADR-0030](./ADR-0030-dataverse-to-databricks-integration-pattern.md),
+[ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md),
+[ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md),
+[ADR-0033](./ADR-0033-crm-ux-placement-in-b2e-landscape.md), and
+[ADR-0034](./ADR-0034-aro-case-task-management-integration-pattern.md) did
 before it.
 
 ## Shared foundation — initial data load (applies regardless of the steady-state option)
@@ -286,9 +286,9 @@ practice.
 
 If PDV can publish change events, it emits `pdv.partner.created` and
 `pdv.partner.updated` (illustrative names, mirroring
-[ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md)'s
+[ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md)'s
 topic-naming convention) to Confluent Cloud. CRM consumes via whichever of
-ADR-0025's four connectivity mechanisms is selected, matching every event
+ADR-0031's four connectivity mechanisms is selected, matching every event
 through `AG-F-05` before upserting near-real-time.
 
 ```mermaid
@@ -299,7 +299,7 @@ flowchart LR
     subgraph KafkaB["Confluent Cloud (Kafka)"]
         TB["Topics: pdv.partner.created,\npdv.partner.updated"]
     end
-    subgraph ConnB["Connectivity (ADR-0025 mechanism, reused)"]
+    subgraph ConnB["Connectivity (ADR-0031 mechanism, reused)"]
         MECHB["Direct client / managed connector /\nmicroservice / Dataverse push"]
     end
     subgraph DVB["CRM (Dataverse)"]
@@ -314,7 +314,7 @@ flowchart LR
 | Endpoint | Capability / service | Role |
 | --- | --- | --- |
 | `pdv.partner.created` / `pdv.partner.updated` (Kafka, illustrative) | Change events | Near-real-time signal of PDV changes |
-| Connectivity mechanism | Reuses whichever of ADR-0025's four options is selected | Not re-decided here |
+| Connectivity mechanism | Reuses whichever of ADR-0031's four options is selected | Not re-decided here |
 | `AG-F-05` agent | Match/dedupe per event | Same guardrail as Option A, applied per-event instead of per-batch |
 | Dataverse Account/Contact | Target | Refreshed within the event-processing latency window |
 
@@ -323,8 +323,8 @@ flowchart LR
   immediately — the closest fit to a "same-day" relocation golden thread.
   Reuses the same Confluent Cloud backbone and connectivity mechanism
   already used for Versicherungsprozesse, Schadenprozesse, and ARO
-  ([ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md),
-  [ADR-0028](./ADR-0028-aro-case-task-management-integration-pattern.md)) —
+  ([ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md),
+  [ADR-0034](./ADR-0034-aro-case-task-management-integration-pattern.md)) —
   one integration paradigm across the landscape instead of a second,
   separate one just for PDV.
 - **Cons.** Assumes a technical capability that is **not confirmed** — if
@@ -336,9 +336,9 @@ flowchart LR
   consumer has downtime, unlike batch's built-in full-refresh
   reconciliation.
 - **Design pattern.** Event-carried state transfer via Kafka — identical
-  shape to ADR-0025's CRM-core-systems pattern, applied to party/identity
+  shape to ADR-0031's CRM-core-systems pattern, applied to party/identity
   data instead of policy/claim data.
-- **Licence.** Reuses ADR-0025's Confluent Cloud/connector licensing
+- **Licence.** Reuses ADR-0031's Confluent Cloud/connector licensing
   model; no separate ETL tool cost.
 
 #### Advisory Cockpit walk-through (Option B)
@@ -420,7 +420,7 @@ flowchart LR
   occasionally dropped, or PDV's operational team makes an out-of-band
   correction. Matches the caution this repository applies elsewhere to
   legacy-landscape integration (the same posture as
-  [ADR-0028](./ADR-0028-aro-case-task-management-integration-pattern.md)'s
+  [ADR-0034](./ADR-0034-aro-case-task-management-integration-pattern.md)'s
   Option C) — a coexistence pattern rather than betting the entire
   identity-data pipeline on one mechanism.
 - **Cons.** Highest engineering and operational complexity of the three —
@@ -556,9 +556,9 @@ case.
 | Matches a batch-only "Host" system, if that's confirmed | Yes, directly | No — needs a bridging capability | Degrades gracefully to Option A |
 | Freshness for the relocation/cascade scenario ([ADR-0011](./ADR-0011-event-driven-cascade.md)) | Up to one batch cycle of latency | Near-real-time | Near-real-time, plus a safety net |
 | Built-in catch-up if a change is missed | Yes — inherent to full-refresh batch | No — needs manual/ad-hoc recovery | Yes — the reconciliation pass |
-| Reuses the ADR-0025 Kafka substrate | No | Yes | Yes |
+| Reuses the ADR-0031 Kafka substrate | No | Yes | Yes |
 | Engineering/operational complexity | Lowest | Medium | Highest |
-| Licence drivers | ETL tool consumption | Confluent Cloud/connector (shared with ADR-0025) | Both |
+| Licence drivers | ETL tool consumption | Confluent Cloud/connector (shared with ADR-0031) | Both |
 | Design pattern fit | Batch ETL / extract-and-upsert | Event-carried state transfer | Event-carried state transfer + reconciliation (read-repair) |
 
 ## Decision or working hypothesis
@@ -584,7 +584,7 @@ answer; Options B and C are credible but conditional on that confirmation.
   `AG-F-05` (Data-Quality & Identity-Resolution Agent) is already defined
   in [AGENTS.md](../../AGENTS.md) at Design maturity, with its
   human-approved-merge guardrail already stated — reused here, not
-  redesigned. [ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md)
+  redesigned. [ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md)
   already evaluated four credible Kafka connectivity mechanisms, reused by
   Option B/C without re-derivation.
 - **Inferred, not yet confirmed.** Whether PDV can publish real-time change
@@ -610,7 +610,7 @@ answer; Options B and C are credible but conditional on that confirmation.
 
 Reopen this ADR when: PDV's owning Host/mainframe technical team confirms
 its actual interface capability (batch vs. event vs. both);
-[ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md)'s
+[ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md)'s
 connectivity mechanism is selected (Options B/C depend on it); the
 customer's data-governance function confirms the party-origination policy
 and any precedence rule; or a pilot initial-load dry run against a PDV
@@ -628,9 +628,9 @@ customer's IT/Architect stakeholder as required reviewers.
   source of truth for Account/Contact identity fields, feeding both
   `AG-F-01`'s NBA scoring and `AG-F-05`'s ongoing matching runs —
   cross-reference [AGENTS.md](../../AGENTS.md) once decided.
-- **Contract with ADR-0025.** Options B and C depend on whichever Kafka
-  connectivity mechanism ADR-0025 settles on, the same dependency already
-  flagged in [ADR-0028](./ADR-0028-aro-case-task-management-integration-pattern.md).
+- **Contract with ADR-0031.** Options B and C depend on whichever Kafka
+  connectivity mechanism ADR-0031 settles on, the same dependency already
+  flagged in [ADR-0034](./ADR-0034-aro-case-task-management-integration-pattern.md).
 - **Contract with ADR-0009.** Whichever party-origination sub-option is
   chosen changes exactly when a Lead's underlying Contact record is
   considered "real" versus provisional — sub-option 1 (strict PDV-first)

@@ -110,3 +110,12 @@ led by `AG-E-06`.
 - [Zero Trust overview](https://learn.microsoft.com/security/zero-trust/zero-trust-overview)
 - [What is Responsible AI?](https://learn.microsoft.com/azure/machine-learning/concept-responsible-ai)
 - [Microsoft Responsible AI Standard v2 (PDF)](https://blogs.microsoft.com/wp-content/uploads/prod/sites/5/2022/06/Microsoft-Responsible-AI-Standard-v2-General-Requirements-3.pdf)
+
+## Frontier Firm operating model
+
+Microsoft's Work Trend Index research describes the "Frontier Firm" — an organization that restructures how work gets done around human-agent teams, with AI agents taking on defined work alongside employees rather than merely assisting them. This repo's agentic delegated-sprint operating model (see `docs/FRONTIER-OPERATING-MODEL.md`) is a concrete, reduced-scope instantiation of that mental model, scoped to the Contoso Insurance Sales Advisory use case.
+
+- Frontier Firm research and definition: https://www.microsoft.com/en-us/worklab/frontier-firm-resources
+- Microsoft Work Trend Index: https://www.microsoft.com/en-us/worklab/work-trend-index
+- This repo's adaptation: `docs/FRONTIER-OPERATING-MODEL.md`
+- Design pattern walkthrough for stakeholder demos: `docs/design/00-frontier-firm-operating-model-for-insurance.md`

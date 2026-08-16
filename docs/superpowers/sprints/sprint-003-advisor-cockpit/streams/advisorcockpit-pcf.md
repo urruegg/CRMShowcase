@@ -12,7 +12,7 @@
 
 Build the `AdvisorCockpit` page-level PCF (React 18 + Fluent UI v9 + Recharts),
 pixel-faithful to the local HTML ground truth
-`intake/mobiliar/source/WebResources/cr7e8_sharedpage01advisorcockpit`
+`intake/contoso-insurance/source/WebResources/cr7e8_sharedpage01advisorcockpit`
 (git-ignored, local-only), reading the Phase-5 fixtures for local development.
 
 Done when: the control renders the cockpit (greeting/KPIs, lead queue + Brunner

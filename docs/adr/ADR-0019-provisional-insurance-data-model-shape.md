@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| **Status** | Proposed — Option C is the working hypothesis pending Mobiliar integration and data-platform discovery; Option D is documented as a migration-fidelity alternative for the same stakeholder discussion |
+| **Status** | Proposed — Option C is the working hypothesis pending Contoso Insurance integration and data-platform discovery; Option D is documented as a migration-fidelity alternative for the same stakeholder discussion |
 | **Date** | 2026-08-08 |
 | **Deciders** | Enterprise Architect, Dataverse Modeler, Integration Engineer, Data Engineer & Scientist; customer architecture confirmation required |
 | **Topic area** | A1 — Architecture vision · A2 — Data model · A3 — Integration · A7 — Analytics |
@@ -16,7 +16,7 @@
 
 ## Context
 
-The Mobiliar rapid prototype and the BizApp Solution Engineer's follow-on
+The Contoso Insurance rapid prototype and the BizApp Solution Engineer's follow-on
 design agree on the strategic direction:
 
 - one `Account` model for Household, Business, and Broker;
@@ -60,16 +60,16 @@ canonical entity.
 
 The physical answer depends on evidence not yet available: the core-system
 landscape, authoritative identifiers, API and event capabilities, latency and
-availability requirements, the role of Mobiliar's data platform, and which
+availability requirements, the role of Contoso Insurance's data platform, and which
 canonical data products already exist. This ADR therefore records the three
 candidate shapes and establishes a reversible working hypothesis.
 
 ### Evidence reviewed
 
-- `intake/mobiliar/ideas/00. ERD Visualizer.html`
-- `intake/mobiliar/ideas/Mobiliar - CRM Architecture Decisions.html`
-- `intake/mobiliar/ideas/Mobiliar - Demo Curveballs & Architecture.html`
-- [Mobiliar prototype data-model design](../design/mobiliar-data-model-extension.md)
+- `intake/contoso-insurance/ideas/00. ERD Visualizer.html`
+- `intake/contoso-insurance/ideas/Contoso Insurance - CRM Architecture Decisions.html`
+- `intake/contoso-insurance/ideas/Contoso Insurance - Demo Curveballs & Architecture.html`
+- [Contoso Insurance prototype data-model design](../design/contoso-insurance-data-model-extension.md)
 - [CRM Showcase data architecture](../DATA.md)
 - [Microsoft Property and Casualty Data Model](https://learn.microsoft.com/common-data-model/schema/core/industrycommon/financialservices/propertyandcasualtydatamodel/overview)
 - [Microsoft Financial Services Common Data Model](https://learn.microsoft.com/common-data-model/schema/core/industrycommon/financialservices/financialservicescommondatamodel/overview)
@@ -78,26 +78,26 @@ candidate shapes and establishes a reversible working hypothesis.
 - General, publicly documented Siebel CRM / Siebel Financial Services
   concepts (Account, Contact, Household, Asset, Policy, Business
   Object/Business Component, Integration Object, EIM staging tables) used
-  as background for Option D below. **Mobiliar's actual Siebel
+  as background for Option D below. **Contoso Insurance's actual Siebel
   customizations are not documented in this repository and remain
   unconfirmed pending source-system discovery** — nothing below should be
-  read as a claim about Mobiliar's specific implementation.
+  read as a claim about Contoso Insurance's specific implementation.
 
 The local intake HTML is discovery evidence, not a deployable schema or
 normative architecture source.
 
-**Update (2026-08-14, chat-captured, not yet a written intake artefact):** the
-owner named the actual core-system landscape this hypothesis has been waiting
-on. **ARO** (Arbeits-Organisations-System) masters insurance offers, contracts
-and claims, including general "Anliegen" case work. **PDV** (Partner Daten
-Verwaltung), hosted on the system referred to as "Host", masters
-party/customer identity — new Accounts/Contacts are born CRM-owned and
-mastership switches to PDV once a contract exists, syncing back to CRM (see
-[2026-08-14-advisor-cockpit-datamodel-scope-reduction-design.md](../superpowers/specs/2026-08-14-advisor-cockpit-datamodel-scope-reduction-design.md)).
-**Kafka on Confluent Cloud** is the event backbone across these systems. This
-only supplies names for the evidence-area questions below — mechanism
-(virtual table vs. event-fed projection), freshness, and volume remain
-**not yet decided**.
+> **Update (2026-08-14, chat-captured, not yet a written intake artefact):** the
+> owner named the actual core-system landscape this hypothesis has been waiting
+> on. **ARO** (Arbeits-Organisations-System) masters insurance offers, contracts
+> and claims, including general "Anliegen" case work. **PDV** (Partner Daten
+> Verwaltung), hosted on the system referred to as "Host", masters
+> party/customer identity — new Accounts/Contacts are born CRM-owned and
+> mastership switches to PDV once a contract exists, syncing back to CRM (see
+> [2026-08-14-advisor-cockpit-datamodel-scope-reduction-design.md](../superpowers/specs/2026-08-14-advisor-cockpit-datamodel-scope-reduction-design.md)).
+> **Kafka on Confluent Cloud** is the event backbone across these systems. This
+> only supplies names for the evidence-area questions below — mechanism
+> (virtual table vs. event-fed projection), freshness, and volume remain
+> **not yet decided**.
 
 ## Decision drivers
 
@@ -173,7 +173,7 @@ erDiagram
 
 #### Disadvantages
 
-- Remains a Mobiliar-specific physical vocabulary with weaker portability to
+- Remains a Contoso Insurance-specific physical vocabulary with weaker portability to
   other insurers and data products.
 - A flat projection can accumulate unrelated summary fields as new journeys
   arrive.
@@ -264,7 +264,7 @@ erDiagram
 
 #### Conditions that favour Option B
 
-- Mobiliar intentionally assigns material policy or claims processing
+- Contoso Insurance intentionally assigns material policy or claims processing
   responsibility to CRM.
 - Core systems cannot provide the required availability, latency, or event
   contracts and no governed operational data product can bridge the gap.
@@ -377,7 +377,7 @@ flowchart TD
 - Adds exactly the insurance semantics required by the relocation, B2B,
   broker, claims, and assistance journeys.
 - Supports canonical integration without copying the full insurance core.
-- Allows the physical mechanism to follow Mobiliar's actual API, event, and
+- Allows the physical mechanism to follow Contoso Insurance's actual API, event, and
   data-platform capabilities.
 - Limits personal-data replication and keeps persona-based security tractable.
 - Creates a controlled path to expand or shrink projections without changing
@@ -402,31 +402,31 @@ flowchart TD
 
 - Insurance systems remain authoritative, as required by ADR-0008.
 - CRM needs reliable operational context richer than a pure live-service UI.
-- Mobiliar's integration and data platform can expose identifiers, events, or
+- Contoso Insurance's integration and data platform can expose identifiers, events, or
   governed data products that support controlled projections.
 - Multiple channels and business domains need shared semantics without shared
   ownership of insurance processing.
 
-### Option D — Migration-mirrored: shape the extension close to Mobiliar's Siebel CRM object model
+### Option D — Migration-mirrored: shape the extension close to Contoso Insurance's Siebel CRM object model
 
 Keep the same CRM-owned foundation as Options A/C (Account, Contact,
 effective-dated AccountContactRole, Consent, Lead/Opportunity, Case,
 NextBestAction), but shape Layer 2's insurance-context projections and their
 field-level mapping as close as possible to the actual, highly customized
-Siebel CRM object model Mobiliar operates today — not to the BizApp
+Siebel CRM object model Contoso Insurance operates today — not to the BizApp
 Solution Engineer's ERD (Option A), the P&C CDM (Option B), or a
 use-case-pruned hybrid (Option C). The explicit goal is to minimize
 transformation logic and cutover risk during the migration itself, using
 Siebel's own well-documented data-model concepts and extraction mechanism as
 the bridge.
 
-**A caveat that governs everything below:** Mobiliar's actual Siebel
+**A caveat that governs everything below:** Contoso Insurance's actual Siebel
 customizations are not documented anywhere in this repository. The shapes
 described here are generic, publicly known Siebel CRM / Siebel Financial
 Services concepts — Account, Contact, Household, Asset, Policy, Business
 Object/Business Component, Integration Object, and EIM (Enterprise
 Integration Manager) staging tables — used only as an illustrative pattern.
-A source-schema discovery pass against Mobiliar's real Siebel instance is
+A source-schema discovery pass against Contoso Insurance's real Siebel instance is
 mandatory before this option can be estimated or committed to.
 
 #### Logical shape
@@ -455,7 +455,7 @@ mandatory before this option can be estimated or committed to.
   explicit legacy-source key, mirroring the row identifiers Siebel's own EIM
   staging tables (for example `EIM_ACCNT`, `EIM_CONTACT`, `EIM_ASSET`)
   already use for bulk data movement, so the same Integration
-  Object/EIM extraction mechanism Mobiliar's team already operates can drive
+  Object/EIM extraction mechanism Contoso Insurance's team already operates can drive
   both the initial load and every later reconciliation pass, rather than
   requiring a bespoke source connector built from scratch.
 
@@ -492,7 +492,7 @@ erDiagram
   ([Data migration approaches](https://learn.microsoft.com/power-platform/architecture/key-concepts/data-migration/data-migration-approaches)).
 - Business questions during migration ("why does this differ from what I
   see in Siebel today?") are the easiest of any option to answer, because
-  the shapes stay recognizable to Mobiliar's own business and support teams.
+  the shapes stay recognizable to Contoso Insurance's own business and support teams.
 
 #### Disadvantages
 
@@ -513,7 +513,7 @@ erDiagram
   Because it targets the full Siebel object surface rather than a
   use-case-driven subset, Layer 2 risks being the largest of any option
   except Option B if scope is not actively bounded.
-- Mobiliar's actual customizations are not documented anywhere in this
+- Contoso Insurance's actual customizations are not documented anywhere in this
   repository (see the caveat above); a source-schema discovery pass is
   mandatory before this option can be estimated with any confidence.
 
@@ -524,7 +524,7 @@ erDiagram
 - Deep, multi-decade Siebel customization makes a clean-room redesign
   (Options A, B, or C) judged too risky to reconstruct correctly without
   first anchoring to the legacy structure.
-- Mobiliar's Integration Object/EIM extraction tooling is mature and
+- Contoso Insurance's Integration Object/EIM extraction tooling is mature and
   reusable, lowering the cost of building the mirrored bridge.
 - The programme explicitly funds and schedules a second canonicalization
   wave that converges the mirrored Layer 2 toward Option C, rather than
@@ -570,7 +570,7 @@ Every Layer 2 projection must name:
 
 Option A remains a valid physical realization when discovery shows that only a
 small persisted projection is required. Option B remains a documented
-alternative only if Mobiliar assigns insurance-processing responsibility to
+alternative only if Contoso Insurance assigns insurance-processing responsibility to
 CRM and formally revisits ADR-0008. **Option D is documented as a fourth
 alternative specifically for the migration-wave discussion with EA/IT
 stakeholders — it is not selected.** If Option D is adopted for an initial
@@ -615,7 +615,7 @@ Re-open this ADR when any of the following becomes true:
   that materially changes build, licence, or upgrade trade-offs;
 - Option D is adopted for an initial migration wave but no canonicalization
   wave is funded or scheduled to converge it onto Option C;
-- source-system discovery reveals Mobiliar's actual Siebel customizations
+- source-system discovery reveals Contoso Insurance's actual Siebel customizations
   differ materially from the generic patterns illustrated in Option D.
 
 The review records evidence against the comparison criteria rather than
@@ -652,5 +652,5 @@ The decision avoids both extremes: a proprietary insurance suite schema that
 pulls core processing into CRM, and a shallow customer shell with no governed
 insurance context. It positions Dataverse as the operational relationship and
 work layer, uses canonical insurance semantics at enterprise boundaries, and
-lets Mobiliar's actual core systems and data platform determine the most
+lets Contoso Insurance's actual core systems and data platform determine the most
 appropriate physical projection mechanism.

@@ -4,7 +4,7 @@
 > to its data source, plus the honest parity gaps vs the ground-truth mockup and
 > the PCF Review rubric conformance scorecard. Companion to the AdvisorCockpit
 > [DATA-BOM](../AdvisorCockpit/DATA-BOM.md). Ground truth: local web resource
-> `intake/mobiliar/source/WebResources/cr7e8_sharedpage12v2salessteeringcockpit`.
+> `intake/contoso-insurance/source/WebResources/cr7e8_sharedpage12v2salessteeringcockpit`.
 
 ## Data-source provenance legend
 

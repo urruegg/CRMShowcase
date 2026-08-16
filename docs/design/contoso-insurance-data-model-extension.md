@@ -1,10 +1,10 @@
-# Mobiliar Prototype to CRM Showcase Data-Model Design
+# Contoso Insurance Prototype to CRM Showcase Data-Model Design
 
 | Field | Value |
 | --- | --- |
 | Status | Sprint 2 design baseline |
 | Date | 2026-08-08 |
-| Source | Structural BOM from the isolated Mobiliar rapid prototype |
+| Source | Structural BOM from the isolated Contoso Insurance rapid prototype |
 | Target owner | AG-E-03 Enterprise Architect and AG-E-08 Dataverse Modeler |
 | Related ADRs | ADR-0006, ADR-0007, ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0012, ADR-0013, ADR-0019 |
 | Licence | Configuration and own build; native product dependencies require capability-level validation |
@@ -33,7 +33,7 @@ three candidate target shapes. Its working hypothesis is a layered hybrid:
 retain the CRM operating model, use canonical P&C semantics in versioned
 contracts, and persist only insurance-context projections justified by a named
 CRM journey. The final physical projection mechanism remains subject to
-Mobiliar core-system integration and data-platform discovery.
+Contoso Insurance core-system integration and data-platform discovery.
 
 ## Source observations
 

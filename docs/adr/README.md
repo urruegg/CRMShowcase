@@ -10,7 +10,7 @@ Two loose series live side by side:
 - **Governance / build ADRs (0001–0005)** record real decisions made while bringing
   the showcase up: Copilot governance, OIDC federation, Terraform, CI plane, CI app
   users.
-- **Domain and delivery ADRs (0006–0039)** record the CRM Frontier Firm design position on the
+- **Domain and delivery ADRs (0006–0040)** record the CRM Frontier Firm design position on the
   illustrated insurance vertical: party model, portfolio placement, thin CRM over
   the engines, consent, event cascade, jurisdiction eligibility, GA territory,
   agents-advisory, voice, outbound, ALM, analytics split, demo-feasible
@@ -37,7 +37,7 @@ Copy [ADR-TEMPLATE.md](./ADR-TEMPLATE.md) and edit — do not invent a new shape
 
 `ADR-####-kebab-case-title.md`, four-digit sequence, no gaps.
 
-`0039` is the latest allocated sequence; use `0040` for the next ADR.
+`0040` is the latest allocated sequence; use `0041` for the next ADR.
 
 ## Index
 
@@ -82,6 +82,7 @@ Copy [ADR-TEMPLATE.md](./ADR-TEMPLATE.md) and edit — do not invent a new shape
 | [0037](./ADR-0037-power-platform-environment-strategy-b2b-b2c.md) | Power Platform environment strategy for Household/Business/Broker business models | A2 · A4 · A8 | Proposed hypothesis |
 | [0038](./ADR-0038-purview-power-platform-dynamics365-compliance.md) | Microsoft Purview compliance and regulatory governance for Power Platform & Dynamics 365 | A2 · A6 · A9 | Proposed hypothesis |
 | [0039](./ADR-0039-devsecops-cicd-github-enterprise-vs-gitlab.md) | DevSecOps CI/CD operating model — GitHub Enterprise vs. GitLab vs. hybrid | A4 · A8 · A9 | Proposed hypothesis |
+| [0040](./ADR-0040-delegated-sprint-operating-model.md) | Delegated sprint operating model (Copilot CLI control plane) | A8 · A9 | Accepted |
 
 ADRs 0011, 0012, 0013, 0017, 0018, 0019, 0020, 0023, 0030, 0031, 0032, 0033,
 0034, 0035, 0036, 0037, 0038, and 0039 remain proposed until confirmed with

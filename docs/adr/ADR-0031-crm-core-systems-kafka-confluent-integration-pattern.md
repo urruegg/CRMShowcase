@@ -54,7 +54,7 @@ This ADR does **not** pick an option. It documents the credible patterns —
 verified against Microsoft Learn and Confluent Cloud documentation, not
 invented — so the Enterprise Architect and the customer's IT stakeholders can
 choose with the trade-offs in front of them, exactly as
-[ADR-0024](./ADR-0024-dataverse-to-databricks-integration-pattern.md) did for
+[ADR-0030](./ADR-0030-dataverse-to-databricks-integration-pattern.md) did for
 the Databricks integration.
 
 ## Options
@@ -669,7 +669,7 @@ IT/Architect stakeholder as required reviewers.
   topic/ACL/schema ownership becomes a new RACI line in
   [SHARED-RESPONSIBILITY.md](../SHARED-RESPONSIBILITY.md) — A9 — alongside
   the Fabric capacity question already raised in
-  [ADR-0024](./ADR-0024-dataverse-to-databricks-integration-pattern.md).
+  [ADR-0030](./ADR-0030-dataverse-to-databricks-integration-pattern.md).
 - **Reversibility.** High for Options A, B and D — stateless or additive,
   no Dataverse schema change. Medium for Option C — more infrastructure to
   unwind once operational.

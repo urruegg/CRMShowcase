@@ -13,7 +13,7 @@
 | **Upgrade impact** | Low for the thin-integration options (Comparis Option A/B, Campaign Option A) · Medium–High for the migration/cutover options (Campaign Option B/C) which require historical data handling |
 | **CAF methodology** | Plan · Adopt — deciding and rolling out the target lead-intake and campaign-platform model |
 | **WAF pillar(s)** | Primary: Reliability (lead/campaign data consistency during any transition) and Operational Excellence. Trade-off against: Cost Optimization (running two campaign platforms during a phased migration) |
-| **Zero Trust** | Reuses the same verified-service-identity, least-privilege posture already established in [ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md) and [ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md) — no new identity pattern is introduced here |
+| **Zero Trust** | Reuses the same verified-service-identity, least-privilege posture already established in [ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md) and [ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md) — no new identity pattern is introduced here |
 | **Responsible AI** | `AG-F-06`'s segment-building and content generation are only as good as the consent and deduplication state of the contacts feeding it — the Comparis intake option chosen must capture per-channel consent at the point of intake ([ADR-0010](./ADR-0010-consent-per-contact-per-channel.md)), not retrofit it later; `AG-F-01`'s NBA scoring for a newly-arrived lead depends on how quickly and accurately that lead is matched to an existing party via `AG-F-05` |
 
 > **Illustrative naming note.** Comparis (a Swiss insurance comparison
@@ -23,7 +23,7 @@
 > or enrichment on inbound Comparis leads today is **not confirmed** — this
 > ADR treats it as an open question (see Part 1) rather than asserting it
 > either way. Topic and endpoint names below are illustrative, following the
-> same convention as ADR-0025/ADR-0028's.
+> same convention as ADR-0031/ADR-0034's.
 
 ## Context
 
@@ -54,8 +54,8 @@ Scope, as agreed with the user:
   Salesforce → Dynamics 365 Marketing campaign-platform migration pattern.
 - **Out of scope, deliberately.** Opportunity ownership and the ARO
   migration path — both fully covered by
-  [ADR-0028](./ADR-0028-aro-case-task-management-integration-pattern.md)
-  already; this ADR's Comparis-routing options reuse ADR-0028's `aro.*`
+  [ADR-0034](./ADR-0034-aro-case-task-management-integration-pattern.md)
+  already; this ADR's Comparis-routing options reuse ADR-0034's `aro.*`
   Kafka topic convention where relevant but do not revisit Opportunity.
   Re-deciding the Prospect/Interested-Party/Customer lifecycle model,
   already settled by
@@ -69,9 +69,9 @@ Scope, as agreed with the user:
 This ADR does **not** pick an option on either axis. It documents credible
 patterns for each so the Enterprise Architect and the customer's IT
 stakeholders can choose with the trade-offs in front of them, exactly as
-[ADR-0024](./ADR-0024-dataverse-to-databricks-integration-pattern.md)
+[ADR-0030](./ADR-0030-dataverse-to-databricks-integration-pattern.md)
 through
-[ADR-0029](./ADR-0029-pdv-partner-master-data-integration-pattern.md) did
+[ADR-0035](./ADR-0035-pdv-partner-master-data-integration-pattern.md) did
 before it.
 
 ## Part 1 — Comparis lead intake pattern
@@ -186,7 +186,7 @@ flowchart TD
 Comparis leads continue flowing into ARO as they do today. ARO performs
 whatever triage/vetting it already applies, then publishes a "lead
 qualified" event (e.g. `aro.lead.qualified`, illustrative, mirroring
-[ADR-0028](./ADR-0028-aro-case-task-management-integration-pattern.md)'s
+[ADR-0034](./ADR-0034-aro-case-task-management-integration-pattern.md)'s
 topic-naming convention) to Confluent Cloud, which CRM consumes to create
 the native Lead.
 
@@ -213,13 +213,13 @@ flowchart LR
 | Endpoint | Capability / service | Role |
 | --- | --- | --- |
 | ARO (existing triage) | Whatever vetting ARO applies today | Preserved unchanged |
-| `aro.lead.qualified` (Kafka, illustrative) | Event once ARO has vetted a lead | Reuses ADR-0025's connectivity mechanism |
+| `aro.lead.qualified` (Kafka, illustrative) | Event once ARO has vetted a lead | Reuses ADR-0031's connectivity mechanism |
 | `AG-F-05` agent | Match against existing Contact/PDV | Same guardrail as Option A |
 | Dataverse `Lead` | Native lead table | Created only after ARO's vetting step |
 
 - **Pros.** Preserves today's triage step without needing to know or
   rebuild what ARO actually does — lowest process disruption. Consistent
-  integration paradigm with ADR-0028's `aro.*` topics — one substrate
+  integration paradigm with ADR-0034's `aro.*` topics — one substrate
   across the ARO relationship rather than two.
 - **Cons.** Adds a round-trip through ARO before an advisor ever sees the
   lead in the Cockpit — worth weighing against how much response speed
@@ -230,8 +230,8 @@ flowchart LR
   against the general direction of concentrating demand-side objects in
   CRM ([ADR-0008](./ADR-0008-thin-crm-over-systems-of-record.md)).
 - **Design pattern.** Event-carried state transfer via a new ARO-owned
-  Kafka topic, same shape as ADR-0028's shared integration surface.
-- **Licence.** Reuses ADR-0025's Confluent Cloud/connector licensing.
+  Kafka topic, same shape as ADR-0034's shared integration surface.
+- **Licence.** Reuses ADR-0031's Confluent Cloud/connector licensing.
 
 #### Advisory Cockpit walk-through (Option B)
 
@@ -309,8 +309,8 @@ flowchart LR
   people. Incremental: could evolve toward Option A over time as
   confidence in direct-to-CRM validation grows, the same Strangler-Fig-like
   reasoning applied in
-  [ADR-0028](./ADR-0028-aro-case-task-management-integration-pattern.md)
-  and [ADR-0029](./ADR-0029-pdv-partner-master-data-integration-pattern.md)'s
+  [ADR-0034](./ADR-0034-aro-case-task-management-integration-pattern.md)
+  and [ADR-0035](./ADR-0035-pdv-partner-master-data-integration-pattern.md)'s
   own Option C patterns.
 - **Cons.** The most complex of the three — two intake paths to build,
   monitor, and keep consistent; the routing/split criterion itself needs
@@ -329,7 +329,7 @@ flowchart LR
 | Concentrates demand-side data in CRM ([ADR-0008](./ADR-0008-thin-crm-over-systems-of-record.md)) | Fully | Partially | Mostly |
 | Process disruption from today | Highest | None | Medium |
 | Engineering complexity | Lowest | Low–Medium | Highest |
-| Reuses ADR-0025/0028 Kafka substrate | No (external API only) | Yes | Partially |
+| Reuses ADR-0031/0034 Kafka substrate | No (external API only) | Yes | Partially |
 
 ## Part 2 — Salesforce → Dynamics 365 Marketing migration pattern
 
@@ -473,8 +473,8 @@ flowchart LR
 
 - **Pros.** Lowest disruption to already-running campaigns; incremental
   and reversible per-campaign; consistent with the coexistence pattern
-  used in [ADR-0028](./ADR-0028-aro-case-task-management-integration-pattern.md)
-  and [ADR-0029](./ADR-0029-pdv-partner-master-data-integration-pattern.md)'s
+  used in [ADR-0034](./ADR-0034-aro-case-task-management-integration-pattern.md)
+  and [ADR-0035](./ADR-0035-pdv-partner-master-data-integration-pattern.md)'s
   own Option C.
 - **Cons.** Two systems to operate and monitor during the transition;
   requires dual segment/consent reconciliation — consent per contact per
@@ -566,8 +566,8 @@ ADR does not assume they must be resolved together.
   already establishes the consent-per-contact-per-channel gate that Part
   2's coexistence option must respect. `AG-F-06` (Campaign & Content Assist
   Agent) is already defined in [AGENTS.md](../../AGENTS.md).
-  [ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md)
-  and [ADR-0028](./ADR-0028-aro-case-task-management-integration-pattern.md)
+  [ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md)
+  and [ADR-0034](./ADR-0034-aro-case-task-management-integration-pattern.md)
   already establish the Kafka connectivity mechanism and `aro.*` topic
   convention reused by Part 1's Option B/C.
 - **Inferred, not yet confirmed.** Whether ARO performs any meaningful
@@ -608,7 +608,7 @@ Expert, and the customer's IT/Architect stakeholder as required reviewers.
   across both campaign platforms during the transition window — flagged
   here as a design requirement for the dual-visibility layer, not yet
   resolved.
-- **Contract with ADR-0025/ADR-0028.** Part 1's Option B/C depend on the
+- **Contract with ADR-0031/ADR-0034.** Part 1's Option B/C depend on the
   same Kafka connectivity mechanism and topic-naming convention already
   established there.
 - **Reversibility.** Part 1: highest for Option A (nothing ARO-side to

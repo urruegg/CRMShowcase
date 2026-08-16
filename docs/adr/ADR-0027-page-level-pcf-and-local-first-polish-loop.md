@@ -19,7 +19,7 @@
 ## Context
 
 The Advisor Cockpit must reproduce two dense, full-bleed HTML cockpits **as
-close to pixel-perfect as possible** (ground truth: the unpacked Mobiliar HTML
+close to pixel-perfect as possible** (ground truth: the unpacked Contoso Insurance HTML
 web resources, local-only). Two questions: (1) how is each surface rendered, and
 (2) how do we reliably reach pixel fidelity? This ADR settles both and anchors
 the build method as a reusable pattern.

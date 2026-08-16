@@ -13,7 +13,7 @@
 | **Upgrade impact** | Low for Option A (one environment, one release train) · High for Option B (N environments, N release trains, plus a new cross-environment reconciliation layer to build and maintain) · Medium for Option C (two release trains, one narrower reconciliation surface) |
 | **CAF methodology** | Ready — landing-zone/environment topology is a foundational "Ready" decision · Govern — ongoing environment lifecycle and blast-radius governance |
 | **WAF pillar(s)** | Primary: Security (blast-radius isolation and least-privilege segregation) and Operational Excellence (environment count directly drives release/administration overhead). Trade-off against: Cost Optimization (every additional environment carries its own capacity, storage, and administration cost) |
-| **Zero Trust** | This ADR is about **where** the verify-explicitly/least-privilege boundary is drawn (environment vs. Business Unit), not a new identity mechanism — the actual security-role and Entra-group mechanics are already defined in [ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md) and apply unchanged inside whichever topology is chosen here |
+| **Zero Trust** | This ADR is about **where** the verify-explicitly/least-privilege boundary is drawn (environment vs. Business Unit), not a new identity mechanism — the actual security-role and Entra-group mechanics are already defined in [ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md) and apply unchanged inside whichever topology is chosen here |
 | **Responsible AI** | `AG-F-01`'s Next-Best-Action scoring must not leak signals or data across a boundary where they do not belong — e.g. broker commission/book-of-business data must never surface inside a household advisor's cockpit, and vice versa. Whichever environment topology is chosen must preserve this separation either structurally (Option B/C) or through Business-Unit-scoped security roles and NBA agent configuration (Option A) |
 
 > **Illustrative naming note.** The user's original framing named only "B2B
@@ -89,7 +89,7 @@ Scope, as agreed with the user:
   ([ADR-0020](./ADR-0020-domain-ownership-within-six-solution-architecture.md));
   the specific security-role design and Entra-to-Dataverse mapping
   mechanics, already covered in
-  [ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md).
+  [ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md).
 - **Validating use case.** **AG-F-01 Next-Best-Action Agent** (Advisory
   Cockpit) — illustrated below with an advisor who serves a household that
   is also a small-business owner, and separately a broker relationship —
@@ -184,7 +184,7 @@ flowchart TD
         SIXSOL["Six solution packages\n(ADR-0020), installed once"]
         NBAAGENT["AG-F-01 NBA agent\n(one instance, role-scoped)"]
     end
-    ROLES["Security roles per Business Unit\n(ADR-0026)"]
+    ROLES["Security roles per Business Unit\n(ADR-0032)"]
 
     ROLES --> BUHH
     ROLES --> BUBU
@@ -201,7 +201,7 @@ flowchart TD
 | --- | --- | --- |
 | Single Dataverse environment (`PROD-CRM`, illustrative) | Production Power Platform environment | Hosts all populations |
 | Business Units (Household / Business / Broker, or fewer) | Native Dataverse hierarchical segregation | Data and admin-resource visibility boundary |
-| Security roles ([ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md)) | Entra-group-mapped role assignment | Enforces least privilege within each Business Unit |
+| Security roles ([ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md)) | Entra-group-mapped role assignment | Enforces least privilege within each Business Unit |
 | Six solution packages ([ADR-0020](./ADR-0020-domain-ownership-within-six-solution-architecture.md)) | Deployment unit | Installed once, shared by every Business Unit |
 | `AG-F-01` NBA agent | Copilot Studio / scoring pipeline | One shared instance, scoped by the advisor's security role |
 
@@ -291,7 +291,7 @@ flowchart LR
 | --- | --- | --- |
 | Per-population Dataverse environment (`PROD-CRM-B2C`/`PROD-CRM-B2B`, or `PROD-CRM-HOUSEHOLD`/`PROD-CRM-BUSINESS`/`PROD-CRM-BROKER`, illustrative) | Independent production environments | One per recognised population |
 | Six solution packages ([ADR-0020](./ADR-0020-domain-ownership-within-six-solution-architecture.md)) | Deployment unit | Installed and released independently in each environment |
-| Cross-environment reconciliation/integration layer (new) | Custom sync, or reuse of the Databricks/Fabric analytics plane ([ADR-0024](./ADR-0024-dataverse-to-databricks-integration-pattern.md)) | Only mechanism able to reconstruct a unified 360° view for a party spanning populations |
+| Cross-environment reconciliation/integration layer (new) | Custom sync, or reuse of the Databricks/Fabric analytics plane ([ADR-0030](./ADR-0030-dataverse-to-databricks-integration-pattern.md)) | Only mechanism able to reconstruct a unified 360° view for a party spanning populations |
 | `AG-F-01` NBA agent | Copilot Studio / scoring pipeline, one instance per environment | No native shared instance — scoring must run separately per environment or be centralised outside Dataverse |
 
 - **Pros.** Strongest blast-radius isolation — a bad deployment or incident
@@ -317,7 +317,7 @@ flowchart LR
   multi-tenant-by-environment pattern, and reuses the same class of
   cross-system integration thinking already applied to the Databricks
   analytics plane in
-  [ADR-0024](./ADR-0024-dataverse-to-databricks-integration-pattern.md).
+  [ADR-0030](./ADR-0030-dataverse-to-databricks-integration-pattern.md).
 - **Licence.** Full additional Dataverse capacity/storage entitlement per
   extra environment, plus whatever the reconciliation layer's underlying
   platform costs (custom integration compute, or Databricks/Fabric
@@ -385,7 +385,7 @@ flowchart LR
 | Shared environment (`PROD-CRM-INTERNAL` or `PROD-CRM-HOUSEHOLD`, illustrative) | Hosts the population(s) grouped together | Business Unit segregation still applies within it, as in Option A |
 | Separated environment (`PROD-CRM-BROKER` or `PROD-CRM-B2B`, illustrative) | Hosts the population needing distinct identity/access treatment | Independent release train and admin boundary for that one population |
 | Six solution packages ([ADR-0020](./ADR-0020-domain-ownership-within-six-solution-architecture.md)) | Deployment unit | Installed in both environments, but only one release train needs to move at external-facing speed |
-| Narrower reconciliation/integration layer (new, smaller than Option B's) | Custom sync or Databricks/Fabric reuse ([ADR-0024](./ADR-0024-dataverse-to-databricks-integration-pattern.md)) | Needed only for the one boundary actually separated, not for every pair of populations |
+| Narrower reconciliation/integration layer (new, smaller than Option B's) | Custom sync or Databricks/Fabric reuse ([ADR-0030](./ADR-0030-dataverse-to-databricks-integration-pattern.md)) | Needed only for the one boundary actually separated, not for every pair of populations |
 | `AG-F-01` NBA agent | Copilot Studio / scoring pipeline, one instance per environment (two total) | Fewer instances to reconcile than Option B's N |
 
 - **Pros.** Targets the isolation Option B is trying to achieve — typically
@@ -485,7 +485,7 @@ stakeholders need to weigh together, not one this ADR should pre-empt.
   already establishes the one-`Account`/`accountType` position this ADR
   weighs against. [ADR-0020](./ADR-0020-domain-ownership-within-six-solution-architecture.md)
   already establishes the six-solution packaging unit referenced in every
-  option's endpoint table. [ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md)
+  option's endpoint table. [ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md)
   already establishes the security-role/Business-Unit mechanics reused
   unchanged inside whichever topology is chosen. Microsoft Learn guidance
   (*Environment strategy for Power Platform* and *Develop a tenant
@@ -522,7 +522,7 @@ stakeholders need to weigh together, not one this ADR should pre-empt.
   existing environment-count ceiling or per-environment cost policy that
   would independently constrain the topology choice.
 - Re-review this ADR once [ADR-0020](./ADR-0020-domain-ownership-within-six-solution-architecture.md)'s
-  six-solution packaging and [ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md)'s
+  six-solution packaging and [ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md)'s
   security-role design move from proposed to accepted, since both directly
   shape how any of these three options would actually be implemented.
 
@@ -545,7 +545,7 @@ stakeholders need to weigh together, not one this ADR should pre-empt.
   boundary means re-doing the split later, likely at higher cost than
   getting it right the first time.
 - **Regardless of option.** Whichever topology is chosen, the security-role
-  and Entra-group mechanics of [ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md)
+  and Entra-group mechanics of [ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md)
   apply unchanged — this ADR decides *where* those boundaries sit
   (environment vs. Business Unit), not *how* access is actually enforced.
 

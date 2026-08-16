@@ -5,15 +5,15 @@
 | **Status** | Proposed hypothesis |
 | **Date** | 2026-08-15 |
 | **Decision mode** | Working hypothesis — **no option selected, no lean stated**; fully open for Enterprise Architect + customer IT/architecture stakeholder review |
-| **Confidence** | Low–Medium — the Kafka connectivity substrate is already evaluated in [ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md); ARO's actual event/API capability, its exact Kafka topic ownership boundary versus Versicherungsprozesse/Schadenprozesse, and its historical Opportunity data quality are not yet confirmed |
+| **Confidence** | Low–Medium — the Kafka connectivity substrate is already evaluated in [ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md); ARO's actual event/API capability, its exact Kafka topic ownership boundary versus Versicherungsprozesse/Schadenprozesse, and its historical Opportunity data quality are not yet confirmed |
 | **Deciders** | `AG-E-09` Integration Engineer (accountable — event contracts, versioning) · `AG-E-03` Enterprise Architect · `AG-E-05` CRM Domain Expert / `AG-E-10` Insurance Domain Expert (Opportunity/Quote business semantics) · customer IT/Architect (`P-06`) |
 | **Topic area** | A2 — Data model (Opportunity/Quote ownership boundary) · A3 — Integration, interfaces, system orchestration · A5 — Workflow/business cases (the sales process spans ARO and CRM today) |
 | **Use case** | Illustrated with **AG-F-01 Next-Best-Action Agent** (Advisory Cockpit) walk-throughs below each option |
-| **Licence** | `[TBD]` — reuses whichever Confluent Cloud/connector licensing model [ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md) settles on; Option C additionally needs a temporary reconciliation-service compute budget |
+| **Licence** | `[TBD]` — reuses whichever Confluent Cloud/connector licensing model [ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md) settles on; Option C additionally needs a temporary reconciliation-service compute budget |
 | **Upgrade impact** | Medium for Option A (adds one more projection, same shape as existing Policy/Claim/Quote projections) · High for Option B (one-time cutover with historical data migration) · High for Option C while the reconciliation layer is live, then reduces to Low once decommissioned |
 | **CAF methodology** | Plan · Adopt — deciding and rolling out the target Opportunity ownership model |
 | **WAF pillar(s)** | Primary: Reliability (dual-write/cutover consistency risk) and Operational Excellence. Trade-off against: Cost Optimization (Option C's temporary reconciliation layer) |
-| **Zero Trust** | The ARO↔CRM event flow reuses the same verified-service-identity posture as [ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md) — no new identity pattern is introduced here |
+| **Zero Trust** | The ARO↔CRM event flow reuses the same verified-service-identity posture as [ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md) — no new identity pattern is introduced here |
 | **Responsible AI** | `AG-F-01`'s Next-Best-Action scoring is only as current as the case/quote signal it receives; a migration in flight (Option C) risks a temporary staleness window between ARO and CRM that must be disclosed in the NBA card's "as of" timestamp, not hidden |
 
 > **Illustrative naming note.** "ARO" (Arbeits-Organisations-System) and its
@@ -22,10 +22,10 @@
 > Versicherungsprozesse and Schadenprozesse — are as described by the
 > customer. Whether ARO or Schadenprozesse is the actual publisher of the
 > `claim.status-changed` Kafka topic named in
-> [ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md)
+> [ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md)
 > is **not confirmed** — this ADR treats that boundary conservatively (see
 > Evidence and assumptions) rather than asserting it either way. Topic names
-> below are illustrative, following the same convention as ADR-0025's.
+> below are illustrative, following the same convention as ADR-0031's.
 
 ## Context
 
@@ -34,7 +34,7 @@ management system — ARO** — that handles insurance quotes/offers and
 contracts-in-progress ("Versicherungs Offerten und Verträge") as well as
 claim case-work ("Schadenfälle"), distinct from the Versicherungsprozesse
 and Schadenprozesse engines already covered by
-[ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md).
+[ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md).
 Two facts make this directly relevant to CRM's data model:
 
 1. **Sales Opportunities ("Verkaufschancen") currently live on ARO, and the
@@ -53,12 +53,12 @@ Two facts make this directly relevant to CRM's data model:
    [ADR-0008](./ADR-0008-thin-crm-over-systems-of-record.md) thin-CRM
    position.
 
-[ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md)
+[ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md)
 already evaluated **how** to build a Kafka connection to a core system
 (direct client, managed connector, dedicated microservice, or native
 Dataverse push) — that mechanism decision is not reopened here. This ADR
 adds ARO as a system sharing that same substrate and focuses on the
-question ADR-0025 did not have the information to ask: **what should
+question ADR-0031 did not have the information to ask: **what should
 happen to the Opportunity object that currently lives on ARO?**
 
 Scope, as agreed with the user:
@@ -80,10 +80,10 @@ Scope, as agreed with the user:
 This ADR does **not** pick an option. It documents three credible patterns
 so the Enterprise Architect and the customer's IT stakeholders can choose
 with the trade-offs in front of them, exactly as
-[ADR-0024](./ADR-0024-dataverse-to-databricks-integration-pattern.md),
-[ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md),
-[ADR-0026](./ADR-0026-entra-power-platform-dynamics365-identity-access-management.md),
-and [ADR-0027](./ADR-0027-crm-ux-placement-in-b2e-landscape.md) did before
+[ADR-0030](./ADR-0030-dataverse-to-databricks-integration-pattern.md),
+[ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md),
+[ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md),
+and [ADR-0033](./ADR-0033-crm-ux-placement-in-b2e-landscape.md) did before
 it.
 
 ## Shared integration surface (applies to every option)
@@ -102,7 +102,7 @@ flowchart LR
     subgraph Kafka["Confluent Cloud (Kafka)"]
         T1["Topic: aro.case.status-changed"]
         T2["Topic: aro.quote.updated"]
-        T3["Topic: policy.updated /\nclaim.status-changed\n(ADR-0025)"]
+        T3["Topic: policy.updated /\nclaim.status-changed\n(ADR-0031)"]
     end
     subgraph CRM["CRM (Dataverse)"]
         PROJ["CRM-side projections:\nQuote, Claim, Policy\n(external reference key)"]
@@ -119,8 +119,8 @@ flowchart LR
 
 | Endpoint | Capability / service | Role |
 | --- | --- | --- |
-| Confluent Cloud Kafka topics | `aro.case.status-changed`, `aro.quote.updated` (new, illustrative naming, mirrors ADR-0025's `policy.updated`/`claim.status-changed` convention) | Event backbone for ARO visibility |
-| Connectivity mechanism | Whichever of ADR-0025's four options (direct Kafka client, managed connector, dedicated microservice, native Dataverse push) the customer selects | Reused, not re-decided here |
+| Confluent Cloud Kafka topics | `aro.case.status-changed`, `aro.quote.updated` (new, illustrative naming, mirrors ADR-0031's `policy.updated`/`claim.status-changed` convention) | Event backbone for ARO visibility |
+| Connectivity mechanism | Whichever of ADR-0031's four options (direct Kafka client, managed connector, dedicated microservice, native Dataverse push) the customer selects | Reused, not re-decided here |
 | CRM-side projections | Extends the existing Quote/Claim/Policy projection pattern ([ADR-0008](./ADR-0008-thin-crm-over-systems-of-record.md)) | Read-through summary with external reference key back to ARO |
 | AG-F-01 NBA agent | Consumes the projections as scoring input | E.g. "household has an open claim" or "quote in progress" as an NBA signal |
 
@@ -162,7 +162,7 @@ used for Policy/Claim/Quote to also cover Opportunity — a read-only summary
 with an external reference key (`aro_opportunityid`), refreshed via the
 `aro.quote.updated` topic. Any create/edit action happens in ARO's own UI,
 reached via the B2E cross-launch pattern
-([ADR-0027](./ADR-0027-crm-ux-placement-in-b2e-landscape.md)). Included here
+([ADR-0033](./ADR-0033-crm-ux-placement-in-b2e-landscape.md)). Included here
 as the honest baseline for comparison, even though it does not realise the
 customer's stated aspiration to replace ARO's Verkaufschancen capability.
 
@@ -190,7 +190,7 @@ flowchart LR
 | --- | --- | --- |
 | `aro.quote.updated` Kafka topic | Same substrate as the shared surface above | Keeps CRM projection current |
 | CRM Opportunity table | Read-only projection, `aro_opportunityid` external key | Advisory Cockpit summary/scoring only |
-| B2E cross-launch | Same mechanism as [ADR-0027](./ADR-0027-crm-ux-placement-in-b2e-landscape.md) Option B | Advisor edits the opportunity on ARO's native UI |
+| B2E cross-launch | Same mechanism as [ADR-0033](./ADR-0033-crm-ux-placement-in-b2e-landscape.md) Option B | Advisor edits the opportunity on ARO's native UI |
 
 - **Pros.** Minimal change — reuses the already-established Policy/Claim/
   Quote projection pattern, nothing new to design. No business-process
@@ -255,7 +255,7 @@ capability are unaffected). Historical Opportunity data migrates from ARO
 to Dataverse once. Going forward, when a CRM Opportunity is won, CRM
 publishes an outbound event (e.g. `crm.opportunity-won`) so
 Versicherungsprozesse/ARO can create the resulting contract — the reverse
-direction of ADR-0025's existing outbound pattern
+direction of ADR-0031's existing outbound pattern
 (`crm.address-changed`).
 
 ```mermaid
@@ -284,7 +284,7 @@ flowchart LR
 | --- | --- | --- |
 | CRM Opportunity table | Native Dataverse entity, full sales-pipeline/Sales Copilot capability | System of record |
 | One-time migration job | Bulk data migration, ARO Opportunity history → Dataverse | Historical continuity |
-| `crm.opportunity-won` Kafka topic (outbound) | Reuses ADR-0025's outbound mechanism | Triggers contract creation in Versicherungsprozesse |
+| `crm.opportunity-won` Kafka topic (outbound) | Reuses ADR-0031's outbound mechanism | Triggers contract creation in Versicherungsprozesse |
 | ARO Verkaufschancen capability | Decommissioned for this object type only | Quote calculation and claims case-work unaffected |
 
 - **Pros.** Directly realises the customer's stated target state.
@@ -342,7 +342,7 @@ Opportunity won; the agent only scores and recommends.
 
 Both systems run in parallel during a defined migration window. A
 reconciliation layer (an Azure Function or Power Automate flow, in the
-same shape as [ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md)'s
+same shape as [ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md)'s
 Option A/C) keeps CRM's Opportunity and ARO's Verkaufschance in sync,
 bidirectionally, for a defined subset — a pilot GA or a single product
 line — before expanding. ARO's Opportunity capability is switched off only
@@ -373,7 +373,7 @@ flowchart LR
 
 | Endpoint | Capability / service | Role |
 | --- | --- | --- |
-| Reconciliation layer | Azure Function / Power Automate, reusing ADR-0025's shape | Bidirectional, idempotent sync during the migration window |
+| Reconciliation layer | Azure Function / Power Automate, reusing ADR-0031's shape | Bidirectional, idempotent sync during the migration window |
 | Migration control (per-GA/product flag) | Feature-flag style rollout | Determines which system is authoritative for a given GA/product |
 | CRM Opportunity table | Authoritative only for cut-over GAs | Partial system of record during the window |
 | ARO Verkaufschance | Authoritative for not-yet-migrated GAs | Decommissioned only at 100% cutover |
@@ -381,7 +381,7 @@ flowchart LR
 - **Pros.** Lowest business risk of the three — realistic for a highly
   customised legacy system where hidden dependencies are likely (the same
   caution [ADR-0019](./ADR-0019-provisional-insurance-data-model-shape.md)
-  applies to the Mobiliar Siebel-mirrored option). Lets the CRM Opportunity
+  applies to the Contoso Insurance Siebel-mirrored option). Lets the CRM Opportunity
   model be validated against real advisor workflows before full commitment.
   Rollback is possible per-GA at any point during the window. Matches the
   well-understood Strangler Fig pattern for legacy modernisation.
@@ -452,7 +452,7 @@ customer's IT/architecture stakeholders to weigh together. Option C follows
 the customary caution applied elsewhere in this repository to highly
 customised legacy landscapes (the same caution
 [ADR-0019](./ADR-0019-provisional-insurance-data-model-shape.md) applies to
-Mobiliar's Siebel-mirrored option), but it is not presented as a
+Contoso Insurance's Siebel-mirrored option), but it is not presented as a
 recommendation — Option B may be entirely appropriate if ARO's Opportunity
 data and business rules turn out to be simpler than assumed, and Option A
 remains valid if the customer decides the migration is not worth the
@@ -464,11 +464,11 @@ engineering cost right now.
   already decided Opportunity is a CRM-native, demand-side object, while
   Policy, Claim, and Quote are CRM-side projections with external reference
   keys — this ADR operationalises that decision now that ARO is known as
-  the current Opportunity owner. [ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md)
+  the current Opportunity owner. [ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md)
   already evaluated four credible Kafka connectivity mechanisms, reused
   here without re-derivation.
 - **Inferred, not yet confirmed.** Whether ARO or Schadenprozesse is the
-  actual publisher of the `claim.status-changed` topic named in ADR-0025 —
+  actual publisher of the `claim.status-changed` topic named in ADR-0031 —
   now that ARO's case-work role is known, it is plausible ARO is the real
   publisher (or that both publish at different granularities), but this is
   **not asserted** either way and should be confirmed with the customer's
@@ -486,7 +486,7 @@ engineering cost right now.
 
 Reopen this ADR when: ARO's owning technical team confirms its actual
 event-publishing capability and the `claim.status-changed` topic ownership
-boundary with Schadenprozesse; [ADR-0025](./ADR-0025-crm-core-systems-kafka-confluent-integration-pattern.md)'s
+boundary with Schadenprozesse; [ADR-0031](./ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md)'s
 connectivity mechanism is selected (this ADR's shared surface depends on
 it); a data-quality assessment of ARO's historical Verkaufschancen records
 is completed; or a pilot GA is nominated for Option C. Decision owner:
@@ -503,9 +503,9 @@ and the customer's IT/Architect stakeholder as required reviewers.
   [AGENTS.md](../../AGENTS.md) once decided — and reshapes the sales
   workflow described in [PRD.md](../PRD.md)/[DESIGN-PRINCIPLES.md](../DESIGN-PRINCIPLES.md)
   around Opportunity ownership.
-- **Contract with ADR-0025.** The shared integration surface depends on
-  whichever Kafka connectivity mechanism ADR-0025 settles on; if a purely
-  outbound-focused option (ADR-0025's Option D) is chosen there, it would
+- **Contract with ADR-0031.** The shared integration surface depends on
+  whichever Kafka connectivity mechanism ADR-0031 settles on; if a purely
+  outbound-focused option (ADR-0031's Option D) is chosen there, it would
   need pairing with an inbound-capable mechanism to support this ADR's
   `aro.case.status-changed`/`aro.quote.updated` topics — flagged here as a
   cross-ADR consistency requirement, not resolved.
@@ -513,9 +513,9 @@ and the customer's IT/Architect stakeholder as required reviewers.
   ambiguity of Quote-as-projection-of-a-not-yet-won-Opportunity by giving
   CRM a clear, native Opportunity object; Quote remains a projection either
   way.
-- **Contract with ADR-0027.** Option A's cross-launch to ARO for editing an
+- **Contract with ADR-0033.** Option A's cross-launch to ARO for editing an
   Opportunity should use the same UX-placement pattern
-  [ADR-0027](./ADR-0027-crm-ux-placement-in-b2e-landscape.md) settles on,
+  [ADR-0033](./ADR-0033-crm-ux-placement-in-b2e-landscape.md) settles on,
   for consistency across the B2E landscape's core systems.
 - **Reversibility.** Highest for Option A (nothing to unwind), lowest for
   Option B once ARO's capability is decommissioned, medium for Option C
