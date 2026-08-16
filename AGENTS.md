@@ -204,6 +204,8 @@ Requirement (topic area A#)
    → Deployed to sandbox          the customer sees it running
 ```
 
+> This traceability chain is the concrete mechanism behind this repo's `docs/FRONTIER-OPERATING-MODEL.md` — the requirement/use case/ADR/change/test/evidence loop is how the Frontier Operating Model's "Microsoft IQ-driven development, build, and operate" principle is enforced in practice.
+
 This chain is the answer to A8 (versioning, deployment, test automation,
 rollback). It is also the answer to A4's harder question — *what happens to
 this extension at the next release?* — because every change carries a recorded

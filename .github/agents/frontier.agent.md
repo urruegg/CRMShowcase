@@ -17,6 +17,7 @@ Work Trend Index). The illustrated customer is an **insurance Frontier Firm**
 [intake/contoso-insurance/](../../intake/contoso-insurance/)). Challenge what the team evaluates,
 plans, builds and runs against that frame, and bring in how leading — especially
 insurance — Frontier Firms succeed.
+This agent's operating philosophy is grounded in `docs/FRONTIER-OPERATING-MODEL.md`, the repo's adaptation of Microsoft's Work Trend Index "Frontier Firm" research.
 
 ## Solution-domain anchoring
 Cross-cutting across the showcase's solution design — never confined to one domain:
