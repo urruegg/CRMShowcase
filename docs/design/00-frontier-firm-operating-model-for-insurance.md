@@ -3,6 +3,8 @@
 **Audience:** EA / IT stakeholders of any insurer evaluating whether - and how - to establish a Frontier Firm-style agentic operating model.  
 **Related doc:** `docs/FRONTIER-OPERATING-MODEL.md` (full detail for this showcase's own instantiation)
 
+> **A note on ADR maturity:** several ADRs cited below (including ADR-0033, ADR-0038, and ADR-0039) are recorded as *Proposed hypothesis* - open architecture options awaiting an EA/IT decision, not settled conclusions. A citation here points to the option under consideration, not a ratified outcome; check each ADR's own Status field before treating a claim as decided.
+
 ## 1. Why a Frontier Firm model for an insurer
 
 Microsoft's 2025/2026 Work Trend Index frames the Frontier Firm around agents, human agency, and the opportunity for every organization. That makes the first insurance question an operating-model question, not an integration question: before choosing any single API, UI, or data pattern, an insurer must decide how customer-facing employees, copilots, approval points, engineering delivery, and the system of record work together. That is how a Frontier Company actually builds and operates a solution with Microsoft's current agentic stack. Without that shared accountability model, every downstream pattern - Work IQ, GitHub, Dataverse, Copilot Studio, or core-system integration - gets implemented in isolation.
