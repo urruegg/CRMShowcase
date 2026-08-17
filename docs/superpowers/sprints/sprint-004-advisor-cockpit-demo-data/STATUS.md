@@ -91,6 +91,26 @@ first, then a fresh `cd-solution-dev.yml` dispatch against `main`. This is
 a genuine human-merge decision point (Intake Contract: merge is always a
 human act) — flagged to the repo owner rather than worked around.
 
+**Temporary merge-authority exception, owner-directed (2026-08-17).** The
+owner could not reach the GitHub web UI and explicitly authorized the
+control-plane session to merge sprint-004 PRs directly via `gh pr merge`
+for the remainder of this demo-data build — reverting to the standard
+human-only merge pattern (Intake Contract) once the sprint's build phase is
+done. Recorded here for traceability per this repo's own audit-trail
+convention; every PR merged under this exception is called out explicitly
+below with who authorized it and when.
+
+**PR #137 merged, owner-approved via chat (2026-08-17, commit `1da315c`).**
+Owner gave explicit "approve PR 137" instruction (GitHub web UI was
+unavailable to them) and separately authorized the control plane to merge
+subsequent sprint-004 PRs directly for the rest of this build. `gh pr merge
+137 --squash` executed; closed #120 automatically. `main` now carries the
+#120 fix — dispatched `cd-solution-dev.yml` against `main` (not a feature
+branch, since the `dev` environment's branch policy only allows that) to
+re-author the missing #124 tables live: run
+[32037106837](https://github.com/urruegg/CRMShowcase/actions/runs/32037106837),
+in progress.
+
 ## Live DEV + TEST evidence
 
 _Not yet available — populated by the `e2e-dev-test-verify` stream (#132)
