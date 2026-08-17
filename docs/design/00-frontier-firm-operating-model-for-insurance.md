@@ -7,7 +7,7 @@
 
 Microsoft's 2025/2026 Work Trend Index frames the Frontier Firm around agents, human agency, and the opportunity for every organization, which makes the first insurance question an operating-model question, not an integration question. Before choosing any single API, UI, or data pattern, an insurer has to decide how customer-facing employees, copilots, approval points, engineering delivery, and the system of record will work together, because that is how a Frontier Company actually builds and operates a solution with Microsoft's current agentic stack. If that division of labor is unclear, every downstream pattern - Work IQ, GitHub, Dataverse, Copilot Studio, or core-system integration - will be implemented without a shared accountability model.
 
-## 2. The five control planes, generically stated
+## 4. The five control planes and how they connect
 
 | Control plane | Generic insurance meaning |
 | --- | --- |
@@ -18,6 +18,29 @@ Microsoft's 2025/2026 Work Trend Index frames the Frontier Firm around agents, h
 | Operational / Dataverse + Power Platform | The operational system-of-record layer where customer-relationship processes, governed actions, audit, events, security, and CRM workflow live. |
 
 > **In this showcase:** Business/Teams, Agent/Copilot Agent Mesh, Engineering/GitHub, and Operational/Dataverse are **built**. Interaction/Work IQ is **documented only** - see `docs/FRONTIER-OPERATING-MODEL.md` section 8 for why, and how a real engagement would wire it up.
+
+These five planes are not independent — each Insight/Decision/Delivery/Outcome cycle crosses all five in sequence:
+
+```mermaid
+flowchart TB
+    classDef msft fill:#ffffff,stroke:#333333,stroke-width:1px,color:#111111
+    classDef contoso fill:#fde8e8,stroke:#b91c1c,stroke-width:1px,color:#111111
+    classDef shared fill:#e5e5e5,stroke:#666666,stroke-width:1px,color:#111111
+
+    CE["Customers and Employees"]:::shared
+    BP["Business / Teams and B2E"]:::shared
+    IP["Interaction / Work IQ (documented only)"]:::msft
+    AP["Agent / Copilot Agent Mesh"]:::msft
+    EP["Engineering / GitHub"]:::msft
+    OP["Operational / Dataverse and Power Platform"]:::shared
+    TL["Teams / B2E transparency loop"]:::shared
+
+    CE --> BP --> IP --> AP --> EP --> OP --> TL --> BP
+```
+
+*Legend: white = Microsoft platform capability, red = a Contoso Insurance-owned system, grey = shared/jointly-owned — the same convention used in `docs/FRONTIER-OPERATING-MODEL.md`'s Solution Context diagrams.*
+
+**Full detail:** `docs/FRONTIER-OPERATING-MODEL.md` section 5 (adapted table with Built/Documented-only status per plane) and its Solution Context section for the full Contoso-specific architecture.
 
 ## 8. A four-step establishment method
 
