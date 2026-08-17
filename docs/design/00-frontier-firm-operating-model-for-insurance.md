@@ -181,6 +181,27 @@ stateDiagram-v2
 
 **Full detail:** `docs/FRONTIER-OPERATING-MODEL.md` section 7, [ADR-0014](../adr/ADR-0014-agents-advisory-by-design.md) (agents advisory by design), [ADR-0038](../adr/ADR-0038-purview-power-platform-dynamics365-compliance.md) (Purview compliance).
 
+## 7. Roadmap, phased and status-tagged
+
+The same six phases `docs/FRONTIER-OPERATING-MODEL.md` section 9 defines, tagged so nobody mistakes narrative for delivered capability:
+
+```mermaid
+flowchart LR
+    classDef built fill:#d1fae5,stroke:#065f46,stroke-width:1px,color:#111111
+    classDef demoed fill:#fef3c7,stroke:#92400e,stroke-width:1px,color:#111111
+    classDef docOnly fill:#e5e5e5,stroke:#666666,stroke-width:1px,stroke-dasharray: 4 2,color:#111111
+
+    P0["Phase 0: Foundation"]:::built --> P1["Phase 1: Teams/B2E to GitHub transparency"]:::demoed
+    P1 --> P2["Phase 2: Work IQ agent intake"]:::docOnly
+    P2 --> P3["Phase 3: Sprint review to GitHub"]:::built
+    P3 --> P4["Phase 4: Release to outcome loop"]:::demoed
+    P4 --> P5["Phase 5: Agent mesh scaling"]:::demoed
+```
+
+*Legend: green = Built, amber = Demoed via docs, grey dashed = Documented-only - a deliberately different palette from the ownership colours in section 4, because this diagram encodes delivery status, not who owns each plane.*
+
+**Full detail:** `docs/FRONTIER-OPERATING-MODEL.md` section 9 for the full description of each phase's deliverables.
+
 ## 8. A four-step establishment method
 
 Any insurer's EA/IT team can follow this method to stand up their own version:
