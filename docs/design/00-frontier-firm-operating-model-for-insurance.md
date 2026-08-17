@@ -105,6 +105,82 @@ flowchart TB
 
 **Full detail:** `docs/FRONTIER-OPERATING-MODEL.md` section 5 (adapted table with Built/Documented-only status per plane) and its Solution Context section for the full Contoso-specific architecture.
 
+## 5. The agent roster behind the planes
+
+Every plane above runs on named agents, and every agent is advisory: it recommends, a human decides, with no exception ([ADR-0014](../adr/ADR-0014-agents-advisory-by-design.md), `AGENTS.md`).
+
+| Idea-doc role | Existing agent(s) | Notes |
+| --- | --- | --- |
+| Voice of Customer | `AG-E-01` Product Owner (accountable intake), informed by `AG-F-04` Conversation Intelligence & Transcript Agent | Runtime signal feeds engineering backlog framing |
+| Product Discovery | `AG-E-01` Product Owner | - |
+| Architecture | `AG-E-03` Enterprise Architect, with `AG-E-08` Dataverse Modeler and `AG-E-09` Integration Engineer as specialists | Matches `AGENTS.md`'s non-delegable "Architecture approval" authority |
+| Delivery | `AG-E-02` Developer, with `AG-E-08` Dataverse Modeler and `AG-E-11` UX Designer | - |
+| Release | `AG-E-04` SecDevOps | Owns pipelines/environments per ADR-0039 |
+| Outcome | `AG-E-07` Data Engineer & Scientist (the Frontier Firm loop is explicit in their charter), fed by `AG-F-##` runtime telemetry | - |
+| Governance | `AG-E-06` Responsible-AI & Compliance Officer | Matches `AGENTS.md`'s non-delegable "RAI/compliance review" authority; ties to Purview (ADR-0038) |
+| Quality | Distributed - `AG-E-02` (tests), `AG-E-04` (pipeline gates), `AG-E-06` (RAI evals) | Shared by design, not force-fit to one owner |
+| *(cross-cutting)* | `AG-E-12` Frontier Firm Guide | Owns and maintains this operating model documentation itself |
+
+A signal only becomes a product change once a human has said so:
+
+```mermaid
+flowchart LR
+    classDef stage fill:#ffffff,stroke:#333333,stroke-width:1px,color:#111111
+    SIG["Customer / employee signal"]:::stage --> RUN["Runtime agent AG-F-## (advisory only)"]:::stage
+    RUN --> HUM{"Human decision: accept, edit, or dismiss"}
+    HUM -- "becomes a product change" --> ENG["Engineering agent AG-E-##"]:::stage
+    ENG --> GH["GitHub issue / PR"]:::stage
+    HUM -- "no change needed" --> DONE[No further action]
+```
+
+**Full detail:** `docs/FRONTIER-OPERATING-MODEL.md` section 6 for the complete role-mapping rationale, `AGENTS.md` for the full agent registry and its non-delegable-authority rules.
+
+## 6. HITL governance and data sensitivity
+
+Five principles govern every agent in the mesh:
+
+1. Agents produce proposals, not final decisions, in critical processes.
+2. Sensitive customer data is minimized or redacted before it reaches GitHub.
+3. Every relevant publication or handoff has a named owner.
+4. Every agent action is traceable.
+5. Automation may increase transparency; it never replaces accountability.
+
+Four data classes decide how a signal may be handled:
+
+| Class | Examples | Processing rule |
+| --- | --- | --- |
+| Public / non-critical | General feature requests, technical release notes, non-personal process notes | Agentic processing allowed; GitHub intake after standard review |
+| Internal business data | Internal priorities, roadmap topics, process issues, employee feedback | Authorized teams/GitHub areas only; no auto-publish without review |
+| Personal customer data (PII) | Name, contact details, advisory notes with personal reference | Redaction before GitHub, purpose limitation, human review |
+| Sensitive data | Health data (life/health lines), financial exposure, claims specifics | Highest protection class; no unreviewed GitHub handoff - only abstracted requirements or anonymized patterns |
+
+**Redaction in practice** - a raw signal never reaches GitHub as-is:
+
+- Raw: *"Customer Jane Doe mentioned during her claim follow-up that the online claim-status tracker is confusing."*
+- GitHub-safe: *"A customer mentioned during a claim follow-up that the online claim-status tracker is confusing."*
+- As a requirement: *"As a customer, I want to track my claim status with minimal steps, so that I don't need to call the service desk for updates."*
+
+Every proposal moves through the same approval states, end to end:
+
+```mermaid
+stateDiagram-v2
+    [*] --> DraftedByAgent
+    DraftedByAgent --> NeedsHumanReview
+    NeedsHumanReview --> Approved
+    NeedsHumanReview --> NeedsChanges
+    NeedsHumanReview --> Rejected
+    NeedsChanges --> NeedsHumanReview
+    Approved --> CreatedInGitHub
+    CreatedInGitHub --> InSprint
+    InSprint --> DeliveredToTest
+    DeliveredToTest --> DeliveredToProd
+    DeliveredToProd --> OutcomeReviewed
+    OutcomeReviewed --> [*]
+    Rejected --> [*]
+```
+
+**Full detail:** `docs/FRONTIER-OPERATING-MODEL.md` section 7, [ADR-0014](../adr/ADR-0014-agents-advisory-by-design.md) (agents advisory by design), [ADR-0038](../adr/ADR-0038-purview-power-platform-dynamics365-compliance.md) (Purview compliance).
+
 ## 8. A four-step establishment method
 
 Any insurer's EA/IT team can follow this method to stand up their own version:
