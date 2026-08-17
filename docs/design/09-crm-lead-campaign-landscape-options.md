@@ -1,4 +1,4 @@
-# Design Pattern: Lead and campaign external landscape
+# Design Pattern 09: Lead and campaign external landscape
 
 **Audience:** EA / IT / marketing-ops stakeholders evaluating how leads from Comparis and campaigns from Salesforce Campaign Management flow into the CRM/ARO landscape.
 **Related ADR:** `docs/adr/ADR-0036-crm-lead-campaign-external-landscape.md`
@@ -22,6 +22,27 @@ The two axes are independent and can be resolved on separate timelines.
 
 Comparis pushes a lead via API/webhook straight into an integration layer that creates a native Dataverse `Lead` record immediately (`leadSource = "Comparis"`). `AG-F-05` attempts to match the lead to an existing Contact/PDV party at intake.
 
+```mermaid
+flowchart LR
+    subgraph CompA["Comparis"]
+        LEADA["Inbound lead\n(webhook/API)"]
+    end
+    subgraph IntA["Integration layer"]
+        RECVA["Receive + validate"]
+    end
+    subgraph MatchA["AG-F-05"]
+        MATCHRUNA["Match against\nexisting Contact/PDV"]
+    end
+    subgraph DVA["CRM (Dataverse)"]
+        LEADRECA["Native Lead\nleadSource=Comparis"]
+        NBAA["AG-F-01 NBA agent"]
+    end
+
+    LEADA --> RECVA --> MATCHRUNA --> LEADRECA --> NBAA
+```
+
+*This diagram shows the direct intake path: a Comparis lead flows straight through validation and `AG-F-05` matching into a native CRM Lead, with no ARO involvement.*
+
 - **Pros.** Fastest advisor visibility — native lead scoring, routing, and the Advisory Cockpit see the lead the moment it arrives, with no dependency on ARO's throughput. Cleanest fit with the thin-CRM boundary (ADR-0008): Lead is already a CRM-native demand-side object.
 - **Cons.** Bypasses whatever triage, spam/junk filtering, or enrichment ARO may already apply today — if that logic is meaningful, it would need to be rebuilt in CRM or risk lower-quality leads reaching advisors directly. Represents the largest process change from today's flow.
 - **Pattern.** Direct API/webhook ingestion with identity-resolution matching at intake.
@@ -30,6 +51,28 @@ Comparis pushes a lead via API/webhook straight into an integration layer that c
 
 Comparis leads continue flowing into ARO as they do today. ARO applies its existing triage/vetting, then publishes an `aro.lead.qualified` event (illustrative) to Confluent Cloud, which CRM consumes to create the native Lead.
 
+```mermaid
+flowchart LR
+    subgraph CompB["Comparis"]
+        LEADB["Inbound lead"]
+    end
+    subgraph AROB["ARO"]
+        VETB["Existing triage/\nvetting logic"]
+    end
+    subgraph KafkaB["Confluent Cloud"]
+        TB["Topic: aro.lead.qualified"]
+    end
+    subgraph DVB["CRM (Dataverse)"]
+        MATCHB["AG-F-05 match"]
+        LEADRECB["Native Lead"]
+        NBAB["AG-F-01 NBA agent"]
+    end
+
+    LEADB --> VETB --> TB --> MATCHB --> LEADRECB --> NBAB
+```
+
+*This diagram shows the ARO-first path: ARO applies its existing triage before publishing a qualified-lead event that CRM consumes to create the native Lead.*
+
 - **Pros.** Preserves today's triage step without needing to know or rebuild what ARO actually does — lowest process disruption. Consistent integration paradigm with ADR-0034's `aro.*` Kafka topics — one substrate across the ARO relationship.
 - **Cons.** Adds a round-trip through ARO before an advisor ever sees the lead — worth weighing against how much response speed matters commercially for comparison-portal leads (commonly shopped across multiple insurers in parallel). Keeps a demand-side object partly dependent on ARO, which cuts against concentrating demand-side objects in CRM (ADR-0008).
 - **Pattern.** Event-carried state transfer via a new ARO-owned Kafka topic, same shape as ADR-0034's shared integration surface.
@@ -37,6 +80,28 @@ Comparis leads continue flowing into ARO as they do today. ARO applies its exist
 #### Option C — Hybrid (dual-path by lead type or match confidence)
 
 Leads that `AG-F-05` can confidently match to an existing, already-known party (e.g. an existing policyholder shopping for an additional line of cover) route directly to CRM (Option A's fast path); leads that cannot be confidently matched route via ARO first (Option B's vetted path). The exact split criterion would need to be defined with the customer.
+
+```mermaid
+flowchart LR
+    subgraph CompC["Comparis"]
+        LEADC["Inbound lead"]
+    end
+    subgraph RouteC["Routing decision"]
+        SPLITC{"Confident match to\nexisting party?"}
+    end
+    subgraph FastC["Fast path (Option A)"]
+        DIRECTC["Direct to CRM Lead"]
+    end
+    subgraph VetC["Vetted path (Option B)"]
+        AROVETC["Via ARO triage,\nthen CRM Lead"]
+    end
+
+    LEADC --> SPLITC
+    SPLITC -->|yes| DIRECTC
+    SPLITC -->|no| AROVETC
+```
+
+*This diagram shows the hybrid split: match confidence determines whether a lead takes the fast direct-to-CRM path or the ARO-vetted path.*
 
 - **Pros.** Best of both — speed for already-known parties, ARO's existing scrutiny preserved for genuinely new people. Incremental: could evolve toward Option A over time as confidence in direct-to-CRM validation grows (the same Strangler-Fig reasoning applied in ADR-0034 and ADR-0035).
 - **Cons.** The most complex of the three — two intake paths to build, monitor, and keep consistent; the routing criterion itself needs careful definition and may not perfectly align with ARO's actual vetting value.
@@ -58,6 +123,24 @@ CRM gets a read-only projection of active campaign and segment membership from S
 
 A one-time migration of active and historical campaign data, segment definitions, and templates from Salesforce into Dynamics 365 Marketing; Salesforce is decommissioned for campaign management once complete.
 
+```mermaid
+flowchart LR
+    subgraph SFB2["Salesforce"]
+        HISTB["Historical + active\ncampaigns/segments"]
+    end
+    subgraph MigB["One-time migration"]
+        ETLB["Data + template migration"]
+    end
+    subgraph D365B2["Dynamics 365 Marketing"]
+        NATIVEB["Native campaigns\n(system of record)"]
+        AGF6B["AG-F-06 agent"]
+    end
+
+    HISTB --> ETLB --> NATIVEB --> AGF6B
+```
+
+*This diagram shows the one-time cutover: a single migration/ETL job moves historical and active campaign data into Dynamics 365 Marketing as the new system of record.*
+
 - **Pros.** Realises the stated migration goal immediately; unlocks `AG-F-06`'s native campaign/content-assist capability fully; one system going forward.
 - **Cons.** Highest risk — a single cutover; requires a full historical data migration and template/audience rebuild; any Salesforce campaigns still in flight at cutover time need careful handling (pause, complete before cutover, or manually re-created in D365 Marketing).
 - **Pattern.** Hard cutover with one-time data migration.
@@ -65,6 +148,28 @@ A one-time migration of active and historical campaign data, segment definitions
 #### Option C — Phased coexistence (Strangler Fig by campaign)
 
 New campaigns launch in Dynamics 365 Marketing going forward; existing, in-flight Salesforce campaigns run to completion on Salesforce. A dual-visibility layer keeps `AG-F-01`/`AG-F-06` aware of active campaigns on both systems during the transition window, until Salesforce is fully decommissioned.
+
+```mermaid
+flowchart LR
+    subgraph SFC2["Salesforce"]
+        INFLIGHTC["In-flight campaigns\n(run to completion)"]
+    end
+    subgraph D365C["Dynamics 365 Marketing"]
+        NEWCAMPC["New campaigns\n(from cutover date)"]
+    end
+    subgraph DualC["Dual-visibility layer"]
+        BOTHC["Both systems' active\ncampaigns surfaced together"]
+    end
+    subgraph NBAC2["AG-F-01 / AG-F-06"]
+        SCOREC["Scoring/segmenting\nsees both sources"]
+    end
+
+    INFLIGHTC --> BOTHC
+    NEWCAMPC --> BOTHC
+    BOTHC --> SCOREC
+```
+
+*This diagram shows the phased coexistence: new campaigns launch in D365 Marketing while in-flight Salesforce campaigns run to completion, with a dual-visibility layer keeping both systems' signals consolidated during the transition.*
 
 - **Pros.** Lowest disruption to already-running campaigns; incremental and reversible per-campaign; consistent with the coexistence pattern used in ADR-0034 and ADR-0035.
 - **Cons.** Two systems to operate and monitor during the transition; requires dual segment/consent reconciliation — consent per contact per channel (ADR-0010) must stay authoritative regardless of which system a given campaign runs from, which adds real complexity to the dual-visibility layer.
@@ -96,27 +201,7 @@ New campaigns launch in Dynamics 365 Marketing going forward; existing, in-fligh
 
 ## Key diagram
 
-The diagram below depicts the Part 1 Option C hybrid routing — the most representative flow because it shows how Comparis leads split between the direct-to-CRM fast path and the ARO-vetted path based on match confidence, making both axes of the decision visible in a single picture.
-
-```mermaid
-flowchart LR
-    subgraph CompC["Comparis"]
-        LEADC["Inbound lead"]
-    end
-    subgraph RouteC["Routing decision"]
-        SPLITC{"Confident match to\nexisting party?"}
-    end
-    subgraph FastC["Fast path (Option A)"]
-        DIRECTC["Direct to CRM Lead"]
-    end
-    subgraph VetC["Vetted path (Option B)"]
-        AROVETC["Via ARO triage,\nthen CRM Lead"]
-    end
-
-    LEADC --> SPLITC
-    SPLITC -->|yes| DIRECTC
-    SPLITC -->|no| AROVETC
-```
+The most representative single diagram for this pattern is the Part 1, Option C hybrid-routing diagram shown above under [Options considered](#options-considered) — it is the most representative flow because it shows how Comparis leads split between the direct-to-CRM fast path and the ARO-vetted path based on match confidence, making both axes of the decision visible in a single picture.
 
 ## Validate this live
 
