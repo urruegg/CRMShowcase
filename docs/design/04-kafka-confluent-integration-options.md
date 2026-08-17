@@ -1,4 +1,4 @@
-# Design Pattern: CRM to core-systems Kafka/Confluent integration
+# Design Pattern 04: CRM to core-systems Kafka/Confluent integration
 
 **Audience:** EA / IT stakeholders evaluating event-driven integration between the CRM and Versicherungsprozesse/Schadenprozesse core systems.
 **Related ADR:** `docs/adr/ADR-0031-crm-core-systems-kafka-confluent-integration-pattern.md`
@@ -19,6 +19,33 @@ One hard constraint applies across all options: **Confluent Cloud authentication
 ### Option A — Direct Kafka client via Azure Functions (own build, serverless)
 
 Azure Functions has a native Kafka trigger (consume) and Kafka output binding (produce), both Confluent Cloud–compatible over SASL_SSL. One Function app covers both legs: a Kafka-triggered function consumes core-system topics and upserts CRM projections; a second function, invoked from Dataverse, produces outbound events onto Confluent Cloud.
+
+```mermaid
+flowchart LR
+    subgraph Core["Core systems"]
+        VPS[("Versicherungsprozesse\n(policy admin engine)")]
+        SPS[("Schadenprozesse\n(claims engine)")]
+    end
+    subgraph Kafka["Kafka on Confluent Cloud"]
+        TIN["Topic: policy.updated /\nclaim.status-changed"]
+        TOUT["Topic: crm.address-changed"]
+    end
+    subgraph Azure["Azure Functions (own build)"]
+        FIN["Function: Kafka trigger\n(consume, validate, shape)"]
+        FOUT["Function: Kafka output binding\n(produce)"]
+    end
+    subgraph CRM["Dataverse"]
+        PROJ[("Policy / Claim\nprojections")]
+        EVT["Governed-attribute change\n(e.g. address)"]
+    end
+
+    VPS -- "produce" --> TIN
+    SPS -- "produce" --> TIN
+    TIN --> FIN -- "Dataverse Web API upsert" --> PROJ
+    EVT --> FOUT --> TOUT --> VPS
+```
+
+*This diagram shows Option A's architecture: one Azure Function app covers both legs — a Kafka-triggered function consuming core-system topics into CRM projections, and a second function producing outbound governed-attribute events back onto Confluent Cloud.*
 
 **Pros:**
 - Lowest latency in both directions.
@@ -42,6 +69,36 @@ Use Confluent Cloud's fully-managed connectors to minimise custom Kafka client c
 - **Inbound:** Confluent's managed Azure Functions Sink Connector batches Kafka records and HTTP-POSTs them to a thin, HTTP-triggered Azure Function, which upserts the Dataverse projection.
 - **Outbound:** Power Automate (native Dataverse + Service Bus connectors) relays the governed-attribute change to Azure Service Bus, from which Confluent's managed Service Bus/Event Hubs Source Connector picks it up and produces to Kafka. Power Automate must remain a **pure relay with no business logic**.
 
+```mermaid
+flowchart LR
+    subgraph Core["Core systems"]
+        VPS[("Versicherungsprozesse")]
+        SPS[("Schadenprozesse")]
+    end
+    subgraph KafkaB["Kafka on Confluent Cloud"]
+        TINB["Topic: policy.updated /\nclaim.status-changed"]
+        TOUTB["Topic: crm.address-changed"]
+        SINKB["Managed: Azure Functions\nSink Connector"]
+        SRCB["Managed: Azure Service Bus /\nEvent Hubs Source Connector"]
+    end
+    subgraph AzureB["Azure (low-code)"]
+        FINB["Azure Function\n(HTTP-triggered by connector)"]
+        SB["Azure Service Bus /\nEvent Hubs"]
+        PAB["Power Automate\n(native Service Bus connector)"]
+    end
+    subgraph CRMB["Dataverse"]
+        PROJB[("Policy / Claim\nprojections")]
+        EVTB["Governed-attribute\nchange"]
+    end
+
+    VPS -- "produce" --> TINB
+    SPS -- "produce" --> TINB
+    TINB --> SINKB --> FINB -- "Dataverse Web API upsert" --> PROJB
+    EVTB --> PAB --> SB --> SRCB --> TOUTB --> VPS
+```
+
+*This diagram shows Option B's asymmetric architecture: a managed Sink Connector plus a thin Function handles the inbound leg, while Power Automate relays outbound changes through Service Bus to a managed Source Connector back onto Kafka.*
+
 **Pros:**
 - Least custom code on either leg.
 - Confluent operates scaling, offsets and dead-lettering for the inbound leg (dedicated `success-<connector-id>` / `error-<connector-id>` topics).
@@ -60,6 +117,33 @@ Use Confluent Cloud's fully-managed connectors to minimise custom Kafka client c
 ### Option C — Dedicated integration microservice (own build, containerised)
 
 A dedicated Kafka-native service (e.g. .NET or Java using Confluent's client libraries) running on Azure Container Apps or AKS, covering both directions with full Confluent Schema Registry (Avro/Protobuf) enforcement and a transactional outbox for outbound delivery guarantees. This escapes Azure Functions' consumption-plan constraints entirely, at the cost of owning a running service.
+
+```mermaid
+flowchart LR
+    subgraph CoreC["Core systems"]
+        VPSC[("Versicherungsprozesse")]
+        SPSC[("Schadenprozesse")]
+    end
+    subgraph KafkaC["Kafka on Confluent Cloud\n+ Schema Registry (Avro/Protobuf)"]
+        TINC["Topics: policy.updated /\nclaim.status-changed"]
+        TOUTC["Topic: crm.address-changed"]
+    end
+    subgraph SvcC["Integration microservice\n(Azure Container Apps / AKS)"]
+        CONS["Consumer\n(inbound)"]
+        PROD["Producer + transactional\noutbox (outbound)"]
+    end
+    subgraph CRMC["Dataverse"]
+        PROJC[("Policy / Claim\nprojections")]
+        EVTC["Governed-attribute\nchange"]
+    end
+
+    VPSC -- "produce" --> TINC
+    SPSC -- "produce" --> TINC
+    TINC --> CONS -- "Dataverse Web API upsert" --> PROJC
+    EVTC -- "outbox write" --> PROD --> TOUTC --> VPSC
+```
+
+*This diagram shows Option C's architecture: a single dedicated microservice on Container Apps/AKS owns both the inbound consumer and the outbound producer with a transactional outbox, against topics governed by Confluent Schema Registry.*
 
 **Pros:**
 - Most control of the four options — handles high volume and complex/nested schemas via Schema Registry, custom batching, and exactly-once-ish semantics via the outbox pattern.
@@ -83,6 +167,30 @@ Two real, low/no-code mechanisms exist at the Dataverse platform level itself:
 - **D2 — Azure-aware Service Bus/Event Hub integration.** Register a Service Endpoint (SAS-based) and the out-of-box Azure-aware plugin step. Dataverse posts the execution context straight to Service Bus/Event Hub with **zero custom code**. Confluent's managed Service Bus/Event Hubs Source Connector then relays it into Kafka — the same relay technology as Option B's outbound leg, minus the Power Automate hop.
 
 **This option only solves the outbound direction.** Dataverse has no symmetric "subscribe to an external Kafka topic" capability, so the inbound leg (core systems → CRM) always still needs Option A, B or C.
+
+```mermaid
+flowchart LR
+    ED["Governed-attribute change\n(effective-dated)"]
+    subgraph D1["D1 — WebHook"]
+        WHD1["OOB WebHook step"]
+        FWHD1["Azure Function\n(shape typed event)"]
+    end
+    subgraph D2["D2 — Azure-aware plugin"]
+        WHD2["OOB Service Bus /\nEvent Hub step, SAS"]
+    end
+    SBD2["Azure Service Bus / Event Hub"]
+    SRCD2["Confluent managed\nSource Connector"]
+    TD2["Kafka topic:\ncrm.address-changed"]
+    DEST[("Versicherungsprozesse")]
+    IN["Inbound leg still requires\nOption A, B or C"]
+
+    ED --> WHD1 --> FWHD1 --> SBD2
+    ED --> WHD2 --> SBD2
+    SBD2 --> SRCD2 --> TD2 --> DEST
+    IN -.-> DEST
+```
+
+*This diagram shows Option D's two native Dataverse mechanisms (D1 WebHook, D2 Azure-aware plugin) both feeding Service Bus/Event Hub for relay into Kafka — with the inbound leg still requiring Option A, B or C.*
 
 **Pros:**
 - Removes Power Automate as an operational hop/cost for the outbound leg.
