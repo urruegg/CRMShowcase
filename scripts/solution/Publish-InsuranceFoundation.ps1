@@ -1937,8 +1937,7 @@ function Invoke-NativeExtensionReconciliation {
         Invoke-NativeLookupExtensionReconciliation $Extension
         return
     }
-    $existing = Get-PicklistAttributeMetadata $Extension.table `
-        $Extension.logicalName
+    $existing = Get-TypedAttributeMetadata $Extension.table $Extension
     if ($null -eq $existing) {
         $choiceMetadataIds = Get-GlobalChoiceMetadataIds @($Extension)
         Invoke-PlannedRequest (
@@ -1957,6 +1956,8 @@ function Invoke-NativeExtensionReconciliation {
             'String' { 'StringAttributeMetadata' }
             'DateTime' { 'DateTimeAttributeMetadata' }
             'Picklist' { 'PicklistAttributeMetadata' }
+            'Boolean' { 'BooleanAttributeMetadata' }
+            'Integer' { 'IntegerAttributeMetadata' }
             default { throw "Cannot safely update attribute metadata for '$($Extension.logicalName)': unsupported typed endpoint." }
         }
         $path = "/EntityDefinitions(LogicalName='$($Extension.table)')/Attributes($($existing.MetadataId))/Microsoft.Dynamics.CRM.$typeName"
@@ -2529,6 +2530,9 @@ function Invoke-TableReconciliation {
                     'String' { 'StringAttributeMetadata' }
                     'DateTime' { 'DateTimeAttributeMetadata' }
                     'Picklist' { 'PicklistAttributeMetadata' }
+                    'Boolean' { 'BooleanAttributeMetadata' }
+                    'Integer' { 'IntegerAttributeMetadata' }
+                    'Lookup' { 'LookupAttributeMetadata' }
                     default { throw "Cannot safely update attribute metadata for '$($column.logicalName)': unsupported typed endpoint." }
                 }
                 $path = "/EntityDefinitions(LogicalName='$($Table.logicalName)')/Attributes($($actual[0].MetadataId))/Microsoft.Dynamics.CRM.$typeName"
@@ -2741,14 +2745,14 @@ function Invoke-InsuranceFoundationReconciliation {
         }
     }
     if ($includeDataModel) {
-        foreach ($extension in $Contract.nativeExtensions) {
-            if ($PSCmdlet.ShouldProcess("$($extension.table)/$($extension.logicalName)", 'Reconcile native extension')) {
-                Invoke-NativeExtensionReconciliation $extension
-            }
-        }
         foreach ($table in $Contract.tables) {
             if ($PSCmdlet.ShouldProcess($table.logicalName, 'Reconcile custom table')) {
                 Invoke-TableReconciliation $table
+            }
+        }
+        foreach ($extension in $Contract.nativeExtensions) {
+            if ($PSCmdlet.ShouldProcess("$($extension.table)/$($extension.logicalName)", 'Reconcile native extension')) {
+                Invoke-NativeExtensionReconciliation $extension
             }
         }
     }

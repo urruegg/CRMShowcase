@@ -1757,27 +1757,6 @@ Describe 'Insurance Foundation reconciliation' {
             '/GlobalOptionSetDefinitions','/GlobalOptionSetDefinitions',
             '/GlobalOptionSetDefinitions','/GlobalOptionSetDefinitions',
             '/GlobalOptionSetDefinitions','/GlobalOptionSetDefinitions',
-            "/EntityDefinitions(LogicalName='account')/Attributes",
-            "/EntityDefinitions(LogicalName='contact')/Attributes",
-            "/EntityDefinitions(LogicalName='account')/Attributes",
-            "/EntityDefinitions(LogicalName='account')/Attributes",
-            "/EntityDefinitions(LogicalName='account')/Attributes",
-            "/EntityDefinitions(LogicalName='account')/Attributes",
-            "/EntityDefinitions(LogicalName='contact')/Attributes",
-            "/EntityDefinitions(LogicalName='contact')/Attributes",
-            "/EntityDefinitions(LogicalName='contact')/Attributes",
-            "/EntityDefinitions(LogicalName='contact')/Attributes",
-            "/EntityDefinitions(LogicalName='contact')/Attributes",
-            '/RelationshipDefinitions',
-            "/EntityDefinitions(LogicalName='lead')/Attributes",
-            "/EntityDefinitions(LogicalName='lead')/Attributes",
-            "/EntityDefinitions(LogicalName='lead')/Attributes",
-            "/EntityDefinitions(LogicalName='lead')/Attributes",
-            "/EntityDefinitions(LogicalName='incident')/Attributes",
-            "/EntityDefinitions(LogicalName='incident')/Attributes",
-            "/EntityDefinitions(LogicalName='incident')/Attributes",
-            "/EntityDefinitions(LogicalName='incident')/Attributes",
-            "/EntityDefinitions(LogicalName='incident')/Attributes",
             '/EntityDefinitions','/PublishXml','/PublishXml',
             "/EntityDefinitions(LogicalName='crmshow_accountcontactrole')/Keys",
             '/savedqueries','/SetLocLabels','/SetLocLabels',
@@ -1816,6 +1795,27 @@ Describe 'Insurance Foundation reconciliation' {
             "/EntityDefinitions(LogicalName='crmshow_measuresnapshot')/Keys",
             '/savedqueries','/SetLocLabels','/SetLocLabels',
             '/systemforms','/SetLocLabels','/SetLocLabels',
+            "/EntityDefinitions(LogicalName='account')/Attributes",
+            "/EntityDefinitions(LogicalName='contact')/Attributes",
+            "/EntityDefinitions(LogicalName='account')/Attributes",
+            "/EntityDefinitions(LogicalName='account')/Attributes",
+            "/EntityDefinitions(LogicalName='account')/Attributes",
+            "/EntityDefinitions(LogicalName='account')/Attributes",
+            "/EntityDefinitions(LogicalName='contact')/Attributes",
+            "/EntityDefinitions(LogicalName='contact')/Attributes",
+            "/EntityDefinitions(LogicalName='contact')/Attributes",
+            "/EntityDefinitions(LogicalName='contact')/Attributes",
+            "/EntityDefinitions(LogicalName='contact')/Attributes",
+            '/RelationshipDefinitions',
+            "/EntityDefinitions(LogicalName='lead')/Attributes",
+            "/EntityDefinitions(LogicalName='lead')/Attributes",
+            "/EntityDefinitions(LogicalName='lead')/Attributes",
+            "/EntityDefinitions(LogicalName='lead')/Attributes",
+            "/EntityDefinitions(LogicalName='incident')/Attributes",
+            "/EntityDefinitions(LogicalName='incident')/Attributes",
+            "/EntityDefinitions(LogicalName='incident')/Attributes",
+            "/EntityDefinitions(LogicalName='incident')/Attributes",
+            "/EntityDefinitions(LogicalName='incident')/Attributes",
             '/roles',
             '/roles(new-role)/Microsoft.Dynamics.CRM.AddPrivilegesRole',
             '/roles',
@@ -2253,6 +2253,62 @@ Describe 'Insurance Foundation reconciliation' {
         $script:tableSnapshotReads | Should -Be 2
     }
 
+    It 'updates changed localized metadata on an existing Lookup-type table column through the Lookup typed endpoint' {
+        $table = $script:contract.tables[0] |
+            ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        $lookupColumn = $table.columns |
+            Where-Object logicalName -eq 'crmshow_accountid'
+        $table.columns = @($lookupColumn)
+        $table.relationships = @()
+        $table.alternateKeys = @()
+        $table.businessRules = @()
+        $table.views = @()
+        $table.forms = @()
+        $lookupMetadataId = '33333333-3333-3333-3333-333333333333'
+        $existingLookup = [pscustomobject]@{
+            MetadataId = $lookupMetadataId
+            LogicalName = $lookupColumn.logicalName
+            SchemaName = $lookupColumn.schemaName
+            AttributeType = 'Lookup'
+            Targets = @($lookupColumn.lookup.targets)
+            DisplayName = [pscustomobject]@{ LocalizedLabels = @() }
+            Description = [pscustomobject]@{ LocalizedLabels = @() }
+        }
+
+        Mock Get-TableExistenceSnapshot {
+            param($LogicalName)
+            return [pscustomobject]@{
+                MetadataId = 'existing-table'
+                LogicalName = $LogicalName
+                SchemaName = $table.schemaName
+            }
+        }
+        Mock Wait-TableMetadataSnapshot {
+            param($Table, $Component, $Ready, $RequestedAttributeLogicalNames)
+            $snapshot = New-TableMetadataSnapshot -Table $table
+            $snapshot.Attributes = @($existingLookup)
+            return $snapshot
+        }
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Method=$Method; Path=$Path; Body=$Body; Headers=$Headers
+            })
+            if ($Method -eq 'GET' -and
+                $Path -eq "/EntityDefinitions(LogicalName='$($table.logicalName)')/Attributes($lookupMetadataId)/Microsoft.Dynamics.CRM.LookupAttributeMetadata") {
+                return $existingLookup
+            }
+            if ($Method -eq 'GET') { throw "Unsupported mocked endpoint: $Path" }
+            return [pscustomobject]@{}
+        }
+
+        Invoke-TableReconciliation $table | Out-Null
+
+        $update = @($script:calls | Where-Object { $_.Method -eq 'PUT' })
+        $update.Count | Should -Be 1
+        $update[0].Path | Should -Be "/EntityDefinitions(LogicalName='$($table.logicalName)')/Attributes($lookupMetadataId)/Microsoft.Dynamics.CRM.LookupAttributeMetadata"
+    }
+
     It 'throws on lookup target and alternate-key structural conflicts' {
         $column = $script:contract.tables[0].columns |
             Where-Object logicalName -eq 'crmshow_accountid'
@@ -2433,6 +2489,103 @@ Describe 'Insurance Foundation reconciliation' {
                 "/EntityDefinitions(LogicalName='$($extension.table)')/Attributes"
             )
         }) | Should -BeNullOrEmpty
+    }
+
+    It 'detects an already-existing DateTime-type native extension via the typed endpoint instead of always recreating it' {
+        $extension = @($script:contract.nativeExtensions | Where-Object {
+            $_.logicalName -eq 'crmshow_lastsyncedon' -and $_.table -eq 'account'
+        })[0]
+        $matchingLabels = @{
+            DisplayName = [pscustomobject]@{
+                LocalizedLabels = @(@(1033, 1031, 1036, 1040) | ForEach-Object {
+                    [pscustomobject]@{ LanguageCode = [int]$_; Label = [string]$extension.metadata.label.$_ }
+                })
+            }
+            Description = [pscustomobject]@{
+                LocalizedLabels = @(@(1033, 1031, 1036, 1040) | ForEach-Object {
+                    [pscustomobject]@{ LanguageCode = [int]$_; Label = [string]$extension.metadata.description.$_ }
+                })
+            }
+        }
+        $existing = [pscustomobject]@{
+            MetadataId = 'native-datetime-attribute'
+            LogicalName = $extension.logicalName
+            SchemaName = $extension.schemaName
+            AttributeType = 'DateTime'
+            DisplayName = $matchingLabels.DisplayName
+            Description = $matchingLabels.Description
+            Format = 'DateAndTime'
+            DateTimeBehavior = [pscustomobject]@{ Value = 'TimeZoneIndependent' }
+            SolutionUniqueName = $extension.solution
+        }
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Method = $Method; Path = $Path; Body = $Body; Headers = $Headers
+            })
+            if ($Method -eq 'GET' -and
+                $Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.PicklistAttributeMetadata\?') {
+                return [pscustomobject]@{ value = @() }
+            }
+            if ($Method -eq 'GET' -and
+                $Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.DateTimeAttributeMetadata\?') {
+                return [pscustomobject]@{ value = @($existing) }
+            }
+            if ($Method -eq 'POST') {
+                return [pscustomobject]@{}
+            }
+            throw "Unsupported mocked endpoint: $Method $Path"
+        }
+
+        Invoke-NativeExtensionReconciliation $extension | Out-Null
+
+        @($script:calls | Where-Object {
+            $_.Method -eq 'GET' -and
+            $_.Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.DateTimeAttributeMetadata\?'
+        }).Count | Should -Be 1
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and
+            $_.Path -eq "/EntityDefinitions(LogicalName='$($extension.table)')/Attributes"
+        }) | Should -BeNullOrEmpty
+    }
+
+    It 'updates changed localized metadata on an existing TwoOptions (Boolean) native extension through the typed endpoint' {
+        $extension = @($script:contract.nativeExtensions | Where-Object {
+            $_.logicalName -eq 'crmshow_consentemail'
+        })[0]
+        $existing = [pscustomobject]@{
+            MetadataId = 'native-boolean-attribute'
+            LogicalName = $extension.logicalName
+            SchemaName = $extension.schemaName
+            AttributeType = 'Boolean'
+            DisplayName = [pscustomobject]@{ LocalizedLabels = @() }
+            Description = [pscustomobject]@{ LocalizedLabels = @() }
+            SolutionUniqueName = $extension.solution
+        }
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Method = $Method; Path = $Path; Body = $Body; Headers = $Headers
+            })
+            if ($Method -eq 'GET' -and
+                $Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.BooleanAttributeMetadata\?') {
+                return [pscustomobject]@{ value = @($existing) }
+            }
+            if ($Method -eq 'GET' -and
+                $Path -eq "/EntityDefinitions(LogicalName='$($extension.table)')/Attributes(native-boolean-attribute)/Microsoft.Dynamics.CRM.BooleanAttributeMetadata") {
+                return $existing
+            }
+            if ($Method -eq 'PUT') {
+                return $null
+            }
+            throw "Unsupported mocked endpoint: $Method $Path"
+        }
+
+        Invoke-NativeExtensionReconciliation $extension | Out-Null
+
+        $update = @($script:calls | Where-Object { $_.Method -eq 'PUT' })[0]
+        $update | Should -Not -BeNullOrEmpty
+        $update.Path | Should -Be "/EntityDefinitions(LogicalName='$($extension.table)')/Attributes(native-boolean-attribute)/Microsoft.Dynamics.CRM.BooleanAttributeMetadata"
     }
 
     It 'rejects UserLocal date metadata for the UTC contract' {
