@@ -11,7 +11,7 @@ Describe 'Set-SolutionVersions' {
     It 'loads the manifest and lists every declared solution' {
         $manifest = Get-Manifest -Path (Join-Path $PSScriptRoot '../../../solution/manifest.json') -Validate
         @($manifest.solutions).Count | Should -Be 6
-        ($manifest.solutions | Where-Object { $_.uniqueName -eq 'crmshow_Sales' }).version | Should -Be '1.1.0.0'
+        ($manifest.solutions | Where-Object { $_.uniqueName -eq 'crmshow_Sales' }).version | Should -Be '1.1.1.0'
     }
 
     It 'computes target versions and only flags solutions whose live version differs' {
@@ -82,6 +82,6 @@ Describe 'Set-SolutionVersions' {
         Should -Invoke -CommandName Invoke-SolutionVersionRequest -ParameterFilter { $Method -eq 'PATCH' -and $Path -eq '/solutions(22222222-2222-2222-2222-222222222222)' } -Times 0 -Exactly
         # Every other manifest solution's live version differs -> PATCH expected for each.
         Should -Invoke -CommandName Invoke-SolutionVersionRequest -ParameterFilter { $Method -eq 'PATCH' -and $Path -eq '/solutions(11111111-1111-1111-1111-111111111111)' -and $Body.version -eq '1.1.0.100' } -Times 1 -Exactly
-        Should -Invoke -CommandName Invoke-SolutionVersionRequest -ParameterFilter { $Method -eq 'PATCH' -and $Path -eq '/solutions(44444444-4444-4444-4444-444444444444)' -and $Body.version -eq '1.1.0.100' } -Times 1 -Exactly
+        Should -Invoke -CommandName Invoke-SolutionVersionRequest -ParameterFilter { $Method -eq 'PATCH' -and $Path -eq '/solutions(44444444-4444-4444-4444-444444444444)' -and $Body.version -eq '1.1.1.100' } -Times 1 -Exactly
     }
 }
