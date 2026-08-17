@@ -32,3 +32,24 @@ Forecast 320→412 CHF Tsd, product lines Motorfahrzeug 148 / Hausrat 108 / Gewe
 Target entity logical names are **provisional** until Phases 1–3 author the tables in
 DEV; the loader's field mapping is exercised only in the pipeline seed step (Phase 5.3,
 DEV-gated).
+
+## Sprint-004 enrichment (2026-08-17)
+
+`policies.json`, `claims.json`, `leads.json`, and `activities.json` were
+enriched per
+[`intake/mobiliar/mappings/curveball-to-fixture-map.md`](../../../intake/mobiliar/mappings/curveball-to-fixture-map.md)
+(sprint-004, `fixture-enrichment`, issue #130) to fixture-back 7 of the 8
+Mobiliar reference-environment demo curveball scenarios: a multi-line
+Brunner household portfolio (Hausrat + Motorfahrzeug + Rechtsschutz) so the
+existing address-change Anliegen visibly ripples across several policies; a
+second Roth policy (Hausrat) so the existing expiring Rechtsschutz line
+demonstrates portfolio-aware discount unwinding; and one new lead, task, or
+Anliegen each for GA reassignment, motor-vehicle re-rating, a life-event
+trigger, a property/sum-insured change, and a data-quality/identity task.
+The 8th curveball (building-insurance jurisdiction eligibility) is **not**
+included — it would require a 6th `crmshow_productline` choice option
+(schema change + ADR), which is out of scope for a fixture-only stream; see
+the curveball map for the full rationale. All new records use only the
+already-defined `crmshow_productline` options and stay within the existing
+7 fixture files' shapes — no new entity type, no schema change.
+
