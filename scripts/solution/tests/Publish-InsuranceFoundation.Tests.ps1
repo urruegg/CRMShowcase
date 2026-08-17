@@ -1045,6 +1045,30 @@ Describe 'Insurance Foundation reconciliation' {
                     -AttributeLogicalName $attributeLogicalName
             }
             if ($Method -eq 'GET' -and
+                $Path -match (
+                    "^/EntityDefinitions\(LogicalName='((?:[^']|'')*)'\)" +
+                    '/ManyToOneRelationships\?'
+                )) {
+                $logicalName = $Matches[1].Replace("''", "'")
+                $table = Get-ContractTableByLogicalName $logicalName
+                if ($null -eq $table -or
+                    -not $script:createdTables.Contains($logicalName)) {
+                    return [pscustomobject]@{ value = @() }
+                }
+                $includeCustomerRelationships = @(
+                    $table.columns | Where-Object type -eq 'Customer'
+                ).Count -eq 0 -or
+                    $script:tablesWithCustomerRelationships.Contains(
+                        $logicalName
+                    )
+                return [pscustomobject]@{
+                    value = @((
+                        New-TableMetadataSnapshot -Table $table `
+                            -IncludeCustomerRelationships:$includeCustomerRelationships
+                    ).ManyToOneRelationships)
+                }
+            }
+            if ($Method -eq 'GET' -and
                 $Path -like "/GlobalOptionSetDefinitions(Name='*") {
                 $name = [regex]::Match(
                     $Path, "Name='([^']+)'"
@@ -1117,13 +1141,14 @@ Describe 'Insurance Foundation reconciliation' {
         $created = @($script:calls | Where-Object Method -eq 'POST')
         @($created | Where-Object Path -eq '/GlobalOptionSetDefinitions').Count | Should -Be 14
         @($created | Where-Object Path -eq '/EntityDefinitions').Count | Should -Be 8
+        @($created | Where-Object Path -eq '/RelationshipDefinitions').Count | Should -Be 1
         @($created | Where-Object Path -eq '/PublishXml').Count | Should -Be 16
         foreach ($publish in @($created | Where-Object Path -eq '/PublishXml')) {
             $publish.Body.ParameterXml |
                 Should -Match '^<importexportxml><entities><entity>crmshow_[a-z]+</entity></entities></importexportxml>$'
         }
         @($created | Where-Object Path -match "EntityDefinitions\(LogicalName='(?:account|contact|lead|incident)'\)/Attributes").Count |
-            Should -Be 21
+            Should -Be 20
         @($created | Where-Object Path -match '/Keys$').Count | Should -Be 8
         @($created | Where-Object Path -eq '/workflows').Count | Should -Be 0
         @($created | Where-Object Path -eq '/systemforms').Count | Should -Be 8
@@ -1413,7 +1438,10 @@ Describe 'Insurance Foundation reconciliation' {
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and
             $_.Path -match "EntityDefinitions\(LogicalName='(?:account|contact|lead|incident)'\)/Attributes$"
-        }).Count | Should -Be 21
+        }).Count | Should -Be 20
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/RelationshipDefinitions'
+        }).Count | Should -Be 1
         @($script:calls | Where-Object {
             $_.Method -eq 'POST' -and $_.Path -eq '/EntityDefinitions'
         }).Count | Should -Be 8
@@ -1740,7 +1768,7 @@ Describe 'Insurance Foundation reconciliation' {
             "/EntityDefinitions(LogicalName='contact')/Attributes",
             "/EntityDefinitions(LogicalName='contact')/Attributes",
             "/EntityDefinitions(LogicalName='contact')/Attributes",
-            "/EntityDefinitions(LogicalName='lead')/Attributes",
+            '/RelationshipDefinitions',
             "/EntityDefinitions(LogicalName='lead')/Attributes",
             "/EntityDefinitions(LogicalName='lead')/Attributes",
             "/EntityDefinitions(LogicalName='lead')/Attributes",
@@ -2306,6 +2334,105 @@ Describe 'Insurance Foundation reconciliation' {
         $script:calls[0].Path | Should -Match (
             '/Attributes/Microsoft\.Dynamics\.CRM\.PicklistAttributeMetadata\?'
         )
+    }
+
+    It 'creates Lookup-type native extensions through RelationshipDefinitions instead of Attributes' {
+        $extension = @($script:contract.nativeExtensions | Where-Object {
+            $_.logicalName -eq 'crmshow_leadclusterid'
+        })[0]
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Method = $Method; Path = $Path; Body = $Body; Headers = $Headers
+            })
+            if ($Method -eq 'GET' -and
+                $Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.PicklistAttributeMetadata\?') {
+                return [pscustomobject]@{ value = @() }
+            }
+            if ($Method -eq 'GET' -and $Path -match '/ManyToOneRelationships\?') {
+                return [pscustomobject]@{ value = @() }
+            }
+            if ($Method -eq 'POST') {
+                return [pscustomobject]@{}
+            }
+            throw "Unsupported mocked endpoint: $Method $Path"
+        }
+
+        Invoke-NativeExtensionReconciliation $extension | Out-Null
+
+        @($script:calls | Where-Object {
+            $_.Method -eq 'GET' -and
+            $_.Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.PicklistAttributeMetadata\?'
+        }) | Should -BeNullOrEmpty
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and
+            $_.Path -eq "/EntityDefinitions(LogicalName='$($extension.table)')/Attributes"
+        }) | Should -BeNullOrEmpty
+        $create = @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -eq '/RelationshipDefinitions'
+        })[0]
+        $create | Should -Not -BeNullOrEmpty
+        $create.Body.'@odata.type' |
+            Should -Be 'Microsoft.Dynamics.CRM.OneToManyRelationshipMetadata'
+        $create.Body.SchemaName | Should -Be $extension.schemaName
+        $create.Body.ReferencedEntity |
+            Should -Be ([string]$extension.lookup.targets[0])
+        $create.Body.ReferencingEntity | Should -Be $extension.table
+        $create.Body.Lookup.LogicalName | Should -Be $extension.logicalName
+        $create.Body.Lookup.SchemaName | Should -Be $extension.schemaName
+        $create.Body.Lookup.AttributeType | Should -Be 'Lookup'
+        $create.Body.Lookup.AttributeTypeName.Value | Should -Be 'LookupType'
+    }
+
+    It 'does not recreate Lookup-type native extensions when the relationship already exists' {
+        $extension = @($script:contract.nativeExtensions | Where-Object {
+            $_.logicalName -eq 'crmshow_leadclusterid'
+        })[0]
+        $target = [string]$extension.lookup.targets[0]
+        $existing = [pscustomobject]@{
+            MetadataId = 'native-lookup-relationship'
+            SchemaName = $extension.schemaName
+            ReferencedEntity = $target
+            ReferencingEntity = $extension.table
+            ReferencingAttribute = $extension.logicalName
+            SolutionUniqueName = $extension.solution
+            CascadeConfiguration = [pscustomobject](
+                Get-ExpectedOrdinaryRelationshipCascade -ReferencedEntity $target
+            )
+        }
+        Mock Invoke-DataverseRequest {
+            param($Method, $Path, $Body, $Headers)
+            $script:calls.Add([pscustomobject]@{
+                Method = $Method; Path = $Path; Body = $Body; Headers = $Headers
+            })
+            if ($Method -eq 'GET' -and
+                $Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.PicklistAttributeMetadata\?') {
+                return [pscustomobject]@{ value = @() }
+            }
+            if ($Method -eq 'GET' -and $Path -match '/ManyToOneRelationships\?') {
+                return [pscustomobject]@{ value = @($existing) }
+            }
+            if ($Method -eq 'POST') {
+                return [pscustomobject]@{}
+            }
+            throw "Unsupported mocked endpoint: $Method $Path"
+        }
+
+        Invoke-NativeExtensionReconciliation $extension | Out-Null
+
+        @($script:calls | Where-Object {
+            $_.Method -eq 'GET' -and
+            $_.Path -match '/Attributes/Microsoft\.Dynamics\.CRM\.PicklistAttributeMetadata\?'
+        }) | Should -BeNullOrEmpty
+        @($script:calls | Where-Object {
+            $_.Method -eq 'GET' -and $_.Path -match '/ManyToOneRelationships\?'
+        }).Count | Should -Be 1
+        @($script:calls | Where-Object {
+            $_.Method -eq 'POST' -and $_.Path -in @(
+                '/RelationshipDefinitions',
+                "/EntityDefinitions(LogicalName='$($extension.table)')/Attributes"
+            )
+        }) | Should -BeNullOrEmpty
     }
 
     It 'rejects UserLocal date metadata for the UTC contract' {

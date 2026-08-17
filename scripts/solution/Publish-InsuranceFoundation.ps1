@@ -414,6 +414,54 @@ function Get-OrdinaryRelationshipRequest {
     }
 }
 
+function New-NativeLookupRelationshipMetadata {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] $Extension)
+
+    if (@($Extension.lookup.targets).Count -ne 1) {
+        throw "Native lookup extension '$($Extension.logicalName)' must target exactly one entity."
+    }
+    $target = [string]$Extension.lookup.targets[0]
+    return [ordered]@{
+        '@odata.type' = 'Microsoft.Dynamics.CRM.OneToManyRelationshipMetadata'
+        SchemaName = $Extension.schemaName
+        ReferencedAttribute = "${target}id"
+        ReferencedEntity = $target
+        ReferencingEntity = $Extension.table
+        AssociatedMenuConfiguration = @{
+            Behavior = 'UseLabel'
+            Group = 'Details'
+            Label = ConvertTo-LocalizedLabel $Extension.metadata.label
+            Order = 10000
+        }
+        CascadeConfiguration = Get-ExpectedOrdinaryRelationshipCascade `
+            -ReferencedEntity $target
+        Lookup = [ordered]@{
+            '@odata.type' = 'Microsoft.Dynamics.CRM.LookupAttributeMetadata'
+            LogicalName = $Extension.logicalName
+            SchemaName = $Extension.schemaName
+            AttributeType = 'Lookup'
+            AttributeTypeName = @{ Value = 'LookupType' }
+            DisplayName = ConvertTo-LocalizedLabel $Extension.metadata.label
+            Description = ConvertTo-LocalizedLabel $Extension.metadata.description
+            RequiredLevel = ConvertTo-RequiredLevel ([bool]$Extension.required)
+            IsAuditEnabled = @{ Value = [bool]$Extension.auditing }
+        }
+    }
+}
+
+function Get-NativeLookupRelationshipRequest {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] $Extension)
+
+    return [pscustomobject]@{
+        Method = 'POST'
+        Path = '/RelationshipDefinitions'
+        Solution = $Extension.solution
+        Body = New-NativeLookupRelationshipMetadata -Extension $Extension
+    }
+}
+
 function Get-CustomerRelationshipContract {
     [CmdletBinding()]
     param(
@@ -1195,6 +1243,22 @@ function Get-PicklistAttributeMetadata {
     )
 }
 
+function Get-NativeLookupRelationshipMetadata {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] [string]$TableLogicalName,
+        [Parameter(Mandatory)] [string]$AttributeLogicalName
+    )
+
+    $escapedTableName = ConvertTo-ODataKeyString $TableLogicalName
+    $escapedAttributeName = ConvertTo-ODataKeyString $AttributeLogicalName
+    return Get-One (
+        "/EntityDefinitions(LogicalName='$escapedTableName')/ManyToOneRelationships?" +
+        "`$select=MetadataId,SchemaName,ReferencedEntity,ReferencingEntity,ReferencingAttribute,CascadeConfiguration&" +
+        "`$filter=ReferencingAttribute eq '$escapedAttributeName'"
+    )
+}
+
 function Get-TypedAttributeMetadata {
     param(
         [Parameter(Mandatory)] [string]$TableLogicalName,
@@ -1869,6 +1933,10 @@ function Repair-CustomerRelationshipCascade {
 
 function Invoke-NativeExtensionReconciliation {
     param($Extension)
+    if ($Extension.type -eq 'Lookup') {
+        Invoke-NativeLookupExtensionReconciliation $Extension
+        return
+    }
     $existing = Get-PicklistAttributeMetadata $Extension.table `
         $Extension.logicalName
     if ($null -eq $existing) {
@@ -1900,6 +1968,58 @@ function Invoke-NativeExtensionReconciliation {
     } else {
         Write-Output "$($Extension.table)/$($Extension.logicalName): Unchanged"
     }
+}
+
+function Test-NativeLookupRelationshipCompatibility {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] $Existing,
+        [Parameter(Mandatory)] $Extension
+    )
+
+    $component = "$($Extension.table)/$($Extension.logicalName)"
+    $target = [string]$Extension.lookup.targets[0]
+    if ([string]::IsNullOrWhiteSpace([string]$Existing.SchemaName) -or
+        [string]$Existing.SchemaName -ne $Extension.schemaName -or
+        [string]::IsNullOrWhiteSpace([string]$Existing.ReferencedEntity) -or
+        [string]$Existing.ReferencedEntity -ne $target -or
+        [string]::IsNullOrWhiteSpace([string]$Existing.ReferencingEntity) -or
+        [string]$Existing.ReferencingEntity -ne $Extension.table -or
+        [string]::IsNullOrWhiteSpace([string]$Existing.ReferencingAttribute) -or
+        [string]$Existing.ReferencingAttribute -ne $Extension.logicalName) {
+        throw "Structural relationship target conflict for '$component'."
+    }
+
+    $expectedCascade = Get-ExpectedOrdinaryRelationshipCascade `
+        -ReferencedEntity $target
+    foreach ($action in @($expectedCascade.Keys | Sort-Object)) {
+        if ([string]$Existing.CascadeConfiguration.$action -ne
+            [string]$expectedCascade[$action]) {
+            throw "Structural relationship cascade conflict for '$($Extension.schemaName)': '$action' must be '$($expectedCascade[$action])'."
+        }
+    }
+}
+
+function Invoke-NativeLookupExtensionReconciliation {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] $Extension)
+
+    $existing = Get-NativeLookupRelationshipMetadata `
+        -TableLogicalName $Extension.table `
+        -AttributeLogicalName $Extension.logicalName
+    if ($null -eq $existing) {
+        Invoke-PlannedRequest (
+            Get-NativeLookupRelationshipRequest -Extension $Extension
+        ) | Out-Null
+        Write-Output "$($Extension.table)/$($Extension.logicalName): Created"
+        return
+    }
+
+    Assert-SolutionOwnership $existing $Extension.solution `
+        "$($Extension.table)/$($Extension.logicalName)"
+    Test-NativeLookupRelationshipCompatibility -Existing $existing `
+        -Extension $Extension
+    Write-Output "$($Extension.table)/$($Extension.logicalName): Unchanged"
 }
 
 function Invoke-ChildRequestIfMissing {
