@@ -1,4 +1,4 @@
-# Design Pattern: Dataverse to Databricks integration
+# Design Pattern 03: Dataverse to Databricks integration
 
 **Audience:** EA / IT stakeholders evaluating how CRM data should reach the Databricks analytics platform.
 **Related ADR:** `docs/adr/ADR-0030-dataverse-to-databricks-integration-pattern.md`
@@ -22,6 +22,27 @@ Export Dataverse via **Azure Synapse Link for Dataverse** (Delta Lake on ADLS Ge
 - **Design pattern.** Classic ETL/ELT "bulk export + copy" — matches INTEGRATION.md's *Bulk / scheduled* pattern in its plainest form.
 - **Licence.** 🧩 configuration / own build (ADF pipelines, or Synapse Link — which Microsoft is de-emphasising in favour of Fabric mirroring; current support posture `[TBD]`).
 
+```mermaid
+flowchart LR
+    DV[("Dataverse tables\nDynamics 365 / Power Apps")]
+    SL["Azure Synapse Link\nfor Dataverse\n(CDC export)"]
+    ADF["Azure Data Factory\n(copy activity, scheduled)"]
+    DL[("ADLS Gen2\nDelta Lake tables\n— second copy —")]
+    UC["Databricks Unity Catalog\nexternal location"]
+    LF["Lakehouse Federation\n(optional, query-time)"]
+    NB["Databricks notebooks /\nSQL warehouse"]
+
+    DV -- "Web API / CDC" --> SL
+    DV -- "Web API pull" --> ADF
+    SL --> DL
+    ADF --> DL
+    DL --> UC
+    DL -. "or federated query" .-> LF
+    UC --> NB
+    LF --> NB
+```
+*Option A's architecture: Dataverse exports through Synapse Link or a scheduled ADF copy into a second Delta Lake copy on ADLS Gen2, which Databricks then reads via Unity Catalog or Lakehouse Federation.*
+
 ### Option B — Microsoft Fabric / OneLake as the acceleration and orchestration layer
 
 Use **Link to Microsoft Fabric** (the native Dataverse → Fabric Lakehouse feature) to land Dataverse tables, then use Fabric notebooks, Data Factory pipelines, and Direct Lake semantic models to transform and serve — natively to Power BI, and to Databricks either via a further OneLake shortcut or a mirrored Unity Catalog relationship.
@@ -31,6 +52,24 @@ Use **Link to Microsoft Fabric** (the native Dataverse → Fabric Lakehouse feat
 - **Design pattern.** Medallion architecture inside a Fabric Lakehouse, with OneLake as the shared storage layer and Databricks treated as an additional compute engine over the same Delta tables.
 - **Licence.** ➕ additional licence required (Fabric capacity SKU) — exact tier `[TBD]`.
 
+```mermaid
+flowchart LR
+    DV[("Dataverse tables\nDynamics 365 / Power Apps")]
+    LF["Link to Microsoft Fabric\n(native connector, incremental sync)"]
+    LH[("Fabric Lakehouse\nOneLake — Delta tables")]
+    DFP["Fabric Data Factory pipelines /\nnotebooks (Spark)"]
+    DLM["Direct Lake\nsemantic model"]
+    PBI["Power BI\nreports & dashboards"]
+    MUC["Mirrored Unity Catalog /\nOneLake shortcut (to Databricks)"]
+    NB["Databricks notebooks /\nSQL warehouse"]
+
+    DV --> LF --> LH
+    LH <--> DFP
+    LH --> DLM --> PBI
+    LH -- "mirroring or shortcut" --> MUC --> NB
+```
+*Option B's architecture: the native Link to Microsoft Fabric connector lands Dataverse tables in a OneLake Lakehouse, which serves Power BI directly and reaches Databricks via Unity Catalog mirroring or a OneLake shortcut.*
+
 ### Option C — Zero-copy: Dataverse → OneLake shortcut ← Databricks reads directly
 
 Use **Link to Microsoft Fabric**'s OneLake **Dataverse shortcut** (Delta Parquet, no data movement) as the landing surface, and have Databricks read that same OneLake location directly via Unity Catalog external location / native OneLake integration — no ETL, no Fabric compute beyond the shortcut itself.
@@ -39,6 +78,50 @@ Use **Link to Microsoft Fabric**'s OneLake **Dataverse shortcut** (Delta Parquet
 - **Cons.** The newest option: Unity Catalog ↔ Fabric mirroring and native OneLake reads from Databricks are 2025-era capabilities; feature limits (large tables, complex Dataverse relationships, throttling) are `[TBD]` and need validation against the customer's actual data volumes. Cross-tenant / service-principal permissions must be verified explicitly on both sides (Zero Trust). Still requires a minimum Fabric capacity for the shortcut/Link-to-Fabric feature even though no data is copied. Databricks **writing** into OneLake natively is roadmap, not GA — this option is read-only by current platform limits, not just by design.
 - **Design pattern.** Shared bronze layer via OneLake shortcut — zero-ETL, single-copy interoperability across two compute engines on the same open Delta table.
 - **Licence.** 🧩 configuration (native features) + a Fabric capacity floor — exact minimum SKU `[TBD]`.
+
+```mermaid
+flowchart LR
+    DV[("Dataverse tables\nDynamics 365 / Power Apps")]
+    LF["Link to Microsoft Fabric"]
+    SC[("OneLake\nDataverse shortcut\n— single copy, Delta Parquet —")]
+    UC["Databricks Unity Catalog\nexternal location /\nnative OneLake integration"]
+    NB["Databricks notebooks /\nSQL warehouse (read-only)"]
+    PBI["Power BI\nDirect Lake — same copy"]
+
+    DV -- "incremental sync, no copy" --> LF --> SC
+    SC -- "serverless compute,\nread-only" --> UC --> NB
+    SC --> PBI
+```
+*Option C's architecture: the OneLake Dataverse shortcut moves no data — Databricks and Power BI both read the same single Delta Parquet copy directly, read-only.*
+
+Option C's read side is zero-copy, but its write-back is not — the diagram below (from the ADR's Advisory Cockpit walk-through) shows the one deliberate exception: scored NBA output must still land in a Databricks-managed table before the schema-validated Action Layer pushes it into Dataverse.
+
+```mermaid
+flowchart TD
+    subgraph Source["Source of record"]
+        DV[("Dataverse\nHousehold, Policy refs, Interactions")]
+    end
+    subgraph OneLakeL["OneLake shortcut, zero-copy"]
+        SC[("Dataverse shortcut\nsame Delta Parquet, no batch")]
+    end
+    subgraph Score["Databricks scoring, read-only"]
+        FEAT["Feature blend\nCRM plus non-CRM"]
+        NBA["NBA model"]
+        OUT[("Databricks output table\nDatabricks-managed, the one real copy")]
+    end
+    subgraph Write["Write-back (Action Layer)"]
+        ACT["Schema-validated action\nDataverse Web API / Power Automate"]
+    end
+    subgraph Cockpit["Advisor Cockpit"]
+        CARD["NBA card\nwith explanation"]
+        DEC["Advisor decision\naccept / edit / dismiss"]
+    end
+
+    DV -- "near-real-time, no copy" --> SC --> FEAT --> NBA --> OUT --> ACT
+    ACT -- "create/update NBA record" --> DV
+    DV --> CARD --> DEC --> DV
+```
+*Option C's write-back exception: the zero-copy guarantee applies only to the read side — scored output still passes through a Databricks-managed table and the schema-validated Action Layer before reaching Dataverse.*
 
 ## Hosting options
 
