@@ -19,7 +19,7 @@ Microsoft's 2025/2026 Work Trend Index frames the Frontier Firm around agents, h
 
 > **In this showcase:** Business/Teams, Agent/Copilot Agent Mesh, Engineering/GitHub, and Operational/Dataverse are **built**. Interaction/Work IQ is **documented only** - see `docs/FRONTIER-OPERATING-MODEL.md` section 8 for why, and how a real engagement would wire it up.
 
-## 3. A four-step establishment method
+## 8. A four-step establishment method
 
 Any insurer's EA/IT team can follow this method to stand up their own version:
 
