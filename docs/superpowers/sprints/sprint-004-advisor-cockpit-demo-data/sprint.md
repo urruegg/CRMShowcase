@@ -27,13 +27,13 @@ Autonomy class per the [Handover Contract](../contracts/HANDOVER-CONTRACT.md).
 
 | Stream | Issue | Class | State |
 | --- | --- | --- | --- |
-| prereq-fixes (#120, #124) | [#126](https://github.com/urruegg/CRMShowcase/issues/126) | EXECUTION-ONLY | ⬜ not started |
-| mcp-agent-decision (#121) | [#127](https://github.com/urruegg/CRMShowcase/issues/127) | DESIGN-SENSITIVE | ⬜ not started |
-| mobiliar-intake-governance | [#128](https://github.com/urruegg/CRMShowcase/issues/128) | DESIGN-SENSITIVE | ⬜ not started |
-| tenant-user-inventory | [#129](https://github.com/urruegg/CRMShowcase/issues/129) | DESIGN-SENSITIVE | ⬜ not started |
-| fixture-enrichment | [#130](https://github.com/urruegg/CRMShowcase/issues/130) | DESIGN-SENSITIVE | ⬜ not started |
-| seed-owner-wiring | [#131](https://github.com/urruegg/CRMShowcase/issues/131) | EXECUTION-ONLY | ⬜ not started |
-| e2e-dev-test-verify | [#132](https://github.com/urruegg/CRMShowcase/issues/132) | EXECUTION-ONLY | ⬜ not started |
+| prereq-fixes (#120, #124) | [#126](https://github.com/urruegg/CRMShowcase/issues/126) | EXECUTION-ONLY | 🟡 #120 fix implemented + live DEV verify in progress; #124 needs re-authoring (see STATUS.md) |
+| mcp-agent-decision (#121) | [#127](https://github.com/urruegg/CRMShowcase/issues/127) | DESIGN-SENSITIVE | 🟡 decision made (remove Copilot/AI-assistant feature); mechanical Maker-Portal step deferred to owner |
+| mobiliar-intake-governance | [#128](https://github.com/urruegg/CRMShowcase/issues/128) | DESIGN-SENSITIVE | ✅ [PR #133](https://github.com/urruegg/CRMShowcase/pull/133) opened |
+| tenant-user-inventory | [#129](https://github.com/urruegg/CRMShowcase/issues/129) | DESIGN-SENSITIVE | ✅ [PR #135](https://github.com/urruegg/CRMShowcase/pull/135) opened |
+| fixture-enrichment | [#130](https://github.com/urruegg/CRMShowcase/issues/130) | DESIGN-SENSITIVE | ✅ [PR #134](https://github.com/urruegg/CRMShowcase/pull/134) opened |
+| seed-owner-wiring | [#131](https://github.com/urruegg/CRMShowcase/issues/131) | EXECUTION-ONLY | ✅ [PR #136](https://github.com/urruegg/CRMShowcase/pull/136) opened |
+| e2e-dev-test-verify | [#132](https://github.com/urruegg/CRMShowcase/issues/132) | EXECUTION-ONLY | ⬜ not started (blocked on prereq-fixes + mcp-agent-decision) |
 
 ## Dependencies
 
