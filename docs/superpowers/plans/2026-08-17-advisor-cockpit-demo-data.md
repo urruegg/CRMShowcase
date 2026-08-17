@@ -170,15 +170,22 @@ It 'creates a Lookup-type native extension via RelationshipDefinitions, not a pl
         }
     }
     Mock Get-ManyToOneRelationshipSnapshot { return @() }
-    Mock Invoke-PlannedRequest { return [pscustomobject]@{} } -Verifiable
+    Mock Invoke-PlannedRequest { return [pscustomobject]@{} }
     Invoke-NativeExtensionReconciliation $extension
-    Assert-MockCalled Invoke-PlannedRequest -Times 1 -ParameterFilter {
+    Should -Invoke -CommandName Invoke-PlannedRequest -Times 1 -Exactly -ParameterFilter {
         $Request.Path -eq '/RelationshipDefinitions' -and
         $Request.Body.'@odata.type' -eq 'Microsoft.Dynamics.CRM.OneToManyRelationshipMetadata' -and
         $Request.Body.Lookup.LogicalName -eq 'crmshow_leadclusterid'
     }
 }
 ```
+
+> **Repo convention note:** use `Should -Invoke -CommandName <Name> -Times N
+> -Exactly [-ParameterFilter {...}]` for mock assertions, not
+> `Assert-MockCalled` (Pester v3/v4-era syntax that intermittently fails to
+> load under this repo's pinned Pester 6.0.1). Run `Import-Module Pester
+> -RequiredVersion 6.0.1 -Force` before `Invoke-Pester` locally, matching
+> `cd-solution-dev.yml`/`cd-solution-test.yml` exactly.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -521,7 +528,7 @@ Describe 'Get-DemoPresenterUser' {
         Mock az {}
         $result = Get-DemoPresenterUser -EnvironmentUrl 'https://crmshowdev.crm.dynamics.com' -PresenterUserId '11111111-1111-1111-1111-111111111111'
         $result | Should -Be '11111111-1111-1111-1111-111111111111'
-        Assert-MockCalled az -Times 0
+        Should -Invoke -CommandName az -Times 0 -Exactly
     }
 
     It 'resolves the single enabled interactive System Administrator' {
@@ -696,15 +703,27 @@ It 'passes -PresenterUserId through Invoke-AdvisorCockpitSeed into Get-AccountUp
     Mock Get-DemoPresenterUser { 'resolved-presenter-id' }
     Mock Get-AccountKeyMap { [ordered]@{} }
     Mock Get-MeasureUpsertRequests { @() }
-    Mock Get-AccountUpsertRequests { @() } -Verifiable
+    Mock Get-AccountUpsertRequests { @() }
     Mock Get-ClaimUpsertRequests { @() }
     Mock Invoke-DataverseRequest { }
     Invoke-AdvisorCockpitSeed -EnvironmentUrl 'https://crmshowdev.crm.dynamics.com' -Confirm:$false
-    Assert-MockCalled Get-AccountUpsertRequests -Times 1 -ParameterFilter {
+    Should -Invoke -CommandName Get-AccountUpsertRequests -Times 1 -Exactly -ParameterFilter {
         $PresenterUserId -eq 'resolved-presenter-id'
     }
 }
 ```
+
+> **Repo convention note (confirmed 2026-08-17 while implementing Task 4):**
+> this codebase's actual, dominant mocking-assertion convention is
+> `Should -Invoke -CommandName <Name> -Times N -Exactly [-ParameterFilter {...}]`
+> (see `SeedAdvisorCockpit.Tests.ps1`, `Set-SolutionVersions.Tests.ps1`,
+> `Test-InsuranceFoundationConvergence.Tests.ps1`, etc.) — **not**
+> `Assert-MockCalled`, which is Pester v3/v4-era syntax that intermittently
+> fails to load under this repo's pinned Pester 6.0.1 (`Import-Module Pester
+> -RequiredVersion 6.0.1`, per `cd-solution-dev.yml`/`cd-solution-test.yml`).
+> Always run `Import-Module Pester -RequiredVersion 6.0.1 -Force` before
+> `Invoke-Pester` locally to match CI exactly. Use `Should -Invoke` in every
+> task above, including Task 1's test.
 
 - [ ] **Step 2: Run test to verify it fails**
 
