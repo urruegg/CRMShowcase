@@ -6,7 +6,7 @@
 
 | Stream | Issue | Class | State |
 | --- | --- | --- | --- |
-| prereq-fixes | [#126](https://github.com/urruegg/CRMShowcase/issues/126) | EXECUTION-ONLY | 🟡 #120 fix implemented (424/0/2 Pester), live DEV re-run in progress; #124 needs re-authoring first (see below) |
+| prereq-fixes | [#126](https://github.com/urruegg/CRMShowcase/issues/126) | EXECUTION-ONLY | 🟡 [PR #137](https://github.com/urruegg/CRMShowcase/pull/137) opened — #120 fix ready, blocked on human merge to unblock #124 live re-authoring |
 | mcp-agent-decision | [#127](https://github.com/urruegg/CRMShowcase/issues/127) | DESIGN-SENSITIVE | 🟡 decision recorded; mechanical Maker-Portal step deferred |
 | mobiliar-intake-governance | [#128](https://github.com/urruegg/CRMShowcase/issues/128) | DESIGN-SENSITIVE | ✅ [PR #133](https://github.com/urruegg/CRMShowcase/pull/133) |
 | tenant-user-inventory | [#129](https://github.com/urruegg/CRMShowcase/issues/129) | DESIGN-SENSITIVE | ✅ [PR #135](https://github.com/urruegg/CRMShowcase/pull/135) |
@@ -74,6 +74,22 @@ declared in `solution/schema/insurance-foundation.json`, so this is a
 re-authoring gap, not a lost design decision. Owner confirmed: dispatch
 `cd-solution-dev.yml` (now with the #120 fix) to re-author these tables live,
 then redo the intake-export. Sequenced after the fix's live-verify run above.
+
+**PR #137 opened for prereq-fixes; live re-authoring blocked on merge to
+`main` (2026-08-17).** Dispatched `cd-solution-dev.yml` against
+`feat/sprint-004-prereq-fixes` (run
+[32031985164](https://github.com/urruegg/CRMShowcase/actions/runs/32031985164))
+to verify the #120 fix live before merging. Result: `validate` job (the
+full offline Pester suite) **succeeded in 23m12s** — this independently
+re-confirms the fix's 424/0/2 pass count. The `author` job (which would
+actually re-author the missing tables live) was **rejected by the `dev`
+GitHub Environment's deployment branch policy** (`custom_branch_policies:
+true` — only specific branches, expected to be `main`, may deploy) — not a
+code defect. **Consequence:** live re-authoring of the #124 tables cannot be
+verified from a feature branch; it requires PR #137 to merge to `main`
+first, then a fresh `cd-solution-dev.yml` dispatch against `main`. This is
+a genuine human-merge decision point (Intake Contract: merge is always a
+human act) — flagged to the repo owner rather than worked around.
 
 ## Live DEV + TEST evidence
 
