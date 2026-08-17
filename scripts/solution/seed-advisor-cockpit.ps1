@@ -54,10 +54,22 @@
 param(
     [string]$EnvironmentUrl,
     [string]$FixtureRoot,
-    [System.Collections.IDictionary]$AccountKeyMap
+    [System.Collections.IDictionary]$AccountKeyMap,
+    [string]$PresenterUserId
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Get-DemoPresenterUser.ps1 declares its own top-level $EnvironmentUrl /
+# $PresenterUserId parameters. Dot-sourcing it re-runs that param block in
+# this shared scope, which would otherwise silently clobber this script's
+# own same-named parameters back to empty. Save and restore around the
+# dot-source so this script's actual caller-supplied values survive.
+$script:_seedEnvironmentUrl = $EnvironmentUrl
+$script:_seedPresenterUserId = $PresenterUserId
+. "$PSScriptRoot/Get-DemoPresenterUser.ps1"
+$EnvironmentUrl = $script:_seedEnvironmentUrl
+$PresenterUserId = $script:_seedPresenterUserId
 
 if (-not $FixtureRoot) {
     $FixtureRoot = (Resolve-Path (Join-Path $PSScriptRoot '../../data/scenarios/advisor-cockpit')).Path
@@ -149,15 +161,25 @@ function ConvertTo-GlobalChoiceValue {
 # Maps one accounts-contacts.json account row to its account column body.
 # Only fields with an existing schema column are mapped -- see the script
 # docstring for what's intentionally excluded (segment/region/owner/contacts).
+# -PresenterUserId, when supplied, sets ownerid@odata.bind so the seeded
+# account is owned by the resolved demo presenter (Sprint-004,
+# Get-DemoPresenterUser.ps1) rather than left ownerless.
 function ConvertTo-AccountUpsertBody {
     [CmdletBinding()]
-    param([Parameter(Mandatory)] $Row)
+    param(
+        [Parameter(Mandatory)] $Row,
+        [string]$PresenterUserId
+    )
 
-    [ordered]@{
+    $body = [ordered]@{
         name                = [string]$Row.name
         crmshow_accounttype = ConvertTo-GlobalChoiceValue -Code ([string]$Row.accountType) -KnownCodes @('Household', 'Business', 'Broker')
         crmshow_seedkey     = [string]$Row.key
     }
+    if ($PresenterUserId) {
+        $body.'ownerid@odata.bind' = "/systemusers($PresenterUserId)"
+    }
+    return $body
 }
 
 # Builds account create/update requests. account has no registered Dataverse
@@ -170,12 +192,13 @@ function Get-AccountUpsertRequests {
     [CmdletBinding()]
     param(
         [string]$FixtureRoot = $script:FixtureRoot,
-        [System.Collections.IDictionary]$ExistingAccountMap = [ordered]@{}
+        [System.Collections.IDictionary]$ExistingAccountMap = [ordered]@{},
+        [string]$PresenterUserId
     )
 
     $group = Get-SeedPlan -FixtureRoot $FixtureRoot | Where-Object { $_.Fixture -eq 'accounts-contacts.json' }
     foreach ($row in @($group.Records | Where-Object { $_.recordType -eq 'account' })) {
-        $body = ConvertTo-AccountUpsertBody -Row $row
+        $body = ConvertTo-AccountUpsertBody -Row $row -PresenterUserId $PresenterUserId
         if ($ExistingAccountMap -and $ExistingAccountMap.Contains([string]$row.key)) {
             [pscustomobject]@{
                 Method = 'PATCH'
@@ -312,7 +335,8 @@ function Invoke-AdvisorCockpitSeed {
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory)] [string]$EnvironmentUrl,
-        [System.Collections.IDictionary]$AccountKeyMap
+        [System.Collections.IDictionary]$AccountKeyMap,
+        [string]$PresenterUserId
     )
 
     $baseUrl = $EnvironmentUrl.TrimEnd('/')
@@ -322,8 +346,11 @@ function Invoke-AdvisorCockpitSeed {
     if (-not $AccountKeyMap) {
         $AccountKeyMap = Get-AccountKeyMap -EnvironmentUrl $EnvironmentUrl
     }
+    if (-not $PresenterUserId) {
+        $PresenterUserId = Get-DemoPresenterUser -EnvironmentUrl $EnvironmentUrl
+    }
 
-    $requests = @(Get-MeasureUpsertRequests) + @(Get-AccountUpsertRequests -ExistingAccountMap $AccountKeyMap) + @(Get-ClaimUpsertRequests -AccountKeyMap $AccountKeyMap)
+    $requests = @(Get-MeasureUpsertRequests) + @(Get-AccountUpsertRequests -ExistingAccountMap $AccountKeyMap -PresenterUserId $PresenterUserId) + @(Get-ClaimUpsertRequests -AccountKeyMap $AccountKeyMap)
     foreach ($req in $requests) {
         $url = "$baseUrl/api/data/v9.2$($req.Path)"
         if ($PSCmdlet.ShouldProcess($url, $req.Method)) {
@@ -346,7 +373,7 @@ function Invoke-AdvisorCockpitSeed {
 
 if ($MyInvocation.InvocationName -ne '.') {
     if ($EnvironmentUrl) {
-        Invoke-AdvisorCockpitSeed -EnvironmentUrl $EnvironmentUrl -AccountKeyMap $AccountKeyMap
+        Invoke-AdvisorCockpitSeed -EnvironmentUrl $EnvironmentUrl -AccountKeyMap $AccountKeyMap -PresenterUserId $PresenterUserId
     }
     else {
         $plan = Get-SeedPlan
