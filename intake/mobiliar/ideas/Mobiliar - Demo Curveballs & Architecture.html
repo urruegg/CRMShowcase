@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mobiliar – Demo Curveballs & Architecture Map</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap">
+<style>
+:root{--brand:#0078d4;--brand-dark:#005a9e;--brand-light:#eff6fc;--n0:#fff;--n10:#faf9f8;--n20:#f3f2f1;--n30:#edebe9;--n60:#c8c6c4;--n90:#a19f9d;--n130:#605e5c;--n160:#323130;--n190:#201f1e;--green:#107c10;--amber:#9c5700;--red:#a4262c;--purple:#6b2fa0;--teal:#038387;--font:'Segoe UI',system-ui,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--n20);color:var(--n190);font-size:14px;line-height:1.5;padding:0 0 60px}
+.material-symbols-outlined{font-size:20px;vertical-align:middle}
+header{background:var(--n190);color:var(--n0);padding:22px 32px;display:flex;align-items:center;gap:16px}
+header .logo{width:40px;height:40px;border-radius:8px;background:var(--brand);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px}
+header h1{font-size:20px;font-weight:600}
+header p{color:var(--n60);font-size:13px;margin-top:2px}
+.wrap{max-width:1180px;margin:0 auto;padding:24px 32px}
+.intro{background:var(--n0);border-radius:10px;padding:20px 24px;box-shadow:0 1px 2px rgba(0,0,0,.08);margin-bottom:24px;border-left:4px solid var(--brand)}
+.intro h2{font-size:16px;margin-bottom:8px;display:flex;gap:8px;align-items:center}
+.intro p{color:var(--n130);margin-bottom:8px}
+.intro .ref{font-size:12px;color:var(--n90);font-style:italic}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 26px}
+.tag{display:inline-flex;align-items:center;gap:5px;border-radius:14px;padding:3px 11px;font-size:11px;font-weight:700;border:1px solid transparent}
+.t-data{background:#eff6fc;color:var(--brand-dark);border-color:#cfe4fa}
+.t-rules{background:#f3e8fc;color:var(--purple);border-color:#e6cffa}
+.t-integ{background:#e6f7f7;color:var(--teal);border-color:#bfe6e6}
+.t-event{background:#fff4ce;color:var(--amber);border-color:#f3d9a8}
+.t-org{background:#dff6dd;color:var(--green);border-color:#bfe6bf}
+.t-mdm{background:#fde7e9;color:var(--red);border-color:#f3c9cc}
+.t-doc{background:#f3f2f1;color:var(--n130);border-color:var(--n60)}
+.legend .tag{cursor:default}
+h2.section{font-size:15px;text-transform:uppercase;letter-spacing:.5px;color:var(--n130);margin:8px 0 14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.card{background:var(--n0);border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.08);border:1px solid var(--n30);overflow:hidden;display:flex;flex-direction:column}
+.card.hero{grid-column:1 / -1;border-left:4px solid var(--amber)}
+.card-head{padding:16px 18px 12px;display:flex;align-items:flex-start;gap:12px}
+.card-head .ic{width:40px;height:40px;border-radius:8px;background:var(--brand-light);color:var(--brand-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.card.hero .card-head .ic{background:var(--amber);color:#fff}
+.card-head h3{font-size:15px;font-weight:700}
+.card-head .sub{font-size:12px;color:var(--n90);margin-top:2px}
+.card-body{padding:0 18px 16px;flex:1}
+.block{margin-top:12px}
+.block .k{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--n90);font-weight:700;margin-bottom:4px;display:flex;gap:6px;align-items:center}
+.block p{color:var(--n160);font-size:13px}
+.lines{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:11px;background:var(--n20);color:var(--n130);border-radius:6px;padding:2px 8px;font-weight:600}
+.tags-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.swiss{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--red);background:#fde7e9;border-radius:6px;padding:2px 8px;margin-left:auto}
+.foot{max-width:1180px;margin:28px auto 0;padding:0 32px;color:var(--n90);font-size:12px}
+table.map{width:100%;border-collapse:collapse;background:var(--n0);border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.08);margin-top:8px}
+table.map th{background:var(--n20);text-align:left;padding:10px 14px;font-size:12px;color:var(--n130)}
+table.map td{padding:10px 14px;border-bottom:1px solid var(--n20);font-size:13px;vertical-align:top}
+table.map tr:last-child td{border-bottom:0}
+@media(max-width:880px){.grid{grid-template-columns:1fr}}
+</style></head><body>
+<header><div class="logo">M</div><div><h1>Demo Curveballs &amp; Architecture Map</h1><p>Die Mobiliar · Commercial CRM on Dynamics 365 / Dataverse — anticipated "challenge" use cases &amp; the platform capabilities they probe</p></div></header>
+<div class="wrap">
+
+<div class="intro"><h2><span class="material-symbols-outlined">sports_baseball</span>Why this exists</h2>
+<p>During competitive demos, customers throw <strong>"curveball" scenarios</strong> — a single attribute change that should cascade into premium recalculation, coverage re-evaluation, or relationship handoff. They reveal whether the platform is genuinely model-driven or just a pretty UI.</p>
+<p class="ref">Origin pattern (CSS / Krankenkasse): "Change of address to a different canton → premium recalculation." Under the KVG, basic-insurance premiums are rated by canton → premium region → age group → model, so a move legitimately forces a re-rate. Below are the equivalent — and arguably richer — curveballs for Mobiliar's P&amp;C book.</p></div>
+
+<div class="legend">
+<span class="tag t-data"><span class="material-symbols-outlined" style="font-size:14px">schema</span>Data Model</span>
+<span class="tag t-rules"><span class="material-symbols-outlined" style="font-size:14px">rule</span>Rules / Pricing Engine</span>
+<span class="tag t-integ"><span class="material-symbols-outlined" style="font-size:14px">hub</span>Integration</span>
+<span class="tag t-event"><span class="material-symbols-outlined" style="font-size:14px">bolt</span>Event-Driven Cascade</span>
+<span class="tag t-org"><span class="material-symbols-outlined" style="font-size:14px">groups</span>Territory / Ownership</span>
+<span class="tag t-mdm"><span class="material-symbols-outlined" style="font-size:14px">verified</span>Master Data / Quality</span>
+<span class="tag t-doc"><span class="material-symbols-outlined" style="font-size:14px">description</span>Docs / Compliance</span>
+</div>
+
+<h2 class="section">Curveball scenarios</h2>
+<div class="grid">
+
+<div class="card hero">
+<div class="card-head"><div class="ic"><span class="material-symbols-outlined">moving</span></div><div><h3>1 · Cross-canton change of address — the multi-line cascade</h3><div class="sub">The direct analogue to the CSS challenge — but it ripples across several P&amp;C policies at once</div></div><span class="swiss"><span class="material-symbols-outlined" style="font-size:14px">flag</span>CH-specific</span></div>
+<div class="card-body">
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">help</span>Scenario</div><p>Customer moves from one canton/commune to another. One address field change must trigger re-rating and coverage re-evaluation across the household's whole portfolio — not just one product.</p></div>
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">checklist</span>What it tests</div><p>Whether location is a <strong>shared, governed attribute</strong> that drives rating factors across products, and whether a change emits an <strong>event</strong> that fans out to every affected policy with the correct effective date.</p></div>
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">category</span>Affected lines</div><div class="lines"><span class="chip">Motorfahrzeug (postal-code rating, parking)</span><span class="chip">Hausrat / Diebstahl (burglary zone)</span><span class="chip">Elementarschäden (flood/hail zone)</span><span class="chip">Gebäude (see #2)</span></div></div>
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">architecture</span>Architecture topics</div><div class="tags-row">
+<span class="tag t-event">Event-Driven Cascade</span><span class="tag t-rules">Pricing Engine</span><span class="tag t-data">Shared Location entity</span><span class="tag t-integ">Geo / risk-zone lookup</span><span class="tag t-doc">Regulatory notification</span></div></div>
+</div></div>
+
+<div class="card">
+<div class="card-head"><div class="ic"><span class="material-symbols-outlined">home_work</span></div><div><h3>2 · Building insurance — monopoly vs. free market</h3><div class="sub">A coverage-<em>existence</em> question, not just a price change</div></div></div>
+<div class="card-body">
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">help</span>Scenario</div><p>The move crosses between a <strong>cantonal-monopoly canton</strong> (KGV, 19 cantons) and a <strong>free-market "GUSTAVO" canton</strong> (GE, UR, SZ, TI, AI, VS, OW). This changes whether Mobiliar can even <em>write</em> the building cover.</p></div>
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">checklist</span>What it tests</div><p>Product eligibility rules driven by jurisdiction; the system must <strong>withdraw or originate</strong> a product, not silently re-price an invalid one.</p></div>
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">architecture</span>Architecture topics</div><div class="tags-row"><span class="tag t-rules">Product eligibility rules</span><span class="tag t-data">Jurisdiction model</span><span class="tag t-integ">Cantonal KGV registry</span></div></div>
+</div></div>
+
+<div class="card">
+<div class="card-head"><div class="ic"><span class="material-symbols-outlined">hub</span></div><div><h3>3 · General Agency reassignment on the move</h3><div class="sub">The Mobiliar-unique organisational curveball — no health insurer can show this</div></div><span class="swiss"><span class="material-symbols-outlined" style="font-size:14px">flag</span>Mobiliar</span></div>
+<div class="card-body">
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">help</span>Scenario</div><p>Mobiliar's cooperative runs ~80 independent <strong>General Agencies</strong> that own the local relationship, advice and claims. A cross-region move reassigns the customer to a different agency.</p></div>
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">checklist</span>What it tests</div><p>Account ownership transfer, territory rules, commissioning, local-claims routing, and continuity of service across the handoff.</p></div>
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">architecture</span>Architecture topics</div><div class="tags-row"><span class="tag t-org">Territory management</span><span class="tag t-org">Ownership transfer</span><span class="tag t-data">Account / Household model</span><span class="tag t-rules">Commission rules</span></div></div>
+</div></div>
+
+<div class="card">
+<div class="card-head"><div class="ic"><span class="material-symbols-outlined">directions_car</span></div><div><h3>4 · Motor-vehicle re-rating triggers</h3><div class="sub">Object + driver factor changes</div></div></div>
+<div class="card-body">
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">help</span>Scenario</div><p>Add a young/secondary driver (Lenker &lt; 25), switch to an EV, change mileage, move private → commercial use, transfer Bonus/Malus level, or register Wechselschilder / seasonal plates.</p></div>
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">checklist</span>What it tests</div><p>Object- vs. subject-bound coverage logic (Lenker ≠ Halter) and clean re-rating on factor change.</p></div>
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">architecture</span>Architecture topics</div><div class="tags-row"><span class="tag t-rules">Rating factors</span><span class="tag t-data">Asset / Object &amp; Driver model</span><span class="tag t-event">Mid-term endorsement</span></div></div>
+</div></div>
+
+<div class="card">
+<div class="card-head"><div class="ic"><span class="material-symbols-outlined">family_restroom</span></div><div><h3>5 · Life-event triggers</h3><div class="sub">Cross-policy re-evaluation from household change</div></div></div>
+<div class="card-body">
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">help</span>Scenario</div><p>Marriage/partnership (households merge, liability now covers partner, duplicate Hausrat to consolidate), divorce (split policies), birth, death, child moving out / studying abroad.</p></div>
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">checklist</span>What it tests</div><p>Household graph relationships and how membership change reshapes who is insured under which policy.</p></div>
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">architecture</span>Architecture topics</div><div class="tags-row"><span class="tag t-data">Household relationship graph</span><span class="tag t-event">Event-Driven Cascade</span><span class="tag t-rules">Coverage re-evaluation</span></div></div>
+</div></div>
+
+<div class="card">
+<div class="card-head"><div class="ic"><span class="material-symbols-outlined">construction</span></div><div><h3>6 · Property / object changes</h3><div class="sub">Sum-insured &amp; exposure shifts</div></div></div>
+<div class="card-body">
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">help</span>Scenario</div><p>Renovation, heat pump / solar PV, pool (rebuild value &amp; specific cover), home office or renting a room / Airbnb (commercial exposure on a private policy), buying high-value items.</p></div>
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">checklist</span>What it tests</div><p>Sum-insured adequacy and <strong>Unterversicherung</strong> handling (incl. Unterversicherungsverzicht); detecting when private use turns commercial.</p></div>
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">architecture</span>Architecture topics</div><div class="tags-row"><span class="tag t-rules">Sum-insured / underinsurance rules</span><span class="tag t-data">Object attributes</span><span class="tag t-mdm">Valuation data</span></div></div>
+</div></div>
+
+<div class="card">
+<div class="card-head"><div class="ic"><span class="material-symbols-outlined">sell</span></div><div><h3>7 · Bundle &amp; discount unwinding</h3><div class="sub">The subtle re-rate that breaks naive engines</div></div></div>
+<div class="card-body">
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">help</span>Scenario</div><p>Cancelling one policy removes a multi-product discount, forcing recalculation of the <em>remaining</em> policies.</p></div>
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">checklist</span>What it tests</div><p>Whether pricing is portfolio-aware and discounts are governed centrally rather than baked per-policy.</p></div>
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">architecture</span>Architecture topics</div><div class="tags-row"><span class="tag t-rules">Portfolio-aware pricing</span><span class="tag t-event">Cross-policy recalculation</span></div></div>
+</div></div>
+
+<div class="card">
+<div class="card-head"><div class="ic"><span class="material-symbols-outlined">verified_user</span></div><div><h3>8 · Shared phone / data-quality ambiguity</h3><div class="sub">Already modelled in the Mobi24 assistance screen</div></div></div>
+<div class="card-body">
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">help</span>Scenario</div><p>One inbound phone number resolves to multiple households/contacts (incl. a mismatched foreign household) — the agent must confirm the caller and a data-quality task is raised.</p></div>
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">checklist</span>What it tests</div><p>Identity resolution, duplicate/golden-record handling, and closed-loop data-quality remediation.</p></div>
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">architecture</span>Architecture topics</div><div class="tags-row"><span class="tag t-mdm">Identity resolution / MDM</span><span class="tag t-data">Household / Contact model</span><span class="tag t-event">Data-quality task automation</span></div></div>
+</div></div>
+
+</div>
+
+<h2 class="section" style="margin-top:30px">Architecture topic → coverage summary</h2>
+<table class="map">
+<thead><tr><th style="width:210px">Architecture topic</th><th>What the platform must demonstrate</th><th style="width:130px">Curveballs</th></tr></thead>
+<tbody>
+<tr><td><span class="tag t-event">Event-Driven Cascade</span></td><td>A single attribute change emits an event that fans out to all affected policies/cases with correct effective dating.</td><td>1, 4, 5, 7</td></tr>
+<tr><td><span class="tag t-rules">Rules / Pricing Engine</span></td><td>Externalised, governed rating &amp; eligibility rules (Power Automate / external calc service) — portfolio- and jurisdiction-aware.</td><td>1, 2, 4, 6, 7</td></tr>
+<tr><td><span class="tag t-data">Data Model</span></td><td>Shared Location, Account/Household graph, Policy, Asset/Object &amp; Driver entities as first-class, reusable concepts.</td><td>1, 2, 3, 4, 5, 8</td></tr>
+<tr><td><span class="tag t-integ">Integration</span></td><td>Geo/risk-zone lookup, cantonal KGV registry, Strassenverkehrsamt, external pricing — via governed connectors.</td><td>1, 2</td></tr>
+<tr><td><span class="tag t-org">Territory / Ownership</span></td><td>General Agency assignment, ownership transfer, commissioning and claims routing on relocation.</td><td>3</td></tr>
+<tr><td><span class="tag t-mdm">Master Data / Quality</span></td><td>Identity resolution, golden records, valuation data, and automated remediation tasks.</td><td>6, 8</td></tr>
+<tr><td><span class="tag t-doc">Docs / Compliance</span></td><td>Regulatory notifications, endorsement documents and audit trail on every change.</td><td>1</td></tr>
+</tbody>
+</table>
+
+<h2 class="section" style="margin-top:30px">Telephony architecture — Sales Hub Dialer (GA) vs Luware (Mobi24)</h2>
+<div class="intro" style="margin-bottom:18px">
+<p>UC-AS1 happens at the <strong>Generalagentur</strong>, not at Mobi24 — so it is <strong>not</strong> a contact-center / ACD-queue journey. The two telephony stacks coexist on a single <strong>Teams Phone</strong> PSTN foundation but serve different populations and must be split by number/identity, never double-routing the same user's inbound through both.</p>
+</div>
+<div class="grid">
+
+<div class="card">
+<div class="card-head"><div class="ic"><span class="material-symbols-outlined">call</span></div><div><h3>General Agency · Sales Hub Dialer</h3><div class="sub">UC-AS1 Sales Support — direct-dial, no queue · Microsoft-native</div></div><span class="swiss" style="color:var(--amber);background:#fff4ce"><span class="material-symbols-outlined" style="font-size:14px">science</span>Preview</span></div>
+<div class="card-body">
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">help</span>What it is</div><p>Embedded softphone in the <strong>D365 Sales Hub</strong> right pane, built on the same ACS voice platform as D365 Contact Center but licensed under Sales. Click-to-call, inbound <strong>screen-pop</strong>, auto-logged call activities, warm/cold transfer, spam block, and <strong>Conversation Intelligence</strong> (live transcript, sentiment, in-/post-call AI summaries). Productizes the CTI screen-pop + auto-log layer without a contact-center seat.</p></div>
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">key</span>Licensing</div><div class="lines"><span class="chip">D365 Sales (Ent/Premium)</span><span class="chip">Teams Phone + PSTN</span><span class="chip">Teams Phone Resource Account</span><span class="chip">Conversation Intelligence (Premium)</span><span class="chip">ACS/PSTN usage charges</span></div><p style="margin-top:6px">Seller roles: <strong>Basic User + Omnichannel Agent + Salesperson</strong>. Docs list the entitlement as <strong>just D365 Sales — no separate Contact Center license</strong>; validate at GA via the licensing guide.</p></div>
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">architecture</span>Architecture topics</div><div class="tags-row"><span class="tag t-integ">Teams Phone / ACS</span><span class="tag t-data">CRM screen-pop &amp; logging</span><span class="tag t-org">GA-scoped routing</span></div></div>
+</div></div>
+
+<div class="card">
+<div class="card-head"><div class="ic"><span class="material-symbols-outlined">support_agent</span></div><div><h3>Mobi24 · Luware Nimbus</h3><div class="sub">UC-Mobi24 — true contact center: ACD queues, IVR, skills</div></div></div>
+<div class="card-body">
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">help</span>What it is</div><p>Third-party contact center <strong>native on Microsoft Teams</strong>. Calls do <strong>not</strong> traverse the D365 voice channel; transcription is the Luware <strong>Companion</strong> feature (live caption preview; full transcript end-of-call) accessible via the Nimbus Power Automate connector. This is the genuine 24/7 assistance call-center stack (page-20 softphone scenario).</p></div>
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">key</span>Licensing</div><div class="lines"><span class="chip">Luware Nimbus (per agent)</span><span class="chip">Teams Phone + PSTN</span><span class="chip">Companion / Speech Recognizer</span></div></div>
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">architecture</span>Architecture topics</div><div class="tags-row"><span class="tag t-integ">Teams Phone native</span><span class="tag t-event">Nimbus PA connector</span><span class="tag t-mdm">Identity resolution</span></div></div>
+</div></div>
+
+<div class="card hero" style="border-left-color:var(--brand-dark)">
+<div class="card-head"><div class="ic" style="background:var(--brand-dark);color:#fff"><span class="material-symbols-outlined">warning</span></div><div><h3>Coexistence watch-outs</h3><div class="sub">Both stacks share one Teams Phone PSTN foundation</div></div></div>
+<div class="card-body">
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">checklist</span>Plan for</div><p>A Teams Phone user has <strong>one PSTN identity</strong>; the dialer needs <strong>dedicated seller numbers via resource accounts</strong> — allocate numbers so a GA seller's dialer line and any Luware queue membership don't collide on inbound. Pick <strong>one owner per number/flow</strong> (don't put the same agent behind a Luware ACD queue and the Sales Hub Dialer for the same inbound). In CH, PSTN connectivity is realistically <strong>Operator Connect or Direct Routing</strong> via Mobiliar's telco (Microsoft Calling Plans have limited Swiss availability) — the same connectivity Luware already uses, which simplifies the story.</p></div>
+<div class="block"><div class="k"><span class="material-symbols-outlined" style="font-size:15px">campaign</span>Demo framing</div><p>"GA Sales Support uses the D365 Sales-native dialer (screen-pop, auto-log, AI summary) — no contact-center seat — while Mobi24 keeps Luware for true ACD." Label the dialer <strong>preview</strong> and flag entitlement validation; don't imply GA-readiness or Contact Center licensing.</p></div>
+</div></div>
+
+</div>
+
+</div>
+<div class="foot">Internal demo-preparation artifact · Die Mobiliar Commercial CRM on Dynamics 365 / Dataverse · Curveballs are illustrative and should be validated against current Mobiliar product &amp; underwriting rules. Sales Hub Dialer is a Microsoft <strong>preview</strong> feature — licensing subject to change at GA.</div>
+</body></html>
