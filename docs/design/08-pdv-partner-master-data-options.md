@@ -1,4 +1,4 @@
-# Design Pattern: PDV partner master data integration
+# Design Pattern 08: PDV partner master data integration
 
 **Audience:** EA / IT / data-governance stakeholders evaluating how the CRM sources and stays in sync with partner/customer master data.
 **Related ADR:** `docs/adr/ADR-0035-pdv-partner-master-data-integration-pattern.md`
@@ -33,6 +33,28 @@ Every incoming record passes through `AG-F-05` before landing as an Account/Cont
 
 PDV exports a periodic (e.g. nightly) full or delta extract to a landing zone; an ETL pipeline transforms and upserts it into Dataverse Account/Contact, passing every record through `AG-F-05` for matching.
 
+```mermaid
+flowchart LR
+    subgraph PDVA["PDV (Host)"]
+        EXPORTA["Nightly extract job"]
+    end
+    subgraph LandA["Landing zone"]
+        FILEA["Extract file\n(Blob/SFTP)"]
+    end
+    subgraph ETLA["ETL pipeline"]
+        TRANSA["Transform + validate"]
+        MATCHA["AG-F-05 match/dedupe"]
+    end
+    subgraph DVA["CRM (Dataverse)"]
+        ACCA["Account/Contact\nupsert"]
+        NBAA["AG-F-01 NBA agent"]
+    end
+
+    EXPORTA --> FILEA --> TRANSA --> MATCHA --> ACCA --> NBAA
+```
+
+*This diagram shows the batch path: a nightly PDV extract lands, is transformed, matched by `AG-F-05`, and upserted into Dataverse Account/Contact.*
+
 **Pros:**
 - Matches the plausible technical reality of a legacy Host system with no real-time interface — if that turns out to be true, this is the only mechanism that will actually work without a costly bolt-on change-data-capture layer added to PDV.
 - Simple, well-understood ETL pattern; the batch window makes full-refresh reconciliation and auditability straightforward.
@@ -52,6 +74,28 @@ PDV exports a periodic (e.g. nightly) full or delta extract to a landing zone; a
 
 If PDV can publish change events, it emits `pdv.partner.created` and `pdv.partner.updated` to Confluent Cloud. CRM consumes via whichever of ADR-0031's four connectivity mechanisms is selected, matching every event through `AG-F-05` before upserting near-real-time.
 
+```mermaid
+flowchart LR
+    subgraph PDVB["PDV (Host)"]
+        CHGB["Partner created/updated"]
+    end
+    subgraph KafkaB["Confluent Cloud (Kafka)"]
+        TB["Topics: pdv.partner.created,\npdv.partner.updated"]
+    end
+    subgraph ConnB["Connectivity (ADR-0031 mechanism, reused)"]
+        MECHB["Direct client / managed connector /\nmicroservice / Dataverse push"]
+    end
+    subgraph DVB["CRM (Dataverse)"]
+        MATCHB["AG-F-05 match/dedupe"]
+        ACCB["Account/Contact upsert"]
+        NBAB["AG-F-01 NBA agent"]
+    end
+
+    CHGB --> TB --> MECHB --> MATCHB --> ACCB --> NBAB
+```
+
+*This diagram shows the event-driven path: PDV's change events flow through Kafka and the reused ADR-0031 connectivity mechanism into `AG-F-05` matching and near-real-time Dataverse upserts.*
+
 **Pros:**
 - Near-real-time freshness feeding both `AG-F-01`'s scoring and the ADR-0011 event cascade almost immediately — the closest fit to a "same-day" relocation golden thread.
 - Reuses the same Confluent Cloud backbone and connectivity mechanism already used for Versicherungsprozesse, Schadenprozesse, and ARO (ADR-0031, ADR-0034) — one integration paradigm across the landscape instead of a second, separate one just for PDV.
@@ -67,6 +111,31 @@ If PDV can publish change events, it emits `pdv.partner.created` and `pdv.partne
 ### Option C — Hybrid (event-driven deltas + periodic batch reconciliation)
 
 Steady state runs on event-driven deltas (Option B) for freshness, but a periodic (e.g. weekly) full-batch reconciliation pass (Option A's mechanism) runs alongside it as a self-healing safety net — catching missed events, schema drift, or manual corrections made directly on PDV outside its normal event-publishing path. Any mismatch the reconciliation pass finds is surfaced to `AG-F-05` for review rather than auto-resolved.
+
+```mermaid
+flowchart LR
+    subgraph PDVC["PDV (Host)"]
+        EVTC["Change events\n(if capable)"]
+        EXPORTC["Periodic full extract"]
+    end
+    subgraph KafkaC["Confluent Cloud"]
+        TC["pdv.partner.* topics"]
+    end
+    subgraph ETLC["Reconciliation job"]
+        DIFFC["Diff batch extract vs.\ncurrent Dataverse state"]
+    end
+    subgraph DVC["CRM (Dataverse)"]
+        MATCHC["AG-F-05 match/dedupe"]
+        ACCC["Account/Contact"]
+        NBAC["AG-F-01 NBA agent"]
+    end
+
+    EVTC --> TC --> MATCHC --> ACCC
+    EXPORTC --> DIFFC --> MATCHC
+    ACCC --> NBAC
+```
+
+*This diagram shows the hybrid path: event-driven deltas keep Dataverse current while a periodic batch reconciliation job independently diffs and catches any drift, both routing through `AG-F-05`.*
 
 **Pros:**
 - Combines near-real-time freshness for time-sensitive scenarios (the relocation/jurisdiction cascade) with an inherent self-healing safety net if PDV is only partially event-capable, an event is occasionally dropped, or PDV's operational team makes an out-of-band correction.
