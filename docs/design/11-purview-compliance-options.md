@@ -1,4 +1,4 @@
-# Design Pattern: Purview compliance for Power Platform/Dynamics 365
+# Design Pattern 11: Purview compliance for Power Platform/Dynamics 365
 
 **Audience:** EA / IT / compliance stakeholders evaluating data governance and regulatory controls for the CRM.
 **Related ADR:** `docs/adr/ADR-0038-purview-power-platform-dynamics365-compliance.md`
@@ -27,6 +27,23 @@ Controls in scope:
 - **Native Dataverse auditing** (built-in change-history logging) — who changed what field, when; no separate licence.
 - **Security roles + Business Units** (as established in ADR-0032) — access segregation, reused unchanged.
 
+```mermaid
+flowchart TD
+    subgraph DVA["Dataverse / Dynamics 365"]
+        ACCA["Account / Contact / Interaction"]
+        AUDITA["Native Dataverse\nauditing (change history)"]
+        ROLESA["Security roles + Business Units\n(ADR-0032)"]
+    end
+    subgraph PPA["Power Platform admin center"]
+        DATAPOLA["Data policies\n(connector classification)"]
+    end
+
+    ACCA --> AUDITA
+    ACCA --> ROLESA
+    DATAPOLA --> ACCA
+```
+*Option A's governance surface: native Dataverse auditing and security roles, with Power Platform data policies gating which connectors can touch CRM data — no Purview involved.*
+
 **Pros:**
 - No incremental licence cost; every capability is already included in standard Power Platform/Dynamics 365 licensing.
 - Fastest to stand up; nothing new to design or roll out.
@@ -54,6 +71,29 @@ Controls in scope:
 - **Compliance Manager** — regulatory assessment templates and scoring; concrete mechanism for the GDPR/revDSG/financial-regulator `[TBD]` rows, once legal/DPO confirms applicable templates.
 - **Purview Communication Compliance** — monitors advisor communications for policy violations; complements, does not replace, the human-approval gate (ADR-0014).
 
+```mermaid
+flowchart TD
+    subgraph DVB["Dataverse / Dynamics 365"]
+        ACCB["Account / Contact / Interaction"]
+    end
+    subgraph PVB["Microsoft Purview"]
+        DATAMAP["Data Map\n(Dataverse registered + scanned)"]
+        LABELS["Sensitivity labels\n(Dynamics 365 email)"]
+        DLPB["Purview DLP\n(content-based, incl. Copilot)"]
+        AUDITB["Purview Audit\n(unified log, cross-workload)"]
+        COMPMGR["Compliance Manager\n(regulatory assessments)"]
+        COMMCOMP["Communication Compliance\n(policy-violation monitoring)"]
+    end
+
+    ACCB --> DATAMAP
+    ACCB --> LABELS
+    ACCB --> AUDITB
+    LABELS --> DLPB
+    ACCB --> COMMCOMP
+    DATAMAP --> COMPMGR
+```
+*Option B's governance surface: Dataverse data flows into every Purview capability — Data Map, sensitivity labels, DLP, Audit, and Communication Compliance — the fullest, most licence-intensive option.*
+
 **Pros:**
 - Directly answers most of `docs/COMPLIANCE.md`'s `[TBD]` rows with a real, documented technical mechanism rather than leaving them open.
 - Content-based DLP genuinely checks AI-drafted outbound communications, not just connector combinations.
@@ -77,6 +117,25 @@ Starts with the lowest-effort, already-native-feeling capabilities — **Purview
 Controls in scope:
 - **Phase 1 (immediate):** Purview Audit enabled for Dataverse activity + native Power Platform data policies (as Option A) — lowest-effort capability that already answers "who did what, when" across CRM, at effectively no incremental cost.
 - **Phase 2 (deferred, evidence-triggered):** Full Option B capability set — Data Map, sensitivity labels, Purview DLP policies, Communication Compliance — rolled out once volume/regulatory confirmation justifies the licence and design cost.
+
+```mermaid
+flowchart LR
+    subgraph Phase1["Phase 1 - quick wins"]
+        direction LR
+        AUDITC1["Purview Audit enabled\nfor Dataverse activity"]
+        NATIVEC1["Native Power Platform\ndata policies (as Option A)"]
+    end
+    subgraph Phase2["Phase 2 - deferred, triggered by evidence"]
+        direction LR
+        DATAMAPC2["Data Map cataloging\nof Dataverse"]
+        LABELC2["Sensitivity label\ntaxonomy + rollout"]
+        DLPC2["Purview DLP policies"]
+        COMMC2["Communication Compliance"]
+    end
+
+    Phase1 --> Phase2
+```
+*Option C's staged rollout: Phase 1 mirrors Option A's native controls; Phase 2, once triggered, adds Option B's full Purview capability set.*
 
 **Pros:**
 - Gets a real, working audit trail and connector guardrail in place immediately, at effectively no incremental cost — closing the single biggest visible gap in Option A first.
