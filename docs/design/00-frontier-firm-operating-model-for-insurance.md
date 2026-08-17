@@ -82,7 +82,7 @@ Relevant insight about Contoso Insurance's customers, advisors, and processes is
 
 > **In this showcase:** Business/Teams, Agent/Copilot Agent Mesh, Engineering/GitHub, and Operational/Dataverse are **built**. Interaction/Work IQ is **documented only** - see `docs/FRONTIER-OPERATING-MODEL.md` section 8 for why, and how a real engagement would wire it up.
 
-These five planes are not independent — each Insight/Decision/Delivery/Outcome cycle crosses all five in sequence:
+These five planes are not independent - each Insight/Decision/Delivery/Outcome cycle crosses all five in sequence:
 
 ```mermaid
 flowchart TB
@@ -101,13 +101,13 @@ flowchart TB
     CE --> BP --> IP --> AP --> EP --> OP --> TL --> BP
 ```
 
-*Legend: white = Microsoft platform capability, red = a Contoso Insurance-owned system, grey = shared/jointly-owned — the same convention used in `docs/FRONTIER-OPERATING-MODEL.md`'s Solution Context diagrams.*
+*Legend: white = Microsoft platform capability, red = a Contoso Insurance-owned system, grey = shared/jointly-owned - the same convention used in `docs/FRONTIER-OPERATING-MODEL.md`'s Solution Context diagrams.*
 
 **Full detail:** `docs/FRONTIER-OPERATING-MODEL.md` section 5 (adapted table with Built/Documented-only status per plane) and its Solution Context section for the full Contoso-specific architecture.
 
 ## 5. The agent roster behind the planes
 
-Every plane above runs on named agents, and every agent is advisory: it recommends, a human decides, with no exception ([ADR-0014](../adr/ADR-0014-agents-advisory-by-design.md), `AGENTS.md`).
+Every plane above runs on named agents, and every agent is advisory: it recommends, a human decides, with no exception ([ADR-0014](../adr/ADR-0014-agents-advisory-by-design.md), `AGENTS.md`). Agent IDs follow `AGENTS.md`'s two classes: `AG-F-##` are runtime/functional agents inside the showcase, and `AG-E-##` are engineering/build-time agents that build it.
 
 | Idea-doc role | Existing agent(s) | Notes |
 | --- | --- | --- |
@@ -179,7 +179,7 @@ stateDiagram-v2
     Rejected --> [*]
 ```
 
-**Full detail:** `docs/FRONTIER-OPERATING-MODEL.md` section 7, [ADR-0014](../adr/ADR-0014-agents-advisory-by-design.md) (agents advisory by design), [ADR-0038](../adr/ADR-0038-purview-power-platform-dynamics365-compliance.md) (Purview compliance).
+**Full detail:** `docs/FRONTIER-OPERATING-MODEL.md` section 7, [ADR-0014](../adr/ADR-0014-agents-advisory-by-design.md) (agents advisory by design), [ADR-0038](../adr/ADR-0038-purview-power-platform-dynamics365-compliance.md) (Purview compliance; the classification above is illustrative, pending ADR-0038's still-open option choice).
 
 ## 7. Roadmap, phased and status-tagged
 
@@ -198,7 +198,7 @@ flowchart LR
     P4 --> P5["Phase 5: Agent mesh scaling"]:::demoed
 ```
 
-*Legend: green = Built, amber = Demoed via docs, grey dashed = Documented-only - a deliberately different palette from the ownership colours in section 4, because this diagram encodes delivery status, not who owns each plane.*
+*Legend: green = Built, amber = Demoed via docs, grey dashed = Documented-only - green and amber are new here, while grey deliberately reuses section 4's shared colour (documented-only work is also the least firmly owned), set apart by the dashed stroke rather than a new hue.*
 
 **Full detail:** `docs/FRONTIER-OPERATING-MODEL.md` section 9 for the full description of each phase's deliverables.
 
@@ -226,7 +226,7 @@ This repo is the worked example of the method above, applied to the Contoso Insu
 
 ## Validate this live
 
-During the demo, walk this document section by section first (section 2 vision -> section 3 requirements -> section 4 control planes -> section 5 agents -> section 6 governance -> section 7 roadmap -> section 8 method -> section 9 worked example) to deliver the full mental model in one pass. Then open `docs/FRONTIER-OPERATING-MODEL.md` for full depth on any section, walking it the same way (section 5 control planes -> section 6 role mapping -> section 7 governance -> section 8 Work IQ pattern -> section 9 roadmap) to show this is a real, repo-grounded method, not a slide-only framework. Then open `docs/superpowers/sprints/` to show the requirement -> ADR -> design-pattern -> deployed-evidence loop this repo actually runs.
+During the demo, first walk this document section by section (section 2 vision -> section 3 requirements -> section 4 control planes -> section 5 agents -> section 6 governance -> section 7 roadmap -> section 8 method -> section 9 worked example) to deliver the full mental model in one pass. For deeper detail on any topic, open `docs/FRONTIER-OPERATING-MODEL.md`, which covers the same ground at greater depth (its own section 5 control planes, section 6 role mapping, section 7 governance, section 8 Work IQ pattern, section 9 roadmap - note these section numbers refer to that document, not this one) to show this is a real, repo-grounded method, not a slide-only framework. Then open `docs/superpowers/sprints/` to show the requirement -> ADR -> design-pattern -> deployed-evidence loop this repo actually runs.
 
 ## Decision
 
