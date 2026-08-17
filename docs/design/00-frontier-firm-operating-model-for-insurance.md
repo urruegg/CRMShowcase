@@ -43,17 +43,17 @@ Six principles keep the loop honest:
 | Principle | What it means for Contoso Insurance |
 | --- | --- |
 | Human-led | Advisors and named humans set direction, standards, priorities, and approvals ([ADR-0014](../adr/ADR-0014-agents-advisory-by-design.md)). |
-| Agent-operated | Runtime and engineering agents handle analysis, structuring, proposals, drafts, and recurring operational work. |
+| Agent-operated | Runtime and engineering agents handle analysis, structuring, proposals, drafts, and recurring operational work (`AGENTS.md`). |
 | HITL-controlled | Critical steps stay under human control, with no exceptions ([ADR-0014](../adr/ADR-0014-agents-advisory-by-design.md)). |
 | GitHub-driven | Every implementation-relevant requirement becomes traceable, versioned, and sprint-ready (`AGENTS.md` section 3). |
-| Dataverse-backed | Operational truth and outcome measurement live in Dataverse and Power Platform ([ADR-0008](../adr/ADR-0008-thin-crm-over-systems-of-record.md)). |
-| Teams/B2E-visible | Delivery status stays visible to employees through Teams and the B2E layer ([ADR-0033](../adr/ADR-0033-crm-ux-placement-in-b2e-landscape.md)). |
+| Dataverse-backed | Operational truth lives in Dataverse and Power Platform ([ADR-0008](../adr/ADR-0008-thin-crm-over-systems-of-record.md)). |
+| Teams/B2E-visible | Employees coordinate with customers, agents, and each other through Teams and the B2E UX layer ([ADR-0033](../adr/ADR-0033-crm-ux-placement-in-b2e-landscape.md)). |
 
 **Full detail:** `docs/FRONTIER-OPERATING-MODEL.md` section 4 maps each loop stage onto this repo's existing traceability chain, mechanism by mechanism.
 
 ## 3. What the operating model must deliver
 
-Relevant insight about Contoso Insurance's customers, advisors, and processes is generated constantly - in Teams/B2E discussions, advisory notes, meeting transcripts, GitHub issues, sprint reviews, product usage, customer feedback, and operational Dataverse data. Without a standardized loop, that insight risks going uncaptured, unprioritized, never delivered, or never checked for impact after it ships.
+Relevant insight about Contoso Insurance's customers, advisors, and processes is generated constantly - in Teams/B2E discussions, advisory notes, meeting transcripts, GitHub issues, sprint reviews, product usage, customer feedback, and operational Dataverse data. Without a standardized loop, that insight risks going uncaptured, unprioritized, undelivered, or unmeasured.
 
 **Who this model is for**, mapped to this repo's real personas (`docs/PERSONAS-JOURNEY.md`) rather than generic role labels:
 
@@ -66,7 +66,7 @@ Relevant insight about Contoso Insurance's customers, advisors, and processes is
 
 - No fully autonomous prioritization without human sign-off.
 - No autonomous PROD deployment without review.
-- No unreviewed processing of sensitive customer data - health, financial exposure, or claims detail - by an arbitrary agent.
+- No unreviewed processing of sensitive customer data - health, financial exposure, or claims detail - by an arbitrary agent ([ADR-0038](../adr/ADR-0038-purview-power-platform-dynamics365-compliance.md)).
 - No wholesale replacement of existing advisory or engineering processes.
 - No autonomously issued binding recommendation, quote, or policy change - agents recommend, a named human decides, with no exception (`AGENTS.md`).
 
