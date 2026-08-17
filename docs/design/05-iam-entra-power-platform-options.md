@@ -1,4 +1,4 @@
-# Design Pattern: Identity and access management (Entra to Power Platform/Dynamics 365)
+# Design Pattern 05: Identity and access management (Entra to Power Platform/Dynamics 365)
 
 **Audience:** EA / IT / security stakeholders evaluating how Entra security roles map to Power Platform and Dynamics 365 access.
 **Related ADR:** `docs/adr/ADR-0032-entra-power-platform-dynamics365-identity-access-management.md`
@@ -27,6 +27,30 @@ One **Entra Security Group per GA** (e.g. `GA-Bern-Advisors`) backs one Datavers
 
 A Graph API-driven reconciliation job (Power Automate or an Azure Function, triggered on Entra group/attribute change notifications) computes each user's target Business Unit(s) and Security Role(s), then calls the Dataverse Web API to set `systemuser.businessunitid` and manage `systemuserroles_association` directly. Unlike Option A's one-team-per-BU model, this supports **many-to-many** combinations — a single user with roles/access spanning multiple GAs or a mix of functional roles.
 
+```mermaid
+flowchart LR
+    subgraph EntraB["Entra ID"]
+        GROUPS_B["Security groups /\nattributes (multi-GA membership)"]
+        NOTIF["Graph change\nnotifications"]
+    end
+    subgraph AutoB["Reconciliation (own build)"]
+        SYNC["Power Automate /\nAzure Function"]
+    end
+    subgraph DVB["Dataverse"]
+        USER["systemuser\n(businessunitid)"]
+        ASSOC["systemuserroles_association\n(one or more roles)"]
+        ACCB["Account / Household"]
+    end
+
+    GROUPS_B --> NOTIF --> SYNC
+    SYNC -- "Dataverse Web API" --> USER
+    SYNC -- "Dataverse Web API" --> ASSOC
+    USER --> ACCB
+    ASSOC --> ACCB
+```
+
+*This diagram shows the automated reconciliation path: an Entra group/attribute change notification triggers a reconciliation job that sets Business Unit and Security Role assignments directly via the Dataverse Web API, supporting the many-to-many, cross-BU access Option A's one-team-per-BU model cannot.*
+
 - **Pros.** The only option that cleanly handles a persona whose access does not fit one Business Unit — a Broker Manager (`P-05`) covering several GAs, a Marketer (`P-04`) or Business owner/Data steward (`P-07`) needing central, cross-BU access by design. Change notifications can react faster than Option A's 8-hour cache. Generalises the reconciliation pattern ADR-0005 already used for CI service principals to human users.
 - **Cons.** Real custom code to build, run, and monitor — retries, idempotency, and drift detection (if the job fails silently, a leaver's access is not revoked) are the team's responsibility. A second identity-plane moving part alongside native mechanisms. Requires its own reliability engineering and alerting to avoid privilege drift.
 - **Licence.** 🧩 own build (reconciliation service/flow + monitoring).
@@ -35,6 +59,26 @@ A Graph API-driven reconciliation job (Power Automate or an Azure Function, trig
 
 Not a replacement for A or B, but a layer on top of either. **Entra PIM for Groups** makes membership of privileged groups (e.g. the group backing a "System Administrator" Dataverse team) **eligible** rather than standing — activation requires justification, optional approval, and is time-bound. **Conditional Access** policies scoped to the Dynamics 365/Power Platform cloud app enforce MFA, device compliance, and named-location restrictions on every sign-in.
 
+```mermaid
+flowchart LR
+    subgraph EntraC["Entra ID"]
+        ELIGIBLE["PIM-eligible group:\nDataverse-SysAdmin-Eligible"]
+        ACTIVATE["Activation:\njustification + approval + MFA"]
+        CA["Conditional Access policy\n(scoped to Dynamics 365 / Power Platform)"]
+    end
+    subgraph DVC["Dataverse"]
+        TEAMC["Group team\n(from Option A/B)"]
+        ROLEC["Security Role:\nSystem Administrator"]
+    end
+
+    ELIGIBLE -- "activate (time-bound)" --> ACTIVATE
+    ACTIVATE -- "becomes active member" --> TEAMC
+    TEAMC --> ROLEC
+    CA -. "gates every sign-in" .-> TEAMC
+```
+
+*This diagram shows the PIM hardening layer: privileged group membership is eligible rather than standing, requiring justification and approval to activate time-bound access, while Conditional Access gates every sign-in — layered on top of whichever base model (Option A or B) is chosen.*
+
 - **Pros.** Standing privilege is minimised — System Administrator/Customizer access exists only when actively needed and is fully audited (who activated, when, why, approved by whom). "Verify explicitly" is enforced at every sign-in. Recurring access reviews give a concrete, demonstrable answer to regulatory attestation questions. Directly matches SECURITY.md's Zero Trust framing and closes its "Identity & access model" `[TBD]`.
 - **Cons.** **Licence-gated** — PIM for Groups requires **Microsoft Entra ID Governance (P2)**; the customer's actual Entra licence tier is unconfirmed (`[TBD]`). Approval workflows add latency for legitimate access — a break-glass exception must be defined for incidents. Conditional Access misconfiguration is a real lockout risk; needs a report-only rollout phase before enforcement. This option does **not** solve the multi-BU access problem on its own — it must be paired with Option A or B for the underlying territory model.
 - **Licence.** Native / configuration (Entra admin center) but **licence cost-gated**: Entra ID Governance P2 required for PIM for Groups.
@@ -42,6 +86,18 @@ Not a replacement for A or B, but a layer on top of either. **Entra PIM for Grou
 ### Option D — Manual baseline (individual assignment, no automation)
 
 The admin manually sets each `systemuser`'s Business Unit and Security Role via the Power Platform admin center or Dataverse UI. New Entra ID users are created under the **root Business Unit** on first sign-in and must be moved and role-assigned by hand. No Entra group linkage exists.
+
+```mermaid
+flowchart LR
+    ENTRA_D[("Entra ID\n(tenant member, first sign-in)")]
+    ROOT["Dataverse: created under\nroot Business Unit"]
+    ADMIN["Admin manually sets:\nBusiness Unit + Security Role"]
+    ACCD["Account / Household\n(owned by Business Unit)"]
+
+    ENTRA_D --> ROOT --> ADMIN --> ACCD
+```
+
+*This diagram shows the manual baseline: a new Entra ID user lands under the root Business Unit by default until an admin manually sets the correct Business Unit and Security Role — the slowest and least auditable of the four paths.*
 
 - **Pros.** Zero build effort, zero new infrastructure, zero Entra group hygiene prerequisite — works today, for a small pilot or demo scale.
 - **Cons.** Does not scale to ~80 GAs / hundreds of advisors — every onboarding, offboarding, and GA reassignment is a manual step. A leaver's access is revoked only if someone remembers to do it — the weakest audit trail of the four options and no automatic drift detection. An ADR-0013 territory reassignment requires a manual Security Role/BU edit each time, with no technical link back to the governed business-case record.
