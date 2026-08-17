@@ -198,7 +198,7 @@ flowchart LR
     P4 --> P5["Phase 5: Agent mesh scaling"]:::demoed
 ```
 
-*Legend: green = Built, amber = Demoed via docs, grey dashed = Documented-only - green and amber are new here, while grey deliberately reuses section 4's shared colour (documented-only work is also the least firmly owned), set apart by the dashed stroke rather than a new hue.*
+*Legend: green = Built, amber = Demoed via docs, grey dashed = Documented-only - green and amber are new here, while grey deliberately reuses section 4's shared colour, set apart by the dashed stroke rather than a new hue.*
 
 **Full detail:** `docs/FRONTIER-OPERATING-MODEL.md` section 9 for the full description of each phase's deliverables.
 
