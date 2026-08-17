@@ -1,4 +1,4 @@
-# Design Pattern: Power Platform environment strategy (B2B/B2C)
+# Design Pattern 10: Power Platform environment strategy (B2B/B2C)
 
 **Audience:** EA / IT / platform-ops stakeholders evaluating whether B2B and B2C insurance business models should share or have separate Power Platform environments.
 **Related ADR:** `docs/adr/ADR-0037-power-platform-environment-strategy-b2b-b2c.md`
@@ -23,72 +23,6 @@ Both framings are carried through the options below. The right framing depends o
 ### Option A — Single combined environment, Business-Unit segregation
 
 All populations (Household, Business, Broker) share **one** production Dataverse environment. Business Units — one per population — plus security roles segregate data visibility and administrative boundaries within that single environment. This is the mechanism Microsoft's own guidance names as the built-in alternative to environment proliferation.
-
-- **Pros:**
-  - Matches ADR-0006's one-Account/360°-view position most directly. A household member who is also a small-business owner is a single query against one environment — no reconciliation layer required.
-  - One release train, one ALM pipeline, one set of environment-level admin resources. Lowest ongoing operational overhead of the three options.
-  - Stays within a single environment's existing Dataverse capacity/storage entitlement — no additional Power Platform capacity add-on required.
-
-- **Cons:**
-  - Every population shares the same blast radius. A plugin bug, a bad solution deployment, or a runaway workflow affecting one population can affect all of them.
-  - Broker users (often external/non-employee identities) sit inside the same environment-level trust boundary as internal Household/Business data, which may not satisfy a stricter Zero Trust posture.
-
-- **Design pattern:** Native Dataverse Business Unit hierarchy + security role matrix.
-
----
-
-### Option B — Fully separated environments per population
-
-Each recognised population gets its own Dataverse environment, independently released and administered. Available in a two-way variant (`PROD-CRM-B2C` / `PROD-CRM-B2B`) or a three-way variant (`PROD-CRM-HOUSEHOLD` / `PROD-CRM-BUSINESS` / `PROD-CRM-BROKER`). A cross-environment reconciliation/integration layer is required to reconstruct a unified 360° view for any party that spans populations.
-
-- **Pros:**
-  - Strongest blast-radius isolation — a bad deployment or incident in one environment cannot affect another.
-  - Each population can have its own release cadence.
-  - Broker's external/non-employee users sit in a fully separate environment-level trust boundary — the cleanest Zero Trust posture for that population.
-
-- **Cons:**
-  - Directly tensions with ADR-0006's one-Account/360°-view position. A person who spans populations (e.g. household member who is also a small-business owner) now requires a **new cross-environment reconciliation/integration layer** that does not exist today — a material new engineering scope, not a configuration choice.
-  - Highest operational overhead: N environments means N release trains, N sets of admin resources, and N times the base Power Platform capacity/storage entitlement.
-
-- **Design pattern:** Environment-per-bounded-context, with a federation/integration layer bridging them — architecturally similar to a multi-tenant-by-environment pattern.
-
----
-
-### Option C — Hybrid, split by identity/access boundary
-
-Populations are grouped into **two** environments along whichever boundary genuinely needs different identity/access treatment. Two illustrative groupings:
-
-- **Grouping C1 — Broker split out:** `Environment: Household + Business` (internal, employee-served) and `Environment: Broker` (external, non-employee identities).
-- **Grouping C2 — Household split out:** `Environment: Household` and `Environment: Business + Broker`.
-
-Within the shared environment, Business Unit segregation still applies (as in Option A). A **narrower** reconciliation/integration layer is needed only for the one boundary that is actually separated — not for every pair of populations as in Option B.
-
-- **Pros:**
-  - Targets the isolation Option B is trying to achieve (typically the Broker identity boundary) without paying Option B's full N-environment cost for populations that don't actually need different treatment from each other.
-  - Narrower, more tractable reconciliation surface than Option B: one boundary, not every pair.
-
-- **Cons:**
-  - Still tensions with ADR-0006 for whichever population ends up split out.
-  - Which grouping (C1 vs. C2) is right depends entirely on the still-open two-way/three-way framing question and on facts not yet confirmed with the customer (e.g. whether brokers are truly external identities today, or already internally managed). Picking the wrong boundary means re-doing the split later.
-
-- **Design pattern:** Selective environment-per-bounded-context — Option B's pattern, deliberately applied to only one boundary instead of every population pair, keeping the rest on Option A's Business-Unit pattern.
-
-## Comparison
-
-| Criterion | Option A — Single combined | Option B — Fully separated | Option C — Hybrid |
-| --- | --- | --- | --- |
-| Matches ADR-0006's one-Account/360°-view position | Directly | No — needs a new reconciliation layer for every population pair | Partially — needs reconciliation only for the one separated boundary |
-| Blast-radius isolation | Lowest — one shared environment | Highest | Medium — isolates only the separated population |
-| Release cadence independence | None — one release train | Full — N independent release trains | Partial — two release trains |
-| Fit for external/non-employee Broker identities (Zero Trust) | Weakest — same trust boundary as internal populations | Strongest, if Broker is fully split out | Strong, if the Broker boundary is the one chosen (Grouping C1) |
-| New reconciliation/integration layer required | No | Yes — for every population pair | Yes — but only for one boundary |
-| Operational/administration overhead | Lowest | Highest | Medium |
-| Environment/capacity licence cost | Baseline (one environment) | Highest (N environments) | Medium (two environments) |
-| Sensitivity to the still-open two-way/three-way framing question | Low — agnostic to population count | High — shape changes materially by framing | High — determines which grouping (C1/C2) applies |
-
-## Key diagram
-
-The diagram below depicts Option A — the single-combined-environment topology where Business Unit segregation within one Dataverse environment serves all populations. This is the option that aligns most directly with ADR-0006's one-Account/360°-view position and is therefore the natural baseline against which Options B and C are evaluated.
 
 ```mermaid
 flowchart TD
@@ -117,6 +51,114 @@ flowchart TD
     ACCBU --> NBAAGENT
     ACCBR --> NBAAGENT
 ```
+
+*This diagram shows Option A's single-environment topology: Business Unit segregation and security roles keep Household/Business/Broker data apart within one shared Dataverse environment, with the six solution packages and the `AG-F-01` NBA agent each running as a single shared instance.*
+
+- **Pros:**
+  - Matches ADR-0006's one-Account/360°-view position most directly. A household member who is also a small-business owner is a single query against one environment — no reconciliation layer required.
+  - One release train, one ALM pipeline, one set of environment-level admin resources. Lowest ongoing operational overhead of the three options.
+  - Stays within a single environment's existing Dataverse capacity/storage entitlement — no additional Power Platform capacity add-on required.
+
+- **Cons:**
+  - Every population shares the same blast radius. A plugin bug, a bad solution deployment, or a runaway workflow affecting one population can affect all of them.
+  - Broker users (often external/non-employee identities) sit inside the same environment-level trust boundary as internal Household/Business data, which may not satisfy a stricter Zero Trust posture.
+
+- **Design pattern:** Native Dataverse Business Unit hierarchy + security role matrix.
+
+---
+
+### Option B — Fully separated environments per population
+
+Each recognised population gets its own Dataverse environment, independently released and administered. Available in a two-way variant (`PROD-CRM-B2C` / `PROD-CRM-B2B`) or a three-way variant (`PROD-CRM-HOUSEHOLD` / `PROD-CRM-BUSINESS` / `PROD-CRM-BROKER`). A cross-environment reconciliation/integration layer is required to reconstruct a unified 360° view for any party that spans populations.
+
+```mermaid
+flowchart LR
+    subgraph TwoWayEnv["Two-way variant"]
+        direction LR
+        ENVB2C["PROD-CRM-B2C\n(Household)"]
+        ENVB2B["PROD-CRM-B2B\n(Business + Broker)"]
+    end
+    subgraph ThreeWayEnv["Three-way variant"]
+        direction LR
+        ENVHH["PROD-CRM-HOUSEHOLD"]
+        ENVBU["PROD-CRM-BUSINESS"]
+        ENVBR["PROD-CRM-BROKER"]
+    end
+    RECONCILE["Cross-environment\nreconciliation/integration layer\n(new — not needed in Option A)"]
+
+    ENVB2C -.-> RECONCILE
+    ENVB2B -.-> RECONCILE
+    ENVHH -.-> RECONCILE
+    ENVBU -.-> RECONCILE
+    ENVBR -.-> RECONCILE
+```
+
+*This diagram shows Option B's two-way and three-way variants side by side: however the populations are grouped, every fully-separated environment feeds a new cross-environment reconciliation layer that Option A does not need.*
+
+- **Pros:**
+  - Strongest blast-radius isolation — a bad deployment or incident in one environment cannot affect another.
+  - Each population can have its own release cadence.
+  - Broker's external/non-employee users sit in a fully separate environment-level trust boundary — the cleanest Zero Trust posture for that population.
+
+- **Cons:**
+  - Directly tensions with ADR-0006's one-Account/360°-view position. A person who spans populations (e.g. household member who is also a small-business owner) now requires a **new cross-environment reconciliation/integration layer** that does not exist today — a material new engineering scope, not a configuration choice.
+  - Highest operational overhead: N environments means N release trains, N sets of admin resources, and N times the base Power Platform capacity/storage entitlement.
+
+- **Design pattern:** Environment-per-bounded-context, with a federation/integration layer bridging them — architecturally similar to a multi-tenant-by-environment pattern.
+
+---
+
+### Option C — Hybrid, split by identity/access boundary
+
+Populations are grouped into **two** environments along whichever boundary genuinely needs different identity/access treatment. Two illustrative groupings:
+
+- **Grouping C1 — Broker split out:** `Environment: Household + Business` (internal, employee-served) and `Environment: Broker` (external, non-employee identities).
+- **Grouping C2 — Household split out:** `Environment: Household` and `Environment: Business + Broker`.
+
+Within the shared environment, Business Unit segregation still applies (as in Option A). A **narrower** reconciliation/integration layer is needed only for the one boundary that is actually separated — not for every pair of populations as in Option B.
+
+```mermaid
+flowchart LR
+    subgraph GroupingC1["Grouping C1 — Broker split out"]
+        direction LR
+        ENVC1A["Environment: Household + Business\n(internal, employee-served)"]
+        ENVC1B["Environment: Broker\n(external, non-employee identities)"]
+    end
+    subgraph GroupingC2["Grouping C2 — Household split out"]
+        direction LR
+        ENVC2A["Environment: Household"]
+        ENVC2B["Environment: Business + Broker"]
+    end
+```
+
+*This diagram shows Option C's two illustrative groupings: Grouping C1 splits Broker out as the external/non-employee boundary, while Grouping C2 splits Household out instead — only one of the two boundaries actually needs to be chosen.*
+
+- **Pros:**
+  - Targets the isolation Option B is trying to achieve (typically the Broker identity boundary) without paying Option B's full N-environment cost for populations that don't actually need different treatment from each other.
+  - Narrower, more tractable reconciliation surface than Option B: one boundary, not every pair.
+
+- **Cons:**
+  - Still tensions with ADR-0006 for whichever population ends up split out.
+  - Which grouping (C1 vs. C2) is right depends entirely on the still-open two-way/three-way framing question and on facts not yet confirmed with the customer (e.g. whether brokers are truly external identities today, or already internally managed). Picking the wrong boundary means re-doing the split later.
+
+- **Design pattern:** Selective environment-per-bounded-context — Option B's pattern, deliberately applied to only one boundary instead of every population pair, keeping the rest on Option A's Business-Unit pattern.
+
+## Comparison
+
+| Criterion | Option A — Single combined | Option B — Fully separated | Option C — Hybrid |
+| --- | --- | --- | --- |
+| Matches ADR-0006's one-Account/360°-view position | Directly | No — needs a new reconciliation layer for every population pair | Partially — needs reconciliation only for the one separated boundary |
+| Blast-radius isolation | Lowest — one shared environment | Highest | Medium — isolates only the separated population |
+| Release cadence independence | None — one release train | Full — N independent release trains | Partial — two release trains |
+| Fit for external/non-employee Broker identities (Zero Trust) | Weakest — same trust boundary as internal populations | Strongest, if Broker is fully split out | Strong, if the Broker boundary is the one chosen (Grouping C1) |
+| New reconciliation/integration layer required | No | Yes — for every population pair | Yes — but only for one boundary |
+| Operational/administration overhead | Lowest | Highest | Medium |
+| Environment/capacity licence cost | Baseline (one environment) | Highest (N environments) | Medium (two environments) |
+| Sensitivity to the still-open two-way/three-way framing question | Low — agnostic to population count | High — shape changes materially by framing | High — determines which grouping (C1/C2) applies |
+
+## Key diagram
+
+The most representative single diagram for this pattern is the Option A single-combined-environment diagram shown above under [Options considered](#options-considered) — it is the most representative topology because it depicts the natural baseline (the option that aligns most directly with ADR-0006's one-Account/360°-view position) against which Options B and C's added reconciliation-layer cost is evaluated.
 
 ## Validate this live
 
