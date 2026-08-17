@@ -890,3 +890,41 @@ policy — not a silent omission):** sprint-003's own path was
 schema/seed-pipeline (this document) → MDA app + PCF ALM wrap (#64) → *then*
 DEV→TEST promotion (#65). TEST evidence was intentionally sequenced last,
 not skipped.
+
+## Sprint closed (2026-08-17)
+
+Closed by owner decision to start a repo-hygiene/consistency sprint next,
+**with the Definition of Done only partially met** — stated explicitly per
+the anchored policy, not a silent omission.
+
+### Definition of done (per the sprint-charter template)
+
+- [x] All *design-owned* streams merged to main via PR (governance,
+      measure-contract, seed-fixtures, both PCF surfaces, foundation-choices,
+      mda-app naming/import fixes — PRs #66–#75, #100, #110, #112, #114,
+      #115, #117, #118 all merged)
+- [x] Evidence captured in this STATUS.md under `## Live DEV + TEST evidence`
+- [ ] **DEV evidence — partially green.** `validate` (offline Pester suite)
+      passes on every run. The live `author` job is **not** fully green:
+      run [31962217108](https://github.com/urruegg/CRMShowcase/actions/runs/31962217108)
+      failed at `Reconcile demo-safe metadata` (the pre-existing
+      `crmshow_leadclusterid` Lookup-creation bug below). Everything before
+      that step is live in DEV.
+- [ ] **TEST evidence — partially promoted.** Run
+      [31964290915](https://github.com/urruegg/CRMShowcase/actions/runs/31964290915):
+      `crmshow_Foundation`/`crmshow_DataModel`/`crmshow_Integration` promoted
+      and published successfully (first time this sprint). `crmshow_Sales`
+      blocked on the MCP Server/Agent dependency below — **not** promoted.
+
+### Carry-over items (tracked as new issues, not dropped)
+
+| # | Item | Why it's open | Stream/root |
+| --- | --- | --- | --- |
+| [#120](https://github.com/urruegg/CRMShowcase/issues/120) | Fix `crmshow_leadclusterid` Lookup creation in `Publish-InsuranceFoundation.ps1` | Dataverse rejects Lookup attrs via a plain metadata Attributes POST (`0x80040203`); needs the relationship-creation endpoint | foundational-tables (#57) |
+| [#121](https://github.com/urruegg/CRMShowcase/issues/121) | Resolve the `crmshow_AdvisorCockpit_MCPServer`/`uxagentproject` dependency blocking `crmshow_Sales` TEST promotion | Stray Maker-Portal-added Copilot/agent dependency, pre-flagged `targetSolution=None` in the intake BOM, never resolved | e2e-verify (#65) |
+| [#122](https://github.com/urruegg/CRMShowcase/issues/122) | Bind the imported `AdvisorCockpit` PCF control to the `nickname` field on the "Advisory Cockpit" Contact form's "Cockpit" tab | This was the **original** motivating task for the whole PCF-import investigation; never completed once the control finally imported successfully | mda-app (#64) |
+| [#123](https://github.com/urruegg/CRMShowcase/issues/123) | Remove now-moot `pageUniqueName` references (`advisor-cockpit-app.json`) and dead `ConvertTo-ComponentTypeValue`/`$script:ComponentTypeValues` code (`publish-advisor-cockpit-app.ps1`) | Left over from the abandoned Custom Page hosting approach | mda-app (#64) |
+| [#124](https://github.com/urruegg/CRMShowcase/issues/124) | Intake-export the DEV-authored `foundational-tables`/`cockpit-tables` schema into `solution/core/datamodel` source | Schema was authored live in DEV (run 31805085480, 2026-08-14) but never round-tripped into the repo | foundational-tables/cockpit-tables (#57/#58) |
+
+nba-agent (#61) remains explicitly deferred (out of sprint scope, needs a
+use-case description) as already noted above — not a new carry-over.

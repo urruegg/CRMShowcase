@@ -42,9 +42,14 @@ DESIGN-SENSITIVE streams run **attended**; EXECUTION-ONLY may run headless.
 | foundational-tables (slices 1–5) | 2 | #57 | DESIGN-SENSITIVE | ✅ DEV-authored (2026-08-14, run 31805085480); source not yet intake-exported |
 | cockpit-tables (nba + provenance) | 3 | #58 | EXECUTION-ONLY | ✅ DEV-authored (2026-08-14, run 31805085480); source not yet intake-exported |
 | seed-pipeline wiring | 5.3 | #60 (follow-up) | EXECUTION-ONLY | ✅ code-complete (2026-08-14/15) — claims mapping, `crmshow_seedkey`, the `Get-AccountKeyMap` resolver, account upserts, and the CD-DEV pipeline step all done; not yet verified live; contacts/roles and policies deferred |
-| mda-app + custom pages | 9 | #64 | DESIGN-SENSITIVE | ⏳ in progress (attended) |
-| e2e DEV→TEST verify | 10 | #65 | EXECUTION-ONLY | ⏳ DEV-gated — must produce a `## Live DEV + TEST evidence` section per the newly-anchored [Sprint Operating Model policy](../../SPRINT-OPERATING-MODEL.md#sprint-closing--required-dev--test-evidence) (2026-08-15) |
+| mda-app + custom pages | 9 | #64 | DESIGN-SENSITIVE | ✅ closed 2026-08-17 — both PCF controls live in DEV under final `crmshow_PCF.*` names; Contact-form binding carried over as [#122](https://github.com/urruegg/CRMShowcase/issues/122) |
+| e2e DEV→TEST verify | 10 | #65 | EXECUTION-ONLY | 🟡 closed partial 2026-08-17 — `crmshow_Foundation`/`DataModel`/`Integration` promoted to TEST; `crmshow_Sales` carried over as [#121](https://github.com/urruegg/CRMShowcase/issues/121) |
 | nba-agent (Copilot Studio) | 6 | #61 | DESIGN-SENSITIVE | ⏸ deferred (out of sprint) |
+
+> **Sprint closed 2026-08-17** — see [STATUS.md § Sprint closed](./STATUS.md#sprint-closed-2026-08-17)
+> for the full Definition-of-Done accounting and the five carry-over issues
+> ([#120](https://github.com/urruegg/CRMShowcase/issues/120)–[#124](https://github.com/urruegg/CRMShowcase/issues/124)).
+> Closed by owner decision to start a repo-hygiene/consistency sprint next.
 
 #56 (foundation-choices, base + addendum) and #57/#58 (foundational + cockpit
 tables) are now DEV-authored. Both PCF streams (7, 8) are already merged

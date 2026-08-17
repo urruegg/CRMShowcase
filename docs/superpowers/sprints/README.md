@@ -10,7 +10,7 @@ part of an active sprint (it is a standalone feature/blocker/idea in the backlog
 | --- | --- | --- | --- | --- | --- |
 | sprint-001 | [sprint-001/](./sprint-001/) | #43 | #44 | Proof #1 — the delegated operating model | merged |
 | sprint-002 | [sprint-002-insurance-foundation-promotion/](./sprint-002-insurance-foundation-promotion/) | #46 | #47 · #48 · #49 | Proof #2 — Insurance Foundation DEV→TEST | merged |
-| sprint-003 | [sprint-003-advisor-cockpit/](./sprint-003-advisor-cockpit/) | #55 | #56–#65 (see charter) | Advisor Cockpit + Sales Leader Dashboard | in progress |
+| sprint-003 | [sprint-003-advisor-cockpit/](./sprint-003-advisor-cockpit/) | #55 | #56–#65 (see charter) | Advisor Cockpit + Sales Leader Dashboard | closed 2026-08-17 (partial DEV/TEST evidence — see [STATUS.md](./sprint-003-advisor-cockpit/STATUS.md#sprint-closed-2026-08-17), carry-over [#120](https://github.com/urruegg/CRMShowcase/issues/120)–[#124](https://github.com/urruegg/CRMShowcase/issues/124)) |
 
 ## Backlog issues not tied to a sprint
 
