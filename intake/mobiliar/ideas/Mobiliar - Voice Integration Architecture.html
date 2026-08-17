@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mobiliar — Voice Integration Architecture (Teams + D365 Contact Center)</title>
+<style>
+  :root{
+    --bg:#0f1419;
+    --panel:#171f2b;
+    --panel-2:#1e2836;
+    --ink:#e8edf4;
+    --muted:#9fb0c3;
+    --line:#2c3a4d;
+    --blue:#3b82f6;
+    --blue-soft:#1d3a63;
+    --teal:#14b8a6;
+    --green:#22c55e;
+    --green-soft:#14361f;
+    --amber:#f59e0b;
+    --red:#ef4444;
+    --red-soft:#3a1a1c;
+    --purple:#a855f7;
+    --acs:#0ea5e9;
+    --shadow:0 6px 20px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:linear-gradient(160deg,#0c1118,#111a26 60%,#0c1118);
+    color:var(--ink);
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+    line-height:1.5;
+    padding:32px 24px 64px;
+  }
+  .wrap{max-width:1240px;margin:0 auto}
+  header h1{font-size:26px;margin:0 0 4px}
+  header p.sub{color:var(--muted);margin:0 0 4px;font-size:15px}
+  header p.meta{color:#6f8198;margin:0;font-size:12.5px;letter-spacing:.3px;text-transform:uppercase}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin:20px 0 8px;font-size:12.5px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block}
+  h2.section{font-size:16px;letter-spacing:.4px;text-transform:uppercase;color:#bcd0e6;margin:34px 0 14px;border-left:3px solid var(--blue);padding-left:10px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  @media(max-width:960px){.grid2{grid-template-columns:1fr}}
+
+  .opt{
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:18px 18px 20px;box-shadow:var(--shadow);position:relative;overflow:hidden;
+  }
+  .opt.rec{border-color:var(--green)}
+  .opt.avoid{border-color:#5a2a2f}
+  .opt .ribbon{
+    position:absolute;top:14px;right:-34px;transform:rotate(45deg);
+    padding:5px 42px;font-size:11px;font-weight:700;letter-spacing:.6px;color:#06210f;
+  }
+  .opt.rec .ribbon{background:var(--green)}
+  .opt.avoid .ribbon{background:#7c2d33;color:#ffd9dc}
+  .opt h3{margin:0 0 2px;font-size:18px}
+  .opt .tag{font-size:12px;color:var(--muted);margin-bottom:14px}
+
+  .flow{display:flex;flex-direction:column;gap:0}
+  .node{
+    border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--panel-2);
+    display:flex;gap:10px;align-items:flex-start;
+  }
+  .node .ic{font-size:18px;line-height:1.2;width:24px;text-align:center;flex:none}
+  .node .nm{font-weight:600;font-size:14px}
+  .node .ds{font-size:12px;color:var(--muted);margin-top:2px}
+  .node.carrier{border-color:#3a4a5e}
+  .node.sbc{border-color:var(--amber);background:#2a2410}
+  .node.acs{border-color:var(--acs);background:#0b2733}
+  .node.teams{border-color:#5b5bd6;background:#1a1a3a}
+  .node.luware{border-color:#7c5cff;background:#231a3a}
+  .node.d365{border-color:var(--blue);background:var(--blue-soft)}
+  .node.ai{border-color:var(--purple);background:#2a163a}
+  .arrow{align-self:center;color:#62788f;font-size:18px;margin:5px 0}
+  .arrow small{display:block;font-size:10.5px;color:#6f8198;text-align:center;margin-top:-3px}
+
+  .out{margin-top:14px;border-radius:10px;padding:11px 12px;font-size:13px}
+  .out.good{background:var(--green-soft);border:1px solid #1f6b39}
+  .out.bad{background:var(--red-soft);border:1px solid #6e2a2f}
+  .out b{display:block;margin-bottom:3px}
+  .out ul{margin:4px 0 0;padding-left:18px}
+  .out li{margin:2px 0}
+
+  table{width:100%;border-collapse:collapse;margin-top:6px;font-size:13.5px;background:var(--panel);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+  th,td{padding:11px 13px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#1b2533;font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:#bcd0e6}
+  td.crit{font-weight:600}
+  .yes{color:var(--green);font-weight:600}
+  .no{color:#ff7a82;font-weight:600}
+  .meh{color:var(--amber);font-weight:600}
+  tr:last-child td{border-bottom:none}
+
+  .rec-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:960px){.rec-cards{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:var(--shadow)}
+  .card .n{font-size:24px;font-weight:800;color:var(--blue);line-height:1}
+  .card h4{margin:8px 0 6px;font-size:15px}
+  .card p{margin:0;font-size:13px;color:var(--muted)}
+  .card.k{border-color:var(--green)}
+  .card.k .n{color:var(--green)}
+
+  .resi{display:flex;gap:14px;flex-wrap:wrap;margin-top:6px}
+  .resi .chip{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:13px;flex:1 1 220px}
+  .resi .chip b{display:block;color:#bcd0e6;font-size:12px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px}
+  .chip .ch{color:var(--green);font-weight:600}
+
+  /* consent flow */
+  .consent{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:var(--shadow)}
+  .cflow{display:flex;align-items:stretch;gap:0;flex-wrap:wrap}
+  .cstep{flex:1 1 150px;min-width:140px;border:1px solid var(--line);border-radius:10px;background:var(--panel-2);padding:12px;position:relative}
+  .cstep .ic{font-size:20px}
+  .cstep .nm{font-weight:600;font-size:13.5px;margin:6px 0 2px}
+  .cstep .ds{font-size:11.5px;color:var(--muted)}
+  .cstep.gate{border-color:var(--amber);background:#2a2410}
+  .cstep.acsx{border-color:var(--acs);background:#0b2733}
+  .cstep.aix{border-color:var(--purple);background:#2a163a}
+  .cconn{align-self:center;color:#62788f;font-size:20px;padding:0 6px;flex:none}
+  @media(max-width:760px){.cconn{transform:rotate(90deg);padding:6px 0}.cflow{flex-direction:column}}
+  .branch{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
+  @media(max-width:760px){.branch{grid-template-columns:1fr}}
+  .barm{border-radius:10px;padding:13px 14px;font-size:13px}
+  .barm.yes-b{background:var(--green-soft);border:1px solid #1f6b39}
+  .barm.no-b{background:var(--red-soft);border:1px solid #6e2a2f}
+  .barm b{display:block;margin-bottom:5px;font-size:13.5px}
+  .barm ul{margin:5px 0 0;padding-left:18px}
+  .barm li{margin:3px 0}
+  .barm .hd{display:flex;align-items:center;gap:8px}
+  .revoke{margin-top:18px;border:1px dashed var(--amber);border-radius:10px;background:#241d0e;padding:13px 15px;font-size:13px}
+  .revoke b{color:#ffd27a}
+  .revoke .seq{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .revoke .seq span{background:#2a2410;border:1px solid var(--amber);border-radius:20px;padding:4px 11px;font-size:12px}
+  .revoke .seq i{color:#62788f;font-style:normal;align-self:center}
+  .legal{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:6px}
+  @media(max-width:760px){.legal{grid-template-columns:1fr}}
+  .legal .lc{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--red);border-radius:10px;padding:13px 15px}
+  .legal .lc h4{margin:0 0 5px;font-size:14px;color:#ffc9cd}
+  .legal .lc p{margin:0;font-size:12.5px;color:var(--muted)}
+  .legal .lc.ok{border-left-color:var(--green)}
+  .legal .lc.ok h4{color:#bdf0cf}
+  .disc{margin-top:12px;font-size:11.5px;color:#6f8198;font-style:italic}
+  footer{margin-top:36px;color:#62788f;font-size:11.5px;border-top:1px solid var(--line);padding-top:14px}
+  footer a{color:#7fa8d8;text-decoration:none}
+  .pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--muted);margin-left:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Voice Integration Architecture — Teams + Dynamics 365 Contact Center</h1>
+    <p class="sub">Phone/telephony integration model for the new CRM platform · real‑time transcript &amp; Copilot voice features</p>
+    <p class="meta">Schweizerische Mobiliar · Switzerland data residency / FINMA · Mobi24 &amp; Contact Center</p>
+  </header>
+
+  <div class="legend">
+    <span><i class="dot" style="background:#3a4a5e"></i>Carrier / PSTN</span>
+    <span><i class="dot" style="background:var(--amber)"></i>SBC (direct routing)</span>
+    <span><i class="dot" style="background:var(--acs)"></i>Azure Communication Services</span>
+    <span><i class="dot" style="background:#5b5bd6"></i>Microsoft Teams</span>
+    <span><i class="dot" style="background:#7c5cff"></i>Luware Nimbus</span>
+    <span><i class="dot" style="background:var(--blue)"></i>D365 Contact Center</span>
+    <span><i class="dot" style="background:var(--purple)"></i>AI / Copilot / transcript</span>
+  </div>
+
+  <h2 class="section">Two integration models compared</h2>
+  <div class="grid2">
+
+    <!-- OPTION A -->
+    <div class="opt avoid">
+      <div class="ribbon">AVOID*</div>
+      <h3>A · Keep Luware Nimbus alongside D365</h3>
+      <div class="tag">Today's stack (Teams + Luware) — <b style="color:#ffc9cd">no native CIF widget</b>; call control stays in Teams</div>
+      <div class="flow">
+        <div class="node carrier"><div class="ic">📞</div><div><div class="nm">Swiss carrier / PSTN</div><div class="ds">Existing numbers &amp; SIP trunks</div></div></div>
+        <div class="arrow">↓</div>
+        <div class="node teams"><div class="ic">🟦</div><div><div class="nm">Microsoft Teams (Teams Phone)</div><div class="ds">Call rings &amp; is answered in Teams — always</div></div></div>
+        <div class="arrow">↓</div>
+        <div class="node luware"><div class="ic">🟪</div><div><div class="nm">Luware Nimbus — owns the call &amp; media</div><div class="ds">Routing, queuing; transcription = Companion bot (end‑of‑call)</div></div></div>
+        <div class="arrow">↓ <small>Screen‑pop (browser URL) + Power Automate — NOT a CIF panel</small></div>
+        <div class="node d365"><div class="ic">🟦</div><div><div class="nm">D365 — browser screen‑pop only</div><div class="ds">Nimbus Conversation Context pops a D365 URL; data sync via PA connector. No embedded softphone</div></div></div>
+      </div>
+      <div class="out bad">
+        <b>✗ No native real‑time transcript — and no CIF softphone in D365</b>
+        <ul>
+          <li><b>Luware ships no D365 CIF v1/v2 channel provider</b> — “Luware does not offer its own widget” (Luware KB). Agents work in the Teams call bar, not an embedded D365 panel</li>
+          <li>Live transcript stream is owned by Luware, not D365/ACS</li>
+          <li>No D365 Copilot voice: call summary, NBA, live "Buddy"</li>
+          <li>Transcript via Nimbus Power Automate connector ≈ <b>end‑of‑call</b> only</li>
+          <li>Mid‑call would require a separate compliance‑recording media bot (heavy)</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- OPTION B -->
+    <div class="opt rec">
+      <div class="ribbon">RECOMMENDED</div>
+      <h3>B · Native D365 CC voice channel (ACS)</h3>
+      <div class="tag">Direct routing (Bring Your Own Carrier) · reuse existing Swiss numbers</div>
+      <div class="flow">
+        <div class="node carrier"><div class="ic">📞</div><div><div class="nm">Swiss carrier / PSTN</div><div class="ds">Keep existing carrier &amp; numbers</div></div></div>
+        <div class="arrow">↓</div>
+        <div class="node sbc"><div class="ic">🛡️</div><div><div class="nm">Certified SBC — Azure / Teams direct routing</div><div class="ds">Preserves SIP context (caller ID, intent, tokens)</div></div></div>
+        <div class="arrow">↓</div>
+        <div class="node acs"><div class="ic">☁️</div><div><div class="nm">Azure Communication Services (CH geo)</div><div class="ds">Media engine under the D365 voice channel</div></div></div>
+        <div class="arrow">↓</div>
+        <div class="node d365"><div class="ic">🟦</div><div><div class="nm">D365 Contact Center — native voice channel</div><div class="ds">Unified routing, recording, transcription</div></div></div>
+        <div class="arrow">↓</div>
+        <div class="node ai"><div class="ic">🤖</div><div><div class="nm">Copilot + ACS Call Automation</div><div class="ds">Live transcript · sentiment · NBA · summaries · TranscriptionData WebSocket</div></div></div>
+      </div>
+      <div class="out good">
+        <b>✓ Native real‑time transcript + Copilot unlocked</b>
+        <ul>
+          <li>Live transcription, sentiment, Copilot suggestions out‑of‑the‑box</li>
+          <li>Programmatic stream via ACS Call Automation <code>TranscriptionData</code></li>
+          <li>SIP context preserved → clean Mobi24 → Pannenhilfe partner handoff</li>
+          <li>Reuses existing Swiss carrier/numbers (RFP §4.1.4)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <p style="font-size:12px;color:#6f8198;margin-top:8px">* Option A is only acceptable as a transitional bridge; it structurally blocks the real‑time transcript &amp; Copilot voice features required by RFP §4.1.1.8.</p>
+
+  <div class="out bad" style="margin-top:16px">
+    <b>⚠ Finding — Luware &amp; D365 Channel Integration Framework (verified Jun 2026)</b>
+    <ul>
+      <li><b>Luware Nimbus does not support D365 CIF v1 or v2.</b> It ships no Channel Integration Framework channel provider / softphone widget for model‑driven apps. Per Luware's own integration docs: <i>“Luware does not offer its own widget … Calls must be answered via MS Teams. It always rings in MS Teams.”</i></li>
+      <li>Nimbus is a <b>native Microsoft Teams app</b> — Teams is the call client. D365 integration is achieved via <b>Conversation Context</b> (screen‑pop of a D365 URL in the browser), the <b>Power Automate connector</b> (event triggers → create/update Dataverse activities/cases), an <b>embedded web app</b> in Nimbus dashboards, the <b>OData API</b> (reporting), and <b>click‑to‑call</b> links.</li>
+      <li><b>Demo impact:</b> the embedded‑softphone CIF panel shown in <code>shared‑page‑20‑omnichannel‑softphone.html</code> depicts the <b>D365 native Contact Center / Option B</b> model, <b>not</b> Luware. If Luware is positioned as the telephony layer, that screen is inaccurate — the realistic depiction is a Teams call bar + Nimbus app beside a D365 screen‑pop.</li>
+      <li>Source: <a href="https://help.luware.com/nimbus-integrations/integration-possibilities" target="_blank">Luware KB — Nimbus Integration Possibilities</a> (Integration endpoints &amp; FAQ).</li>
+    </ul>
+  </div>
+
+  <h2 class="section">Why it matters — the decisive trade‑off</h2>
+  <table>
+    <thead>
+      <tr><th>Capability / requirement</th><th>A · Luware via CIF</th><th>B · Native voice (ACS)</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="crit">Real‑time (in‑call) transcript</td><td class="no">✗ Luware‑owned, end‑of‑call</td><td class="yes">✓ Native + WebSocket stream</td></tr>
+      <tr><td class="crit">Embedded softphone / agent UI in D365 (CIF v2)</td><td class="no">✗ None — Luware ships no CIF widget; answer in Teams</td><td class="yes">✓ Native Communication Panel in D365</td></tr>
+      <tr><td class="crit">Copilot voice: summaries, NBA, live "Buddy" (§4.1.1.8)</td><td class="no">✗ Not available</td><td class="yes">✓ First‑party</td></tr>
+      <tr><td class="crit">Programmatic transcript access for own AOAI</td><td class="meh">~ Connector, ≈ end‑of‑call</td><td class="yes">✓ ACS Call Automation</td></tr>
+      <tr><td class="crit">Reuse existing Swiss carrier &amp; numbers</td><td class="yes">✓</td><td class="yes">✓ via direct routing (BYOC)</td></tr>
+      <tr><td class="crit">SIP context for partner/Pannenhilfe handoff</td><td class="meh">~ Depends on Luware</td><td class="yes">✓ Preserved through SBC</td></tr>
+      <tr><td class="crit">Unified routing &amp; omnichannel in one stack</td><td class="no">✗ Split Luware / D365</td><td class="yes">✓ Single D365 stack</td></tr>
+      <tr><td class="crit">Switzerland data residency / FINMA</td><td class="meh">~ Luware + Teams</td><td class="yes">✓ ACS CH geo (see below)</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="section">Adjacent scenario — General Agency (Sales) voice <span class="pill" style="border-color:var(--amber);color:#ffd27a">Sales Hub Dialer · preview</span></h2>
+  <p style="font-size:13.5px;color:var(--muted);margin:0 0 16px;max-width:1000px">The A vs B decision above is about <b>Mobi24 / Contact Center</b> voice. The <b>Generalagentur</b> journeys (e.g. <b>UC‑AS1</b> Sales Support — a direct‑dial call with <i>no</i> ACD queue) are a different population, served by the <b>D365 Sales Hub Dialer</b>: a Sales‑native softphone built on the <b>same ACS voice platform</b> as Option B. It gives GA sellers screen‑pop, auto‑logged activities and Copilot call summaries <b>without a Contact Center seat</b> — the Sales‑side equivalent of the native‑voice direction.</p>
+  <div class="grid2">
+    <div class="opt rec">
+      <h3>C · Sales Hub Dialer (GA / Sales) <span class="pill" style="border-color:var(--amber);color:#ffd27a">PREVIEW</span></h3>
+      <div class="tag">Embedded softphone in D365 Sales Hub · direct‑dial, no queue · ACS voice · Conversation Intelligence</div>
+      <div class="flow">
+        <div class="node carrier"><div class="ic">📞</div><div><div class="nm">Swiss carrier / PSTN</div><div class="ds">Reuse existing numbers</div></div></div>
+        <div class="arrow">↓</div>
+        <div class="node teams"><div class="ic">🟦</div><div><div class="nm">Teams Phone — Operator Connect / Direct Routing</div><div class="ds">Numbers → service numbers on resource accounts</div></div></div>
+        <div class="arrow">↓</div>
+        <div class="node acs"><div class="ic">☁️</div><div><div class="nm">Azure Communication Services (CH geo)</div><div class="ds">Same media engine as Option B</div></div></div>
+        <div class="arrow">↓ <small>CIF Omnichannel voice provider</small></div>
+        <div class="node d365"><div class="ic">🟦</div><div><div class="nm">D365 Sales Hub Dialer</div><div class="ds">Click‑to‑call · inbound screen‑pop · auto‑logged activities · capacity / bookable‑resource routing</div></div></div>
+        <div class="arrow">↓</div>
+        <div class="node ai"><div class="ic">🤖</div><div><div class="nm">Conversation Intelligence + Copilot</div><div class="ds">Live transcript · sentiment · in‑/post‑call summaries</div></div></div>
+      </div>
+      <div class="out good">
+        <b>✓ Sales‑native voice for the GA — no Contact Center seat</b>
+        <ul>
+          <li>Productizes the CTI screen‑pop + auto‑log + AI‑summary layer for UC‑AS1</li>
+          <li>Same ACS platform &amp; CH residency posture as Option B</li>
+          <li>Entitlement listed as <b>just D365 Sales</b> — no separate Contact Center license</li>
+          <li><b>Preview</b> — not for production; validate entitlement at GA</li>
+        </ul>
+      </div>
+      <div class="out" style="margin-top:12px;background:#0b2733;border:1px solid var(--acs)">
+        <b style="color:#9fdcf5">🔔 Where does an inbound call ring? — Teams <i>and</i> D365 (same line)</b>
+        <ul>
+          <li>The dialer is <b>not a separate phone system</b> — it surfaces the seller's <b>own Teams Phone number/identity</b> inside D365. So a PSTN call rings in the <b>Teams app (desktop/mobile)</b> <i>and</i> pops a <b>notification in D365</b> at the same time; the seller answers in either surface.</li>
+          <li>Answering in <b>Teams desktop</b> is valid and is <b>not</b> logged as missed — but auto‑logged activity, screen‑pop &amp; Conversation Intelligence only fire when answered <b>inside D365</b>.</li>
+          <li>Two admin toggles govern it: <code>Answer incoming calls in Dynamics 365</code> (OFF = D365 outbound‑only, rings only in Teams) and <code>Internal call rings only in Teams</code> (default ON → internal Teams‑to‑Teams calls ring only in Teams; external/PSTN ring in D365).</li>
+        </ul>
+      </div>
+      <div class="out" style="margin-top:12px;background:#241a2e;border:1px solid #a984d6">
+        <b style="color:#cdb4f0">↪️ Advisor busy → redirect to the sales assistant — <i>without</i> Contact Center</b>
+        <ul>
+          <li>No Omnichannel/ACD routing engine is needed: this is <b>native Teams Phone call handling</b> on the advisor's own line.</li>
+          <li><b>Recommended:</b> the advisor's <b>unanswered/busy rule</b> redirects the inbound PSTN call to the <b>sales assistant</b> after a timeout. Busy only follows the redirect when <b>Busy‑on‑busy</b> = <code>Use unanswered settings</code> (otherwise a busy advisor returns a busy tone).
+            <div style="margin-top:6px;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:#9fdcf5;background:#0c1420;border-radius:6px;padding:8px 10px;line-height:1.5">
+              Set-CsTeamsCallingPolicy -Identity Global -BusyOnBusyEnabledType UseUnanswered<br>
+              Set-CsUserCallingSettings -Identity advisor@… -IsUnansweredEnabled $true `<br>
+              &nbsp;&nbsp;-UnansweredDelay 00:00:20 -UnansweredTargetType SingleTarget `<br>
+              &nbsp;&nbsp;-UnansweredTarget assistant@…
+            </div>
+          </li>
+          <li><b>Alternatives (still plain Teams Phone):</b> a <b>call group / delegation</b> (assistant as backup answerer), or a lightweight <b>Teams Call Queue / Auto Attendant</b> on a free <b>resource account</b> that rings the advisor then <b>overflow/timeout‑routes to the assistant</b>.</li>
+          <li><b>Upgrade path:</b> naturally graduates to <b>Dynamics 365 Contact Center</b> later for skills‑based queues, SLAs &amp; supervisor dashboards — no rework of the underlying Teams Phone line.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="opt">
+      <h3>Licensing &amp; coexistence</h3>
+      <div class="tag">What each GA seller needs · how it sits next to Luware / native voice</div>
+      <div class="resi" style="margin-bottom:14px">
+        <div class="chip"><b>CRM</b>D365 Sales (Enterprise / Premium)</div>
+        <div class="chip"><b>Telephony</b>Teams Phone + PSTN (Operator Connect / Direct Routing)</div>
+        <div class="chip"><b>Voice plumbing</b>Teams Phone Resource Account (virtual user)</div>
+        <div class="chip"><b>AI</b>Conversation Intelligence (full = Sales Premium)</div>
+        <div class="chip"><b>Usage</b>ACS / PSTN consumption charges</div>
+        <div class="chip"><b>Seller roles</b><span class="ch">Basic User + Omnichannel Agent + Salesperson</span></div>
+      </div>
+      <div class="out good">
+        <b>Coexistence with Luware / native channel</b>
+        <ul>
+          <li>Split by population: <b>Sales Hub Dialer @ GA</b> vs <b>Mobi24 voice</b> (Luware today → native ACS, Option B)</li>
+          <li>One Teams Phone user = one PSTN identity → give GA sellers <b>dedicated numbers via resource accounts</b></li>
+          <li>One owner per number/flow — don't double‑route the same inbound through an ACD queue <i>and</i> the dialer</li>
+          <li>CH PSTN = Operator Connect / Direct Routing — the same connectivity Luware already uses</li>
+          <li><b>Mutually exclusive with CIF:</b> enabling the Teams dialer <b>disables any CIF‑connected telephony</b> for those users — a GA seller can't run the Sales Hub Dialer <i>and</i> a CIF softphone at once.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="section">Switzerland data residency &amp; FINMA (RFP §5.4 / §7.4.13–15)</h2>
+  <div class="resi">
+    <div class="chip"><b>Voice channel availability</b><span class="ch">Switzerland = GA</span> · tenant geo CH (<code>crm17.dynamics.com</code>)</div>
+    <div class="chip"><b>Legacy local voice</b>Deprecated 31 Oct 2024 → now the ACS‑based "enhanced voice experience"</div>
+    <div class="chip"><b>ACS data residency</b><span class="ch">Switzerland geography supported</span> · also meets EU Data Boundary</div>
+    <div class="chip"><b>Transcripts &amp; recordings</b>Permanent storage stays in CH geo; temp processing pinnable to CH/EU</div>
+  </div>
+
+  <h2 class="section">Consent &amp; mid‑call revocation — does the transcript still work?</h2>
+  <div class="consent">
+    <p style="margin:0 0 14px;font-size:13.5px;color:var(--muted)">Real‑time extraction works in Option B — but it is <b style="color:var(--ink)">gated by consent</b>. The transcript only streams while transcription is active, so the design must capture consent up front and stop instantly if it is withdrawn.</p>
+
+    <div class="cflow">
+      <div class="cstep gate"><div class="ic">🛡️</div><div class="nm">IVR / Voice‑agent consent gate</div><div class="ds">Announce &amp; capture consent before any transcript (Consent‑based recording, GA May 2026)</div></div>
+      <div class="cconn">→</div>
+      <div class="cstep acsx"><div class="ic">☁️</div><div class="nm">ACS transcription</div><div class="ds">Workstream behavior: <code>Transcription only</code> or <code>Transcription + recording</code></div></div>
+      <div class="cconn">→</div>
+      <div class="cstep aix"><div class="ic">🤖</div><div class="nm"><code>TranscriptionData</code> → AOAI</div><div class="ds">Live entity extraction · case prefill · NBA</div></div>
+    </div>
+
+    <div class="branch">
+      <div class="barm yes-b">
+        <div class="hd"><b style="margin:0">✓ Consent granted</b></div>
+        <ul>
+          <li><b>Transcription‑only</b> = live transcript &amp; AI <i>without</i> storing call audio (lower retention risk)</li>
+          <li>Full <b>Transcription + recording</b> when audio is also permitted</li>
+          <li>Consent state is <b>preserved across transfers &amp; escalations</b></li>
+        </ul>
+      </div>
+      <div class="barm no-b">
+        <div class="hd"><b style="margin:0">✗ Consent declined</b></div>
+        <ul>
+          <li>No transcript generated; reps <b>can't start, pause or access</b> it</li>
+          <li>AI features <b>degrade gracefully</b> → manual workflow (not a hard dependency)</li>
+          <li>Preference carried through if escalated to a human rep</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="revoke">
+      <b>⏸ Customer withdraws consent mid‑call</b> — fully supported, and it is the technical "fix":
+      <div class="seq">
+        <span>Agent / automation triggers</span><i>→</i>
+        <span><code>pauseTranscription()</code> + <code>pauseRecording()</code> (API GA Jun 2025)</span><i>→</i>
+        <span>ACS stops emitting <code>TranscriptionData</code></span><i>→</i>
+        <span>extraction halts automatically</span><i>→</i>
+        <span>flag <code>consent=withdrawn</code> · stop/redact downstream AI</span>
+      </div>
+      <div style="margin-top:8px;color:var(--muted);font-size:12.5px">Optional: auto pause/resume on hold · ACS <b>PII redaction</b> (preview) as defense‑in‑depth.</div>
+    </div>
+
+    <h2 class="section" style="margin:22px 0 12px;border:none;padding:0;font-size:13px;color:#bcd0e6">Legal impact — Switzerland (all‑party consent)</h2>
+    <div class="legal">
+      <div class="lc"><h4>Art. 179bis / 179ter Swiss Criminal Code</h4><p>Recording a non‑public conversation without <b>all</b> parties' consent is a criminal offence. Live transcription captures conversation content → it counts.</p></div>
+      <div class="lc"><h4>revFADP/nDSG + FINMA</h4><p>Personal‑data processing under the revised Data Protection Act (in force Sep 2023) plus FINMA outsourcing/data‑location expectations. Residency handled by CH geo.</p></div>
+      <div class="lc ok"><h4>Must‑have design controls</h4><p>Announce + capture consent before transcript · honor decline &amp; mid‑call revocation instantly · log consent state · keep data in CH geo + retention/deletion (RMS).</p></div>
+      <div class="lc ok"><h4>Graceful degradation = compliant</h4><p>AI prefill, NBA &amp; summaries are <b>enhancements, not dependencies</b>. The no‑consent path must run as a full manual workflow.</p></div>
+    </div>
+    <p class="disc">Not legal advice — to be validated by Mobiliar Legal / DPO and FINMA stakeholders.</p>
+  </div>
+
+  <h2 class="section">Recommendation</h2>
+  <div class="rec-cards">
+    <div class="card k">
+      <div class="n">1</div>
+      <h4>Target = native voice on ACS</h4>
+      <p>Run voice on the <b>native D365 Contact Center voice channel</b>, provisioned via <b>direct routing (BYOC)</b> reusing Mobiliar's Swiss SBC, carrier and numbers.</p>
+    </div>
+    <div class="card">
+      <div class="n">2</div>
+      <h4>Don't keep Luware as the voice engine</h4>
+      <p>Embedding Luware via CIF long‑term <b>blocks</b> the native transcript stream and Copilot voice features. Use it only as a transitional bridge if needed.</p>
+    </div>
+    <div class="card">
+      <div class="n">3</div>
+      <h4>Teams‑aligned migration</h4>
+      <p>You're already Teams‑centric → <b>Teams Phone direct routing</b> is the natural cutover (ACS direct routing is the alternative). Both feed the same native channel.</p>
+    </div>
+    <div class="card">
+      <div class="n">4</div>
+      <h4>Real‑time transcript path</h4>
+      <p>Only achievable on the native/ACS path — OOB Copilot/Case agents, or ACS <code>TranscriptionData</code> WebSocket. Not possible while Luware owns the call.</p>
+    </div>
+    <div class="card">
+      <div class="n">5</div>
+      <h4>Phase with the roadmap</h4>
+      <p>Outcome 1 = Omnichannel foundation for Mobi24; advanced CC routing/queuing = Outcome 3 (mid‑2031). Stage the voice cutover, avoid big‑bang.</p>
+    </div>
+    <div class="card k">
+      <div class="n">6</div>
+      <h4>Residency posture for the bid</h4>
+      <p>Tenant geo CH · voice on ACS‑CH · transcription/recording temp‑processing pinned to CH/EU · permanent storage in CH — backed by ACS EUDB + Switzerland geography.</p>
+    </div>
+  </div>
+
+  <footer>
+    Sources: Microsoft Learn — D365 Contact Center international availability &amp; supported cloud locations for voice channel · Voice channel deployment approaches (direct routing / BYOC) · ACS data residency &amp; EU Data Boundary · ACS Call Automation real‑time transcription · Configure call recording, transcription &amp; real‑time translation · Consent‑based recording (GA May 2026) · Pause/Resume Recording &amp; Transcription API (GA Jun 2025) · Channel Integration Framework 2.0 · Luware KB — Nimbus Integration Possibilities (no native CIF widget; calls answered in Teams, verified Jun 2026). &nbsp;|&nbsp; Mapped to Mobiliar RfP §4.1.1.8, §4.1.4, §5.4, §7.4.3, §7.4.13–17. &nbsp;|&nbsp; Legal references (Art. 179bis/179ter StGB, revFADP/nDSG) are informational, not legal advice.
+  </footer>
+</div>
+</body>
+</html>

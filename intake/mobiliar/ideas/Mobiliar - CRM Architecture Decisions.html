@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mobiliar — CRM Architecture Decisions (Screens Design)</title>
+<style>
+  :root{
+    --bg:#0f1419;--panel:#171f2b;--panel-2:#1e2836;--ink:#e8edf4;--muted:#9fb0c3;
+    --line:#2c3a4d;--blue:#3b82f6;--blue-soft:#1d3a63;--teal:#14b8a6;--green:#22c55e;
+    --amber:#f59e0b;--red:#ef4444;--purple:#a855f7;--pink:#ec4899;--cyan:#0ea5e9;
+    --shadow:0 6px 20px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(160deg,#0c1118,#111a26 60%,#0c1118);color:var(--ink);
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;line-height:1.5;padding:32px 24px 64px}
+  .wrap{max-width:1300px;margin:0 auto}
+  header h1{font-size:26px;margin:0 0 4px}
+  header p.sub{color:var(--muted);margin:0 0 4px;font-size:15px}
+  header p.meta{color:#6f8198;margin:0;font-size:12.5px;letter-spacing:.3px;text-transform:uppercase}
+
+  .tagkey{display:flex;flex-wrap:wrap;gap:10px;margin:20px 0 6px;font-size:11.5px}
+  .tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.4px;padding:3px 9px;border-radius:20px;text-transform:uppercase}
+  .t-native{background:#14361f;color:#7ee2a0;border:1px solid #1f6b39}
+  .t-ext{background:#2a2410;color:#ffcf7a;border:1px solid #7a5a16}
+  .t-constraint{background:#3a1a1c;color:#ff9ca2;border:1px solid #6e2a2f}
+  .t-custom{background:#1d2a63;color:#9db8ff;border:1px solid #2f49a0}
+  .t-pattern{background:#2a163a;color:#d6a8ff;border:1px solid #5a2f8a}
+  .t-gotcha{background:#2b2230;color:#e0a8d8;border:1px solid #6e2a5f}
+  .t-edge{background:#0c2b2a;color:#7ff0e3;border:1px solid #1f6e66}
+
+  .edge{margin-top:9px;font-size:12px;background:#0c1f1e;border:1px solid #19514c;border-radius:8px;padding:8px 10px;color:#bfeee7}
+  .edge b{color:#eafffc}
+  .edge .vs{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#7ff0e3;border:1px solid #1f6e66;border-radius:5px;padding:0 5px;margin-right:5px}
+
+  /* lead modeling */
+  .decision{background:linear-gradient(135deg,#13233a,#16182e);border:1px solid var(--blue);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow);margin-bottom:16px}
+  .decision .lbl{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#7ee2a0}
+  .decision h3{margin:5px 0 8px;font-size:18px}
+  .decision p{margin:0;font-size:13.5px;color:var(--muted)}
+  .decision p b{color:var(--ink)}
+  .lead-er{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:14px 0 4px;padding:14px;background:#0d1622;border:1px solid var(--line);border-radius:10px}
+  .le-node{border:1px solid var(--line);border-radius:9px;padding:8px 12px;background:var(--panel-2);font-size:12.5px;font-weight:600;text-align:center;min-width:96px}
+  .le-node small{display:block;font-weight:400;color:var(--muted);font-size:10.5px;margin-top:2px}
+  .le-node.contact{border-color:var(--cyan);background:#0b2733}
+  .le-node.lead{border-color:var(--blue);background:var(--blue-soft)}
+  .le-node.cluster{border-color:var(--purple);background:#2a163a}
+  .le-node.acct{border-color:var(--green);background:#14361f}
+  .le-node.opp{border-color:var(--amber);background:#2a2410}
+  .le-rel{font-size:11px;color:#7fa8d8;text-align:center;white-space:nowrap}
+  .le-rel b{display:block;color:#6f8198;font-weight:600;font-size:10px}
+  .opts{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:980px){.opts{grid-template-columns:1fr}.lead-er{flex-direction:column;align-items:stretch}.le-rel{transform:rotate(90deg)}}
+
+  h2.section{font-size:15px;letter-spacing:.5px;text-transform:uppercase;margin:36px 0 4px;padding-left:12px;border-left:3px solid var(--blue);display:flex;align-items:center;gap:10px}
+  h2.section .ic{font-size:18px}
+  h2.section .cnt{font-size:11px;color:#6f8198;font-weight:400;letter-spacing:.3px}
+  .sec-sub{color:var(--muted);font-size:13px;margin:6px 0 16px;padding-left:13px}
+  .s-data{border-color:var(--cyan)} .s-ai{border-color:var(--purple)}
+  .s-out{border-color:var(--amber)} .s-ui{border-color:var(--pink)}
+
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+  @media(max-width:980px){.grid{grid-template-columns:1fr}}
+  .adr{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px 16px;box-shadow:var(--shadow);position:relative}
+  .adr .id{font-size:11px;color:#6f8198;font-weight:700;letter-spacing:.5px}
+  .adr h3{margin:3px 0 8px;font-size:15.5px}
+  .adr .tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px}
+  .adr p{margin:0 0 7px;font-size:13px;color:var(--muted)}
+  .adr p:last-child{margin-bottom:0}
+  .adr p b{color:var(--ink)}
+  .adr .why{font-size:12.5px;border-left:2px solid var(--line);padding-left:10px;margin-top:8px}
+  .adr code{background:#0d1622;border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:11.5px;color:#9db8ff}
+  .adr.k{border-color:var(--blue)}
+  .adr.warn{border-color:#6e2a2f}
+
+  .lane{display:inline-block;font-size:10px;color:#6f8198;border:1px solid var(--line);border-radius:5px;padding:1px 6px;margin-left:6px}
+
+  /* business "so what" translation */
+  .sowhat{margin-top:11px;background:linear-gradient(135deg,#10261f,#0e1f2a);border:1px solid var(--green);border-radius:9px;padding:10px 12px}
+  .sowhat .lbl{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#0c1118;background:var(--green);border-radius:5px;padding:1px 7px;margin-bottom:7px}
+  .sowhat ul{margin:0;padding-left:16px}
+  .sowhat li{font-size:12.5px;color:#d7f3e4;margin-bottom:5px;line-height:1.45}
+  .sowhat li:last-child{margin-bottom:0}
+  .sowhat li b{color:#fff}
+  .sowhat .bottom{margin:8px 0 0;font-size:12.5px;color:#eafff4}
+  .sowhat .bottom b{color:#fff}
+
+  footer{margin-top:40px;color:#62788f;font-size:11.5px;border-top:1px solid var(--line);padding-top:14px}
+  .rfp{color:#7fa8d8}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>CRM Architecture Decisions — captured from the "04. Screens" design</h1>
+    <p class="sub">Decisions made while building the implemented screens around Data Model · AI &amp; Agents · Outbound · UI/Platform</p>
+    <p class="meta">Schweizerische Mobiliar · D365 Contact Center + Customer Insights · org cr7e8 / Mobiliar solution</p>
+  </header>
+
+  <div class="tagkey">
+    <span class="tag t-native">Native</span>
+    <span class="tag t-ext">Extension</span>
+    <span class="tag t-constraint">Platform constraint</span>
+    <span class="tag t-custom">Custom build</span>
+    <span class="tag t-pattern">Design pattern</span>
+    <span class="tag t-gotcha">Gotcha / lesson</span>
+  </div>
+
+  <!-- ================= DATA MODEL ================= -->
+  <h2 class="section s-data"><span class="ic">🗄️</span> Data Model <span class="cnt">· thin, account‑led CRM over the insurance engines</span></h2>
+  <p class="sec-sub">Operationalizes "thin CRM over systems of record" — CRM orchestrates demand &amp; relationships; SAP/MCS keep policy, claims and quoting.</p>
+  <div class="grid">
+    <div class="adr k">
+      <div class="id">DM‑01</div>
+      <h3>Account is the centre of gravity</h3>
+      <div class="tags"><span class="tag t-custom">Custom build</span><span class="tag t-pattern">Design pattern</span></div>
+      <p>One <code>Account</code> entity with an <code>accountType</code> discriminator (<b>Household · Business · Broker</b>) covers all party types.</p>
+      <p class="why">Avoids Salesforce's Person‑Account one‑way door and B2C/B2B split. Mobi24 and broker reuse the same account model, just extended.</p>
+      <div class="edge"><span class="vs">vs SF</span>FSC pulls you into heavyweight Policy/Claim/Producer objects → CRM becomes a 2nd policy system. <span class="vs">vs BSI</span>BSI ships Swiss‑insurance data models too — we match the fit <b>and</b> stay schema‑flexible on open Dataverse, not a packaged suite schema.</div>
+    </div>
+    <div class="adr k">
+      <div class="id">DM‑02</div>
+      <h3>Portfolio lives at the account, not the contact</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p><code>Policy</code> and <code>Claim</code> hang off <b>Account</b>. <code>Contact</code> connects via <code>ContactRole</code> (Hauptkontakt / Mitentscheider / Kontext / MaklerBetreuer) — never owning the portfolio.</p>
+      <p class="why">Swiss household has multiple policies &amp; stakeholders; contact = relationship role, not portfolio owner.</p>
+    </div>
+    <div class="adr">
+      <div class="id">DM‑03</div>
+      <h3>Thin CRM over systems of record</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p><code>Policy</code>, <code>Claim</code>, <code>Quote</code> carry <b>external reference keys</b> to SAP / MCS / quoting engines. CRM does not become a second policy system.</p>
+      <p class="why">RFP §4.1.3 explicit requirement — Versicherungstechnik stays in existing apps; avoids the FSC over‑modelling trap.</p>
+      <div class="edge"><span class="vs">vs SF &amp; BSI</span>Both incumbents tempt you to absorb insurance logic into the CRM suite. Our bet is the one the RFP asked for — thin orchestration over the engines — so Mobiliar keeps one source of truth and avoids dual‑system reconciliation.</div>
+    </div>
+    <div class="adr">
+      <div class="id">DM‑04</div>
+      <h3>Demand is a closed loop</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p><code>Lead</code> → <code>LeadCluster</code> → <code>Opportunity</code> → <code>Quote</code>, with <code>NextBestAction</code> + <code>Activity</code> (call/transcript/AI summary) feeding a learning signal back.</p>
+      <p class="why"><b>LeadCluster</b> = anti‑over‑contact bundling so one household isn't contacted 5×.</p>
+    </div>
+    <div class="adr">
+      <div class="id">DM‑05</div>
+      <h3>Claim/Service‑to‑lead is first‑class</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p><code>Case</code> and <code>Claim</code> can each generate a qualified <code>Lead</code> with full context (e.g. Schaden SCH‑77310 → Lead → Sales Case VF‑2026‑0412).</p>
+    </div>
+    <div class="adr">
+      <div class="id">DM‑06</div>
+      <h3>Consent modelled per contact, per channel</h3>
+      <div class="tags"><span class="tag t-custom">Custom build</span></div>
+      <p><code>Consent</code> = {Phone · Email · SMS · Newsletter} × {Allowed · Denied · NotRelevant} + source + capturedOn. Surfaced as a guardrail across the whole UI.</p>
+      <p class="why">Drives the outbound opt‑in checks (see OB‑03) and the voice consent gate.</p>
+    </div>
+    <div class="adr">
+      <div class="id">DM‑07</div>
+      <h3>Custom <code>cr7e8_</code> entities, single physical lookup columns</h3>
+      <div class="tags"><span class="tag t-custom">Custom build</span><span class="tag t-gotcha">Gotcha / lesson</span></div>
+      <p>Custom <code>cr7e8_offer</code>, <code>cr7e8_policy</code>, <code>cr7e8_campaign</code>. Define <b>all lookups in one <code>create_table</code> call</b> — create/delete/recreate produced duplicate physical columns (broker corruption).</p>
+    </div>
+    <div class="adr warn">
+      <div class="id">DM‑08</div>
+      <h3>Lead scoring: use score columns directly</h3>
+      <div class="tags"><span class="tag t-gotcha">Gotcha / lesson</span></div>
+      <p>Predictive‑scoring nav property <code>msdyn_predictivescoreid</code> is <b>not provisioned</b> → <code>$expand</code> returns 400. Use <code>msdyn_leadscore</code> / <code>msdyn_leadgrade</code> / <code>msdyn_leadscoretrend</code> on the lead.</p>
+    </div>
+    <div class="adr warn">
+      <div class="id">DM‑09</div>
+      <h3><code>@odata.bind</code> casing must match schema name</h3>
+      <div class="tags"><span class="tag t-gotcha">Gotcha / lesson</span></div>
+      <p>Navigation property names are <b>case‑sensitive</b>. <code>cr7e8_Lead@odata.bind</code> (capital L) silently rejected the whole createRecord → use lowercase <code>cr7e8_lead@odata.bind</code>.</p>
+    </div>
+  </div>
+
+  <!-- ================= B2C / PRIVATE CUSTOMER ================= -->
+  <h2 class="section" style="border-left-color:var(--green)"><span class="ic">👨‍👩‍👧</span> B2C / Private‑customer modeling <span class="cnt">· 2.3M Privatkunden · 2M Interessenten · 300k Prospects</span></h2>
+  <p class="sec-sub">Mobiliar is overwhelmingly retail. The same account‑led model carries B2C — the <b>household is the account</b>, the private person is a contact‑with‑roles, and identity is shared with PDV.</p>
+  <div class="grid">
+    <div class="adr k">
+      <div class="id">B2C‑01</div>
+      <h3>Household‑as‑Account (not Person‑Account)</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p><code>Account</code> is a <b>party container</b>, not literally a household — <code>accountType</code> = Household · Business · Broker. For B2C the container <i>is</i> the household: a private customer is a <code>Contact</code> (natural person) under a <b>Household <code>Account</code></b>; policies &amp; claims sit at household level (Gebäude/Hausrat/Haftpflicht are inherently shared). A single‑person household is still an account — one consistent shape.</p>
+      <p class="why"><b>Grounded in PDV, not invented:</b> the household maps to the partner master's existing grouping — <code>Account(Household)</code> ↔ PDV <b>Personengruppe</b>, <code>Account(Business)</code> ↔ <b>Organisation</b>, <code>Contact</code> ↔ <b>natürliche Person</b>. CRM mirrors PDV's authoritative grouping read‑only (thin‑CRM), rather than defining its own.</p>
+      <div class="edge"><span class="vs">vs SF</span>Salesforce Person Accounts are a one‑way door and clash when household + business + broker must coexist in one org. <span class="vs">vs BSI</span>We match BSI's Swiss household/Partnerverbund concept on an open schema, aligned to PDV Personengruppen.</div>
+    </div>
+    <div class="adr">
+      <div class="id">B2C‑02</div>
+      <h3>Insurance roles via ContactRole (VN / VP / Zahler)</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p>One person plays many roles across household policies — <b>Versicherungsnehmer, versicherte Person, Mitversicherte, Zahler, Hauptkontakt</b> — modelled in <code>ContactRole</code>, not duplicated as separate customers.</p>
+      <p class="why">Reflects Swiss reality: the policyholder, the insured and the payer are often different people in one household.</p>
+    </div>
+    <div class="adr k">
+      <div class="id">B2C‑03</div>
+      <h3>Prospect (CRM‑owned) vs Interessent/Kunde (PDV‑mastered)</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span><span class="tag t-gotcha">Lesson</span></div>
+      <p><b>Prospects (~300k) are CRM‑owned</b> — they don't exist in PDV yet. <b>Interessenten &amp; Kunden are mastered in PDV</b> and replicated read‑only into CRM. Qualifying a prospect promotes it into the PDV person master.</p>
+      <p class="why">Keeps the partner master authoritative (RFP §5.1) while CRM owns the top‑of‑funnel that PDV deliberately doesn't hold.</p>
+    </div>
+    <div class="adr">
+      <div class="id">B2C‑04</div>
+      <h3>B2C scale → thin contacts, reach via CI not seats</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p>2.3M customers + 2M Interessenten + ~5M partners + millions of campaign interactions/yr. Contact records stay <b>thin references</b>; mass engagement runs through <b>Customer Insights</b> (outbound reach), not per‑seat CRM licences.</p>
+      <div class="edge"><span class="vs">vs SF</span>Avoids Data Cloud + marketing‑cloud sprawl at retail volume. <span class="vs">vs BSI</span>Hyperscale Dataverse + Fabric handle the volume and analytics a point‑suite strains on.</div>
+    </div>
+    <div class="adr">
+      <div class="id">B2C‑05</div>
+      <h3>Consent &amp; preference center at retail scale</h3>
+      <div class="tags"><span class="tag t-custom">Custom build</span></div>
+      <p>Per‑contact, per‑channel consent (DM‑06) is the <b>mandatory gate for every B2C outbound</b> — mass opt‑in/opt‑out, preference center, revFADP. Surfaced in the 360 and enforced in flows (<code>optin</code> / <code>donotphone</code>).</p>
+      <p class="why">B2C mass personal‑data processing makes this the highest‑risk compliance surface — it's a first‑class entity, not a checkbox.</p>
+    </div>
+    <div class="adr">
+      <div class="id">B2C‑06</div>
+      <h3>Self‑service portal &amp; app as B2C contact points</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p>The Privatkunden‑Portal + mobile app are digital contact points in the <b>hybrid customer journey</b>; their status/events write back into CRM (e.g. the customer‑app status screen) so advisors see the same journey the customer sees.</p>
+      <p class="why">Versicherungstechnik stays in the portal (eigenentwicklung); CRM orchestrates the journey &amp; context around it.</p>
+    </div>
+  </div>
+
+  <!-- ================= LEAD MODELING ================= -->
+  <h2 class="section" style="border-left-color:var(--amber)"><span class="ic">🎯</span> Lead modeling <span class="cnt">· a Lead = an expression of interest on a pre‑existing person</span></h2>
+  <p class="sec-sub">Mobiliar's semantics: a person (existing <b>Contact</b> or <b>Prospect</b>) can hold <b>many leads</b>, and leads can be <b>grouped</b>. That inverts the native D365 "lead‑as‑person‑stub" model — so we keep the native table but change how it's wired.</p>
+
+  <div class="decision">
+    <div class="lbl">✔ Decision — chosen model</div>
+    <h3>Native <code>lead</code> table, inverted: Lead = interest event linked to an existing person</h3>
+    <p>The <b>person always pre‑exists as a <code>Contact</code></b> (a Prospect is just a Contact with <code>lifecycleStage = Prospect</code>; an existing client is <code>Interessent</code>/<code>Kunde</code>). A <b>Lead references that Contact</b> via <code>parentcontactid</code> (and the household via <code>parentaccountid</code>) instead of embedding a person stub. Many leads per person; a custom <b><code>LeadCluster</code></b> bundles them.</p>
+    <div class="lead-er">
+      <div class="le-node acct">Account<small>Household</small></div>
+      <div class="le-rel"><b>1 : N</b>originates</div>
+      <div class="le-node contact">Contact<small>Prospect · Interessent · Kunde</small></div>
+      <div class="le-rel"><b>1 : N</b>expresses</div>
+      <div class="le-node lead">Lead<small>expression of interest</small></div>
+      <div class="le-rel"><b>N : 1</b>grouped in</div>
+      <div class="le-node cluster">LeadCluster<small>anti‑over‑contact</small></div>
+      <div class="le-rel"><b>1 : 1</b>qualifies →</div>
+      <div class="le-node opp">Opportunity<small>→ Quote / Offer</small></div>
+    </div>
+  </div>
+
+  <div class="opts">
+    <div class="adr warn">
+      <div class="id">OPTION A — rejected</div>
+      <h3>Native lead as the person stub</h3>
+      <div class="tags"><span class="tag t-constraint">Anti‑pattern here</span></div>
+      <p>Use the lead's embedded fields (subject, contactname, companyname) and qualify‑creates‑contact.</p>
+      <p class="why"><b>Why not:</b> a person can't hold <b>multiple</b> leads without duplicating the person stub; no clean grouping; qualify would create duplicate Contacts for people who already exist in PDV/CRM.</p>
+    </div>
+    <div class="adr warn">
+      <div class="id">OPTION B — rejected</div>
+      <h3>Fully custom Lead entity</h3>
+      <div class="tags"><span class="tag t-constraint">High cost</span></div>
+      <p>Build <code>cr7e8_lead</code> from scratch, ignore the native table.</p>
+      <p class="why"><b>Why not:</b> loses native <b>predictive lead scoring</b> (<code>msdyn_leadscore/grade/trend</code>), BPF, routing/assignment, the "Meine Leads" stream views and NBA — all of which we'd have to rebuild.</p>
+    </div>
+    <div class="adr k">
+      <div class="id">OPTION C — chosen</div>
+      <h3>Native lead, inverted + LeadCluster</h3>
+      <div class="tags"><span class="tag t-native">Native</span><span class="tag t-custom">+ custom group</span></div>
+      <p>Keep the native <code>lead</code> for scoring/BPF/routing/cockpit; always set <code>parentcontactid</code>; add <code>LeadCluster</code> for grouping.</p>
+      <p class="why"><b>Why:</b> best of both — free AI scoring &amp; tooling, plus Mobiliar's "person owns many leads" semantics and anti‑over‑contact bundling.</p>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top:16px">
+    <div class="adr">
+      <div class="id">LD‑01</div>
+      <h3>Prospect = Contact lifecycle stage, not a separate type</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p>Prospect / Interessent / Kunde is a <b>lifecycle stage on one Contact</b>. The lead→person link is uniform regardless of stage; promotion is a status change (+ PDV sync), not a record migration.</p>
+      <p class="why">Lets a prospect accumulate multiple leads before ever becoming a client — impossible if the prospect <i>is</i> a lead.</p>
+    </div>
+    <div class="adr">
+      <div class="id">LD‑02</div>
+      <h3>Grouping: LeadCluster per person, rolled up to household</h3>
+      <div class="tags"><span class="tag t-custom">Custom build</span></div>
+      <p><code>LeadCluster</code> bundles a person's open leads (and can roll up to the household <code>Account</code>) so the advisor runs <b>one conversation</b>, not five — the anti‑over‑contact guardrail.</p>
+      <p class="why">Swiss household holds many policies → many parallel interests; grouping prevents contact fatigue.</p>
+    </div>
+    <div class="adr">
+      <div class="id">LD‑03</div>
+      <h3>Qualify without creating duplicate people</h3>
+      <div class="tags"><span class="tag t-gotcha">Lesson</span></div>
+      <p>Because the Contact (and household) already exist, lead qualification is configured to <b>convert to <code>Opportunity</code> only</b> — reuse the existing Contact/Account, never spawn a new one.</p>
+    </div>
+    <div class="adr">
+      <div class="id">LD‑04</div>
+      <h3>Source typing: claim/service/campaign‑to‑lead</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p>A typed <code>leadSource</code> keeps the closed loop legible — <b>Schaden‑to‑Lead, Service‑to‑Lead, Campaign, Inbound</b> — feeding scoring, NBA and attribution back to the originating Case/Claim/Campaign.</p>
+      <div class="edge"><span class="vs">vs SF &amp; BSI</span>The same person‑centric, multi‑lead, grouped model holds across sales, after‑sales and broker channels on one schema — no separate lead silos per cloud/module.</div>
+    </div>
+  </div>
+
+  <!-- ================= AI & AGENTS ================= -->
+  <h2 class="section s-ai"><span class="ic">🤖</span> AI &amp; Agents <span class="cnt">· event/scheduled agents · NBA at scale · human‑in‑the‑loop UI</span></h2>
+  <p class="sec-sub">What is native first‑party Copilot/CI vs what must be framed as an extension — and the "human → agent" interaction pattern.</p>
+
+  <div class="decision" style="border-color:var(--purple);background:linear-gradient(135deg,#221538,#16182e)">
+    <div class="lbl" style="color:#d6a8ff">★ Key pattern — agents at scale, humans decide</div>
+    <h3>Event‑triggered &amp; scheduled agents generate recommendations; the custom UI is where humans act</h3>
+    <p>Autonomous agents run <b>on events</b> (case/claim created, policy renewal, lifecycle change) or <b>on a schedule</b> (nightly batch), scoring the whole book and producing <b>Next‑Best‑Actions at scale</b>. They <b>don't act on the customer directly</b> — the recommendation lands in the advisor's cockpit as an explainable action card the human accepts, edits or dismisses, and that decision <b>feeds the learning loop</b>.</p>
+    <div class="lead-er" style="border-color:#5a2f8a">
+      <div class="le-node" style="border-color:var(--amber);background:#2a2410">Trigger<small>event · schedule</small></div>
+      <div class="le-rel"><b>fires</b>→</div>
+      <div class="le-node cluster">Agent<small>Copilot Studio / flow</small></div>
+      <div class="le-rel"><b>generates</b>→</div>
+      <div class="le-node" style="border-color:var(--blue);background:var(--blue-soft)">NBA at scale<small>scored · explainable</small></div>
+      <div class="le-rel"><b>surfaced in</b>→</div>
+      <div class="le-node contact">Custom UI<small>advisor cockpit</small></div>
+      <div class="le-rel"><b>human acts</b>↺</div>
+      <div class="le-node" style="border-color:var(--green);background:#14361f">Learning loop<small>accept / dismiss</small></div>
+    </div>
+    <p style="margin-top:6px"><span class="vs" style="display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#7ff0e3;border:1px solid #1f6e66;border-radius:5px;padding:0 5px;margin-right:5px">vs SF &amp; BSI</span>Same trigger taxonomy as governed outbound (Automated · Instant · Scheduled). Agents are grounded on one Dataverse and stay <b>advisory</b> — keeping a human accountable for every customer‑facing act, which a regulated Swiss insurer needs.</p>
+  </div>
+
+  <div class="grid">
+    <div class="adr k">
+      <div class="id">AI‑01</div>
+      <h3>"Template → human → agent" interactive realism</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p>4‑stage state machine: scaffold → human entry → Teams invite → <b>WorkIQ agent reads transcript &amp; writes back</b> attendance, decisions, extracted risk tasks.</p>
+      <p class="why">Every agent‑touched row flashes + carries a purple "Aus Transkript" badge so the agent's contribution is unmistakable. Records start empty and fill through actions (not pre‑populated).</p>
+      <div class="edge"><span class="vs">vs SF &amp; BSI</span>The agent grounds on Teams/M365 content natively (transcript, calendar, Word). SF reaches M365 through connectors; BSI is not an M365‑native fabric — neither makes "agent works where the advisor already works" structural.</div>
+    </div>
+    <div class="adr">
+      <div class="id">AI‑02</div>
+      <h3>Consistent Copilot card grammar</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p>Every Copilot card = <b>urgency coding + a specific CTA</b>. Next‑Best‑Action surfaced along all tasks, leads and conversations.</p>
+    </div>
+    <div class="adr">
+      <div class="id">AI‑03</div>
+      <h3>Native CI‑Journeys AI — present as‑is</h3>
+      <div class="tags"><span class="tag t-native">Native</span></div>
+      <p>Credible &amp; native: trigger/segment journeys, A/B with control group, run‑time AI channel optimization, NL query‑assist segments, gen‑AI content ideas/rewrite, multi‑language dynamic content, lead scoring + NBA to sales.</p>
+      <div class="edge"><span class="vs">vs SF</span>Copilot grounds on the same Dataverse — no Data Cloud prerequisite, no per‑conversation premium. <span class="vs">vs BSI</span>We bring hyperscale Azure OpenAI + agentic depth &amp; cadence a Swiss point‑suite can't match — while keeping CH residency.</div>
+    </div>
+    <div class="adr warn">
+      <div class="id">AI‑04</div>
+      <h3>Paid / Lookalike / Budget — frame as extensions</h3>
+      <div class="tags"><span class="tag t-ext">Extension</span></div>
+      <p><b>Paid Meta/Google</b> = not a native send channel → audience activation via export connectors. <b>Lookalike</b> = not native CI‑Data → Azure ML. <b>Budget/ROI/CPL</b> = custom campaign table + Power BI.</p>
+      <p class="why">Pages deliberately isolate spend/ROI on the analytical cockpit, away from CI‑Journeys.</p>
+    </div>
+    <div class="adr">
+      <div class="id">AI‑05</div>
+      <h3>Real‑time voice transcript = native voice path only</h3>
+      <div class="tags"><span class="tag t-native">Native</span><span class="tag t-constraint">Platform constraint</span></div>
+      <p>Live transcript + Copilot voice (summaries, NBA, live "Buddy") only on the <b>native ACS voice channel</b>; the ACS <code>TranscriptionData</code> WebSocket enables custom AOAI extraction. Not available while Luware owns the call.</p>
+      <p class="why">See the separate Voice Integration Architecture page.</p>
+      <div class="edge"><span class="vs">vs SF</span>Service Cloud Voice needs Amazon Connect / BYO telephony — another vendor &amp; contract. <span class="vs">vs BSI</span>No hyperscale voice/AI telephony stack. Native ACS voice = fewer seams for a 24/7 assistance operation.</div>
+    </div>
+    <div class="adr">
+      <div class="id">AI‑06</div>
+      <h3>Autonomous Case Management Agent for prefill</h3>
+      <div class="tags"><span class="tag t-native">Native</span></div>
+      <p>OOB Case Management Agent predicts &amp; populates case fields (incl. custom) at conversation accept/end — chosen over a custom AOAI build for case prefill (lowest effort, no custom model).</p>
+    </div>
+    <div class="adr k">
+      <div class="id">AI‑07</div>
+      <h3>Agents recommend at scale; the human acts in the UI</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span><span class="tag t-native">Native</span></div>
+      <p>Event/scheduled agents score the book and emit <b>NBAs at scale</b>; advisors accept/edit/dismiss them in the cockpit. Agents are <b>advisory by design</b>, not auto‑acting on the customer.</p>
+      <p class="why">Keeps a human accountable for every customer‑facing decision (regulatory fit) and turns each decision into a learning signal.</p>
+    </div>
+  </div>
+
+  <!-- ================= OUTBOUND ================= -->
+  <h2 class="section s-out"><span class="ic">📤</span> Outbound Messaging <span class="cnt">· SMS / WhatsApp / voice — governed, consent‑checked</span></h2>
+  <p class="sec-sub">Outbound digital is template‑, config‑ and flow‑driven by design; only voice cold‑start is ad‑hoc.</p>
+  <div class="grid">
+    <div class="adr k">
+      <div class="id">OB‑01</div>
+      <h3>No native agent cold‑start for SMS/WhatsApp</h3>
+      <div class="tags"><span class="tag t-constraint">Platform constraint</span></div>
+      <p>No "compose new SMS/WhatsApp" button. Every outbound digital message routes through <b>message template → Outbound Configuration → Power Automate flow</b> calling <code>msdyn_InvokeOutboundAPI</code>.</p>
+      <p class="why">Deliberate D365 architecture favouring governed, auditable, consent‑checked outbound. Triggers: Automated · Instant · Scheduled.</p>
+    </div>
+    <div class="adr">
+      <div class="id">OB‑02</div>
+      <h3>WhatsApp 24‑hour / template rule</h3>
+      <div class="tags"><span class="tag t-constraint">Platform constraint</span></div>
+      <p>Outside the 24‑hour customer‑service window only <b>pre‑approved templates</b> may be sent. This is Meta's WhatsApp Business rule — universal across all vendors, not a D365 limit.</p>
+    </div>
+    <div class="adr">
+      <div class="id">OB‑03</div>
+      <h3>SMS gated by consent + A2P registration</h3>
+      <div class="tags"><span class="tag t-constraint">Platform constraint</span></div>
+      <p>Opt‑in (<code>optin</code>) + <code>donotphone</code> enforced at the API level; 10DLC/A2P + carrier rules. Technically cold‑startable → gating is compliance + product design. Provider = Twilio or ACS.</p>
+    </div>
+    <div class="adr">
+      <div class="id">OB‑04</div>
+      <h3>Reply‑becomes‑inbound model</h3>
+      <div class="tags"><span class="tag t-native">Native</span></div>
+      <p>Outbound template/flow → customer replies → reply enters as a <b>normal inbound omnichannel conversation</b>, routed and assigned to a rep.</p>
+    </div>
+    <div class="adr">
+      <div class="id">OB‑05</div>
+      <h3>Custom "Send SMS" button is feasible &amp; honest</h3>
+      <div class="tags"><span class="tag t-custom">Custom build</span></div>
+      <p>A web‑resource screen can invoke <code>msdyn_InvokeOutboundAPI</code> via <code>Xrm.WebApi.online.execute</code> (or trigger a flow). The button is just the invocation surface; template + config + <code>optin</code> still apply.</p>
+    </div>
+    <div class="adr">
+      <div class="id">OB‑06</div>
+      <h3>Voice cold‑start stays native</h3>
+      <div class="tags"><span class="tag t-native">Native</span></div>
+      <p>Unlike digital, outbound <b>voice</b> is ad‑hoc from the dialpad / click‑to‑call — used in the softphone screen.</p>
+    </div>
+  </div>
+
+  <!-- ================= UI / PLATFORM ================= -->
+  <h2 class="section s-ui"><span class="ic">🎨</span> UI / UX &amp; Platform <span class="cnt">· operational workspaces, not static reports</span></h2>
+  <p class="sec-sub">Make screens feel like live model‑driven forms; respect Omnichannel platform constraints.</p>
+  <div class="grid">
+    <div class="adr k">
+      <div class="id">UI‑01</div>
+      <h3>Operational workspace, not a static report</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p>Buttons must demonstrate real outcomes — status flips, a new row appears, progress ring advances. Records start empty/sparse and fill through actions.</p>
+      <p class="why">Top UX fix: mockups read "plasticky" when they show a finished state with no way it got there.</p>
+    </div>
+    <div class="adr">
+      <div class="id">UI‑02</div>
+      <h3>Visual process + hero narrative</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p>Funnel charts on list pages, progress rings on detail pages, timeline views on queues. Hero banner = KPI summary + narrative punchline ("CHF 42k opportunity in 37 cases").</p>
+    </div>
+    <div class="adr">
+      <div class="id">UI‑03</div>
+      <h3>Compliance gates rendered in the UI</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p>Don't sell during an open complaint (<code>salesBlock</code>); portfolio stays at account level; consent visible before contact. Guardrails are visible, not just back‑end.</p>
+    </div>
+    <div class="adr">
+      <div class="id">UI‑04</div>
+      <h3>In‑app navigation, no new tab</h3>
+      <div class="tags"><span class="tag t-custom">Custom build</span><span class="tag t-pattern">Design pattern</span></div>
+      <p><code>mobiNav(etn,id,url)</code> → <code>Xrm.Navigation.openForm</code> (same tab), falls back to top‑window redirect. No <code>target=_blank</code> / <code>window.open</code>.</p>
+    </div>
+    <div class="adr">
+      <div class="id">UI‑05</div>
+      <h3>Mockup → implemented screen pattern</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p>Strip chrome/nav, add <code>Xrm</code> binding, wire live data via Web API. Versioned redesigns kept side‑by‑side (<code>‑v2‑</code>) for iteration.</p>
+      <div class="edge"><span class="vs">vs SF</span>These Fluent cockpits neutralize SF's "better UX than vanilla D365" claim — and GitHub Copilot turns the mockups into PCF/model‑driven screens at near‑config speed. <span class="vs">vs BSI</span>No Lightning/BSI component ceiling on the differentiated cockpits; full control of the experience layer.</div>
+    </div>
+    <div class="adr warn">
+      <div class="id">UI‑06</div>
+      <h3>Omnichannel stream views can't be customized</h3>
+      <div class="tags"><span class="tag t-gotcha">Gotcha / lesson</span><span class="tag t-constraint">Platform constraint</span></div>
+      <p><code>OCStreamControl</code> only resolves the 3 OOB system stream views (myitems/openitems/closeditems). Custom <code>savedquery</code> → empty <code>fetchXml=</code> → 400. <b>Filter upstream via routing/queues, not by editing views.</b></p>
+    </div>
+    <div class="adr">
+      <div class="id">UI‑07</div>
+      <h3>Terminology &amp; branding conventions</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p>B2B institutional‑account language (not B2C/contact); generic/neutral product branding; account‑level portfolio context in contact views.</p>
+    </div>
+    <div class="adr">
+      <div class="id">UI‑08</div>
+      <h3>Consistent shell &amp; cross‑links</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p>Shared nav bar (logo, search, sections, active‑state) across all pages; verified cross‑links (cockpit → Brunner 360 → claim/lead records). Harmonized verbs + confirmation toasts.</p>
+    </div>
+    <div class="adr">
+      <div class="id">UI‑09</div>
+      <h3>Fluent design system + standardized page anatomy</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p>Every screen = same anatomy: chrome bar · left nav · breadcrumb · KPI bar · command bar · tab strip · status bar. Fluent tokens (Segoe UI, brand <code>#0078d4</code>, Material Symbols), cards radius 8.</p>
+      <p class="why">Recognition over recall — users don't relearn each screen; one token set keeps DE/FR/IT + brand theming consistent.</p>
+    </div>
+    <div class="adr">
+      <div class="id">UI‑10</div>
+      <h3>Copilot is a tab, not a right sidebar</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p>Copilot embedded as a content tab with exactly four structured action cards: <b>Urgent · Risk · Opportunity · Insight</b> — each with type label, metric, context and a 1‑click CTA.</p>
+      <p class="why">Keeps AI inside the work surface and the main content full‑width; insights are acts, not passive text.</p>
+    </div>
+    <div class="adr k">
+      <div class="id">UI‑11</div>
+      <h3>Systems of record render read‑only &amp; visually distinct</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p>External‑system data (policy/claim/quote from SAP/MCS) shown with <b>muted colours, lock icons, no edit buttons, a sync‑timestamp banner</b>.</p>
+      <p class="why">The thin‑CRM principle (DM‑03) made visible — the UI itself signals "CRM orchestrates, doesn't own this."</p>
+      <div class="edge"><span class="vs">vs SF &amp; BSI</span>Where FSC/BSI invite in‑CRM editing of insurance objects, our UI deliberately marks them as references — one source of truth, no reconciliation.</div>
+    </div>
+    <div class="adr">
+      <div class="id">UI‑12</div>
+      <h3>Accessibility: never colour‑alone, F/Z scan</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p>Urgency is <b>coded <i>and</i> labelled</b> (icon + text, not colour only — ~8% of men are colour‑blind). Most important metric top‑left along the F/Z path; related content grouped (Gestalt proximity).</p>
+    </div>
+    <div class="adr">
+      <div class="id">UI‑13</div>
+      <h3>Data‑viz fitness + deltas/baselines</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p>Prefer <b>length &amp; 2D position</b> (bars, funnels) which read preattentively; avoid pie/donut/gauge/3D for quantities. Every number carries a <b>delta &amp; baseline</b> so it means something.</p>
+      <p class="why">Operational screens optimise speed‑to‑status; analytical cockpits optimise trend &amp; comparison.</p>
+    </div>
+    <div class="adr k">
+      <div class="id">UI‑14</div>
+      <h3>DE / FR / IT localization is first‑class</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span><span class="tag t-edge">Edge</span></div>
+      <p>Labels read naturally to a Swiss insurance professional (Anliegenfall, Schadenfall, Offerte, Makler); multilingual data model and consistent token set keep three languages clean.</p>
+      <div class="edge"><span class="vs">vs SF</span>Trilingual bespoke UX is a real translation/maintenance tax on Lightning. <span class="vs">vs BSI</span>BSI is natively Swiss‑multilingual — we match it, and add M365/Copilot multilingual generation on top.</div>
+    </div>
+    <div class="adr">
+      <div class="id">UI‑15</div>
+      <h3>UX governed by a grounded scoring framework</h3>
+      <div class="tags"><span class="tag t-pattern">Design pattern</span></div>
+      <p>Screens scored on 11+ dimensions (NN/g · Baymard · Pencil&amp;Paper · Fluent): JTBD clarity, role relevance, one‑click reachability, AI actionability, process clarity, viz fitness, accessibility, demo readiness. Fixes prioritised by <b>lowest score × highest impact</b>.</p>
+      <p class="why">Design quality is a measured, repeatable gate — not taste.</p>
+    </div>
+  </div>
+
+  <!-- ================= COMPETITIVE ================= -->
+  <h2 class="section" style="border-left-color:var(--teal)"><span class="ic">⚔️</span> Competitive narrative <span class="cnt">· vs Salesforce (FSC) &amp; BSI (Customer Suite)</span></h2>
+  <p class="sec-sub">The advantage is <b>operating‑model fit, not feature count</b>. We meet each rival on their home turf and win on the architecture the RFP actually asks for.</p>
+  <div class="grid">
+    <div class="adr k">
+      <div class="id">CMP‑SF</div>
+      <h3>vs Salesforce — they'll benchmark against vanilla D365</h3>
+      <div class="tags"><span class="tag t-edge">Edge</span></div>
+      <p><b>Their strawman:</b> "better UX, mature AI/Agentforce, prebuilt FSC insurance model, Person‑Account householding, one platform."</p>
+      <p class="why"><b>How we collapse it:</b> the Fluent cockpits + account‑led model mean Mobiliar isn't buying vanilla D365. Thin‑CRM beats the FSC "rebuild insurance in CRM" trap; <b>Household‑as‑Account</b> beats the Person‑Account one‑way door (household + business + broker in one model); the <b>person‑centric, multi‑lead, grouped</b> lead model has no per‑cloud silos; Copilot grounds on Dataverse with <b>no Data Cloud tax</b>; native ACS voice vs Amazon Connect; mixed multi‑persona licensing for 6,500 staff vs full‑seat clouds; GitHub Copilot + mockups‑as‑accelerator removes the "custom UX needs developers" objection.</p>
+      <p><b>On Agentforce:</b> our agents are <b>event/scheduled, advisory, human‑accountable</b> and grounded on one Dataverse — stronger governance &amp; economics for a regulated insurer than per‑conversation autonomous agents.</p>
+      <p><b>Only claim left alive:</b> AppExchange / named‑logo breadth — reframe to fit + M365 + Swiss residency.</p>
+      <div class="sowhat">
+        <span class="lbl">So what — in business terms</span>
+        <ul>
+          <li><b>One view of the whole relationship.</b> A family, the company they own, and their broker all live in a single customer view — advisors stop stitching together separate B2C and B2B systems and see every policy and opportunity in one place.</li>
+          <li><b>No second policy system to maintain.</b> The CRM sits on top of your insurance engines instead of copying them — less to build, less to keep in sync, lower long‑term IT cost.</li>
+          <li><b>No hidden AI "data tax".</b> Copilot works directly on your data with no extra data platform to license and run — the AI bill stays predictable.</li>
+          <li><b>Pay only for what each person needs.</b> 6,500 staff get mixed, role‑based licences instead of a full premium seat for everyone — a materially smaller licence bill.</li>
+          <li><b>Live in weeks, not quarters.</b> These exact screens become the working product, so you see value fast with far less custom development.</li>
+        </ul>
+        <p class="bottom"><b>Bottom line:</b> with Salesforce you rebuild your insurance business inside the CRM and pay for a data platform and full seats. With us: lower total cost, faster to go live, and one trusted view of every customer.</p>
+      </div>
+    </div>
+    <div class="adr k">
+      <div class="id">CMP‑BSI</div>
+      <h3>vs BSI — the comfortable Swiss incumbent</h3>
+      <div class="tags"><span class="tag t-edge">Edge</span></div>
+      <p><b>Their strength:</b> Swiss‑made, deep CH insurance/banking references, local data residency, packaged insurance journeys — "low‑risk, knows our market."</p>
+      <p class="why"><b>How we neutralize the comfort play:</b> we <b>match</b> Swiss residency (Azure Zürich/Geneva, FINMA‑aligned), the household/Partnerverbund model and multilingual DE/FR/IT fit — then <b>out‑scale</b> on what a point‑suite can't: M365‑native fabric (Teams/Outlook/Word), hyperscale Azure OpenAI + <b>event/scheduled agents emitting NBAs across 2.3M customers</b>, one Dataverse + Fabric/Power BI analytics, a global ISV/partner ecosystem, and continuous innovation investment. BSI's data model &amp; extensibility are tied to BSI's own stack; ours is an open schema.</p>
+      <p><b>Positioning:</b> "BSI's Swiss comfort, without the platform ceiling."</p>
+      <div class="sowhat">
+        <span class="lbl">So what — in business terms</span>
+        <ul>
+          <li><b>You give up nothing on safety.</b> Swiss data residency, your household/Partnerverbund model and full DE/FR/IT support are all there — the same low‑risk comfort BSI sells you.</li>
+          <li><b>No growth ceiling.</b> A point‑suite caps what you can extend; this is an open platform that keeps scaling as your needs grow, so you're not re‑buying in three years.</li>
+          <li><b>AI that works across all 2.3M customers.</b> Next‑best‑action recommendations run at full scale, not just on a few packaged journeys — more relevant offers, more advisor productivity.</li>
+          <li><b>Lives where your staff already work.</b> Inside Teams, Outlook and Word — less change, faster adoption, no extra app to learn.</li>
+        </ul>
+        <p class="bottom"><b>Bottom line:</b> the same Swiss comfort and low risk as BSI — but on a platform that grows with you and applies AI across every customer, instead of one that caps out as you scale.</p>
+      </div>
+    </div>
+  </div>
+  <div class="adr" style="margin-top:16px;border-color:var(--teal)">
+    <div class="id">POSITIONING LINE</div>
+    <p style="font-size:14px;color:var(--ink);margin-top:4px">Salesforce makes you <b>rebuild insurance in CRM</b>; BSI gives you a <b>Swiss point‑suite with a platform ceiling</b>. Mobiliar gets the RFP's own bet — <b>a thin, account‑led CRM over the insurance engines</b>, with one household model spanning B2C + business + broker, a person‑centric lead loop, and advisory agents that recommend at scale while a human stays accountable — on a Swiss‑resident, M365‑native, Copilot‑grounded hyperscale platform, delivered at near‑config speed by GitHub Copilot from these very mockups.</p>
+  </div>
+
+  <footer>
+    Captured from: Mobiliar CRM ERD &amp; design principles · Outbound Messaging Capability Notes · UC‑M1 campaign pages review · interactive‑realism pattern · UX review findings · Dataverse lead‑scoring / @odata.bind / cr7e8 entity &amp; OCStreamControl lessons · Voice Integration Architecture.
+    &nbsp;|&nbsp; <span class="rfp">RFP touchpoints: §4.1.1 (digital workplace, 360°, NBA), §4.1.3 (thin CRM over Versicherungstechnik), §4.1.1.4 (marketing/CI), §4.1.1.8 (Mobi24/outbound/AI).</span>
+  </footer>
+</div>
+</body>
+</html>
