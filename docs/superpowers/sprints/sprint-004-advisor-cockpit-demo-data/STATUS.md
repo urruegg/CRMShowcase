@@ -6,13 +6,13 @@
 
 | Stream | Issue | Class | State |
 | --- | --- | --- | --- |
-| prereq-fixes | [#126](https://github.com/urruegg/CRMShowcase/issues/126) | EXECUTION-ONLY | 🟡 [PR #137](https://github.com/urruegg/CRMShowcase/pull/137) opened — #120 fix ready, blocked on human merge to unblock #124 live re-authoring |
-| mcp-agent-decision | [#127](https://github.com/urruegg/CRMShowcase/issues/127) | DESIGN-SENSITIVE | 🟡 decision recorded; mechanical Maker-Portal step deferred |
-| mobiliar-intake-governance | [#128](https://github.com/urruegg/CRMShowcase/issues/128) | DESIGN-SENSITIVE | ✅ [PR #133](https://github.com/urruegg/CRMShowcase/pull/133) |
-| tenant-user-inventory | [#129](https://github.com/urruegg/CRMShowcase/issues/129) | DESIGN-SENSITIVE | ✅ [PR #135](https://github.com/urruegg/CRMShowcase/pull/135) |
-| fixture-enrichment | [#130](https://github.com/urruegg/CRMShowcase/issues/130) | DESIGN-SENSITIVE | ✅ [PR #134](https://github.com/urruegg/CRMShowcase/pull/134) |
-| seed-owner-wiring | [#131](https://github.com/urruegg/CRMShowcase/issues/131) | EXECUTION-ONLY | ✅ [PR #136](https://github.com/urruegg/CRMShowcase/pull/136) |
-| e2e-dev-test-verify | [#132](https://github.com/urruegg/CRMShowcase/issues/132) | EXECUTION-ONLY | ⬜ not started |
+| prereq-fixes | [#126](https://github.com/urruegg/CRMShowcase/issues/126) | EXECUTION-ONLY | 🟡 #120 fixed + merged ([PR #137](https://github.com/urruegg/CRMShowcase/pull/137), commit `1da315c`); #124 re-authoring blocked on GitHub outage (see below) |
+| mcp-agent-decision | [#127](https://github.com/urruegg/CRMShowcase/issues/127) | DESIGN-SENSITIVE | 🟡 decision recorded; mechanical Maker-Portal step deferred to owner |
+| mobiliar-intake-governance | [#128](https://github.com/urruegg/CRMShowcase/issues/128) | DESIGN-SENSITIVE | ✅ merged ([PR #133](https://github.com/urruegg/CRMShowcase/pull/133)) |
+| tenant-user-inventory | [#129](https://github.com/urruegg/CRMShowcase/issues/129) | DESIGN-SENSITIVE | ✅ merged ([PR #135](https://github.com/urruegg/CRMShowcase/pull/135)) |
+| fixture-enrichment | [#130](https://github.com/urruegg/CRMShowcase/issues/130) | DESIGN-SENSITIVE | ✅ merged ([PR #134](https://github.com/urruegg/CRMShowcase/pull/134)) |
+| seed-owner-wiring | [#131](https://github.com/urruegg/CRMShowcase/issues/131) | EXECUTION-ONLY | 🟡 [PR #136](https://github.com/urruegg/CRMShowcase/pull/136) open, `gate1` green once but rerun hit the GitHub outage — needs one more clean check run |
+| e2e-dev-test-verify | [#132](https://github.com/urruegg/CRMShowcase/issues/132) | EXECUTION-ONLY | ⬜ not started — blocked on the two items above + #124 re-authoring |
 
 **2026-08-17.** Charter #125 + 7 stream issues (#126–#132) opened. Confirmed
 live `pac auth` / `az rest` access to both `crmshowdev` and `crmshowtest` as
@@ -116,3 +116,82 @@ in progress.
 _Not yet available — populated by the `e2e-dev-test-verify` stream (#132)
 once `prereq-fixes` (#126), `mcp-agent-decision` (#127), and
 `seed-owner-wiring` (#131) have merged._
+
+## Session paused 2026-08-17 17:11 — GitHub outage, resume tomorrow
+
+**Root cause of the last few failures: an active, GitHub-wide incident**,
+not our code. Confirmed via `https://www.githubstatus.com/api/v2/status.json`
+(`"indicator":"major","description":"Partial System Outage"`) and the
+unresolved-incidents feed (started ~13:40 UTC, impact `critical`, components
+`Actions` / `Pull Requests` / `Issues` / `Copilot` all `major_outage`,
+`API Requests` `degraded_performance`). This explains: the repeated
+`microsoft/powerplatform-actions` action-download timeouts/429s inside the
+`author` job of the DEV workflow (two separate attempts, both failing at
+job **setup**, before any of our code ran), the `gate1` rerun for PR #136
+failing at the same action-download stage, and the transient `HTTP 503`
+errors from `gh api`/`gh pr view` calls during this session.
+
+### What is safely done (merged to `main`)
+
+- **#120 closed** — `Invoke-NativeLookupExtensionReconciliation` fix merged
+  via [PR #137](https://github.com/urruegg/CRMShowcase/pull/137) (commit
+  `1da315c`). Verified twice: full offline suite 424/0/2 (local) and a
+  live `validate` job re-run 424/0/2 green (in CI, twice — both DEV dispatch
+  attempts today got past `validate` cleanly; only `author`'s job **setup**
+  hit the outage).
+- **mobiliar-intake-governance** merged via
+  [PR #133](https://github.com/urruegg/CRMShowcase/pull/133).
+- **tenant-user-inventory** (`Get-DemoPresenterUser.ps1`) merged via
+  [PR #135](https://github.com/urruegg/CRMShowcase/pull/135).
+- **fixture-enrichment** merged via
+  [PR #134](https://github.com/urruegg/CRMShowcase/pull/134).
+- All 4 corresponding worktrees retired (`Remove-SprintWorktree.ps1`); their
+  branches remain on GitHub for history but are fully merged.
+
+### What is still open — pick these up first tomorrow
+
+1. **Check `https://www.githubstatus.com` first.** Do not retry Actions/PR
+   operations until `Actions`/`Pull Requests` report operational again.
+2. **PR #136** (`seed-owner-wiring`, worktree
+   `wt/sprint-004-seed-owner-wiring`, branch
+   `feat/sprint-004-seed-owner-wiring`, still open, not merged) — its
+   `gate1` passed once already (commit `eae79b5`, run `32038801628`) but a
+   required rerun on the next sync commit (`9f662d4`) hit the outage
+   mid-download. Once GitHub is healthy: `gh pr checks 136`, and if `gate1`
+   is stale/failed, `gh run rerun <id> --failed` (or just wait — no code
+   changes needed, this is purely an infra retry). Then
+   `gh pr merge 136 --squash --delete-branch=false` (owner has authorized
+   direct control-plane merges for the remainder of this build — see the
+   "Temporary merge-authority exception" note above; revert to human-only
+   merge once the sprint's build phase is done). Then retire its worktree
+   with `Remove-SprintWorktree.ps1`.
+3. **#124 (re-authoring the missing DEV tables)** — dispatch
+   `gh workflow run cd-solution-dev.yml --repo urruegg/CRMShowcase --ref main`
+   once GitHub's Actions component is healthy. Expect it to succeed now that
+   #120 is merged to `main` (the only two failures today were the outage
+   hitting job setup, not the actual authoring logic — `validate` passed
+   both times). Once tables are live (`crmshow_leadcluster`,
+   `crmshow_claimprojection`, `crmshow_nextbestaction`,
+   `crmshow_nbaprovenance`, `crmshow_measuresnapshot`), redo the
+   intake-export (`Export-Solution.ps1` → `Unpack-Solution.ps1` against
+   `solution/core/datamodel`) to actually close #124.
+4. **#127 (`mcp-agent-decision`)** — mechanical Maker-Portal step still
+   needs the owner: App Designer → Agents tab → Agent feed → "In your feed"
+   → remove the agent → Save → Publish (see
+   [the decision doc](../../specs/2026-08-17-advisor-cockpit-mcp-agent-dependency-decision.md)
+   for exact steps). Re-export `crmshow_Sales` and re-run
+   `cd-solution-test.yml` afterward to confirm #121 is actually closed.
+5. **e2e-dev-test-verify (#132)** — only after 2-4 above are done: dispatch
+   `cd-solution-dev.yml` (DEV evidence) and `cd-solution-test.yml` (TEST
+   promotion evidence), then write the `## Live DEV + TEST evidence` section
+   above per the Sprint Operating Model's closing requirement.
+
+### Local git state (verified clean before pausing)
+
+- Control-plane branch `docs/s3-test-evidence-e2e-verify`: merged with
+  latest `main`, no uncommitted changes.
+- `wt/sprint-004-seed-owner-wiring`: clean, fully pushed, PR #136 open.
+- The 4 merged streams' worktrees removed; their remote branches
+  (`feat/sprint-004-{prereq-fixes,mobiliar-intake-governance,
+  tenant-user-inventory,fixture-enrichment}`) still exist on GitHub
+  (already merged — safe to delete whenever convenient, not urgent).

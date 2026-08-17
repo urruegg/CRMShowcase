@@ -27,13 +27,20 @@ Autonomy class per the [Handover Contract](../contracts/HANDOVER-CONTRACT.md).
 
 | Stream | Issue | Class | State |
 | --- | --- | --- | --- |
-| prereq-fixes (#120, #124) | [#126](https://github.com/urruegg/CRMShowcase/issues/126) | EXECUTION-ONLY | 🟡 #120 fix implemented + live DEV verify in progress; #124 needs re-authoring (see STATUS.md) |
+| prereq-fixes (#120, #124) | [#126](https://github.com/urruegg/CRMShowcase/issues/126) | EXECUTION-ONLY | 🟡 #120 merged ([PR #137](https://github.com/urruegg/CRMShowcase/pull/137), `1da315c`); #124 re-authoring paused on a GitHub outage |
 | mcp-agent-decision (#121) | [#127](https://github.com/urruegg/CRMShowcase/issues/127) | DESIGN-SENSITIVE | 🟡 decision made (remove Copilot/AI-assistant feature); mechanical Maker-Portal step deferred to owner |
-| mobiliar-intake-governance | [#128](https://github.com/urruegg/CRMShowcase/issues/128) | DESIGN-SENSITIVE | ✅ [PR #133](https://github.com/urruegg/CRMShowcase/pull/133) opened |
-| tenant-user-inventory | [#129](https://github.com/urruegg/CRMShowcase/issues/129) | DESIGN-SENSITIVE | ✅ [PR #135](https://github.com/urruegg/CRMShowcase/pull/135) opened |
-| fixture-enrichment | [#130](https://github.com/urruegg/CRMShowcase/issues/130) | DESIGN-SENSITIVE | ✅ [PR #134](https://github.com/urruegg/CRMShowcase/pull/134) opened |
-| seed-owner-wiring | [#131](https://github.com/urruegg/CRMShowcase/issues/131) | EXECUTION-ONLY | ✅ [PR #136](https://github.com/urruegg/CRMShowcase/pull/136) opened |
-| e2e-dev-test-verify | [#132](https://github.com/urruegg/CRMShowcase/issues/132) | EXECUTION-ONLY | ⬜ not started (blocked on prereq-fixes + mcp-agent-decision) |
+| mobiliar-intake-governance | [#128](https://github.com/urruegg/CRMShowcase/issues/128) | DESIGN-SENSITIVE | ✅ merged ([PR #133](https://github.com/urruegg/CRMShowcase/pull/133)) |
+| tenant-user-inventory | [#129](https://github.com/urruegg/CRMShowcase/issues/129) | DESIGN-SENSITIVE | ✅ merged ([PR #135](https://github.com/urruegg/CRMShowcase/pull/135)) |
+| fixture-enrichment | [#130](https://github.com/urruegg/CRMShowcase/issues/130) | DESIGN-SENSITIVE | ✅ merged ([PR #134](https://github.com/urruegg/CRMShowcase/pull/134)) |
+| seed-owner-wiring | [#131](https://github.com/urruegg/CRMShowcase/issues/131) | EXECUTION-ONLY | 🟡 [PR #136](https://github.com/urruegg/CRMShowcase/pull/136) open — `gate1` passed once, rerun interrupted by the GitHub outage |
+| e2e-dev-test-verify | [#132](https://github.com/urruegg/CRMShowcase/issues/132) | EXECUTION-ONLY | ⬜ not started (blocked on prereq-fixes + mcp-agent-decision + seed-owner-wiring) |
+
+**Session paused 2026-08-17 17:11** for a GitHub-wide outage (confirmed via
+githubstatus.com — `Actions`/`Pull Requests` `major_outage`). See
+[STATUS.md § Session paused](./STATUS.md#session-paused-2026-08-17-1711--github-outage-resume-tomorrow)
+for the exact resume checklist: check GitHub status first, then finish
+merging PR #136, dispatch `cd-solution-dev.yml` against `main` for #124,
+close #127's mechanical step, and run `e2e-dev-test-verify`.
 
 ## Dependencies
 
