@@ -1,0 +1,3138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mobiliar CRM ERD Visualizer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script type="module">
+    import {
+      provideFluentDesignSystem,
+      fluentButton,
+      fluentBadge,
+      fluentCard
+    } from "https://cdn.jsdelivr.net/npm/@fluentui/web-components@2.6.0/dist/web-components.min.js";
+
+    provideFluentDesignSystem().register(
+      fluentButton(),
+      fluentBadge(),
+      fluentCard()
+    );
+  </script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #eef4fb;
+      --surface: rgba(255, 255, 255, 0.86);
+      --surface-strong: #ffffff;
+      --surface-muted: rgba(247, 250, 255, 0.82);
+      --text: #10233f;
+      --muted: #5f7390;
+      --border: rgba(141, 162, 196, 0.28);
+      --border-strong: rgba(70, 97, 142, 0.24);
+      --brand: #0f6cbd;
+      --brand-deep: #17417a;
+      --brand-soft: #dcecff;
+      --emerald: #0f8f6f;
+      --amber: #c88311;
+      --rose: #c4456f;
+      --teal: #0c8ea5;
+      --orange: #d66a22;
+      --shadow-lg: 0 24px 60px rgba(16, 35, 63, 0.14);
+      --shadow-md: 0 14px 34px rgba(16, 35, 63, 0.1);
+      --radius-xl: 24px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+      --radius-sm: 12px;
+      --grid-size: 28px;
+      --node-width: 278px;
+      --canvas-width: 3800px;
+      --canvas-height: 2400px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      font-family: Inter, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(28, 120, 194, 0.2), transparent 32%),
+        radial-gradient(circle at top right, rgba(12, 142, 165, 0.18), transparent 26%),
+        linear-gradient(180deg, #f6faff 0%, #edf3fb 42%, #e7eef9 100%);
+    }
+
+    body {
+      padding: 24px;
+    }
+
+    .shell {
+      max-width: 1780px;
+      margin: 0 auto;
+      display: grid;
+      gap: 16px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: 30px;
+      padding: 24px 28px;
+      color: #f7fbff;
+      background:
+        radial-gradient(circle at 0% 0%, rgba(123, 201, 255, 0.24), transparent 26%),
+        radial-gradient(circle at 100% 0%, rgba(56, 189, 248, 0.22), transparent 30%),
+        linear-gradient(120deg, #0b1f3a 0%, #10325d 40%, #0f6cbd 100%);
+      box-shadow: var(--shadow-lg);
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.9fr);
+      gap: 18px;
+      align-items: center;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -90px -130px auto;
+      width: 300px;
+      height: 300px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.18), transparent 68%);
+      pointer-events: none;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(28px, 3vw, 40px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .hero p {
+      margin: 10px 0 0;
+      max-width: 820px;
+      color: rgba(238, 246, 255, 0.86);
+      line-height: 1.52;
+      font-size: 14px;
+    }
+
+    .hero-metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(120px, 1fr));
+      gap: 12px;
+      align-self: stretch;
+    }
+
+    .metric {
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 18px;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(16px);
+    }
+
+    .metric-value {
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .metric-label {
+      margin-top: 8px;
+      font-size: 12px;
+      color: rgba(232, 242, 255, 0.78);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .toolbar,
+    .status-card,
+    .canvas-shell,
+    .inspector {
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      background: var(--surface);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .toolbar {
+      padding: 14px 16px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .toolbar-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-row input {
+      flex: 1 1 260px;
+      min-width: 220px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--text);
+      padding: 12px 14px;
+      font: inherit;
+      outline: none;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    }
+
+    .toolbar-row input:focus {
+      border-color: rgba(15, 108, 189, 0.5);
+      box-shadow: 0 0 0 4px rgba(15, 108, 189, 0.12);
+    }
+
+    .microcopy {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .status-card {
+      min-width: 280px;
+      padding: 14px 16px;
+      display: grid;
+      gap: 8px;
+      align-content: center;
+    }
+
+    .status-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--brand-deep);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .status-text {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .main {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.9fr);
+      gap: 16px;
+      min-height: 900px;
+    }
+
+    .canvas-shell {
+      position: relative;
+      overflow: hidden;
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .canvas-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 6px 8px 2px;
+    }
+
+    .canvas-header h2,
+    .inspector h2 {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #0b2243;
+    }
+
+    .legend {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .legend-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      padding: 7px 11px;
+      background: rgba(255, 255, 255, 0.72);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      flex: 0 0 auto;
+    }
+
+    .viewport {
+      position: relative;
+      overflow: hidden;
+      min-height: 760px;
+      border-radius: 20px;
+      border: 1px solid rgba(141, 162, 196, 0.26);
+      background:
+        linear-gradient(rgba(230, 239, 252, 0.72) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(230, 239, 252, 0.72) 1px, transparent 1px),
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.85), rgba(241, 247, 255, 0.82));
+      background-size: var(--grid-size) var(--grid-size), var(--grid-size) var(--grid-size), auto;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    .viewport.dragging {
+      cursor: grabbing;
+    }
+
+    .canvas-content {
+      position: absolute;
+      inset: 0 auto auto 0;
+      width: var(--canvas-width);
+      height: var(--canvas-height);
+      transform-origin: 0 0;
+    }
+
+    .relations {
+      position: absolute;
+      inset: 0;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .entity-layer {
+      position: absolute;
+      inset: 0;
+    }
+
+    .entity-node {
+      position: absolute;
+      width: var(--node-width);
+      border-radius: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.45);
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 20px 38px rgba(15, 43, 77, 0.12);
+      overflow: hidden;
+      transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .entity-node:hover {
+      box-shadow: 0 24px 44px rgba(15, 43, 77, 0.16);
+    }
+
+    .viewport.dragging .entity-node,
+    .viewport.dragging .entity-node:hover {
+      transform: none;
+      transition: none;
+    }
+
+    .entity-node.selected {
+      border-color: rgba(15, 108, 189, 0.56);
+      box-shadow: 0 24px 46px rgba(15, 108, 189, 0.2);
+    }
+
+    .entity-node.hidden {
+      display: none;
+    }
+
+    .entity-node::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 5px;
+      background: var(--accent, var(--brand));
+    }
+
+    .entity-head {
+      position: relative;
+      padding: 14px 16px 12px 18px;
+      display: grid;
+      gap: 10px;
+      cursor: grab;
+      touch-action: none;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(247, 251, 255, 0.9));
+    }
+
+    .entity-node.moving .entity-head {
+      cursor: grabbing;
+    }
+
+    .entity-title-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .entity-title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #0d2547;
+    }
+
+    .entity-subtitle {
+      margin: 5px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .entity-metrics {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(141, 162, 196, 0.26);
+      background: rgba(255, 255, 255, 0.78);
+      color: #315070;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .pill.live {
+      color: var(--emerald);
+      border-color: rgba(15, 143, 111, 0.22);
+      background: rgba(227, 250, 244, 0.9);
+    }
+
+    .pill.doc {
+      color: var(--brand-deep);
+      border-color: rgba(15, 108, 189, 0.18);
+      background: rgba(226, 238, 255, 0.86);
+    }
+
+    .entity-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .toggle-indicator {
+      width: 30px;
+      height: 30px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 999px;
+      background: rgba(15, 108, 189, 0.1);
+      color: var(--brand-deep);
+      font-size: 16px;
+      font-weight: 700;
+      flex: 0 0 auto;
+    }
+
+    .entity-body {
+      padding: 0 16px 14px 18px;
+      display: none;
+      border-top: 1px solid rgba(141, 162, 196, 0.16);
+      background: linear-gradient(180deg, rgba(247, 250, 255, 0.86), rgba(255, 255, 255, 0.96));
+    }
+
+    .entity-node.expanded .entity-body {
+      display: block;
+    }
+
+    .entity-node.expanded .toggle-indicator {
+      transform: rotate(45deg);
+    }
+
+    .column-list {
+      display: grid;
+      gap: 8px;
+      max-height: 320px;
+      overflow: auto;
+      padding: 14px 0 2px;
+    }
+
+    .column-row {
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid rgba(141, 162, 196, 0.18);
+      display: grid;
+      gap: 4px;
+    }
+
+    .column-main {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .column-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: #173154;
+      word-break: break-word;
+    }
+
+    .column-caption {
+      font-size: 11px;
+      color: var(--muted);
+      word-break: break-word;
+    }
+
+    .column-badges {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 7px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .badge.type {
+      background: rgba(15, 108, 189, 0.1);
+      color: #0d5a9c;
+    }
+
+    .badge.role {
+      background: rgba(198, 131, 17, 0.12);
+      color: #8a5c0f;
+    }
+
+    .badge.live {
+      background: rgba(15, 143, 111, 0.12);
+      color: var(--emerald);
+    }
+
+    .badge.doc {
+      background: rgba(231, 238, 250, 0.96);
+      color: #3d597a;
+    }
+
+    .empty-note {
+      padding: 14px 0 4px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .relation-path {
+      fill: none;
+      stroke: rgba(64, 104, 156, 0.36);
+      stroke-width: 2.6;
+    }
+
+    .relation-path.service {
+      stroke: rgba(214, 106, 34, 0.44);
+    }
+
+    .relation-path.activity {
+      stroke: rgba(12, 142, 165, 0.42);
+    }
+
+    .relation-path.signal {
+      stroke: rgba(196, 69, 111, 0.42);
+      stroke-dasharray: 8 7;
+    }
+
+    .relation-label,
+    .cardinality-label {
+      font-size: 11px;
+      font-weight: 700;
+      fill: #274160;
+      paint-order: stroke;
+      stroke: rgba(246, 250, 255, 0.95);
+      stroke-width: 5px;
+      stroke-linejoin: round;
+    }
+
+    .cardinality-label {
+      font-size: 10px;
+      fill: #0f6cbd;
+    }
+
+    .inspector {
+      padding: 18px;
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+
+    .panel {
+      border-radius: 18px;
+      border: 1px solid rgba(141, 162, 196, 0.2);
+      background: rgba(255, 255, 255, 0.78);
+      padding: 14px 15px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--brand-deep);
+    }
+
+    .inspector-title {
+      display: grid;
+      gap: 6px;
+    }
+
+    .inspector-title h3 {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1;
+      letter-spacing: -0.03em;
+      color: #0b2243;
+    }
+
+    .inspector-title p,
+    .panel p,
+    .meta-list,
+    .relation-list,
+    .source-list {
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.54;
+    }
+
+    .meta-list,
+    .relation-list,
+    .source-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .inspector-columns {
+      display: grid;
+      gap: 8px;
+      min-height: 0;
+    }
+
+    .inspector-columns-body {
+      min-height: 0;
+      max-height: 360px;
+      overflow: auto;
+      padding-top: 4px;
+      padding-right: 4px;
+    }
+
+    .inspector-columns .column-list {
+      max-height: none;
+      overflow: visible;
+      padding-top: 0;
+    }
+
+    .relation-link {
+      width: 100%;
+      text-align: left;
+      border: 1px solid rgba(141, 162, 196, 0.18);
+      background: rgba(247, 250, 255, 0.86);
+      color: #214264;
+      border-radius: 14px;
+      padding: 10px 12px;
+      font: inherit;
+      cursor: pointer;
+      transition: border-color 150ms ease, transform 150ms ease;
+    }
+
+    .relation-link:hover {
+      transform: translateY(-1px);
+      border-color: rgba(15, 108, 189, 0.28);
+    }
+
+    .source-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .accent-commercial { --accent: #0f6cbd; }
+    .accent-deal { --accent: #0c8ea5; }
+    .accent-compliance { --accent: #d66a22; }
+    .accent-engagement { --accent: #c4456f; }
+    .accent-analytics { --accent: #0f8f6f; }
+
+    @media (max-width: 1280px) {
+      .hero,
+      .main,
+      .topbar {
+        grid-template-columns: 1fr;
+      }
+
+      .status-card {
+        min-width: 0;
+      }
+    }
+
+    @media (max-width: 860px) {
+      body {
+        padding: 14px;
+      }
+
+      .hero {
+        padding: 20px;
+      }
+
+      .hero-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .viewport {
+        min-height: 620px;
+      }
+
+      :root {
+        --node-width: 250px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div>
+        <h1>Mobiliar CRM ERD Visualizer</h1>
+        <p>Interactive entity map for the Mobiliar Dynamics 365 CRM solution — an account-led, thin-CRM-over-insurance-engines model spanning household/business/broker 360, lead clustering, after-sales, Mobi24 assistance, broker steering, consent guardrails, and Copilot-grounded next best actions.</p>
+      </div>
+      <div class="hero-metrics">
+        <div class="metric">
+          <div class="metric-value" id="metricTables">25</div>
+          <div class="metric-label">Tables In View</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value" id="metricRelationships">0</div>
+          <div class="metric-label">Relationships</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value" id="metricLive">0</div>
+          <div class="metric-label">Live Tables Loaded</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value" id="metricColumns">0</div>
+          <div class="metric-label">Columns Surfaced</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="topbar">
+      <div class="toolbar">
+        <div class="toolbar-row">
+          <fluent-button appearance="accent" id="openFolderButton">Open Dataverse Solution Folder</fluent-button>
+          <fluent-button appearance="outline" id="refreshButton">Refresh</fluent-button>
+          <fluent-button appearance="outline" id="zoomOutButton">-</fluent-button>
+          <fluent-button appearance="outline" id="resetZoomButton">100%</fluent-button>
+          <fluent-button appearance="outline" id="zoomInButton">+</fluent-button>
+          <fluent-button appearance="outline" id="fitButton">Fit Graph</fluent-button>
+          <input id="searchInput" type="search" placeholder="Filter tables, columns, or logical names" />
+        </div>
+        <div class="toolbar-row microcopy">
+          Use mouse wheel to zoom, drag the background to pan, drag a table header to reposition a card, and click a table card to expand its columns. The documented Mobiliar baseline is available immediately; live Dataverse solution metadata can be overlaid if an unpacked solution export is selected.
+        </div>
+      </div>
+
+      <div class="status-card">
+        <div class="status-heading">
+          <div class="status-title">Data Source</div>
+          <fluent-badge appearance="filled" id="statusBadge">Booting</fluent-badge>
+        </div>
+        <div class="status-text" id="statusText">Preparing documented schema and attempting to read the unpacked solution export.</div>
+      </div>
+    </section>
+
+    <section class="main">
+      <div class="canvas-shell">
+        <div class="canvas-header">
+          <h2>Entity Map</h2>
+          <div class="legend">
+            <span class="legend-chip"><span class="legend-dot" style="background:#0f6cbd"></span>Party &amp; Org</span>
+            <span class="legend-chip"><span class="legend-dot" style="background:#0c8ea5"></span>Portfolio</span>
+            <span class="legend-chip"><span class="legend-dot" style="background:#0f8f6f"></span>Demand &amp; AI</span>
+            <span class="legend-chip"><span class="legend-dot" style="background:#c4456f"></span>Service</span>
+            <span class="legend-chip"><span class="legend-dot" style="background:#d66a22"></span>Mobi24 &amp; Broker</span>
+          </div>
+        </div>
+        <div class="viewport" id="viewport">
+          <div class="canvas-content" id="canvasContent">
+            <svg class="relations" id="relationsSvg"></svg>
+            <div class="entity-layer" id="entityLayer"></div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="inspector">
+        <div class="inspector-title">
+          <h2>Inspector</h2>
+          <p id="inspectorHint">Select a table to inspect its schema sources, relationship list, and live overlay status.</p>
+        </div>
+
+        <div class="panel">
+          <div class="inspector-title">
+            <h3 id="inspectorTitle">Account</h3>
+            <p id="inspectorSubtitle">account</p>
+          </div>
+          <div id="inspectorBadges" class="entity-metrics"></div>
+          <p id="inspectorDescription">Account is the centre of gravity: Household, Business/Geschäftspartner, and Broker share one model with portfolio and relationship context at account level.</p>
+        </div>
+
+        <div class="panel">
+          <h3 class="panel-title">Metadata Snapshot</h3>
+          <div class="meta-list" id="metaList"></div>
+        </div>
+
+        <div class="panel">
+          <h3 class="panel-title">Relationships</h3>
+          <div class="relation-list" id="relationList"></div>
+        </div>
+
+        <div class="panel inspector-columns">
+          <div class="panel-header">
+            <h3 class="panel-title">Columns</h3>
+            <fluent-button appearance="outline" id="inspectorColumnsToggle">Expand</fluent-button>
+          </div>
+          <div id="inspectorColumnsBody" class="inspector-columns-body muted">Column details are hidden until expanded.</div>
+        </div>
+
+        <div class="panel">
+          <h3 class="panel-title">Schema Sources</h3>
+          <div class="source-list" id="sourceList"></div>
+        </div>
+      </aside>
+    </section>
+  </div>
+
+  <script>
+    let baselineEntities = [
+      // ── COMMERCIAL: Standard CRM Tables ──
+      {
+        key: "account",
+        folder: "Account",
+        title: "Account",
+        logicalName: "account",
+        collectionName: "accounts",
+        domain: "commercial",
+        description: "Client account — Financial Sponsor, Corporate, or Sovereign entity tracked for IB coverage.",
+        x: 420,
+        y: 60,
+        columns: [
+          { logicalName: "accountid", displayName: "Account", type: "guid", role: "PK" },
+          { logicalName: "name", displayName: "Account Name", type: "nvarchar" },
+          { logicalName: "parentaccountid", displayName: "Parent Account", type: "lookup", role: "FK" },
+          { logicalName: "primarycontactid", displayName: "Primary Contact", type: "lookup", role: "FK" },
+          { logicalName: "industrycode", displayName: "GICS Sector", type: "choice" },
+          { logicalName: "numberofemployees", displayName: "Employees", type: "int" },
+          { logicalName: "address1_city", displayName: "HQ City", type: "nvarchar" },
+          { logicalName: "customertypecode", displayName: "Client Type", type: "choice" },
+          { logicalName: "accountclassificationcode", displayName: "Client Tier", type: "choice" },
+          { logicalName: "almatont_subsector", displayName: "Sub-sector", type: "nvarchar" },
+          { logicalName: "almatont_clientsince", displayName: "Client Since (Year)", type: "int" },
+          { logicalName: "almatont_aum", displayName: "AUM", type: "money" },
+          { logicalName: "almatont_offices", displayName: "Offices", type: "nvarchar" },
+          { logicalName: "almatont_walletshare", displayName: "Wallet Share %", type: "decimal" },
+          { logicalName: "almatont_relationshipscore", displayName: "Relationship Score", type: "int" },
+          { logicalName: "almatont_relationshiptrend", displayName: "Relationship Trend", type: "choice" },
+          { logicalName: "almatont_lastmdmeeting", displayName: "Last MD Meeting", type: "dateonly" },
+          { logicalName: "almatont_eventsattendedytd", displayName: "Events Attended YTD", type: "int" },
+          { logicalName: "almatont_kycstatus", displayName: "KYC Status", type: "choice" },
+          { logicalName: "almatont_kycexpiry", displayName: "KYC Expiry", type: "dateonly" },
+          { logicalName: "almatont_amlstatus", displayName: "AML Screening", type: "choice" },
+          { logicalName: "almatont_sanctionsstatus", displayName: "Sanctions Status", type: "choice" },
+          { logicalName: "almatont_pepflag", displayName: "PEP Flag", type: "choice" },
+          { logicalName: "almatont_jurisdictions", displayName: "Jurisdictions", type: "nvarchar" },
+          { logicalName: "almatont_bookingentity", displayName: "Booking Entity", type: "nvarchar" }
+        ]
+      },
+      {
+        key: "contact",
+        folder: "Contact",
+        title: "Contact",
+        logicalName: "contact",
+        collectionName: "contacts",
+        domain: "commercial",
+        description: "Person associated with a client account — C-suite, decision maker, or deal contact.",
+        x: 50,
+        y: 60,
+        columns: [
+          { logicalName: "contactid", displayName: "Contact", type: "guid", role: "PK" },
+          { logicalName: "fullname", displayName: "Full Name", type: "nvarchar" },
+          { logicalName: "jobtitle", displayName: "Job Title", type: "nvarchar" },
+          { logicalName: "emailaddress1", displayName: "Email", type: "nvarchar" },
+          { logicalName: "telephone1", displayName: "Phone", type: "nvarchar" },
+          { logicalName: "parentcustomerid", displayName: "Company", type: "lookup", role: "FK" },
+          { logicalName: "accountrolecode", displayName: "Company Role", type: "choice" },
+          { logicalName: "address1_city", displayName: "Location", type: "nvarchar" },
+          { logicalName: "assistantname", displayName: "Assistant", type: "nvarchar" },
+          { logicalName: "almatont_csuite", displayName: "C-Suite", type: "bit" },
+          { logicalName: "almatont_issponsor", displayName: "Is Sponsor", type: "bit" },
+          { logicalName: "almatont_wallcrossed", displayName: "Wall-Crossed", type: "bit" },
+          { logicalName: "almatont_relationshipscore", displayName: "Relationship Score", type: "int" },
+          { logicalName: "almatont_feeattributed", displayName: "Fee Attributed", type: "money" },
+          { logicalName: "almatont_nationality", displayName: "Nationality", type: "nvarchar" },
+          { logicalName: "almatont_priorfirms", displayName: "Prior Firms", type: "nvarchar" },
+          { logicalName: "almatont_influencebudget", displayName: "Influence: Budget Control", type: "int" },
+          { logicalName: "almatont_influencedeal", displayName: "Influence: Deal Decision", type: "int" },
+          { logicalName: "almatont_influenceadvisor", displayName: "Influence: Advisor Select", type: "int" },
+          { logicalName: "almatont_influencechampion", displayName: "Influence: Internal Champion", type: "int" },
+          { logicalName: "almatont_influencecrosssell", displayName: "Influence: Cross-sell", type: "int" },
+          { logicalName: "almatont_relationshiptrend", displayName: "Relationship Trend", type: "choice" },
+          { logicalName: "almatont_eventsytd", displayName: "UBS Events YTD", type: "int" },
+          { logicalName: "almatont_responsivenesshours", displayName: "Responsiveness (avg hrs)", type: "decimal" },
+          { logicalName: "almatont_kycstatus", displayName: "KYC Status", type: "choice" },
+          { logicalName: "almatont_pepcheck", displayName: "PEP Check", type: "choice" },
+          { logicalName: "almatont_sanctionsstatus", displayName: "Sanctions Status", type: "choice" },
+          { logicalName: "almatont_mnpiwall", displayName: "MNPI Wall", type: "bit" },
+          { logicalName: "almatont_wallcrosseddate", displayName: "Wall-Crossed Date", type: "dateonly" },
+          { logicalName: "almatont_infoclassification", displayName: "Info Classification", type: "choice" },
+          { logicalName: "almatont_productbanker", displayName: "Product Banker", type: "lookup", role: "FK" },
+          { logicalName: "almatont_coveragesince", displayName: "Coverage Since (Year)", type: "int" }
+        ]
+      },
+      {
+        key: "opportunity",
+        folder: "Opportunity",
+        title: "Deal (Opportunity)",
+        logicalName: "opportunity",
+        collectionName: "opportunities",
+        domain: "commercial",
+        description: "IB deal — M&A, ECM, DCM, LevFin, Advisory, or Restructuring tracked through origination to close.",
+        x: 880,
+        y: 60,
+        columns: [
+          { logicalName: "opportunityid", displayName: "Opportunity", type: "guid", role: "PK" },
+          { logicalName: "name", displayName: "Deal Name", type: "nvarchar" },
+          { logicalName: "customerid", displayName: "Client Account", type: "lookup", role: "FK" },
+          { logicalName: "estimatedvalue", displayName: "Deal Size", type: "money" },
+          { logicalName: "estimatedclosedate", displayName: "Expected Close", type: "datetime" },
+          { logicalName: "closeprobability", displayName: "Probability", type: "decimal" },
+          { logicalName: "almatont_dealtype", displayName: "Deal Type", type: "choice" },
+          { logicalName: "almatont_dealstage", displayName: "Deal Stage", type: "choice" },
+          { logicalName: "almatont_sector", displayName: "Sector", type: "choice" },
+          { logicalName: "almatont_industry", displayName: "Industry (GICS)", type: "choice" },
+          { logicalName: "almatont_subsector", displayName: "Sub-sector", type: "nvarchar" },
+          { logicalName: "almatont_ubsrole", displayName: "UBS Role", type: "choice" },
+          { logicalName: "almatont_feeestimate", displayName: "Fee Estimate", type: "money" },
+          { logicalName: "almatont_mandatetype", displayName: "Mandate Type", type: "choice" },
+          { logicalName: "almatont_mandatedate", displayName: "Mandate Date", type: "dateonly" },
+          { logicalName: "almatont_geography", displayName: "Geography", type: "nvarchar" },
+          { logicalName: "almatont_codename", displayName: "Code Name", type: "nvarchar" },
+          { logicalName: "almatont_exclusivity", displayName: "Exclusivity", type: "choice" },
+          { logicalName: "almatont_mnpiwall", displayName: "MNPI Wall", type: "bit" },
+          { logicalName: "almatont_crossborder", displayName: "Cross-border", type: "bit" },
+          { logicalName: "almatont_evrevenue", displayName: "EV/Revenue", type: "decimal" },
+          { logicalName: "almatont_evebitda", displayName: "EV/EBITDA", type: "decimal" },
+          { logicalName: "almatont_impliedpremium", displayName: "Implied Premium", type: "decimal" },
+          { logicalName: "almatont_compmedian", displayName: "Comp Median", type: "decimal" },
+          { logicalName: "almatont_retainer", displayName: "Retainer", type: "money" },
+          { logicalName: "almatont_successfee", displayName: "Success Fee", type: "money" },
+          { logicalName: "almatont_breakfee", displayName: "Break Fee", type: "money" },
+          { logicalName: "almatont_retainerearned", displayName: "Retainer Earned YTD", type: "money" },
+          { logicalName: "almatont_feerecognitionpct", displayName: "Fee Recognition %", type: "decimal" },
+          { logicalName: "almatont_kycstatus", displayName: "KYC Status", type: "choice" },
+          { logicalName: "almatont_conflictstatus", displayName: "Conflict Check", type: "choice" },
+          { logicalName: "almatont_sanctionsstatus", displayName: "Sanctions Screen", type: "choice" },
+          { logicalName: "almatont_wallcrossedcount", displayName: "Wall-Crossed Count", type: "int" },
+          { logicalName: "almatont_restrictedlist", displayName: "Restricted List", type: "bit" },
+          { logicalName: "almatont_regulatorybodies", displayName: "Regulatory Bodies", type: "nvarchar" },
+          { logicalName: "almatont_counterparty", displayName: "Counterparty/Buyer", type: "lookup", role: "FK" },
+          { logicalName: "almatont_bookingentity", displayName: "Booking Entity", type: "nvarchar" }
+        ]
+      },
+      {
+        key: "competitor",
+        folder: "Competitor",
+        title: "Competitor",
+        logicalName: "competitor",
+        collectionName: "competitors",
+        domain: "commercial",
+        description: "Competing investment bank tracked across deals and pitches.",
+        x: 1400,
+        y: 60,
+        columns: [
+          { logicalName: "competitorid", displayName: "Competitor", type: "guid", role: "PK" },
+          { logicalName: "name", displayName: "Bank Name", type: "nvarchar" },
+          { logicalName: "strengths", displayName: "Strengths", type: "text" },
+          { logicalName: "weaknesses", displayName: "Weaknesses", type: "text" }
+        ]
+      },
+      {
+        key: "appointment",
+        folder: "Appointment",
+        title: "Appointment",
+        logicalName: "appointment",
+        collectionName: "appointments",
+        domain: "engagement",
+        description: "Client meeting activity — linked to meeting prep and post-meeting commit records.",
+        x: 1800,
+        y: 60,
+        columns: [
+          { logicalName: "activityid", displayName: "Appointment", type: "guid", role: "PK" },
+          { logicalName: "subject", displayName: "Subject", type: "nvarchar" },
+          { logicalName: "scheduledstart", displayName: "Start Time", type: "datetime" },
+          { logicalName: "scheduledend", displayName: "End Time", type: "datetime" },
+          { logicalName: "regardingobjectid", displayName: "Regarding", type: "lookup", role: "FK" }
+        ]
+      },
+      {
+        key: "task",
+        folder: "Task",
+        title: "Task",
+        logicalName: "task",
+        collectionName: "tasks",
+        domain: "engagement",
+        description: "Follow-up task or action item linked to deals, accounts, or coverage plans.",
+        x: 2200,
+        y: 60,
+        columns: [
+          { logicalName: "activityid", displayName: "Task", type: "guid", role: "PK" },
+          { logicalName: "subject", displayName: "Subject", type: "nvarchar" },
+          { logicalName: "scheduledend", displayName: "Due Date", type: "datetime" },
+          { logicalName: "regardingobjectid", displayName: "Regarding", type: "lookup", role: "FK" }
+        ]
+      },
+
+      // ── DEAL LIFECYCLE: Custom Tables ──
+      {
+        key: "almatont_mandate",
+        folder: "almatont_mandate",
+        title: "Mandate",
+        logicalName: "almatont_mandate",
+        collectionName: "almatont_mandates",
+        domain: "deal",
+        description: "Engagement mandate — signed letter defining scope, fees, exclusivity, and key dates for an IB deal.",
+        x: 420,
+        y: 500,
+        columns: [
+          { logicalName: "almatont_mandateid", displayName: "Mandate", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Mandate Name", type: "nvarchar" },
+          { logicalName: "almatont_engagementtype", displayName: "Engagement Type", type: "choice" },
+          { logicalName: "almatont_product", displayName: "Product", type: "choice" },
+          { logicalName: "almatont_client", displayName: "Client", type: "lookup", role: "FK" },
+          { logicalName: "almatont_counterparty", displayName: "Counterparty", type: "lookup", role: "FK" },
+          { logicalName: "almatont_opportunity", displayName: "Linked Deal", type: "lookup", role: "FK" },
+          { logicalName: "almatont_signeddate", displayName: "Signed Date", type: "dateonly" },
+          { logicalName: "almatont_exclusivity", displayName: "Exclusivity", type: "choice" },
+          { logicalName: "almatont_tailperiod", displayName: "Tail Period", type: "nvarchar" },
+          { logicalName: "almatont_governinglaw", displayName: "Governing Law", type: "nvarchar" },
+          { logicalName: "almatont_monthlyretainer", displayName: "Monthly Retainer", type: "money" },
+          { logicalName: "almatont_successfee", displayName: "Success Fee", type: "money" },
+          { logicalName: "almatont_breakfee", displayName: "Break Fee", type: "money" },
+          { logicalName: "almatont_expensecap", displayName: "Expense Cap", type: "money" },
+          { logicalName: "almatont_totalfee", displayName: "Total Fee", type: "money" },
+          { logicalName: "almatont_totalearned", displayName: "Total Earned", type: "money" },
+          { logicalName: "almatont_dealvalue", displayName: "Deal Value", type: "money" },
+          { logicalName: "almatont_targetclose", displayName: "Target Close", type: "dateonly" },
+          { logicalName: "almatont_tailexpiry", displayName: "Tail Expiry", type: "dateonly" },
+          { logicalName: "almatont_conflictstatus", displayName: "Conflict Check", type: "choice" },
+          { logicalName: "almatont_kycamlstatus", displayName: "KYC/AML", type: "choice" },
+          { logicalName: "almatont_mnpiwall", displayName: "MNPI Wall", type: "bit" },
+          { logicalName: "almatont_restrictedlist", displayName: "Restricted List", type: "bit" },
+          { logicalName: "almatont_engagementletterstatus", displayName: "Engagement Letter", type: "choice" },
+          { logicalName: "almatont_legalentity", displayName: "Legal Entity", type: "nvarchar" }
+        ]
+      },
+      {
+        key: "almatont_pitch",
+        folder: "almatont_pitch",
+        title: "Pitch",
+        logicalName: "almatont_pitch",
+        collectionName: "almatont_pitches",
+        domain: "deal",
+        description: "Pitch or bake-off — tracks pitch date, audience, competitor matrix, strength assessment, and outcome.",
+        x: 880,
+        y: 500,
+        columns: [
+          { logicalName: "almatont_pitchid", displayName: "Pitch", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Pitch Name", type: "nvarchar" },
+          { logicalName: "almatont_pitchdate", displayName: "Pitch Date", type: "dateonly" },
+          { logicalName: "almatont_pitchtype", displayName: "Pitch Type", type: "choice" },
+          { logicalName: "almatont_productarea", displayName: "Product Area", type: "choice" },
+          { logicalName: "almatont_rolesought", displayName: "Role Sought", type: "choice" },
+          { logicalName: "almatont_outcome", displayName: "Outcome", type: "choice" },
+          { logicalName: "almatont_decisiondate", displayName: "Decision Date", type: "dateonly" },
+          { logicalName: "almatont_opportunity", displayName: "Linked Deal", type: "lookup", role: "FK" },
+          { logicalName: "almatont_account", displayName: "Account", type: "lookup", role: "FK" },
+          { logicalName: "almatont_offeringsize", displayName: "Offering Size", type: "money" },
+          { logicalName: "almatont_winprobability", displayName: "Win Probability", type: "int" },
+          { logicalName: "almatont_feeestimate", displayName: "Fee Estimate", type: "money" },
+          { logicalName: "almatont_strengthrelationship", displayName: "Strength: Relationship", type: "int" },
+          { logicalName: "almatont_strengthcredentials", displayName: "Strength: Credentials", type: "int" },
+          { logicalName: "almatont_strengthdistribution", displayName: "Strength: Distribution", type: "int" },
+          { logicalName: "almatont_strengthvaluation", displayName: "Strength: Valuation View", type: "int" },
+          { logicalName: "almatont_strengthfee", displayName: "Strength: Fee Proposal", type: "int" },
+          { logicalName: "almatont_conflictstatus", displayName: "Conflict Check", type: "choice" },
+          { logicalName: "almatont_restrictedlist", displayName: "Restricted List", type: "bit" }
+        ]
+      },
+      {
+        key: "almatont_coverageplan",
+        folder: "almatont_coverageplan",
+        title: "Coverage Plan",
+        logicalName: "almatont_coverageplan",
+        collectionName: "almatont_coverageplans",
+        domain: "deal",
+        description: "Strategic coverage plan for a client account — wallet share targets, revenue stack, 30-day actions.",
+        x: 50,
+        y: 500,
+        columns: [
+          { logicalName: "almatont_coverageplanid", displayName: "Coverage Plan", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Plan Name", type: "nvarchar" },
+          { logicalName: "almatont_account", displayName: "Account", type: "lookup", role: "FK" },
+          { logicalName: "almatont_coveragetier", displayName: "Coverage Tier", type: "choice" },
+          { logicalName: "almatont_reviewperiod", displayName: "Review Period", type: "nvarchar" },
+          { logicalName: "almatont_aum", displayName: "AUM", type: "money" },
+          { logicalName: "almatont_strategyfocus", displayName: "Strategy Focus", type: "nvarchar" },
+          { logicalName: "almatont_nextreview", displayName: "Next Review", type: "dateonly" },
+          { logicalName: "almatont_ytdrevenue", displayName: "YTD Revenue", type: "money" },
+          { logicalName: "almatont_walletshare", displayName: "Wallet Share %", type: "decimal" },
+          { logicalName: "almatont_qtarget", displayName: "Quarterly Target", type: "money" },
+          { logicalName: "almatont_scorerelationship", displayName: "Score: Relationship", type: "int" },
+          { logicalName: "almatont_scorerevenue", displayName: "Score: Revenue Momentum", type: "int" },
+          { logicalName: "almatont_scorecrosssell", displayName: "Score: Cross-sell Depth", type: "int" },
+          { logicalName: "almatont_scorecompetitiverisk", displayName: "Score: Competitive Risk", type: "int" }
+        ]
+      },
+
+      // ── COMPLIANCE: Custom Tables ──
+      {
+        key: "almatont_compliancecase",
+        folder: "almatont_compliancecase",
+        title: "Compliance Case",
+        logicalName: "almatont_compliancecase",
+        collectionName: "almatont_compliancecases",
+        domain: "compliance",
+        description: "IB compliance case — conflict review, KYC/AML, sanctions screening, MNPI wall, and restricted list tracking.",
+        x: 1400,
+        y: 500,
+        columns: [
+          { logicalName: "almatont_compliancecaseid", displayName: "Compliance Case", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Case Name", type: "nvarchar" },
+          { logicalName: "almatont_caseid", displayName: "Case ID", type: "autonumber" },
+          { logicalName: "almatont_opportunity", displayName: "Linked Deal", type: "lookup", role: "FK" },
+          { logicalName: "almatont_compliancelead", displayName: "Compliance Lead", type: "lookup", role: "FK" },
+          { logicalName: "almatont_bookingentity", displayName: "Booking Entity", type: "nvarchar" },
+          { logicalName: "almatont_caseopened", displayName: "Case Opened", type: "dateonly" },
+          { logicalName: "almatont_risktier", displayName: "Risk Tier", type: "choice" },
+          { logicalName: "almatont_coverageregion", displayName: "Coverage Region", type: "nvarchar" },
+          { logicalName: "almatont_conflictreview", displayName: "Conflict Review", type: "choice" },
+          { logicalName: "almatont_kycaml", displayName: "KYC/AML", type: "choice" },
+          { logicalName: "almatont_sanctions", displayName: "Sanctions", type: "choice" },
+          { logicalName: "almatont_mnpiwall", displayName: "MNPI Wall", type: "choice" },
+          { logicalName: "almatont_restrictedlist", displayName: "Restricted List", type: "choice" },
+          { logicalName: "almatont_researchblackout", displayName: "Research Blackout", type: "choice" },
+          { logicalName: "almatont_pepreview", displayName: "PEP Review", type: "choice" },
+          { logicalName: "almatont_seller", displayName: "Seller", type: "lookup", role: "FK" },
+          { logicalName: "almatont_buyer", displayName: "Buyer", type: "lookup", role: "FK" },
+          { logicalName: "almatont_sponsor", displayName: "Sponsor", type: "lookup", role: "FK" },
+          { logicalName: "almatont_riskoverall", displayName: "Risk: Overall", type: "int" },
+          { logicalName: "almatont_riskconflict", displayName: "Risk: Conflict Exposure", type: "int" },
+          { logicalName: "almatont_riskamlkyc", displayName: "Risk: AML/KYC", type: "int" },
+          { logicalName: "almatont_riskinfobarrier", displayName: "Risk: Info Barrier", type: "int" }
+        ]
+      },
+
+      // ── ENGAGEMENT: Meeting & Post-Meeting Tables ──
+      {
+        key: "almatont_meetingprep",
+        folder: "almatont_meetingprep",
+        title: "Meeting Prep",
+        logicalName: "almatont_meetingprep",
+        collectionName: "almatont_meetingpreps",
+        domain: "engagement",
+        description: "AI-generated meeting briefing — objectives, key insights, readiness snapshot, and suggested agenda.",
+        x: 1800,
+        y: 500,
+        columns: [
+          { logicalName: "almatont_meetingprepid", displayName: "Meeting Prep", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Briefing Name", type: "nvarchar" },
+          { logicalName: "almatont_account", displayName: "Account", type: "lookup", role: "FK" },
+          { logicalName: "almatont_primarycontact", displayName: "Primary Contact", type: "lookup", role: "FK" },
+          { logicalName: "almatont_appointment", displayName: "Linked Appointment", type: "lookup", role: "FK" },
+          { logicalName: "almatont_meetingtype", displayName: "Meeting Type", type: "choice" },
+          { logicalName: "almatont_coverageowner", displayName: "Coverage Owner", type: "lookup", role: "FK" },
+          { logicalName: "almatont_opentopics", displayName: "Open Topics", type: "int" },
+          { logicalName: "almatont_blockers", displayName: "Blockers", type: "int" },
+          { logicalName: "almatont_mustwinasks", displayName: "Must-Win Asks", type: "int" },
+          { logicalName: "almatont_objectives", displayName: "Objectives", type: "text" },
+          { logicalName: "almatont_readinessrelationship", displayName: "Readiness: Relationship", type: "int" },
+          { logicalName: "almatont_readinessmessage", displayName: "Readiness: Message", type: "int" },
+          { logicalName: "almatont_readinesscompetitive", displayName: "Readiness: Competitive", type: "int" },
+          { logicalName: "almatont_readinessconversion", displayName: "Readiness: Conversion", type: "int" },
+          { logicalName: "almatont_discoveryquestions", displayName: "Discovery Questions", type: "text" },
+          { logicalName: "almatont_talkingpoints", displayName: "Talking Points", type: "text" }
+        ]
+      },
+      {
+        key: "almatont_postmeetingcommit",
+        folder: "almatont_postmeetingcommit",
+        title: "Post-Meeting Commit",
+        logicalName: "almatont_postmeetingcommit",
+        collectionName: "almatont_postmeetingcommits",
+        domain: "engagement",
+        description: "Post-meeting CRM commit record — captures outcomes, proposed field changes, and approval status.",
+        x: 2200,
+        y: 500,
+        columns: [
+          { logicalName: "almatont_postmeetingcommitid", displayName: "Post-Meeting Commit", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Commit Name", type: "nvarchar" },
+          { logicalName: "almatont_meetingdate", displayName: "Meeting Date", type: "dateonly" },
+          { logicalName: "almatont_appointment", displayName: "Linked Appointment", type: "lookup", role: "FK" },
+          { logicalName: "almatont_account", displayName: "Account", type: "lookup", role: "FK" },
+          { logicalName: "almatont_meetingprep", displayName: "Linked Meeting Prep", type: "lookup", role: "FK" },
+          { logicalName: "almatont_summarynotes", displayName: "Summary Notes", type: "text" },
+          { logicalName: "almatont_approvedcount", displayName: "Approved Count", type: "int" },
+          { logicalName: "almatont_totalchanges", displayName: "Total Changes", type: "int" }
+        ]
+      },
+
+      // ── DEAL CHILDREN: Intersection & Child Tables ──
+      {
+        key: "almatont_dealstagehistory",
+        folder: "almatont_dealstagehistory",
+        title: "Deal Stage History",
+        logicalName: "almatont_dealstagehistory",
+        collectionName: "almatont_dealstagehistories",
+        domain: "deal",
+        description: "Polymorphic stage history — tracks pipeline progression for deals, mandates, coverage plans, and compliance cases.",
+        x: 50,
+        y: 950,
+        columns: [
+          { logicalName: "almatont_dealstagehistoryid", displayName: "Stage History", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Stage Name", type: "nvarchar" },
+          { logicalName: "almatont_opportunity", displayName: "Deal", type: "lookup", role: "FK" },
+          { logicalName: "almatont_mandate", displayName: "Mandate", type: "lookup", role: "FK" },
+          { logicalName: "almatont_coverageplan", displayName: "Coverage Plan", type: "lookup", role: "FK" },
+          { logicalName: "almatont_compliancecase", displayName: "Compliance Case", type: "lookup", role: "FK" },
+          { logicalName: "almatont_entereddate", displayName: "Entered Date", type: "dateonly" },
+          { logicalName: "almatont_exiteddate", displayName: "Exited Date", type: "dateonly" },
+          { logicalName: "almatont_iscurrent", displayName: "Is Current", type: "bit" }
+        ]
+      },
+      {
+        key: "almatont_dealteammember",
+        folder: "almatont_dealteammember",
+        title: "Deal Team Member",
+        logicalName: "almatont_dealteammember",
+        collectionName: "almatont_dealteammembers",
+        domain: "deal",
+        description: "Shared team member record — links a banker to a deal, mandate, pitch, or coverage plan with role and utilization.",
+        x: 380,
+        y: 950,
+        columns: [
+          { logicalName: "almatont_dealteammemberid", displayName: "Team Member", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Name", type: "nvarchar" },
+          { logicalName: "almatont_opportunity", displayName: "Deal", type: "lookup", role: "FK" },
+          { logicalName: "almatont_mandate", displayName: "Mandate", type: "lookup", role: "FK" },
+          { logicalName: "almatont_pitch", displayName: "Pitch", type: "lookup", role: "FK" },
+          { logicalName: "almatont_coverageplan", displayName: "Coverage Plan", type: "lookup", role: "FK" },
+          { logicalName: "almatont_systemuser", displayName: "Banker", type: "lookup", role: "FK" },
+          { logicalName: "almatont_role", displayName: "Role", type: "nvarchar" },
+          { logicalName: "almatont_utilization", displayName: "Utilization %", type: "decimal" }
+        ]
+      },
+      {
+        key: "almatont_dealmilestone",
+        folder: "almatont_dealmilestone",
+        title: "Deal Milestone",
+        logicalName: "almatont_dealmilestone",
+        collectionName: "almatont_dealmilestones",
+        domain: "deal",
+        description: "Milestone checklist item for a deal — status (done/pending/blocked) and due date.",
+        x: 710,
+        y: 950,
+        columns: [
+          { logicalName: "almatont_dealmilestoneid", displayName: "Milestone", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Milestone Name", type: "nvarchar" },
+          { logicalName: "almatont_opportunity", displayName: "Deal", type: "lookup", role: "FK" },
+          { logicalName: "almatont_status", displayName: "Status", type: "choice" },
+          { logicalName: "almatont_duedate", displayName: "Due Date", type: "dateonly" },
+          { logicalName: "almatont_assignee", displayName: "Assignee", type: "lookup", role: "FK" }
+        ]
+      },
+      {
+        key: "almatont_dealcompetitor",
+        folder: "almatont_dealcompetitor",
+        title: "Deal Competitor",
+        logicalName: "almatont_dealcompetitor",
+        collectionName: "almatont_dealcompetitors",
+        domain: "deal",
+        description: "Deal-level competitor tracking — bank, role, and competitive status for each deal.",
+        x: 1040,
+        y: 950,
+        columns: [
+          { logicalName: "almatont_dealcompetitorid", displayName: "Deal Competitor", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Name", type: "nvarchar" },
+          { logicalName: "almatont_opportunity", displayName: "Deal", type: "lookup", role: "FK" },
+          { logicalName: "almatont_competitor", displayName: "Competitor", type: "lookup", role: "FK" },
+          { logicalName: "almatont_role", displayName: "Bank Role", type: "nvarchar" },
+          { logicalName: "almatont_status", displayName: "Status", type: "choice" }
+        ]
+      },
+      {
+        key: "almatont_feecomponent",
+        folder: "almatont_feecomponent",
+        title: "Fee Component",
+        logicalName: "almatont_feecomponent",
+        collectionName: "almatont_feecomponents",
+        domain: "deal",
+        description: "Fee waterfall line item — component, trigger, amount, and recognition status for a mandate or deal.",
+        x: 380,
+        y: 1300,
+        columns: [
+          { logicalName: "almatont_feecomponentid", displayName: "Fee Component", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Component Name", type: "nvarchar" },
+          { logicalName: "almatont_mandate", displayName: "Mandate", type: "lookup", role: "FK" },
+          { logicalName: "almatont_opportunity", displayName: "Deal", type: "lookup", role: "FK" },
+          { logicalName: "almatont_trigger", displayName: "Trigger", type: "nvarchar" },
+          { logicalName: "almatont_amount", displayName: "Amount", type: "money" },
+          { logicalName: "almatont_status", displayName: "Status", type: "choice" },
+          { logicalName: "almatont_recognizeddate", displayName: "Recognized Date", type: "dateonly" }
+        ]
+      },
+      {
+        key: "almatont_deliverable",
+        folder: "almatont_deliverable",
+        title: "Deliverable",
+        logicalName: "almatont_deliverable",
+        collectionName: "almatont_deliverables",
+        domain: "deal",
+        description: "Mandate deliverable — document, model, or work product with status and due date.",
+        x: 710,
+        y: 1300,
+        columns: [
+          { logicalName: "almatont_deliverableid", displayName: "Deliverable", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Deliverable Name", type: "nvarchar" },
+          { logicalName: "almatont_mandate", displayName: "Mandate", type: "lookup", role: "FK" },
+          { logicalName: "almatont_status", displayName: "Status", type: "choice" },
+          { logicalName: "almatont_duedate", displayName: "Due Date", type: "dateonly" },
+          { logicalName: "almatont_owner", displayName: "Owner", type: "lookup", role: "FK" }
+        ]
+      },
+      {
+        key: "almatont_expenseline",
+        folder: "almatont_expenseline",
+        title: "Expense Line",
+        logicalName: "almatont_expenseline",
+        collectionName: "almatont_expenselines",
+        domain: "deal",
+        description: "Mandate expense tracking — category and amount against the expense cap.",
+        x: 50,
+        y: 1300,
+        columns: [
+          { logicalName: "almatont_expenselineid", displayName: "Expense Line", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Expense Name", type: "nvarchar" },
+          { logicalName: "almatont_mandate", displayName: "Mandate", type: "lookup", role: "FK" },
+          { logicalName: "almatont_category", displayName: "Category", type: "nvarchar" },
+          { logicalName: "almatont_amount", displayName: "Amount", type: "money" }
+        ]
+      },
+      {
+        key: "almatont_pitchcompetitor",
+        folder: "almatont_pitchcompetitor",
+        title: "Pitch Competitor",
+        logicalName: "almatont_pitchcompetitor",
+        collectionName: "almatont_pitchcompetitors",
+        domain: "deal",
+        description: "Pitch competitor comparison — bank, valuation range, fee, credentials, and threat level.",
+        x: 1040,
+        y: 1300,
+        columns: [
+          { logicalName: "almatont_pitchcompetitorid", displayName: "Pitch Competitor", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Name", type: "nvarchar" },
+          { logicalName: "almatont_pitch", displayName: "Pitch", type: "lookup", role: "FK" },
+          { logicalName: "almatont_competitor", displayName: "Competitor Bank", type: "lookup", role: "FK" },
+          { logicalName: "almatont_valuationrange", displayName: "Valuation Range", type: "nvarchar" },
+          { logicalName: "almatont_fee", displayName: "Fee", type: "nvarchar" },
+          { logicalName: "almatont_credentials", displayName: "Credentials", type: "nvarchar" },
+          { logicalName: "almatont_threatlevel", displayName: "Threat Level", type: "choice" }
+        ]
+      },
+      {
+        key: "almatont_pitchaudiencemember",
+        folder: "almatont_pitchaudiencemember",
+        title: "Pitch Audience",
+        logicalName: "almatont_pitchaudiencemember",
+        collectionName: "almatont_pitchaudiencemembers",
+        domain: "deal",
+        description: "Pitch audience member — attendee name, title, and disposition toward UBS.",
+        x: 1370,
+        y: 1300,
+        columns: [
+          { logicalName: "almatont_pitchaudiencememberid", displayName: "Audience Member", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Name", type: "nvarchar" },
+          { logicalName: "almatont_pitch", displayName: "Pitch", type: "lookup", role: "FK" },
+          { logicalName: "almatont_title", displayName: "Title", type: "nvarchar" },
+          { logicalName: "almatont_disposition", displayName: "Disposition", type: "choice" }
+        ]
+      },
+
+      // ── COMPLIANCE CHILDREN ──
+      {
+        key: "almatont_compliancecontrol",
+        folder: "almatont_compliancecontrol",
+        title: "Compliance Control",
+        logicalName: "almatont_compliancecontrol",
+        collectionName: "almatont_compliancecontrols",
+        domain: "compliance",
+        description: "Control register entry — individual compliance check with status, owner, and last update.",
+        x: 1400,
+        y: 950,
+        columns: [
+          { logicalName: "almatont_compliancecontrolid", displayName: "Control", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Control Name", type: "nvarchar" },
+          { logicalName: "almatont_compliancecase", displayName: "Compliance Case", type: "lookup", role: "FK" },
+          { logicalName: "almatont_status", displayName: "Status", type: "choice" },
+          { logicalName: "almatont_owner", displayName: "Owner", type: "lookup", role: "FK" },
+          { logicalName: "almatont_lastupdate", displayName: "Last Update", type: "dateonly" }
+        ]
+      },
+      {
+        key: "almatont_complianceissue",
+        folder: "almatont_complianceissue",
+        title: "Compliance Issue",
+        logicalName: "almatont_complianceissue",
+        collectionName: "almatont_complianceissues",
+        domain: "compliance",
+        description: "Open compliance issue — risk level, owner, and resolution status.",
+        x: 1700,
+        y: 950,
+        columns: [
+          { logicalName: "almatont_complianceissueid", displayName: "Issue", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Issue Name", type: "nvarchar" },
+          { logicalName: "almatont_compliancecase", displayName: "Compliance Case", type: "lookup", role: "FK" },
+          { logicalName: "almatont_risklevel", displayName: "Risk Level", type: "choice" },
+          { logicalName: "almatont_owner", displayName: "Owner", type: "lookup", role: "FK" },
+          { logicalName: "almatont_status", displayName: "Status", type: "choice" }
+        ]
+      },
+      {
+        key: "almatont_complianceapproval",
+        folder: "almatont_complianceapproval",
+        title: "Compliance Approval",
+        logicalName: "almatont_complianceapproval",
+        collectionName: "almatont_complianceapprovals",
+        domain: "compliance",
+        description: "Sign-off record — approver, role, status, and signed date for compliance clearance.",
+        x: 1400,
+        y: 1300,
+        columns: [
+          { logicalName: "almatont_complianceapprovalid", displayName: "Approval", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Approval Name", type: "nvarchar" },
+          { logicalName: "almatont_compliancecase", displayName: "Compliance Case", type: "lookup", role: "FK" },
+          { logicalName: "almatont_approver", displayName: "Approver", type: "lookup", role: "FK" },
+          { logicalName: "almatont_status", displayName: "Status", type: "choice" },
+          { logicalName: "almatont_signeddate", displayName: "Signed Date", type: "dateonly" }
+        ]
+      },
+      {
+        key: "almatont_jurisdictionalreview",
+        folder: "almatont_jurisdictionalreview",
+        title: "Jurisdictional Review",
+        logicalName: "almatont_jurisdictionalreview",
+        collectionName: "almatont_jurisdictionalreviews",
+        domain: "compliance",
+        description: "Jurisdiction-level compliance review — focus area, local requirement, status, and assigned reviewer.",
+        x: 1700,
+        y: 1300,
+        columns: [
+          { logicalName: "almatont_jurisdictionalreviewid", displayName: "Review", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Review Name", type: "nvarchar" },
+          { logicalName: "almatont_compliancecase", displayName: "Compliance Case", type: "lookup", role: "FK" },
+          { logicalName: "almatont_jurisdiction", displayName: "Jurisdiction", type: "nvarchar" },
+          { logicalName: "almatont_focusarea", displayName: "Focus Area", type: "nvarchar" },
+          { logicalName: "almatont_requirement", displayName: "Requirement", type: "nvarchar" },
+          { logicalName: "almatont_status", displayName: "Status", type: "choice" },
+          { logicalName: "almatont_reviewer", displayName: "Reviewer", type: "lookup", role: "FK" }
+        ]
+      },
+
+      // ── ANALYTICS: Revenue & Coverage Tables ──
+      {
+        key: "almatont_walletshare",
+        folder: "almatont_walletshare",
+        title: "Wallet Share",
+        logicalName: "almatont_walletshare",
+        collectionName: "almatont_walletshares",
+        domain: "analytics",
+        description: "Share-of-wallet line — competing bank name and estimated percentage for an account.",
+        x: 2050,
+        y: 950,
+        columns: [
+          { logicalName: "almatont_walletshareid", displayName: "Wallet Share", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Name", type: "nvarchar" },
+          { logicalName: "almatont_account", displayName: "Account", type: "lookup", role: "FK" },
+          { logicalName: "almatont_bankname", displayName: "Bank Name", type: "nvarchar" },
+          { logicalName: "almatont_percentage", displayName: "Wallet %", type: "decimal" }
+        ]
+      },
+      {
+        key: "almatont_revenueline",
+        folder: "almatont_revenueline",
+        title: "Revenue Line",
+        logicalName: "almatont_revenueline",
+        collectionName: "almatont_revenuelines",
+        domain: "analytics",
+        description: "Historical revenue by product and year for an account — supports tombstone and trending views.",
+        x: 2380,
+        y: 950,
+        columns: [
+          { logicalName: "almatont_revenuelineid", displayName: "Revenue Line", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Name", type: "nvarchar" },
+          { logicalName: "almatont_account", displayName: "Account", type: "lookup", role: "FK" },
+          { logicalName: "almatont_product", displayName: "Product", type: "nvarchar" },
+          { logicalName: "almatont_year", displayName: "Year", type: "int" },
+          { logicalName: "almatont_amount", displayName: "Amount", type: "money" }
+        ]
+      },
+      {
+        key: "almatont_referral",
+        folder: "almatont_referral",
+        title: "Referral",
+        logicalName: "almatont_referral",
+        collectionName: "almatont_referrals",
+        domain: "analytics",
+        description: "Cross-divisional referral — WM, AM, or P&CB referral with value and conversion status.",
+        x: 2050,
+        y: 1300,
+        columns: [
+          { logicalName: "almatont_referralid", displayName: "Referral", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Description", type: "nvarchar" },
+          { logicalName: "almatont_account", displayName: "Account", type: "lookup", role: "FK" },
+          { logicalName: "almatont_division", displayName: "Division", type: "choice" },
+          { logicalName: "almatont_value", displayName: "Value", type: "money" },
+          { logicalName: "almatont_status", displayName: "Status", type: "choice" }
+        ]
+      },
+      {
+        key: "almatont_fundlifecycle",
+        folder: "almatont_fundlifecycle",
+        title: "Fund Lifecycle",
+        logicalName: "almatont_fundlifecycle",
+        collectionName: "almatont_fundlifecycles",
+        domain: "analytics",
+        description: "Sponsor fund tracker — vintage, size, deployment, dry powder, and UBS revenue attribution.",
+        x: 2380,
+        y: 1300,
+        columns: [
+          { logicalName: "almatont_fundlifecycleid", displayName: "Fund Lifecycle", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Fund Name", type: "nvarchar" },
+          { logicalName: "almatont_account", displayName: "Sponsor Account", type: "lookup", role: "FK" },
+          { logicalName: "almatont_vintage", displayName: "Vintage Year", type: "int" },
+          { logicalName: "almatont_fundsize", displayName: "Fund Size", type: "money" },
+          { logicalName: "almatont_deployedpct", displayName: "Deployed %", type: "decimal" },
+          { logicalName: "almatont_drypowder", displayName: "Dry Powder", type: "money" },
+          { logicalName: "almatont_stage", displayName: "Stage", type: "choice" }
+        ]
+      },
+      {
+        key: "almatont_coveragetheme",
+        folder: "almatont_coveragetheme",
+        title: "Coverage Theme",
+        logicalName: "almatont_coveragetheme",
+        collectionName: "almatont_coveragethemes",
+        domain: "analytics",
+        description: "Strategic theme within a coverage plan — why it matters, UBS edge, and associated risk.",
+        x: 2700,
+        y: 950,
+        columns: [
+          { logicalName: "almatont_coveragethemeid", displayName: "Theme", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Theme Name", type: "nvarchar" },
+          { logicalName: "almatont_coverageplan", displayName: "Coverage Plan", type: "lookup", role: "FK" },
+          { logicalName: "almatont_whyitmatters", displayName: "Why It Matters", type: "text" },
+          { logicalName: "almatont_ubsedge", displayName: "UBS Edge", type: "nvarchar" },
+          { logicalName: "almatont_risk", displayName: "Risk", type: "nvarchar" }
+        ]
+      },
+      {
+        key: "almatont_coverageaction",
+        folder: "almatont_coverageaction",
+        title: "Coverage Action",
+        logicalName: "almatont_coverageaction",
+        collectionName: "almatont_coverageactions",
+        domain: "analytics",
+        description: "30-day action plan item for a coverage plan — priority, owner, and due date.",
+        x: 2700,
+        y: 1300,
+        columns: [
+          { logicalName: "almatont_coverageactionid", displayName: "Action", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Action Name", type: "nvarchar" },
+          { logicalName: "almatont_coverageplan", displayName: "Coverage Plan", type: "lookup", role: "FK" },
+          { logicalName: "almatont_priority", displayName: "Priority", type: "choice" },
+          { logicalName: "almatont_owner", displayName: "Owner", type: "lookup", role: "FK" },
+          { logicalName: "almatont_duedate", displayName: "Due Date", type: "dateonly" }
+        ]
+      },
+      {
+        key: "almatont_walletsharetarget",
+        folder: "almatont_walletsharetarget",
+        title: "Wallet Share Target",
+        logicalName: "almatont_walletsharetarget",
+        collectionName: "almatont_walletsharetargets",
+        domain: "analytics",
+        description: "Coverage plan wallet share target by product — target vs. current percentage.",
+        x: 3050,
+        y: 950,
+        columns: [
+          { logicalName: "almatont_walletsharetargetid", displayName: "Target", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Product", type: "nvarchar" },
+          { logicalName: "almatont_coverageplan", displayName: "Coverage Plan", type: "lookup", role: "FK" },
+          { logicalName: "almatont_targetpct", displayName: "Target %", type: "decimal" },
+          { logicalName: "almatont_currentpct", displayName: "Current %", type: "decimal" }
+        ]
+      },
+      {
+        key: "almatont_revenueopportunity",
+        folder: "almatont_revenueopportunity",
+        title: "Revenue Opportunity",
+        logicalName: "almatont_revenueopportunity",
+        collectionName: "almatont_revenueopportunities",
+        domain: "analytics",
+        description: "Revenue opportunity stack entry for a coverage plan — estimated value and probability.",
+        x: 3050,
+        y: 1300,
+        columns: [
+          { logicalName: "almatont_revenueopportunityid", displayName: "Revenue Opp", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Opportunity Name", type: "nvarchar" },
+          { logicalName: "almatont_coverageplan", displayName: "Coverage Plan", type: "lookup", role: "FK" },
+          { logicalName: "almatont_value", displayName: "Value", type: "money" },
+          { logicalName: "almatont_probability", displayName: "Probability %", type: "int" }
+        ]
+      },
+
+      // ── ENGAGEMENT CHILDREN ──
+      {
+        key: "almatont_meetinginsight",
+        folder: "almatont_meetinginsight",
+        title: "Meeting Insight",
+        logicalName: "almatont_meetinginsight",
+        collectionName: "almatont_meetinginsights",
+        domain: "engagement",
+        description: "Key insight or must-capture item for a meeting prep — title, body, and type flag.",
+        x: 1800,
+        y: 950,
+        columns: [
+          { logicalName: "almatont_meetinginsightid", displayName: "Insight", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Title", type: "nvarchar" },
+          { logicalName: "almatont_meetingprep", displayName: "Meeting Prep", type: "lookup", role: "FK" },
+          { logicalName: "almatont_body", displayName: "Body", type: "text" },
+          { logicalName: "almatont_insighttype", displayName: "Insight Type", type: "choice" }
+        ]
+      },
+      {
+        key: "almatont_commitchange",
+        folder: "almatont_commitchange",
+        title: "Commit Change",
+        logicalName: "almatont_commitchange",
+        collectionName: "almatont_commitchanges",
+        domain: "engagement",
+        description: "Individual CRM change row — field name, proposed value, source, and approval status.",
+        x: 2200,
+        y: 950,
+        columns: [
+          { logicalName: "almatont_commitchangeid", displayName: "Change", type: "guid", role: "PK" },
+          { logicalName: "almatont_name", displayName: "Change Name", type: "nvarchar" },
+          { logicalName: "almatont_postmeetingcommit", displayName: "Post-Meeting Commit", type: "lookup", role: "FK" },
+          { logicalName: "almatont_changetype", displayName: "Change Type", type: "choice" },
+          { logicalName: "almatont_fieldname", displayName: "Field Name", type: "nvarchar" },
+          { logicalName: "almatont_proposedvalue", displayName: "Proposed Value", type: "nvarchar" },
+          { logicalName: "almatont_source", displayName: "Source", type: "nvarchar" },
+          { logicalName: "almatont_approved", displayName: "Approved", type: "bit" }
+        ]
+      }
+    ];
+
+    let baselineRelationships = [
+      // Core CRM
+      { from: "account", to: "contact", fromCard: "1", toCard: "N", label: "has contacts", style: "commercial" },
+      { from: "account", to: "opportunity", fromCard: "1", toCard: "N", label: "has deals", style: "commercial" },
+      { from: "contact", to: "appointment", fromCard: "1", toCard: "N", label: "attends", style: "signal" },
+      { from: "contact", to: "task", fromCard: "1", toCard: "N", label: "owns tasks", style: "signal" },
+
+      // Account → Custom tables
+      { from: "account", to: "almatont_coverageplan", fromCard: "1", toCard: "N", label: "covered by", style: "activity" },
+      { from: "account", to: "almatont_walletshare", fromCard: "1", toCard: "N", label: "wallet shares", style: "activity" },
+      { from: "account", to: "almatont_revenueline", fromCard: "1", toCard: "N", label: "revenue lines", style: "activity" },
+      { from: "account", to: "almatont_referral", fromCard: "1", toCard: "N", label: "referrals", style: "activity" },
+      { from: "account", to: "almatont_fundlifecycle", fromCard: "1", toCard: "N", label: "fund lifecycle", style: "activity" },
+
+      // Opportunity → Deal children
+      { from: "opportunity", to: "almatont_dealstagehistory", fromCard: "1", toCard: "N", label: "stage history", style: "activity" },
+      { from: "opportunity", to: "almatont_dealmilestone", fromCard: "1", toCard: "N", label: "milestones", style: "activity" },
+      { from: "opportunity", to: "almatont_dealteammember", fromCard: "1", toCard: "N", label: "deal team", style: "activity" },
+      { from: "opportunity", to: "almatont_dealcompetitor", fromCard: "1", toCard: "N", label: "competitors", style: "activity" },
+      { from: "opportunity", to: "almatont_compliancecase", fromCard: "1", toCard: "N", label: "compliance", style: "service" },
+      { from: "opportunity", to: "almatont_feecomponent", fromCard: "1", toCard: "N", label: "fee components", style: "activity" },
+
+      // Mandate relationships
+      { from: "opportunity", to: "almatont_mandate", fromCard: "1", toCard: "N", label: "mandates", style: "activity" },
+      { from: "account", to: "almatont_mandate", fromCard: "1", toCard: "N", label: "client of", style: "commercial" },
+      { from: "almatont_mandate", to: "almatont_deliverable", fromCard: "1", toCard: "N", label: "deliverables", style: "activity" },
+      { from: "almatont_mandate", to: "almatont_expenseline", fromCard: "1", toCard: "N", label: "expenses", style: "activity" },
+      { from: "almatont_mandate", to: "almatont_feecomponent", fromCard: "1", toCard: "N", label: "fee waterfall", style: "activity" },
+      { from: "almatont_mandate", to: "almatont_dealteammember", fromCard: "1", toCard: "N", label: "team (mandate)", style: "activity" },
+
+      // Pitch relationships
+      { from: "opportunity", to: "almatont_pitch", fromCard: "1", toCard: "N", label: "pitches", style: "activity" },
+      { from: "account", to: "almatont_pitch", fromCard: "1", toCard: "N", label: "pitches for", style: "commercial" },
+      { from: "almatont_pitch", to: "almatont_pitchcompetitor", fromCard: "1", toCard: "N", label: "competitor matrix", style: "activity" },
+      { from: "almatont_pitch", to: "almatont_pitchaudiencemember", fromCard: "1", toCard: "N", label: "audience", style: "activity" },
+      { from: "almatont_pitch", to: "almatont_dealteammember", fromCard: "1", toCard: "N", label: "pitch team", style: "activity" },
+
+      // Competitor links
+      { from: "competitor", to: "almatont_dealcompetitor", fromCard: "1", toCard: "N", label: "in deals", style: "commercial" },
+      { from: "competitor", to: "almatont_pitchcompetitor", fromCard: "1", toCard: "N", label: "in pitches", style: "commercial" },
+
+      // Coverage plan children
+      { from: "almatont_coverageplan", to: "almatont_coveragetheme", fromCard: "1", toCard: "N", label: "themes", style: "activity" },
+      { from: "almatont_coverageplan", to: "almatont_coverageaction", fromCard: "1", toCard: "N", label: "30-day actions", style: "activity" },
+      { from: "almatont_coverageplan", to: "almatont_walletsharetarget", fromCard: "1", toCard: "N", label: "wallet targets", style: "activity" },
+      { from: "almatont_coverageplan", to: "almatont_revenueopportunity", fromCard: "1", toCard: "N", label: "revenue opps", style: "activity" },
+      { from: "almatont_coverageplan", to: "almatont_dealteammember", fromCard: "1", toCard: "N", label: "coverage team", style: "activity" },
+
+      // Compliance children
+      { from: "almatont_compliancecase", to: "almatont_compliancecontrol", fromCard: "1", toCard: "N", label: "controls", style: "service" },
+      { from: "almatont_compliancecase", to: "almatont_complianceissue", fromCard: "1", toCard: "N", label: "issues", style: "service" },
+      { from: "almatont_compliancecase", to: "almatont_complianceapproval", fromCard: "1", toCard: "N", label: "approvals", style: "service" },
+      { from: "almatont_compliancecase", to: "almatont_jurisdictionalreview", fromCard: "1", toCard: "N", label: "jurisdictions", style: "service" },
+
+      // Meeting prep & post-meeting
+      { from: "appointment", to: "almatont_meetingprep", fromCard: "1", toCard: "1", label: "has prep", style: "signal" },
+      { from: "appointment", to: "almatont_postmeetingcommit", fromCard: "1", toCard: "1", label: "post-meeting", style: "signal" },
+      { from: "almatont_meetingprep", to: "almatont_meetinginsight", fromCard: "1", toCard: "N", label: "insights", style: "signal" },
+      { from: "almatont_postmeetingcommit", to: "almatont_commitchange", fromCard: "1", toCard: "N", label: "CRM changes", style: "signal" },
+      { from: "almatont_postmeetingcommit", to: "almatont_meetingprep", fromCard: "N", toCard: "1", label: "linked prep", style: "signal" },
+
+      // Stage history polymorphic
+      { from: "almatont_mandate", to: "almatont_dealstagehistory", fromCard: "1", toCard: "N", label: "stage history", style: "activity" },
+      { from: "almatont_coverageplan", to: "almatont_dealstagehistory", fromCard: "1", toCard: "N", label: "stage history", style: "activity" },
+      { from: "almatont_compliancecase", to: "almatont_dealstagehistory", fromCard: "1", toCard: "N", label: "workflow", style: "service" }
+    ];
+
+    const domainClassMap = {
+      party: "accent-commercial",
+      org: "accent-commercial",
+      portfolio: "accent-deal",
+      demand: "accent-analytics",
+      ai: "accent-analytics",
+      service: "accent-engagement",
+      assistance: "accent-compliance",
+      broker: "accent-compliance",
+      marketing: "accent-deal"
+    };
+
+    baselineEntities = [
+      {
+        key: "account",
+        folder: "Account",
+        title: "Account / Broker",
+        logicalName: "account",
+        collectionName: "accounts",
+        domain: "party",
+        description: "Centre of gravity for the Mobiliar 360. A single account model covers Household, Business/Geschäftspartner, and Broker, with portfolio and steering context at account level.",
+        x: 80,
+        y: 80,
+        columns: [
+          { logicalName: "accountid", displayName: "Account", type: "guid", role: "PK" },
+          { logicalName: "name", displayName: "Name", type: "nvarchar" },
+          { logicalName: "mobi_accounttype", displayName: "Account Type", type: "choice: Household | Business | Broker" },
+          { logicalName: "mobi_segment", displayName: "Segment", type: "choice" },
+          { logicalName: "primarycontactid", displayName: "Primary Contact", type: "lookup(Contact)", role: "FK" },
+          { logicalName: "mobi_generalagencyid", displayName: "General Agency", type: "lookup(GeneralAgency)", role: "FK" },
+          { logicalName: "mobi_healthscore", displayName: "Customer Health Score", type: "whole number" },
+          { logicalName: "mobi_salesblock", displayName: "Sales Block", type: "two options" }
+        ]
+      },
+      {
+        key: "contact",
+        folder: "Contact",
+        title: "Contact",
+        logicalName: "contact",
+        collectionName: "contacts",
+        domain: "party",
+        description: "Person in a household, business, broker, or assistance interaction. Contacts play roles on accounts but do not own portfolio data.",
+        x: 80,
+        y: 420,
+        columns: [
+          { logicalName: "contactid", displayName: "Contact", type: "guid", role: "PK" },
+          { logicalName: "firstname", displayName: "First Name", type: "nvarchar" },
+          { logicalName: "lastname", displayName: "Last Name", type: "nvarchar" },
+          { logicalName: "telephone1", displayName: "Phone", type: "phone" },
+          { logicalName: "emailaddress1", displayName: "Email", type: "email" },
+          { logicalName: "mobi_preferredchannel", displayName: "Preferred Channel", type: "choice" }
+        ]
+      },
+      {
+        key: "mobi_contactrole",
+        folder: "mobi_contactrole",
+        title: "Contact Role",
+        logicalName: "mobi_contactrole",
+        collectionName: "mobi_contactroles",
+        domain: "party",
+        description: "Associative table that says which role a contact plays for an account: Hauptkontakt, Mitentscheider, Kontext, Makler-Betreuer, and similar.",
+        x: 420,
+        y: 280,
+        columns: [
+          { logicalName: "mobi_contactroleid", displayName: "Contact Role", type: "guid", role: "PK" },
+          { logicalName: "mobi_accountid", displayName: "Account", type: "lookup(Account)", role: "FK" },
+          { logicalName: "mobi_contactid", displayName: "Contact", type: "lookup(Contact)", role: "FK" },
+          { logicalName: "mobi_role", displayName: "Role", type: "choice" },
+          { logicalName: "mobi_isprimary", displayName: "Primary Role", type: "two options" }
+        ]
+      },
+      {
+        key: "mobi_consent",
+        folder: "mobi_consent",
+        title: "Consent",
+        logicalName: "mobi_consent",
+        collectionName: "mobi_consents",
+        domain: "party",
+        description: "Contact-level consent and channel preference guardrail used by sales, service, journeys, and Mobi24 notifications.",
+        x: 420,
+        y: 600,
+        columns: [
+          { logicalName: "mobi_consentid", displayName: "Consent", type: "guid", role: "PK" },
+          { logicalName: "mobi_contactid", displayName: "Contact", type: "lookup(Contact)", role: "FK" },
+          { logicalName: "mobi_channel", displayName: "Channel", type: "choice: Phone | Email | SMS | Newsletter" },
+          { logicalName: "mobi_status", displayName: "Status", type: "choice: Allowed | Denied | Not Relevant" },
+          { logicalName: "mobi_source", displayName: "Source", type: "nvarchar" },
+          { logicalName: "mobi_capturedon", displayName: "Captured On", type: "datetime" }
+        ]
+      },
+      {
+        key: "mobi_generalagency",
+        folder: "mobi_generalagency",
+        title: "General Agency",
+        logicalName: "mobi_generalagency",
+        collectionName: "mobi_generalagencies",
+        domain: "org",
+        description: "Federation anchor for the roughly 80 local general agencies. Maps cleanly to business-unit and hierarchical-security design.",
+        x: 80,
+        y: 760,
+        columns: [
+          { logicalName: "mobi_generalagencyid", displayName: "General Agency", type: "guid", role: "PK" },
+          { logicalName: "mobi_name", displayName: "Name", type: "nvarchar" },
+          { logicalName: "mobi_region", displayName: "Region", type: "nvarchar" },
+          { logicalName: "mobi_directorate", displayName: "Direktion", type: "nvarchar" }
+        ]
+      },
+      {
+        key: "systemuser",
+        folder: "SystemUser",
+        title: "System User",
+        logicalName: "systemuser",
+        collectionName: "systemusers",
+        domain: "org",
+        description: "VB, VS, UW, Mobi24 agent, supervisor, and manager users assigned into the federated operating model.",
+        x: 420,
+        y: 920,
+        columns: [
+          { logicalName: "systemuserid", displayName: "User", type: "guid", role: "PK" },
+          { logicalName: "fullname", displayName: "Name", type: "nvarchar" },
+          { logicalName: "mobi_role", displayName: "Mobiliar Role", type: "choice" },
+          { logicalName: "mobi_generalagencyid", displayName: "General Agency", type: "lookup(GeneralAgency)", role: "FK" }
+        ]
+      },
+      {
+        key: "mobi_product",
+        folder: "mobi_product",
+        title: "Product",
+        logicalName: "mobi_product",
+        collectionName: "mobi_products",
+        domain: "portfolio",
+        description: "Synced product catalog by Sparte, used to interpret policy portfolio and quote context without making CRM the product engine.",
+        x: 820,
+        y: 80,
+        columns: [
+          { logicalName: "mobi_productid", displayName: "Product", type: "guid", role: "PK" },
+          { logicalName: "mobi_sparte", displayName: "Sparte", type: "choice" },
+          { logicalName: "mobi_name", displayName: "Name", type: "nvarchar" }
+        ]
+      },
+      {
+        key: "mobi_policy",
+        folder: "mobi_policy",
+        title: "Policy",
+        logicalName: "mobi_policy",
+        collectionName: "mobi_policies",
+        domain: "portfolio",
+        description: "Thin account-level policy reference. CRM carries the 360 context and external key; the policy engine remains system of record.",
+        x: 820,
+        y: 340,
+        columns: [
+          { logicalName: "mobi_policyid", displayName: "Policy", type: "guid", role: "PK" },
+          { logicalName: "mobi_policynumber", displayName: "Policy Number", type: "nvarchar / external SoR ref" },
+          { logicalName: "mobi_accountid", displayName: "Account", type: "lookup(Account)", role: "FK" },
+          { logicalName: "mobi_productid", displayName: "Product", type: "lookup(Product)", role: "FK" },
+          { logicalName: "mobi_sparte", displayName: "Sparte", type: "choice" },
+          { logicalName: "mobi_annualpremium", displayName: "Annual Premium", type: "money" },
+          { logicalName: "mobi_expirydate", displayName: "Expiry Date", type: "date" },
+          { logicalName: "mobi_status", displayName: "Status", type: "choice" }
+        ]
+      },
+      {
+        key: "mobi_claim",
+        folder: "mobi_claim",
+        title: "Claim",
+        logicalName: "mobi_claim",
+        collectionName: "mobi_claims",
+        domain: "portfolio",
+        description: "Thin claim reference for after-sales and claim-to-lead orchestration. Settlement stays in the claims engine.",
+        x: 820,
+        y: 700,
+        columns: [
+          { logicalName: "mobi_claimid", displayName: "Claim", type: "guid", role: "PK" },
+          { logicalName: "mobi_claimnumber", displayName: "Claim Number", type: "nvarchar / external SoR ref" },
+          { logicalName: "mobi_accountid", displayName: "Account", type: "lookup(Account)", role: "FK" },
+          { logicalName: "mobi_policyid", displayName: "Policy", type: "lookup(Policy)", role: "FK" },
+          { logicalName: "mobi_type", displayName: "Claim Type", type: "choice" },
+          { logicalName: "mobi_status", displayName: "Status", type: "choice" },
+          { logicalName: "mobi_openedon", displayName: "Opened On", type: "date" },
+          { logicalName: "mobi_generatedleadid", displayName: "Generated Lead", type: "lookup(Lead)", role: "FK" }
+        ]
+      },
+      {
+        key: "lead",
+        folder: "Lead",
+        title: "Lead",
+        logicalName: "lead",
+        collectionName: "leads",
+        domain: "demand",
+        description: "Qualified demand signal from online abandonment, campaign, service, claim, event, or referral. Enriched, scored, routed, and clustered.",
+        x: 1240,
+        y: 120,
+        columns: [
+          { logicalName: "leadid", displayName: "Lead", type: "guid", role: "PK" },
+          { logicalName: "parentaccountid", displayName: "Account", type: "lookup(Account)", role: "FK" },
+          { logicalName: "mobi_clusterid", displayName: "Lead Cluster", type: "lookup(LeadCluster)", role: "FK" },
+          { logicalName: "ownerid", displayName: "Owner", type: "lookup(SystemUser)", role: "FK" },
+          { logicalName: "leadsourcecode", displayName: "Source", type: "choice" },
+          { logicalName: "mobi_channel", displayName: "Channel", type: "choice" },
+          { logicalName: "mobi_trigger", displayName: "Trigger", type: "nvarchar" },
+          { logicalName: "mobi_aiscore", displayName: "AI Score", type: "whole number" },
+          { logicalName: "statuscode", displayName: "Status", type: "choice" }
+        ]
+      },
+      {
+        key: "mobi_leadcluster",
+        folder: "mobi_leadcluster",
+        title: "Lead Cluster",
+        logicalName: "mobi_leadcluster",
+        collectionName: "mobi_leadclusters",
+        domain: "demand",
+        description: "Anti-over-contact bundle: multiple triggers become one respectful conversation while preserving the lead history.",
+        x: 1240,
+        y: 480,
+        columns: [
+          { logicalName: "mobi_leadclusterid", displayName: "Lead Cluster", type: "guid", role: "PK" },
+          { logicalName: "mobi_accountid", displayName: "Account", type: "lookup(Account)", role: "FK" },
+          { logicalName: "mobi_primaryleadid", displayName: "Primary Lead", type: "lookup(Lead)", role: "FK" },
+          { logicalName: "mobi_contactpressure", displayName: "Contact Pressure", type: "choice: Low | Medium | High" }
+        ]
+      },
+      {
+        key: "opportunity",
+        folder: "Opportunity",
+        title: "Sales Case (Opportunity)",
+        logicalName: "opportunity",
+        collectionName: "opportunities",
+        domain: "demand",
+        description: "Vertriebsfall through the funnel, converted from a qualified lead and used to track value, stage, and quote follow-up.",
+        x: 1240,
+        y: 820,
+        columns: [
+          { logicalName: "opportunityid", displayName: "Opportunity", type: "guid", role: "PK" },
+          { logicalName: "parentaccountid", displayName: "Account", type: "lookup(Account)", role: "FK" },
+          { logicalName: "originatingleadid", displayName: "Originating Lead", type: "lookup(Lead)", role: "FK" },
+          { logicalName: "estimatedvalue", displayName: "Weighted Value", type: "money" },
+          { logicalName: "salesstage", displayName: "Stage", type: "choice" },
+          { logicalName: "closeprobability", displayName: "Probability", type: "whole number" }
+        ]
+      },
+      {
+        key: "quote",
+        folder: "Quote",
+        title: "Quote",
+        logicalName: "quote",
+        collectionName: "quotes",
+        domain: "demand",
+        description: "Thin quote orchestration record. Pricing and insurance technical calculation stay in the quoting engine; CRM tracks status and handoff.",
+        x: 1620,
+        y: 900,
+        columns: [
+          { logicalName: "quoteid", displayName: "Quote", type: "guid", role: "PK" },
+          { logicalName: "opportunityid", displayName: "Opportunity", type: "lookup(Opportunity)", role: "FK" },
+          { logicalName: "mobi_productid", displayName: "Product", type: "lookup(Product)", role: "FK" },
+          { logicalName: "totalamount", displayName: "Premium", type: "money" },
+          { logicalName: "statecode", displayName: "Status", type: "choice" },
+          { logicalName: "mobi_engineref", displayName: "Quoting Engine Reference", type: "nvarchar / external ref" }
+        ]
+      },
+      {
+        key: "mobi_nextbestaction",
+        folder: "mobi_nextbestaction",
+        title: "Next Best Action",
+        logicalName: "mobi_nextbestaction",
+        collectionName: "mobi_nextbestactions",
+        domain: "ai",
+        description: "Explainable Copilot/NBA recommendation with reason, confidence, and feedback loop for model improvement.",
+        x: 1620,
+        y: 120,
+        columns: [
+          { logicalName: "mobi_nextbestactionid", displayName: "Next Best Action", type: "guid", role: "PK" },
+          { logicalName: "mobi_accountid", displayName: "Account", type: "lookup(Account)", role: "FK" },
+          { logicalName: "mobi_leadid", displayName: "Lead", type: "lookup(Lead)", role: "FK" },
+          { logicalName: "mobi_recommendation", displayName: "Recommendation", type: "multiline text" },
+          { logicalName: "mobi_reason", displayName: "Why", type: "multiline text" },
+          { logicalName: "mobi_confidence", displayName: "Confidence", type: "whole number" },
+          { logicalName: "mobi_feedback", displayName: "Feedback", type: "choice: None | Helpful | Not Helpful" }
+        ]
+      },
+      {
+        key: "activitypointer",
+        folder: "ActivityPointer",
+        title: "Activity",
+        logicalName: "activitypointer",
+        collectionName: "activitypointers",
+        domain: "service",
+        description: "Interaction record for calls, emails, appointments, tasks, and notes. Stores transcript, Copilot summary, sentiment, and follow-up context.",
+        x: 1620,
+        y: 480,
+        columns: [
+          { logicalName: "activityid", displayName: "Activity", type: "guid", role: "PK" },
+          { logicalName: "regardingobjectid", displayName: "Regarding", type: "customer / lookup", role: "FK" },
+          { logicalName: "mobi_contactid", displayName: "Contact", type: "lookup(Contact)", role: "FK" },
+          { logicalName: "activitytypecode", displayName: "Type", type: "choice" },
+          { logicalName: "scheduledstart", displayName: "Scheduled On", type: "datetime" },
+          { logicalName: "statecode", displayName: "Status", type: "choice" },
+          { logicalName: "mobi_transcript", displayName: "Transcript", type: "multiline text" },
+          { logicalName: "mobi_aisummary", displayName: "AI Summary", type: "multiline text" },
+          { logicalName: "mobi_sentiment", displayName: "Sentiment", type: "choice" }
+        ]
+      },
+      {
+        key: "incident",
+        folder: "Incident",
+        title: "Case / Anliegen",
+        logicalName: "incident",
+        collectionName: "incidents",
+        domain: "service",
+        description: "Service or complaint case. Can create a qualified sales lead when service context reveals a relevant advisory moment.",
+        x: 2020,
+        y: 140,
+        columns: [
+          { logicalName: "incidentid", displayName: "Case", type: "guid", role: "PK" },
+          { logicalName: "customerid", displayName: "Account", type: "customer", role: "FK" },
+          { logicalName: "primarycontactid", displayName: "Reporting Contact", type: "lookup(Contact)", role: "FK" },
+          { logicalName: "casetypecode", displayName: "Type", type: "choice: Anliegen | Beschwerde" },
+          { logicalName: "title", displayName: "Subject", type: "nvarchar" },
+          { logicalName: "mobi_channel", displayName: "Channel", type: "choice" },
+          { logicalName: "statuscode", displayName: "Status", type: "choice" },
+          { logicalName: "mobi_generatedleadid", displayName: "Generated Lead", type: "lookup(Lead)", role: "FK" }
+        ]
+      },
+      {
+        key: "mobi_vehicle",
+        folder: "mobi_vehicle",
+        title: "Vehicle",
+        logicalName: "mobi_vehicle",
+        collectionName: "mobi_vehicles",
+        domain: "assistance",
+        description: "Affected asset for Mobi24 assistance, identified by plate and associated to account-level portfolio context.",
+        x: 2020,
+        y: 520,
+        columns: [
+          { logicalName: "mobi_vehicleid", displayName: "Vehicle", type: "guid", role: "PK" },
+          { logicalName: "mobi_accountid", displayName: "Account", type: "lookup(Account)", role: "FK" },
+          { logicalName: "mobi_plate", displayName: "Plate", type: "nvarchar" },
+          { logicalName: "mobi_category", displayName: "Category", type: "choice" }
+        ]
+      },
+      {
+        key: "mobi_assistancecase",
+        folder: "mobi_assistancecase",
+        title: "Assistance Case",
+        logicalName: "mobi_assistancecase",
+        collectionName: "mobi_assistancecases",
+        domain: "assistance",
+        description: "Mobi24 orchestration record: IVR concern, caller, coverage, location, vehicle, partner dispatch, customer status link, and live updates.",
+        x: 2020,
+        y: 860,
+        columns: [
+          { logicalName: "mobi_assistancecaseid", displayName: "Assistance Case", type: "guid", role: "PK" },
+          { logicalName: "mobi_accountid", displayName: "Account", type: "lookup(Account)", role: "FK" },
+          { logicalName: "mobi_contactid", displayName: "Caller", type: "lookup(Contact)", role: "FK" },
+          { logicalName: "mobi_policyid", displayName: "Policy", type: "lookup(Policy)", role: "FK" },
+          { logicalName: "mobi_vehicleid", displayName: "Vehicle", type: "lookup(Vehicle)", role: "FK" },
+          { logicalName: "mobi_concerntype", displayName: "Concern Type", type: "choice" },
+          { logicalName: "mobi_location", displayName: "Location", type: "nvarchar" },
+          { logicalName: "mobi_status", displayName: "Status", type: "choice" }
+        ]
+      },
+      {
+        key: "mobi_assistancepartner",
+        folder: "mobi_assistancepartner",
+        title: "Assistance Partner",
+        logicalName: "mobi_assistancepartner",
+        collectionName: "mobi_assistancepartners",
+        domain: "assistance",
+        description: "Partner master data for dispatch ranking: skills, coverage area, availability, SLA, and rating.",
+        x: 2420,
+        y: 540,
+        columns: [
+          { logicalName: "mobi_assistancepartnerid", displayName: "Assistance Partner", type: "guid", role: "PK" },
+          { logicalName: "mobi_name", displayName: "Name", type: "nvarchar" },
+          { logicalName: "mobi_skills", displayName: "Skills", type: "multiline text" },
+          { logicalName: "mobi_coveragearea", displayName: "Coverage Area", type: "nvarchar" },
+          { logicalName: "mobi_availability", displayName: "Availability", type: "choice" },
+          { logicalName: "mobi_slaminutes", displayName: "SLA Minutes", type: "decimal" },
+          { logicalName: "mobi_rating", displayName: "Rating", type: "decimal" }
+        ]
+      },
+      {
+        key: "mobi_dispatch",
+        folder: "mobi_dispatch",
+        title: "Dispatch",
+        logicalName: "mobi_dispatch",
+        collectionName: "mobi_dispatches",
+        domain: "assistance",
+        description: "Digital partner assignment, ETA, acceptance receipt, live status updates, and fallback escalation point.",
+        x: 2420,
+        y: 900,
+        columns: [
+          { logicalName: "mobi_dispatchid", displayName: "Dispatch", type: "guid", role: "PK" },
+          { logicalName: "mobi_assistancecaseid", displayName: "Assistance Case", type: "lookup(AssistanceCase)", role: "FK" },
+          { logicalName: "mobi_partnerid", displayName: "Partner", type: "lookup(AssistancePartner)", role: "FK" },
+          { logicalName: "mobi_etaminutes", displayName: "ETA Minutes", type: "whole number" },
+          { logicalName: "mobi_status", displayName: "Status", type: "choice: Sent | Accepted | EnRoute | OnSite | Closed" }
+        ]
+      },
+      {
+        key: "mobi_servicelineitem",
+        folder: "mobi_servicelineitem",
+        title: "Service Line Item",
+        logicalName: "mobi_servicelineitem",
+        collectionName: "mobi_servicelineitems",
+        domain: "assistance",
+        description: "Line items imported from partner rapport and used by the billing/faktura dossier without manual re-entry.",
+        x: 2800,
+        y: 920,
+        columns: [
+          { logicalName: "mobi_servicelineitemid", displayName: "Service Line Item", type: "guid", role: "PK" },
+          { logicalName: "mobi_dispatchid", displayName: "Dispatch", type: "lookup(Dispatch)", role: "FK" },
+          { logicalName: "mobi_description", displayName: "Description", type: "nvarchar" },
+          { logicalName: "mobi_amount", displayName: "Amount", type: "money" }
+        ]
+      },
+      {
+        key: "mobi_brokerscorecard",
+        folder: "mobi_brokerscorecard",
+        title: "Broker Scorecard",
+        logicalName: "mobi_brokerscorecard",
+        collectionName: "mobi_brokerscorecards",
+        domain: "broker",
+        description: "Broker-account performance scorecard for volume, offer-to-bind conversion, target achievement, and anomaly detection.",
+        x: 2800,
+        y: 80,
+        columns: [
+          { logicalName: "mobi_brokerscorecardid", displayName: "Broker Scorecard", type: "guid", role: "PK" },
+          { logicalName: "mobi_accountid", displayName: "Broker Account", type: "lookup(Account)", role: "FK" },
+          { logicalName: "mobi_newbusinessytd", displayName: "New Business YTD", type: "money" },
+          { logicalName: "mobi_conversionrate", displayName: "Conversion Rate", type: "decimal" },
+          { logicalName: "mobi_targetachievement", displayName: "Target Achievement", type: "decimal" }
+        ]
+      },
+      {
+        key: "mobi_brokerreview",
+        folder: "mobi_brokerreview",
+        title: "Broker Review",
+        logicalName: "mobi_brokerreview",
+        collectionName: "mobi_brokerreviews",
+        domain: "broker",
+        description: "Annual broker review with Word/SharePoint protocol generation in Mobiliar format and agreed measures.",
+        x: 2800,
+        y: 420,
+        columns: [
+          { logicalName: "mobi_brokerreviewid", displayName: "Broker Review", type: "guid", role: "PK" },
+          { logicalName: "mobi_accountid", displayName: "Broker Account", type: "lookup(Account)", role: "FK" },
+          { logicalName: "ownerid", displayName: "Owner", type: "lookup(SystemUser)", role: "FK" },
+          { logicalName: "mobi_reviewdate", displayName: "Review Date", type: "date" },
+          { logicalName: "mobi_protocoldocref", displayName: "Protocol Doc Ref", type: "nvarchar / SharePoint" }
+        ]
+      },
+      {
+        key: "mobi_measure",
+        folder: "mobi_measure",
+        title: "Measure",
+        logicalName: "mobi_measure",
+        collectionName: "mobi_measures",
+        domain: "broker",
+        description: "Massnahme lifecycle for broker steering and local execution: open, done, overdue, with due date and accountability.",
+        x: 3160,
+        y: 560,
+        columns: [
+          { logicalName: "mobi_measureid", displayName: "Measure", type: "guid", role: "PK" },
+          { logicalName: "mobi_reviewid", displayName: "Broker Review", type: "lookup(BrokerReview)", role: "FK" },
+          { logicalName: "mobi_accountid", displayName: "Account", type: "lookup(Account)", role: "FK" },
+          { logicalName: "mobi_description", displayName: "Description", type: "multiline text" },
+          { logicalName: "mobi_status", displayName: "Status", type: "choice: Open | Done | Overdue" },
+          { logicalName: "mobi_duedate", displayName: "Due Date", type: "date" }
+        ]
+      },
+      {
+        key: "campaign",
+        folder: "Campaign",
+        title: "Campaign",
+        logicalName: "campaign",
+        collectionName: "campaigns",
+        domain: "marketing",
+        description: "OOTB D365 marketing/journey object feeding qualified leads under consent, service, and GA guardrails.",
+        x: 1240,
+        y: 1180,
+        columns: [
+          { logicalName: "campaignid", displayName: "Campaign", type: "guid", role: "PK" },
+          { logicalName: "name", displayName: "Name", type: "nvarchar" },
+          { logicalName: "mobi_guardrails", displayName: "Guardrails", type: "multiline text" },
+          { logicalName: "statecode", displayName: "Status", type: "choice" }
+        ]
+      }
+    ];
+
+    baselineRelationships = [
+      { from: "mobi_generalagency", to: "account", fromCard: "1", toCard: "N", label: "owns market", style: "commercial" },
+      { from: "mobi_generalagency", to: "systemuser", fromCard: "1", toCard: "N", label: "staffs", style: "commercial" },
+      { from: "account", to: "contact", fromCard: "N", toCard: "1", label: "primary contact", style: "commercial" },
+      { from: "account", to: "mobi_contactrole", fromCard: "1", toCard: "N", label: "has roles", style: "commercial" },
+      { from: "contact", to: "mobi_contactrole", fromCard: "1", toCard: "N", label: "plays role", style: "commercial" },
+      { from: "contact", to: "mobi_consent", fromCard: "1", toCard: "N", label: "grants", style: "commercial" },
+      { from: "account", to: "mobi_policy", fromCard: "1", toCard: "N", label: "holds", style: "activity" },
+      { from: "mobi_product", to: "mobi_policy", fromCard: "1", toCard: "N", label: "instantiates", style: "activity" },
+      { from: "account", to: "mobi_claim", fromCard: "1", toCard: "N", label: "incurs", style: "activity" },
+      { from: "mobi_policy", to: "mobi_claim", fromCard: "1", toCard: "N", label: "against", style: "activity" },
+      { from: "account", to: "lead", fromCard: "1", toCard: "N", label: "originates", style: "signal" },
+      { from: "campaign", to: "lead", fromCard: "1", toCard: "N", label: "feeds", style: "signal" },
+      { from: "systemuser", to: "lead", fromCard: "1", toCard: "N", label: "owns", style: "signal" },
+      { from: "account", to: "mobi_leadcluster", fromCard: "1", toCard: "N", label: "groups for", style: "signal" },
+      { from: "mobi_leadcluster", to: "lead", fromCard: "1", toCard: "N", label: "bundles", style: "signal" },
+      { from: "lead", to: "opportunity", fromCard: "1", toCard: "1", label: "converts", style: "signal" },
+      { from: "account", to: "opportunity", fromCard: "1", toCard: "N", label: "pursues", style: "signal" },
+      { from: "opportunity", to: "quote", fromCard: "1", toCard: "N", label: "produces", style: "signal" },
+      { from: "mobi_product", to: "quote", fromCard: "1", toCard: "N", label: "priced as", style: "activity" },
+      { from: "account", to: "mobi_nextbestaction", fromCard: "1", toCard: "N", label: "receives", style: "signal" },
+      { from: "lead", to: "mobi_nextbestaction", fromCard: "1", toCard: "N", label: "triggers", style: "signal" },
+      { from: "account", to: "activitypointer", fromCard: "1", toCard: "N", label: "interacts", style: "service" },
+      { from: "contact", to: "activitypointer", fromCard: "1", toCard: "N", label: "party to", style: "service" },
+      { from: "account", to: "incident", fromCard: "1", toCard: "N", label: "raises", style: "service" },
+      { from: "contact", to: "incident", fromCard: "1", toCard: "N", label: "reports", style: "service" },
+      { from: "incident", to: "lead", fromCard: "1", toCard: "0..1", label: "service-to-lead", style: "service" },
+      { from: "mobi_claim", to: "lead", fromCard: "1", toCard: "0..1", label: "claim-to-lead", style: "service" },
+      { from: "account", to: "mobi_vehicle", fromCard: "1", toCard: "N", label: "owns asset", style: "service" },
+      { from: "account", to: "mobi_assistancecase", fromCard: "1", toCard: "N", label: "opens", style: "service" },
+      { from: "contact", to: "mobi_assistancecase", fromCard: "1", toCard: "N", label: "caller", style: "service" },
+      { from: "mobi_policy", to: "mobi_assistancecase", fromCard: "1", toCard: "N", label: "covers", style: "service" },
+      { from: "mobi_vehicle", to: "mobi_assistancecase", fromCard: "1", toCard: "N", label: "affected asset", style: "service" },
+      { from: "mobi_assistancecase", to: "mobi_dispatch", fromCard: "1", toCard: "N", label: "dispatches", style: "service" },
+      { from: "mobi_assistancepartner", to: "mobi_dispatch", fromCard: "1", toCard: "N", label: "fulfils", style: "service" },
+      { from: "mobi_dispatch", to: "mobi_servicelineitem", fromCard: "1", toCard: "N", label: "bills", style: "service" },
+      { from: "account", to: "mobi_brokerscorecard", fromCard: "1", toCard: "1", label: "scored by", style: "activity" },
+      { from: "account", to: "mobi_brokerreview", fromCard: "1", toCard: "N", label: "reviewed in", style: "activity" },
+      { from: "systemuser", to: "mobi_brokerreview", fromCard: "1", toCard: "N", label: "owns", style: "activity" },
+      { from: "mobi_brokerreview", to: "mobi_measure", fromCard: "1", toCard: "N", label: "agrees", style: "activity" },
+      { from: "account", to: "mobi_measure", fromCard: "1", toCard: "N", label: "accountable", style: "activity" }
+    ];
+
+    const state = {
+      entities: baselineEntities.map((entity) => ({
+        ...entity,
+        baseColumns: entity.columns.map((column) => ({ ...column, source: "baseline" })),
+        liveColumns: [],
+        liveLoaded: false,
+        liveDescription: "",
+        liveCollectionName: "",
+        liveOriginalName: ""
+      })),
+      relationships: baselineRelationships,
+      expanded: new Set(["account"]),
+      selectedKey: "account",
+      search: "",
+      scale: 0.8,
+      panX: 110,
+      panY: 90,
+      dragging: false,
+      dragPointerId: null,
+      dragOriginX: 0,
+      dragOriginY: 0,
+      originPanX: 0,
+      originPanY: 0,
+      dragMode: null,
+      draggedEntityKey: "",
+      originEntityX: 0,
+      originEntityY: 0,
+      dragMoved: false,
+      suppressClick: false,
+      inspectorColumnsExpanded: false,
+      inspectorColumnsKey: "account",
+      layoutNormalized: false,
+      lastDirectoryHandle: null,
+      lastSourceMode: "default",
+      liveTablesLoaded: 0
+    };
+
+    const entityMap = () => new Map(state.entities.map((entity) => [entity.key, entity]));
+
+    const elements = {
+      viewport: document.getElementById("viewport"),
+      canvasContent: document.getElementById("canvasContent"),
+      relationsSvg: document.getElementById("relationsSvg"),
+      entityLayer: document.getElementById("entityLayer"),
+      metricTables: document.getElementById("metricTables"),
+      metricRelationships: document.getElementById("metricRelationships"),
+      metricLive: document.getElementById("metricLive"),
+      metricColumns: document.getElementById("metricColumns"),
+      searchInput: document.getElementById("searchInput"),
+      statusBadge: document.getElementById("statusBadge"),
+      statusText: document.getElementById("statusText"),
+      inspectorTitle: document.getElementById("inspectorTitle"),
+      inspectorSubtitle: document.getElementById("inspectorSubtitle"),
+      inspectorDescription: document.getElementById("inspectorDescription"),
+      inspectorBadges: document.getElementById("inspectorBadges"),
+      metaList: document.getElementById("metaList"),
+      relationList: document.getElementById("relationList"),
+      inspectorColumnsToggle: document.getElementById("inspectorColumnsToggle"),
+      inspectorColumnsBody: document.getElementById("inspectorColumnsBody"),
+      sourceList: document.getElementById("sourceList"),
+      openFolderButton: document.getElementById("openFolderButton"),
+      refreshButton: document.getElementById("refreshButton"),
+      zoomInButton: document.getElementById("zoomInButton"),
+      zoomOutButton: document.getElementById("zoomOutButton"),
+      resetZoomButton: document.getElementById("resetZoomButton"),
+      fitButton: document.getElementById("fitButton")
+    };
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function normalizeKey(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function updateStatus(label, text) {
+      elements.statusBadge.textContent = label;
+      elements.statusText.textContent = text;
+    }
+
+    function getMergedColumns(entity) {
+      const merged = new Map();
+      for (const column of entity.baseColumns) {
+        merged.set(normalizeKey(column.logicalName), { ...column, source: column.source || "baseline" });
+      }
+      for (const column of entity.liveColumns) {
+        const key = normalizeKey(column.logicalName);
+        if (!merged.has(key)) {
+          merged.set(key, { ...column, source: "live" });
+          continue;
+        }
+        const existing = merged.get(key);
+        merged.set(key, {
+          ...existing,
+          displayName: column.displayName || existing.displayName,
+          type: column.type || existing.type,
+          role: existing.role || column.role,
+          source: "baseline+live"
+        });
+      }
+      return Array.from(merged.values()).sort((left, right) => {
+        const leftRole = left.role === "PK" ? -1 : left.role === "FK" ? 0 : 1;
+        const rightRole = right.role === "PK" ? -1 : right.role === "FK" ? 0 : 1;
+        if (leftRole !== rightRole) {
+          return leftRole - rightRole;
+        }
+        return left.logicalName.localeCompare(right.logicalName);
+      });
+    }
+
+    function getVisibleKeys() {
+      const query = state.search.trim().toLowerCase();
+      if (!query) {
+        return new Set(state.entities.map((entity) => entity.key));
+      }
+      const matches = new Set();
+      for (const entity of state.entities) {
+        const columns = getMergedColumns(entity);
+        const haystack = [
+          entity.title,
+          entity.logicalName,
+          entity.description,
+          entity.collectionName,
+          entity.liveCollectionName,
+          ...columns.flatMap((column) => [column.logicalName, column.displayName, column.type])
+        ].join(" ").toLowerCase();
+        if (haystack.includes(query)) {
+          matches.add(entity.key);
+        }
+      }
+      if (!matches.size) {
+        return matches;
+      }
+      for (const relationship of state.relationships) {
+        if (matches.has(relationship.from) || matches.has(relationship.to)) {
+          matches.add(relationship.from);
+          matches.add(relationship.to);
+        }
+      }
+      return matches;
+    }
+
+    function render() {
+      applyTransform();
+      renderNodes();
+      renderInspector();
+      renderMetrics();
+      requestAnimationFrame(drawRelationships);
+    }
+
+    function applyTransform() {
+      elements.canvasContent.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.scale})`;
+      elements.resetZoomButton.textContent = `${Math.round(state.scale * 100)}%`;
+    }
+
+    function renderNodes() {
+      const visibleKeys = getVisibleKeys();
+      const selectedEntity = entityMap().get(state.selectedKey);
+      if (!selectedEntity || !visibleKeys.has(state.selectedKey)) {
+        const firstVisible = state.entities.find((entity) => visibleKeys.has(entity.key));
+        state.selectedKey = firstVisible ? firstVisible.key : "";
+      }
+
+      elements.entityLayer.innerHTML = state.entities.map((entity) => {
+        const mergedColumns = getMergedColumns(entity);
+        const visible = visibleKeys.has(entity.key);
+        const isExpanded = state.expanded.has(entity.key);
+        const liveBadge = entity.liveLoaded ? `<span class="pill live">Live XML</span>` : "";
+        const docBadge = `<span class="pill doc">Baseline schema</span>`;
+        const body = mergedColumns.length
+          ? `<div class="column-list">${mergedColumns.map((column) => {
+              const sourceBadges = [];
+              if (column.source === "baseline+live") {
+                sourceBadges.push('<span class="badge live">Live</span>');
+                sourceBadges.push('<span class="badge doc">Baseline</span>');
+              } else if (column.source === "live") {
+                sourceBadges.push('<span class="badge live">Live</span>');
+              } else {
+                sourceBadges.push('<span class="badge doc">Baseline</span>');
+              }
+              if (column.role) {
+                sourceBadges.push(`<span class="badge role">${escapeHtml(column.role)}</span>`);
+              }
+              if (column.type) {
+                sourceBadges.push(`<span class="badge type">${escapeHtml(column.type)}</span>`);
+              }
+              return `
+                <div class="column-row">
+                  <div class="column-main">
+                    <div>
+                      <div class="column-name">${escapeHtml(column.logicalName)}</div>
+                      <div class="column-caption">${escapeHtml(column.displayName || column.logicalName)}</div>
+                    </div>
+                    <div class="column-badges">${sourceBadges.join("")}</div>
+                  </div>
+                </div>`;
+            }).join("")}</div>`
+          : `<div class="empty-note">No column metadata is available in the current export for this table. Live custom fields will appear here when present.</div>`;
+
+        return `
+          <article
+            class="entity-node ${state.selectedKey === entity.key ? "selected" : ""} ${isExpanded ? "expanded" : ""} ${visible ? "" : "hidden"} ${domainClassMap[entity.domain] || "accent-commercial"}"
+            data-entity-key="${escapeHtml(entity.key)}"
+            style="left:${entity.x}px; top:${entity.y}px;"
+          >
+            <div class="entity-head" data-action="toggle">
+              <div class="entity-title-row">
+                <div>
+                  <h3 class="entity-title">${escapeHtml(entity.title)}</h3>
+                  <div class="entity-subtitle">${escapeHtml(entity.logicalName)}</div>
+                </div>
+                <span class="toggle-indicator">+</span>
+              </div>
+              <div class="entity-metrics">
+                ${docBadge}
+                ${liveBadge}
+              </div>
+              <div class="entity-meta">
+                <span>${mergedColumns.length} columns</span>
+                <span>${entity.liveLoaded ? `${entity.liveColumns.length} live fields` : "Doc seeded"}</span>
+              </div>
+            </div>
+            <div class="entity-body">${body}</div>
+          </article>`;
+      }).join("");
+
+      for (const node of elements.entityLayer.querySelectorAll(".entity-node")) {
+        node.addEventListener("click", (event) => {
+          if (state.suppressClick) {
+            return;
+          }
+          if (event.target.closest("[data-action='toggle']")) {
+            const key = node.dataset.entityKey;
+            state.selectedKey = key;
+            if (state.expanded.has(key)) {
+              state.expanded.delete(key);
+            } else {
+              state.expanded.add(key);
+            }
+            render();
+          }
+        });
+      }
+    }
+
+    function renderInspector() {
+      const entity = entityMap().get(state.selectedKey);
+      if (!entity) {
+        return;
+      }
+      if (state.inspectorColumnsKey !== entity.key) {
+        state.inspectorColumnsKey = entity.key;
+        state.inspectorColumnsExpanded = false;
+      }
+      const mergedColumns = getMergedColumns(entity);
+      const related = state.relationships.filter((relationship) => relationship.from === entity.key || relationship.to === entity.key);
+      const baselineCount = entity.baseColumns.length;
+      const liveCount = entity.liveColumns.length;
+      const connected = related.length;
+      const badges = [
+        `<span class="pill doc">${baselineCount} baseline columns</span>`,
+        `<span class="pill ${entity.liveLoaded ? "live" : "doc"}">${entity.liveLoaded ? `${liveCount} live columns` : "Live overlay not loaded"}</span>`,
+        `<span class="pill doc">${connected} relationships</span>`
+      ];
+
+      elements.inspectorTitle.textContent = entity.title;
+      elements.inspectorSubtitle.textContent = entity.logicalName;
+      elements.inspectorDescription.textContent = entity.liveDescription || entity.description;
+      elements.inspectorBadges.innerHTML = badges.join("");
+      elements.metaList.innerHTML = [
+        `<div>Total columns surfaced: ${mergedColumns.length}</div>`,
+        `<div>Collection: ${escapeHtml(entity.liveCollectionName || entity.collectionName || "n/a")}</div>`,
+        `<div>Folder: ${escapeHtml(entity.folder || "n/a")}</div>`,
+        `<div>Domain: ${escapeHtml(entity.domain)}</div>`
+      ].join("");
+
+      elements.relationList.innerHTML = related.length
+        ? related.map((relationship) => {
+            const otherKey = relationship.from === entity.key ? relationship.to : relationship.from;
+            const other = entityMap().get(otherKey);
+            return `
+              <button class="relation-link" data-related-key="${escapeHtml(otherKey)}">
+                ${escapeHtml(relationship.fromCard)} : ${escapeHtml(relationship.toCard)}  ${escapeHtml(relationship.label)}  ${escapeHtml(other ? other.title : otherKey)}
+              </button>`;
+          }).join("")
+        : `<div class="muted">No relationship metadata is packaged for this table in the current baseline view.</div>`;
+
+      for (const button of elements.relationList.querySelectorAll(".relation-link")) {
+        button.addEventListener("click", () => {
+          state.selectedKey = button.dataset.relatedKey;
+          state.expanded.add(button.dataset.relatedKey);
+          render();
+        });
+      }
+
+      elements.inspectorColumnsToggle.textContent = state.inspectorColumnsExpanded ? "Collapse" : "Expand";
+      elements.inspectorColumnsBody.innerHTML = state.inspectorColumnsExpanded
+        ? (mergedColumns.length
+            ? `<div class="column-list">${mergedColumns.map((column) => {
+                const sourceBadges = [];
+                if (column.source === "baseline+live") {
+                  sourceBadges.push('<span class="badge live">Live</span>');
+                  sourceBadges.push('<span class="badge doc">Baseline</span>');
+                } else if (column.source === "live") {
+                  sourceBadges.push('<span class="badge live">Live</span>');
+                } else {
+                  sourceBadges.push('<span class="badge doc">Baseline</span>');
+                }
+                if (column.role) {
+                  sourceBadges.push(`<span class="badge role">${escapeHtml(column.role)}</span>`);
+                }
+                if (column.type) {
+                  sourceBadges.push(`<span class="badge type">${escapeHtml(column.type)}</span>`);
+                }
+                return `
+                  <div class="column-row">
+                    <div class="column-main">
+                      <div>
+                        <div class="column-name">${escapeHtml(column.logicalName)}</div>
+                        <div class="column-caption">${escapeHtml(column.displayName || column.logicalName)}</div>
+                      </div>
+                      <div class="column-badges">${sourceBadges.join("")}</div>
+                    </div>
+                  </div>`;
+              }).join("")}</div>`
+            : `<div class="muted">No column metadata is available for this table.</div>`)
+        : "Column details are hidden until expanded.";
+
+      elements.inspectorColumnsToggle.onclick = () => {
+        state.inspectorColumnsExpanded = !state.inspectorColumnsExpanded;
+        renderInspector();
+      };
+
+      elements.sourceList.innerHTML = [
+        `<div class="source-item"><span>Documented baseline</span><strong>${baselineCount ? "Yes" : "No"}</strong></div>`,
+        `<div class="source-item"><span>Live Entity.xml overlay</span><strong>${entity.liveLoaded ? "Loaded" : "Not loaded"}</strong></div>`,
+        `<div class="source-item"><span>Original export name</span><strong>${escapeHtml(entity.liveOriginalName || entity.title)}</strong></div>`
+      ].join("");
+    }
+
+    function renderMetrics() {
+      const visibleKeys = getVisibleKeys();
+      const visibleEntities = state.entities.filter((entity) => visibleKeys.has(entity.key));
+      const visibleRelationships = state.relationships.filter((relationship) => visibleKeys.has(relationship.from) && visibleKeys.has(relationship.to));
+      const totalColumns = visibleEntities.reduce((sum, entity) => sum + getMergedColumns(entity).length, 0);
+      elements.metricTables.textContent = String(visibleEntities.length);
+      elements.metricRelationships.textContent = String(visibleRelationships.length);
+      elements.metricLive.textContent = String(state.liveTablesLoaded);
+      elements.metricColumns.textContent = String(totalColumns);
+    }
+
+    function drawRelationships() {
+      const visibleKeys = getVisibleKeys();
+      const nodeRects = new Map();
+      for (const node of elements.entityLayer.querySelectorAll(".entity-node:not(.hidden)")) {
+        nodeRects.set(node.dataset.entityKey, {
+          left: node.offsetLeft,
+          top: node.offsetTop,
+          width: node.offsetWidth,
+          height: node.offsetHeight
+        });
+      }
+      elements.relationsSvg.setAttribute("viewBox", `0 0 ${parseInt(getComputedStyle(document.documentElement).getPropertyValue("--canvas-width"), 10)} ${parseInt(getComputedStyle(document.documentElement).getPropertyValue("--canvas-height"), 10)}`);
+      elements.relationsSvg.innerHTML = state.relationships
+        .filter((relationship) => visibleKeys.has(relationship.from) && visibleKeys.has(relationship.to))
+        .map((relationship) => {
+          const fromRect = nodeRects.get(relationship.from);
+          const toRect = nodeRects.get(relationship.to);
+          if (!fromRect || !toRect) {
+            return "";
+          }
+          const fromCenter = { x: fromRect.left + fromRect.width / 2, y: fromRect.top + fromRect.height / 2 };
+          const toCenter = { x: toRect.left + toRect.width / 2, y: toRect.top + toRect.height / 2 };
+          const start = getAnchorPoint(fromRect, toCenter);
+          const end = getAnchorPoint(toRect, fromCenter);
+          const dx = end.x - start.x;
+          const bend = Math.max(42, Math.min(140, Math.abs(dx) * 0.35));
+          const path = `M ${start.x} ${start.y} C ${start.x + (dx >= 0 ? bend : -bend)} ${start.y}, ${end.x - (dx >= 0 ? bend : -bend)} ${end.y}, ${end.x} ${end.y}`;
+          const mid = pointOnBezier(start, end, dx >= 0 ? bend : -bend, 0.5);
+          const startLabel = interpolatePoint(start, mid, 0.22);
+          const endLabel = interpolatePoint(end, mid, 0.22);
+          return `
+            <g>
+              <path class="relation-path ${escapeHtml(relationship.style)}" d="${path}" />
+              <text class="relation-label" x="${mid.x}" y="${mid.y - 8}" text-anchor="middle">${escapeHtml(relationship.label)}</text>
+              <text class="cardinality-label" x="${startLabel.x}" y="${startLabel.y - 8}" text-anchor="middle">${escapeHtml(relationship.fromCard)}</text>
+              <text class="cardinality-label" x="${endLabel.x}" y="${endLabel.y - 8}" text-anchor="middle">${escapeHtml(relationship.toCard)}</text>
+            </g>`;
+        }).join("");
+    }
+
+    function getAnchorPoint(rect, target) {
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const deltaX = target.x - centerX;
+      const deltaY = target.y - centerY;
+      if (Math.abs(deltaX) > Math.abs(deltaY)) {
+        return deltaX >= 0
+          ? { x: rect.left + rect.width, y: centerY }
+          : { x: rect.left, y: centerY };
+      }
+      return deltaY >= 0
+        ? { x: centerX, y: rect.top + rect.height }
+        : { x: centerX, y: rect.top };
+    }
+
+    function pointOnBezier(start, end, controlOffset, t) {
+      const control1 = { x: start.x + controlOffset, y: start.y };
+      const control2 = { x: end.x - controlOffset, y: end.y };
+      const inv = 1 - t;
+      return {
+        x: inv * inv * inv * start.x + 3 * inv * inv * t * control1.x + 3 * inv * t * t * control2.x + t * t * t * end.x,
+        y: inv * inv * inv * start.y + 3 * inv * inv * t * control1.y + 3 * inv * t * t * control2.y + t * t * t * end.y
+      };
+    }
+
+    function interpolatePoint(from, to, ratio) {
+      return {
+        x: from.x + (to.x - from.x) * ratio,
+        y: from.y + (to.y - from.y) * ratio
+      };
+    }
+
+    function zoomBy(factor, centerX, centerY) {
+      const nextScale = Math.max(0.4, Math.min(1.8, state.scale * factor));
+      const worldX = (centerX - state.panX) / state.scale;
+      const worldY = (centerY - state.panY) / state.scale;
+      state.panX = centerX - worldX * nextScale;
+      state.panY = centerY - worldY * nextScale;
+      state.scale = nextScale;
+      render();
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    function getCanvasMetric(variableName, fallback) {
+      const value = parseInt(getComputedStyle(document.documentElement).getPropertyValue(variableName), 10);
+      return Number.isFinite(value) ? value : fallback;
+    }
+
+    function getEntityLayoutHeight(entity) {
+      return state.expanded.has(entity.key) ? 380 : 142;
+    }
+
+    function boxesOverlap(leftEntity, rightEntity, paddingX, paddingY, nodeWidth) {
+      const leftRight = leftEntity.x + nodeWidth + paddingX;
+      const rightRight = rightEntity.x + nodeWidth + paddingX;
+      const leftBottom = leftEntity.y + getEntityLayoutHeight(leftEntity) + paddingY;
+      const rightBottom = rightEntity.y + getEntityLayoutHeight(rightEntity) + paddingY;
+      return leftEntity.x < rightRight
+        && leftRight > rightEntity.x
+        && leftEntity.y < rightBottom
+        && leftBottom > rightEntity.y;
+    }
+
+    function normalizeInitialLayout() {
+      if (state.layoutNormalized) {
+        return;
+      }
+      const nodeWidth = getCanvasMetric("--node-width", 278);
+      const canvasWidth = getCanvasMetric("--canvas-width", 2000);
+      const canvasHeight = getCanvasMetric("--canvas-height", 1450);
+      const paddingX = 38;
+      const paddingY = 34;
+      const rowStep = 178;
+      const columnStep = nodeWidth + paddingX;
+      const orderedEntities = [...state.entities].sort((left, right) => (left.y - right.y) || (left.x - right.x));
+
+      for (let iteration = 0; iteration < 12; iteration += 1) {
+        let moved = false;
+        for (let index = 0; index < orderedEntities.length; index += 1) {
+          const current = orderedEntities[index];
+          current.x = clamp(current.x, 0, canvasWidth - nodeWidth);
+          current.y = clamp(current.y, 0, canvasHeight - getEntityLayoutHeight(current));
+          for (let compareIndex = index + 1; compareIndex < orderedEntities.length; compareIndex += 1) {
+            const other = orderedEntities[compareIndex];
+            if (!boxesOverlap(current, other, paddingX, paddingY, nodeWidth)) {
+              continue;
+            }
+            const candidateX = current.x + columnStep;
+            if (candidateX <= canvasWidth - nodeWidth) {
+              other.x = candidateX;
+              other.y = Math.max(other.y, current.y);
+            } else {
+              other.x = clamp((compareIndex % 3) * columnStep + 24, 0, canvasWidth - nodeWidth);
+              other.y = clamp(Math.max(other.y, current.y + rowStep), 0, canvasHeight - getEntityLayoutHeight(other));
+            }
+            moved = true;
+          }
+        }
+        if (!moved) {
+          break;
+        }
+      }
+
+      state.layoutNormalized = true;
+    }
+
+    function fitGraph() {
+      const visibleKeys = getVisibleKeys();
+      const visibleNodes = state.entities.filter((entity) => visibleKeys.has(entity.key));
+      if (!visibleNodes.length) {
+        return;
+      }
+      const padding = 110;
+      const bounds = visibleNodes.reduce((accumulator, entity) => {
+        const width = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--node-width"), 10);
+        const height = state.expanded.has(entity.key) ? 360 : 128;
+        return {
+          left: Math.min(accumulator.left, entity.x),
+          top: Math.min(accumulator.top, entity.y),
+          right: Math.max(accumulator.right, entity.x + width),
+          bottom: Math.max(accumulator.bottom, entity.y + height)
+        };
+      }, { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity });
+
+      const viewportRect = elements.viewport.getBoundingClientRect();
+      const width = bounds.right - bounds.left;
+      const height = bounds.bottom - bounds.top;
+      const scaleX = (viewportRect.width - padding) / width;
+      const scaleY = (viewportRect.height - padding) / height;
+      state.scale = Math.max(0.42, Math.min(1.2, Math.min(scaleX, scaleY)));
+      state.panX = (viewportRect.width - width * state.scale) / 2 - bounds.left * state.scale;
+      state.panY = (viewportRect.height - height * state.scale) / 2 - bounds.top * state.scale;
+      render();
+    }
+
+    function parseEntityXml(xmlText, folderName) {
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(xmlText, "application/xml");
+      if (xml.querySelector("parsererror")) {
+        throw new Error(`Unable to parse Entity.xml for ${folderName}`);
+      }
+      const entityInfo = xml.querySelector("EntityInfo > entity");
+      const localizedName = xml.querySelector(":scope > Name")?.textContent?.trim() || entityInfo?.getAttribute("Name") || folderName;
+      const originalName = entityInfo?.getAttribute("Name") || localizedName;
+      const description = entityInfo?.querySelector("Descriptions > Description")?.getAttribute("description") || "";
+      const collectionName = entityInfo?.querySelector("LocalizedCollectionNames > LocalizedCollectionName")?.getAttribute("description") || "";
+      const attributes = Array.from(xml.querySelectorAll("attributes > attribute")).map((attribute) => {
+        const displayName = attribute.querySelector("displaynames > displayname")?.getAttribute("description") || attribute.querySelector("Name")?.textContent?.trim() || "Unnamed column";
+        return {
+          logicalName: attribute.querySelector("LogicalName")?.textContent?.trim() || attribute.querySelector("Name")?.textContent?.trim() || displayName,
+          displayName,
+          type: attribute.querySelector("Type")?.textContent?.trim() || "unknown",
+          role: attribute.querySelector("LookupStyle") ? "FK" : "",
+          source: "live"
+        };
+      });
+      return {
+        key: normalizeKey(originalName),
+        title: localizedName,
+        originalName,
+        description,
+        collectionName,
+        attributes,
+        folder: folderName
+      };
+    }
+
+    function applyLiveEntity(liveEntity) {
+      const map = entityMap();
+      const existing = map.get(liveEntity.key);
+      if (!existing) {
+        return;
+      }
+      existing.liveColumns = liveEntity.attributes;
+      existing.liveLoaded = true;
+      existing.liveDescription = liveEntity.description;
+      existing.liveCollectionName = liveEntity.collectionName;
+      existing.liveOriginalName = liveEntity.originalName;
+      existing.folder = liveEntity.folder;
+    }
+
+    async function loadRelativeEntityXml() {
+      const results = [];
+      const failures = [];
+      for (const entity of state.entities) {
+        const path = `../Solutions/mobiliar_unpacked/Entities/${entity.folder}/Entity.xml`;
+        try {
+          const response = await fetch(path, { cache: "no-store" });
+          if (!response.ok) {
+            failures.push(entity.folder);
+            continue;
+          }
+          const xml = await response.text();
+          results.push(parseEntityXml(xml, entity.folder));
+        } catch (error) {
+          failures.push(entity.folder);
+        }
+      }
+      state.entities.forEach((entity) => {
+        entity.liveColumns = [];
+        entity.liveLoaded = false;
+        entity.liveDescription = "";
+        entity.liveCollectionName = "";
+        entity.liveOriginalName = "";
+      });
+      for (const liveEntity of results) {
+        applyLiveEntity(liveEntity);
+      }
+      state.liveTablesLoaded = results.length;
+      state.lastSourceMode = "default";
+      if (results.length) {
+        updateStatus("Live Overlay", `Loaded ${results.length} Entity.xml files from the unpacked solution. ${failures.length ? `${failures.length} tables did not expose readable XML from this page context.` : ""}`);
+      } else {
+        updateStatus("Baseline", "Using the documented ERD baseline. Open the solution folder to enable live XML overlay if browser fetch is blocked.");
+      }
+      render();
+    }
+
+    async function resolveEntityDirectory(handle) {
+      if (!handle || handle.kind !== "directory") {
+        return null;
+      }
+      if (handle.name === "Entities") {
+        return handle;
+      }
+      try {
+        return await handle.getDirectoryHandle("Entities");
+      } catch (error) {
+        return handle;
+      }
+    }
+
+    async function loadFromDirectoryHandle(handle) {
+      const entityDirectory = await resolveEntityDirectory(handle);
+      if (!entityDirectory) {
+        updateStatus("Baseline", "Selected folder does not expose an Entities directory.");
+        return;
+      }
+      const results = [];
+      for await (const [name, child] of entityDirectory.entries()) {
+        if (child.kind !== "directory") {
+          continue;
+        }
+        try {
+          const fileHandle = await child.getFileHandle("Entity.xml");
+          const file = await fileHandle.getFile();
+          const xml = await file.text();
+          results.push(parseEntityXml(xml, name));
+        } catch (error) {
+          continue;
+        }
+      }
+      state.entities.forEach((entity) => {
+        entity.liveColumns = [];
+        entity.liveLoaded = false;
+        entity.liveDescription = "";
+        entity.liveCollectionName = "";
+        entity.liveOriginalName = "";
+      });
+      for (const liveEntity of results) {
+        applyLiveEntity(liveEntity);
+      }
+      state.liveTablesLoaded = results.length;
+      state.lastDirectoryHandle = entityDirectory;
+      state.lastSourceMode = "directory";
+      updateStatus("Live Folder", results.length
+        ? `Loaded ${results.length} tables directly from the selected solution export folder.`
+        : "No readable Entity.xml files were found in the selected folder.");
+      render();
+    }
+
+    async function handleOpenFolder() {
+      if (!window.showDirectoryPicker) {
+        updateStatus("Baseline", "This browser does not expose the File System Access API. Use a local web server or supported Chromium browser for direct folder loading.");
+        return;
+      }
+      try {
+        const handle = await window.showDirectoryPicker({ mode: "read" });
+        await loadFromDirectoryHandle(handle);
+      } catch (error) {
+        if (error && error.name === "AbortError") {
+          return;
+        }
+        updateStatus("Baseline", "Folder selection failed. The documented ERD baseline is still available.");
+      }
+    }
+
+    async function refreshLiveData() {
+      if (state.lastSourceMode === "directory" && state.lastDirectoryHandle) {
+        await loadFromDirectoryHandle(state.lastDirectoryHandle);
+        return;
+      }
+      await loadRelativeEntityXml();
+    }
+
+    function bindEvents() {
+      elements.searchInput.addEventListener("input", (event) => {
+        state.search = event.target.value;
+        render();
+      });
+
+      elements.zoomInButton.addEventListener("click", () => {
+        const rect = elements.viewport.getBoundingClientRect();
+        zoomBy(1.15, rect.width / 2, rect.height / 2);
+      });
+
+      elements.zoomOutButton.addEventListener("click", () => {
+        const rect = elements.viewport.getBoundingClientRect();
+        zoomBy(1 / 1.15, rect.width / 2, rect.height / 2);
+      });
+
+      elements.resetZoomButton.addEventListener("click", () => {
+        state.scale = 1;
+        state.panX = 40;
+        state.panY = 40;
+        render();
+      });
+
+      elements.fitButton.addEventListener("click", fitGraph);
+      elements.openFolderButton.addEventListener("click", handleOpenFolder);
+      elements.refreshButton.addEventListener("click", refreshLiveData);
+
+      elements.viewport.addEventListener("wheel", (event) => {
+        event.preventDefault();
+        const rect = elements.viewport.getBoundingClientRect();
+        const factor = event.deltaY < 0 ? 1.08 : 1 / 1.08;
+        zoomBy(factor, event.clientX - rect.left, event.clientY - rect.top);
+      }, { passive: false });
+
+      elements.viewport.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0) {
+          return;
+        }
+        const interactiveTarget = event.target.closest("input, button, fluent-button, .column-list, .column-row");
+        const entityNode = event.target.closest(".entity-node");
+        const entityHead = event.target.closest(".entity-head");
+        if (interactiveTarget && !entityHead) {
+          return;
+        }
+        if (entityNode && !entityHead) {
+          return;
+        }
+        event.preventDefault();
+        state.dragging = true;
+        state.dragMode = entityHead && entityNode ? "entity" : "canvas";
+        state.dragMoved = false;
+        state.dragPointerId = event.pointerId;
+        state.dragOriginX = event.clientX;
+        state.dragOriginY = event.clientY;
+        if (state.dragMode === "entity") {
+          const draggedEntity = entityMap().get(entityNode.dataset.entityKey);
+          state.draggedEntityKey = entityNode.dataset.entityKey;
+          state.originEntityX = draggedEntity.x;
+          state.originEntityY = draggedEntity.y;
+          state.selectedKey = draggedEntity.key;
+          entityNode.classList.add("moving");
+          renderInspector();
+        } else {
+          state.originPanX = state.panX;
+          state.originPanY = state.panY;
+          elements.viewport.classList.add("dragging");
+        }
+        elements.viewport.setPointerCapture(event.pointerId);
+      });
+
+      elements.viewport.addEventListener("pointermove", (event) => {
+        if (!state.dragging || event.pointerId !== state.dragPointerId) {
+          return;
+        }
+        const deltaX = event.clientX - state.dragOriginX;
+        const deltaY = event.clientY - state.dragOriginY;
+        if (!state.dragMoved && Math.hypot(deltaX, deltaY) > 5) {
+          state.dragMoved = true;
+          state.suppressClick = true;
+        }
+        if (state.dragMode === "entity") {
+          const draggedEntity = entityMap().get(state.draggedEntityKey);
+          if (!draggedEntity) {
+            return;
+          }
+          const nodeWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--node-width"), 10);
+          const canvasWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--canvas-width"), 10);
+          const canvasHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--canvas-height"), 10);
+          const estimatedHeight = state.expanded.has(draggedEntity.key) ? 360 : 128;
+          draggedEntity.x = Math.round(clamp(state.originEntityX + deltaX / state.scale, 0, canvasWidth - nodeWidth));
+          draggedEntity.y = Math.round(clamp(state.originEntityY + deltaY / state.scale, 0, canvasHeight - estimatedHeight));
+          const draggedNode = elements.entityLayer.querySelector(`[data-entity-key="${state.draggedEntityKey}"]`);
+          if (draggedNode) {
+            draggedNode.style.left = `${draggedEntity.x}px`;
+            draggedNode.style.top = `${draggedEntity.y}px`;
+          }
+          requestAnimationFrame(drawRelationships);
+          return;
+        }
+        state.panX = state.originPanX + deltaX;
+        state.panY = state.originPanY + deltaY;
+        applyTransform();
+        requestAnimationFrame(drawRelationships);
+      });
+
+      const releaseDrag = (event) => {
+        if (state.dragPointerId !== null && event.pointerId !== state.dragPointerId) {
+          return;
+        }
+        if (state.dragMode === "entity" && state.draggedEntityKey) {
+          const draggedNode = elements.entityLayer.querySelector(`[data-entity-key="${state.draggedEntityKey}"]`);
+          if (draggedNode) {
+            draggedNode.classList.remove("moving");
+          }
+        }
+        state.dragging = false;
+        state.dragPointerId = null;
+        elements.viewport.classList.remove("dragging");
+        state.dragMode = null;
+        state.draggedEntityKey = "";
+        if (!state.dragMoved) {
+          state.suppressClick = false;
+          return;
+        }
+        window.setTimeout(() => {
+          state.suppressClick = false;
+          state.dragMoved = false;
+        }, 0);
+      };
+
+      elements.viewport.addEventListener("pointerup", releaseDrag);
+      elements.viewport.addEventListener("pointercancel", releaseDrag);
+      window.addEventListener("resize", () => requestAnimationFrame(drawRelationships));
+    }
+
+    bindEvents();
+    normalizeInitialLayout();
+    render();
+    fitGraph();
+    loadRelativeEntityXml();
+  </script>
+</body>
+</html>
