@@ -48,7 +48,7 @@
       "uniqueName": "crmshow_Sales",
       "displayName": "CRM Showcase - Sales",
       "path": "apps/sales",
-      "version": "1.1.0.0",
+      "version": "1.1.1.0",
       "dependsOn": ["crmshow_Foundation", "crmshow_DataModel", "crmshow_Integration"],
       "owner": "AG-E-01",
       "description": "Sales-cockpit extensions on top of native Sales App, including the Sales Advisory app (Advisor Cockpit + Sales Leader Dashboard custom pages hosting the crmshow_AdvisorCockpit/crmshow_SalesLeaderDashboard PCF controls). App module, custom pages, and sitemap are authored live in DEV and intake-exported (Phase 9, #64) — not yet reconciled into source."

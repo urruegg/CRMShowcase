@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest>
-  <control namespace="PCF" constructor="AdvisorCockpit" version="1.0.2" display-name-key="CRMShow_AdvisorCockpit" description-key="Advisor Cockpit page-level dashboard (Sprint-003 #62/#64)" control-type="standard">
+  <control namespace="PCF" constructor="AdvisorCockpit" version="1.0.3" display-name-key="CRMShow_AdvisorCockpit" description-key="Advisor Cockpit page-level dashboard (Sprint-003 #62/#64/#122)" control-type="standard">
     <!--
       Standard (not virtual) control-type: this control bundles its own React 18 +
       Fluent UI v9 runtime (see index.ts) instead of using the platform-provided
@@ -11,11 +11,12 @@
     -->
     <external-service-usage enabled="false" />
     <!--
-      PCF schema requires at least one property/data-set node. This control
-      currently renders fixture data internally (see index.ts); this optional
-      property is an unused placeholder until live Dataverse binding lands.
+      The model-driven Contact form binds this host property to nickname.
+      The control currently renders its synthetic cockpit fixtures internally;
+      the bound field provides the supported form placement and future record
+      context seam.
     -->
-    <property name="boundData" display-name-key="Bound data (reserved)" description-key="Reserved for future Dataverse binding; unused while the control renders fixture data." of-type="SingleLine.Text" usage="input" required="false" />
+    <property name="boundData" display-name-key="Advisor Cockpit host field" description-key="Dataverse text field used to host the Advisor Cockpit control on a model-driven form." of-type="SingleLine.Text" usage="bound" required="false" />
     <resources>
       <code path="index.ts" order="1" />
     </resources>
