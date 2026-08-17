@@ -7,5 +7,7 @@
   { "key": "TASK-ROTH-DOKUMENTE", "activityType": "task", "subject": "Police-Dokumente prüfen", "accountKey": "ACC-ROTH", "due": "2026-05-30", "status": "Überfällig", "channel": "CRM", "owner": "Rahel Moser" },
   { "key": "TASK-KELLER-BESTAETIGEN", "activityType": "task", "subject": "Vorsorge-Termin bestätigen", "accountKey": "ACC-KELLER", "due": "2026-06-01", "status": "Offen", "channel": "Telefon", "owner": "Rahel Moser" },
   { "key": "TASK-AEBISCHER-OFFERTE", "activityType": "task", "subject": "Flottenofferte erstellen", "accountKey": "ACC-AEBISCHER", "due": "2026-06-01", "status": "Offen", "channel": "CRM", "owner": "Rahel Moser" },
-  { "key": "TASK-STUCKI-ROUTE", "activityType": "task", "subject": "Vor-Ort-Termin mit Brunner-Route bündeln", "accountKey": "ACC-STUCKI", "due": "2026-06-01", "status": "Offen", "channel": "CRM", "owner": "Rahel Moser" }
+  { "key": "TASK-STUCKI-ROUTE", "activityType": "task", "subject": "Vor-Ort-Termin mit Brunner-Route bündeln", "accountKey": "ACC-STUCKI", "due": "2026-06-01", "status": "Offen", "channel": "CRM", "owner": "Rahel Moser" },
+  { "key": "TASK-BRUNNER-GA-UEBERGABE", "activityType": "task", "subject": "GA-Übergabe vorbereiten nach Umzug", "accountKey": "ACC-BRUNNER", "due": "2026-06-03", "status": "Offen", "channel": "CRM", "owner": "Rahel Moser" },
+  { "key": "TASK-KELLER-TELEFON-DUPLIKAT", "activityType": "task", "subject": "Datenqualität: Telefonnummer-Duplikat prüfen", "accountKey": "ACC-KELLER", "due": "2026-06-02", "status": "Offen", "channel": "CRM", "owner": "Rahel Moser" }
 ]
