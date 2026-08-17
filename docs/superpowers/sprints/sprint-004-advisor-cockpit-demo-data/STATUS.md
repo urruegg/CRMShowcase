@@ -20,6 +20,24 @@ live `pac auth` / `az rest` access to both `crmshowdev` and `crmshowtest` as
 `crmshow-ci-*` bootstrap per ADR-0005) — this is the account
 `tenant-user-inventory` (#129) is expected to resolve as the demo presenter.
 
+**mcp-agent-decision (#127) — decision made, mechanical step pending
+(2026-08-17).** Live DEV investigation confirmed both `crmshow_AdvisorCockpit_MCPServer`
+and the `uxagentproject` "Advisor Cockpit Page" still exist and are linked
+via the `appmodule.descriptor` JSON's `AppElements` array (the App Designer's
+"Agents tab" / agent-feed feature) — not via a standard `appmodulecomponent`
+row. Decision: remove the agent-feed entry (option a) rather than promote it
+to TEST. Per Microsoft Learn, removal is a Maker-Portal-only interactive
+action (App Designer → Agents tab → Remove from feed → Save/Publish); no
+Web API action covers this specific mechanism, and hand-editing `descriptor`
+directly was rejected as unsupported/risky. Recorded in
+[2026-08-17-advisor-cockpit-mcp-agent-dependency-decision.md](../../specs/2026-08-17-advisor-cockpit-mcp-agent-dependency-decision.md).
+Owner deferred the interactive step to be done at their convenience; the
+control plane proceeds with other streams meanwhile.
+
+**prereq-fixes (#126) — dispatched to a subagent, in progress (2026-08-17).**
+Worktree `wt/sprint-004-prereq-fixes` created; implementer subagent working
+through the #120 fix (TDD) and #124 intake-export.
+
 ## Live DEV + TEST evidence
 
 _Not yet available — populated by the `e2e-dev-test-verify` stream (#132)
