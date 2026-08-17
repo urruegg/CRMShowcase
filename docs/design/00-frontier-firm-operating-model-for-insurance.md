@@ -28,15 +28,17 @@ Any insurer's EA/IT team can follow this method to stand up their own version:
 3. **Phase your roadmap.** Tag each phase the way `docs/FRONTIER-OPERATING-MODEL.md` section 9 does: **[Built]**, **[Demoed via docs]**, or **[Documented-only]**. That forces honest sequencing and prevents a future-state narrative from being mistaken for a delivered capability.
 4. **Set HITL and governance guardrails before any agent is granted write access.** Use the same non-negotiable starting point expressed in `docs/FRONTIER-OPERATING-MODEL.md` section 7: agents recommend, a named human decides. Then bind that principle to concrete review authority, compliance controls, and approval points before any agent is allowed to mutate operational records.
 
-## 4. Contoso Insurance as the worked example
+## 9. Contoso Insurance as the worked example
 
 This repo is the worked example of the method above, applied to the Contoso Insurance Advisory Cockpit use case:
 
-- Control-plane inventory: `docs/FRONTIER-OPERATING-MODEL.md` section 5.
-- Role mapping onto this repo's named agents: `docs/FRONTIER-OPERATING-MODEL.md` section 6.
-- HITL/governance guardrails: `docs/FRONTIER-OPERATING-MODEL.md` section 7.
-- Work IQ <-> GitHub pattern (documented only): `docs/FRONTIER-OPERATING-MODEL.md` section 8.
-- Roadmap phasing: `docs/FRONTIER-OPERATING-MODEL.md` section 9.
+- Vision and operating loop: section 2 above.
+- What the model must deliver: section 3 above.
+- Control-plane inventory: section 4 above, and `docs/FRONTIER-OPERATING-MODEL.md` section 5 for full detail.
+- Agent roster and role mapping: section 5 above, and `docs/FRONTIER-OPERATING-MODEL.md` section 6 for full detail.
+- HITL/governance guardrails: section 6 above, and `docs/FRONTIER-OPERATING-MODEL.md` section 7 for full detail.
+- Work IQ <-> GitHub pattern (documented only, not covered in this doc): `docs/FRONTIER-OPERATING-MODEL.md` section 8.
+- Roadmap phasing: section 7 above, and `docs/FRONTIER-OPERATING-MODEL.md` section 9 for full detail.
 - The concrete artefacts this method produced: the 11 ADR-linked pattern docs in this same folder - see `docs/design/README.md` for the full index.
 
 ## Validate this live
