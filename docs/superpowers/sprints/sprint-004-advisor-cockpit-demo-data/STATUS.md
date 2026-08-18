@@ -195,3 +195,117 @@ errors from `gh api`/`gh pr view` calls during this session.
   (`feat/sprint-004-{prereq-fixes,mobiliar-intake-governance,
   tenant-user-inventory,fixture-enrichment}`) still exist on GitHub
   (already merged — safe to delete whenever convenient, not urgent).
+
+## Session resumed 2026-08-17 evening — direct-script DEV authoring (bypassing Actions)
+
+Per owner instruction, checked whether GitHub Actions had recovered and, in
+parallel, proved out a **direct-script alternative** for deploying schema +
+data to `crmshowdev` without depending on GitHub Actions at all — reusing
+this machine's already-authenticated `pac auth`/`az` session
+(`admin@ABSx15847880.onmicrosoft.com`) to run the exact same scripts
+`cd-solution-dev.yml`'s `author` job calls, locally.
+
+**Tooling fix needed first:** `az` resolves to `az.cmd` on Windows, a batch
+wrapper that shells through `cmd.exe`; certain Dataverse Web API URLs (query
+strings with multiple `&`-joined parameters, `Microsoft.Dynamics.CRM.*`
+typed-cast segments) get mis-parsed by `cmd.exe`'s argument forwarding,
+failing with cryptic errors like `?$select was unexpected at this time.`.
+Worked around by defining a local PowerShell function named `az` for the
+session that calls the underlying `python.exe -IBm azure.cli` directly
+(found via `az.cmd`'s own source), bypassing the batch/cmd.exe layer
+entirely — verified against a URL pattern that previously failed. This is a
+local session-only workaround (not committed anywhere); GitHub Actions runs
+on Linux runners and is unaffected.
+
+**Three real bugs found and fixed in `Publish-InsuranceFoundation.ps1`** by
+actually running the authoring script live (invisible to the fully-mocked
+offline Pester suite — see the commit message on `64fc706` for full detail
+on each):
+
+1. `Invoke-NativeExtensionReconciliation`'s existence check always called
+   `Get-PicklistAttributeMetadata` regardless of the extension's real type —
+   silently fine on first creation, but broke on every re-run for
+   Text/DateTime/TwoOptions/Whole attributes ("already exists"). Fixed by
+   using the already-existing type-aware `Get-TypedAttributeMetadata`.
+2. Two switch statements mapping `AttributeType` → typed PUT-update OData
+   endpoint only covered String/DateTime/Picklist, throwing "unsupported
+   typed endpoint" for Boolean/Integer/Lookup attributes needing a
+   localized-metadata update. Added the missing cases to both.
+3. `Invoke-InsuranceFoundationReconciliation` processed `nativeExtensions`
+   before `tables` — but the one Lookup native extension
+   (`crmshow_leadclusterid`, `lead` → `crmshow_leadcluster`) targets a
+   brand-new custom table declared later in the same contract. Reordered
+   `tables` before `nativeExtensions`; updated the "deterministic mutation
+   order" test to the new order (captured from the actual mocked run, not
+   hand-computed).
+
+Committed as `64fc706` on `docs/s3-test-evidence-e2e-verify` (pushed).
+Verified: 109/109 in `Publish-InsuranceFoundation.Tests.ps1`; 431/435 in the
+full offline suite (the other 4 were a pre-existing, unrelated
+`Set-SolutionVersions`/`Get-Manifest` failure caused by a stray *uncommitted*
+`solution/manifest.json` version drift that appeared on disk during the
+session — reverted via `git checkout -- solution/manifest.json`, not part
+of this fix; root cause not investigated, worth a fresh look tomorrow if it
+reappears). A second stray uncommitted change,
+`solution/apps/sales/Controls/AdvisorCockpit/pcf/AdvisorCockpit/ControlManifest.Input.xml`
+(version 1.0.2→1.0.3, referencing issue #122), was left untouched — it looks
+like genuine concurrent owner work on #122, not something this session
+created.
+
+**Live DEV progress (direct script, not CI):** with all three fixes
+applied, a live run against `crmshowdev` got substantially further than any
+attempt today: every native extension on `account`/`contact`/`lead`/
+`incident` reconciled cleanly, `crmshow_accountcontactrole` fully
+reconciled (views/forms), and `crmshow_policyprojection` gained three new
+columns (`crmshow_productline`, `crmshow_productname`,
+`crmshow_annualpremiumamount`) successfully. Several earlier attempts hit
+**transient Dataverse customization locks** (`0x80071151`,
+`"another [PublishAll]/[Import] running"`) — not code defects, confirmed
+by checking `asyncoperations`/`importjobs` (nothing stuck/tracked) and by
+each retry (after a 1–5 minute wait) making it further than the last.
+
+**Stopped at a genuine, intentional safety checkpoint, not a bug:** the
+existing live view `crmshow_policyprojectionadminview`'s FetchXML is
+"stale" relative to the contract — it predates the 3 newly-created columns
+above. `Assert-XmlCompatible` deliberately has **no override**: it refuses
+to silently overwrite view/form XML that might carry a manual customization,
+by design (see `scripts/solution/tests/Publish-InsuranceFoundation.Tests.ps1`,
+"rejects stale view and form XML rather than overwriting it"). **Owner
+decided to stop here for the day** rather than force an update via direct
+`az rest` calls — pick this up first tomorrow.
+
+### Resume tomorrow — updated order
+
+1. Re-run the live authoring directly (fastest path, already proven working
+   today — no need to wait for GitHub Actions unless preferred):
+   ```powershell
+   function az { & 'C:\Program Files\Microsoft SDKs\Azure\CLI2\python.exe' -IBm azure.cli @args }
+   cd C:\Users\urruegg\source\urruegg\CRMShowcase
+   & .\scripts\solution\Publish-InsuranceFoundation.ps1 -EnvironmentUrl "https://crmshowdev.crm.dynamics.com" -ContractPath "solution/schema/insurance-foundation.json" -Scope Demo -Confirm:$false
+   ```
+   Expect it to immediately re-hit the same `crmshow_policyprojectionadminview`
+   stale-XML stop (nothing else has changed) — that is the actual decision
+   point, not a new bug.
+2. **Decide how to handle the stale view(s)/form(s)** (there may be more
+   than just `crmshow_policyprojectionadminview` — the run stops at the
+   *first* one found, so re-running after resolving one may surface
+   another). Options to weigh: (a) confirm no manual customization exists on
+   these specific admin views/forms (they are explicitly
+   `mastership: Configuration`, sensitivity `Confidential`,
+   "Authorized source-projection stewardship" per the contract — i.e.
+   platform/steward-owned, not end-user-customized) and have the script (or
+   a small one-off `az rest` PATCH) refresh just the stale FetchXML/layoutxml
+   to match the contract; or (b) inspect live in Maker Portal first. Owner
+   leaned towards (a) being safe but wanted to stop and decide fresh
+   tomorrow rather than act tonight.
+3. Once the live run completes clean, continue with the original
+   resume-order items 2–5 above (PR #136 merge — `gate1` rerun was
+   re-dispatched tonight after GitHub Actions recovered, likely already
+   green by tomorrow; #124 close-out via intake-export; #127 Maker Portal
+   step; e2e-dev-test-verify).
+
+**GitHub status check tonight:** Actions/Pull Requests/API Requests were
+back to "operational" by ~19:36 UTC per githubstatus.com, confirmed by a
+successful `gh run rerun` dispatch on PR #136's `gate1` (job `95589184240`,
+dispatched and pending as of session pause) — no further outage-related
+action needed, just check it completed by tomorrow.
