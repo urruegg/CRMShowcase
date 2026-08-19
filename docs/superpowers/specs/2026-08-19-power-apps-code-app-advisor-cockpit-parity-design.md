@@ -2,13 +2,13 @@
 
 | Field | Value |
 | --- | --- |
-| **Status** | Approved design; written-spec review pending |
+| **Status** | Approved design and written specification |
 | **Date** | 2026-08-19 |
 | **Story** | US-301 — AG-F-01 Next-Best-Action / Advisor Cockpit |
 | **Use case** | UC-01 — Advisor Cockpit |
 | **Deciders** | Repo owner · AG-E-03 Enterprise Architect · AG-E-02 Developer · AG-E-04 SecDevOps · AG-E-11 UX Designer |
 | **Related ADRs** | [ADR-0014](../../adr/ADR-0014-agents-advisory-by-design.md) · [ADR-0017](../../adr/ADR-0017-alm-everything-through-the-pipeline.md) · [ADR-0027](../../adr/ADR-0027-page-level-pcf-and-local-first-polish-loop.md) · [ADR-0033](../../adr/ADR-0033-crm-ux-placement-in-b2e-landscape.md) |
-| **Design pattern** | [06 — CRM UX placement](../../design/06-crm-ux-placement-options.md) |
+| **Design pattern** | [CRM UX placement](../../design/ADR-0033-crm-ux-placement-options.md) |
 | **Licence** | 🧩 pro-code on Power Apps managed hosting; Power Apps Premium and applicable Dynamics 365 / Copilot Studio rights require persona-level validation |
 | **Maturity** | Power Apps Code Apps: generally available · B1/B2 Advisor Cockpit compositions: design/proof |
 | **Upgrade impact** | Medium — two isolated Code App shells, shared source packages, one MDA host, and environment configuration |
