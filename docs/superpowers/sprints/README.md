@@ -11,6 +11,7 @@ part of an active sprint (it is a standalone feature/blocker/idea in the backlog
 | sprint-001 | [sprint-001/](./sprint-001/) | #43 | #44 | Proof #1 — the delegated operating model | merged |
 | sprint-002 | [sprint-002-insurance-foundation-promotion/](./sprint-002-insurance-foundation-promotion/) | #46 | #47 · #48 · #49 | Proof #2 — Insurance Foundation DEV→TEST | merged |
 | sprint-003 | [sprint-003-advisor-cockpit/](./sprint-003-advisor-cockpit/) | #55 | #56–#65 (see charter) | Advisor Cockpit + Sales Leader Dashboard | in progress |
+| sprint-005 | [sprint-005/](./sprint-005/) | #139 | #140–#147 | Power Apps Code Apps Advisor Cockpit B1/B2 parity | control plane |
 
 ## Backlog issues not tied to a sprint
 
