@@ -9,12 +9,13 @@
 | **Deciders** | `AG-E-03` Enterprise Architect (accountable — UX/system-boundary decision) · `AG-E-02` Developer (implementation feasibility) · `AG-E-06` Responsible-AI & Compliance Officer (Copilot embedding/content-safety inheritance) · customer IT/Architect (`P-06`) |
 | **Topic area** | A1 — Architecture vision (where the CRM system boundary meets the employee-facing UX boundary) · A5 — Workflow/business cases (how `P-01` Advisor, `P-03` Assistance agent, `P-04` Marketer actually work day to day) · A6 — AI/agents/governance (how `AG-F-01`/`AG-F-03`/`AG-F-04` agents are surfaced) |
 | **Use case** | Illustrated with **AG-F-01 Next-Best-Action Agent** (Advisory Cockpit) walk-throughs below each option |
-| **Licence** | `[TBD]` — varies by option; every option still consumes standard Dataverse/Copilot Studio per-user entitlements, see below |
-| **Upgrade impact** | High for Option A (every native D365/Copilot Studio feature investment must be re-built by hand in Angular) · Medium for Option C · Low for Option B (Microsoft maintains the UI) |
+| **Licence** | Option-specific — validate Power Apps Premium and applicable Dynamics 365 / Copilot Studio rights per persona; headless options may also consume connector, message, or BFF capacity |
+| **Upgrade impact** | High for Option A (every native D365/Copilot Studio feature investment must be re-built by hand in Angular) · Medium for Option C · Low for Option B's native baseline · Medium for the focused B1/B2 Code App variants |
 | **CAF methodology** | Plan · Adopt — this is a target-application-architecture decision, not an environment or governance change |
 | **WAF pillar(s)** | Primary: Operational Excellence (one UX to build and maintain vs. two) and Performance Efficiency (latency/consistency of the advisor's daily workflow). Trade-off against: Cost Optimization (Option A's ongoing custom-build cost) |
 | **Zero Trust** | Orthogonal to this ADR — every option authenticates through the same Entra ID token and Conditional Access posture established in [ADR-0032](./ADR-0032-entra-power-platform-dynamics365-identity-access-management.md); this ADR only changes **where** that token is used to reach CRM's surfaces, not how identity is verified |
 | **Responsible AI** | Whichever option is chosen, AI-drafted content (NBA rationale, Copilot chat replies) must remain disclosed as AI-assisted and grounded in retrieved CRM context ([docs/AI.md](../AI.md)); Option A carries the added burden of re-implementing that disclosure/grounding UX by hand instead of inheriting it from Copilot Studio's native surface |
+| **B1/B2 parity design** | [Power Apps Code Apps Foundation and Advisor Cockpit B1/B2 Parity Proof](../superpowers/specs/2026-08-19-power-apps-code-app-advisor-cockpit-parity-design.md) |
 
 > **Illustrative naming note.** "B2E" (Business-to-Employee), its Angular
 > technology choice, and the "Absprung" (jump/cross-launch) behaviour it
@@ -92,7 +93,10 @@ flowchart LR
     subgraph OB["Option B — CRM is the UX layer"]
         direction LR
         LINK["Cross-launch\n(SSO deep link)"]
-        COCKPIT_B["Advisor Cockpit\n(native D365 app)"]
+      DELIVERY{"CRM UX delivery"}
+      COCKPIT_B["Native model-driven\nbaseline"]
+      CODE_B1["B1: standalone\nCode App"]
+      CODE_B2["B2: Code App\ninside MDA"]
     end
 
     subgraph OC["Option C — Hybrid"]
@@ -103,7 +107,10 @@ flowchart LR
 
     ADV --> B2E
     B2E --> ANGUI --> API_A
-    B2E --> LINK --> COCKPIT_B
+    B2E --> LINK --> DELIVERY
+    DELIVERY --> COCKPIT_B
+    DELIVERY --> CODE_B1
+    DELIVERY --> CODE_B2
     B2E --> GLANCE
     B2E --> DEEP
 ```
@@ -219,13 +226,26 @@ accountable act regardless of which component renders the card
 
 ### Option B — CRM is the UX layer for customer engagement (cross-launch)
 
-The native D365 model-driven **Advisor Cockpit** — including its embedded
-Copilot Studio chat pane — is where the advisor actually works customer
-engagement. B2E remains the role-based home screen and, when the advisor
-selects "Advisory" for a household, performs an **Entra-SSO-backed
-cross-launch** (deep link to the record) exactly as it already does for
-Versicherungsprozesse, Schadenprozesse, and ARO. CRM is treated identically
-to every other core system rather than special-cased.
+Option B fixes the **ownership boundary**, not the rendering technology:
+B2E remains the role-based home screen and performs an Entra-SSO-backed
+cross-launch, while Power Apps owns the customer-engagement experience.
+CRM is therefore treated like the other core systems rather than rebuilt in
+B2E. B0 represents the native model-driven baseline option; two Code App
+variants extend the same boundary without selecting an implementation
+prematurely.
+
+The B1/B2 parity proof starts at the **CRM UX boundary**. It does not build,
+simulate, or test a B2E Angular shell, launcher, SSO hand-off, or integration
+contract. B2E remains landscape context for the eventual architecture decision
+only.
+
+#### Option B0 — Native model-driven baseline
+
+Under B0, the native D365 model-driven **Advisor Cockpit**, including its
+embedded Copilot Studio chat pane, would be where the advisor works customer
+engagement. When the advisor selects "Advisory" for a household, B2E would
+deep-link to the record as it already does for Versicherungsprozesse,
+Schadenprozesse, and ARO.
 
 ```mermaid
 flowchart LR
@@ -274,7 +294,7 @@ flowchart LR
 - **Licence.** Standard Dynamics 365 and Copilot Studio per-user licensing;
   no additional API/BFF consumption.
 
-#### Advisory Cockpit walk-through (Option B)
+##### Advisory Cockpit walk-through (Option B0)
 
 ```mermaid
 sequenceDiagram
@@ -310,6 +330,232 @@ flowchart TD
 **Note.** Same [ADR-0014](./ADR-0014-agents-advisory-by-design.md) guardrail
 applies — this option changes **where** the advisor lands, not who is
 accountable for the decision.
+
+#### Option B1 — Standalone Code App as the CRM experience
+
+The advisor opens a full-screen **Power Apps Code App** on the Power Apps
+managed host. The Code App receives user, app, environment, Dataverse
+organization, query-parameter, and session context from the Power Apps host.
+It uses generated, strongly typed Dataverse services under the signed-in
+advisor's identity for the bespoke cockpit. Native forms, timeline, views, and
+other deep CRM work remain in the model-driven app and are reached through
+record-aware deep links from the Code App.
+
+```mermaid
+flowchart LR
+  ADVB1(["Advisor"])
+    subgraph HOSTB1["Power Apps managed host"]
+        CODEB1["Advisor Cockpit Code App"]
+        CTXB1["App + user + session context"]
+    end
+    subgraph CRMB1["Dataverse / Dynamics 365"]
+        DVB1[("Dataverse\nuser-context access")]
+        MDAB1["Model-driven app\nnative deep work"]
+    end
+
+    ADVB1 --> CODEB1
+    CTXB1 --> CODEB1
+    CODEB1 --> DVB1
+    CODEB1 -- "record-aware deep link" --> MDAB1
+```
+
+| Endpoint | Capability / service | Role |
+| --- | --- | --- |
+| Power Apps managed host | Entra authentication, app loading, sharing, DLP, operational telemetry | Runs the standalone Code App |
+| `@microsoft/power-apps` context API | App, user, environment, query parameter, and session context | Personalizes the cockpit and correlates telemetry |
+| Generated Dataverse services | Strongly typed connector models and operations | Reads cockpit data and records structured human decisions |
+| Model-driven app deep link | Standard native navigation | Opens forms, timeline, and other deep CRM work |
+
+- **Pros.** Gives the dense cockpit the full viewport and maximum responsive
+  control without iframe/CSP coupling. It retains Power Platform-managed
+  Entra authentication, DLP, sharing, monitoring, connectors, and
+  solution-aware deployment. It also creates a clear reusable rule: Code Apps
+  build bespoke full-page experiences; model-driven configuration builds
+  native CRM forms, views, and timelines.
+- **Cons.** Adds a second Power Apps navigation surface and an explicit
+  Code App-to-MDA hand-off. Native panes and controls do not appear
+  automatically inside the standalone Code App, so the boundary must remain
+  intentional and record context must survive every deep link. Sharing and
+  entitlements apply to both destinations.
+- **Design pattern.** Managed-host micro-frontend with native deep-work links.
+- **Licence.** Power Apps Premium plus any applicable Dynamics 365 and
+  Copilot Studio entitlements; exact persona-level use rights require
+  licensing validation.
+- **Maturity.** Power Apps Code Apps are generally available. This B1
+  composition remains a design option until proved in DEV and TEST.
+
+##### Advisory Cockpit walk-through (Option B1)
+
+Concrete use case: **AG-F-01 Next-Best-Action Agent** writes ranked,
+explainable NBA records to Dataverse. The standalone Code App is the advisor's
+full-screen work surface; it records the human decision and hands off only
+native deep work to the model-driven app.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant ADV as Advisor
+    participant HOST as Power Apps managed host
+    participant CODE as Advisor Cockpit Code App
+    participant DV as Dataverse
+    participant MDA as Model-driven Advisor App
+
+    ADV->>HOST: Open standalone Code App
+    HOST->>HOST: Authenticate and enforce sharing/DLP
+    HOST->>CODE: Load app + user/query/session context
+    CODE->>DV: Query my ranked NBA cards via generated service
+    DV-->>CODE: NBA cards + explanation + provenance
+    CODE-->>ADV: Render full-screen Advisory Cockpit
+    ADV->>CODE: Accept / edit / dismiss recommendation
+    CODE->>DV: Record structured human decision
+    ADV->>CODE: Open household timeline
+    CODE->>MDA: Deep link with household record id
+    MDA-->>ADV: Open native form and timeline
+```
+
+```mermaid
+flowchart TD
+    STARTB1["Advisor opens standalone Code App"]
+    CONTEXTB1["Power Apps supplies identity, environment,\nrecord and session context"]
+    READB1["Generated Dataverse service\nloads NBA + provenance"]
+    DECIDEB1["Advisor accepts / edits / dismisses"]
+    WRITEB1["Structured decision written to Dataverse"]
+    DEEPB1{"Native deep work needed?"}
+    STAYB1["Remain in full-screen Code App"]
+    MDAB1F["Deep-link to MDA record"]
+
+    STARTB1 --> CONTEXTB1 --> READB1 --> DECIDEB1 --> WRITEB1 --> DEEPB1
+    DEEPB1 -- "No" --> STAYB1
+    DEEPB1 -- "Yes" --> MDAB1F
+```
+
+**Challenge exposed by the use case.** B1 is credible only if the selected
+record and advisor context survive the Code App-to-MDA hand-off, the same
+Dataverse security role constrains both surfaces, and the advisor's decision is
+written exactly once. A visually successful standalone cockpit that loses
+record context or creates a second decision path fails the proof.
+
+#### Option B2 — Code App embedded in the model-driven Advisor App
+
+The advisor opens the model-driven Advisor App, which hosts the deployed Code
+App in a full-page sitemap web-resource iframe while retaining the MDA command
+surface, forms, timeline, and native navigation around it. The environment's
+Content Security Policy adds only the specific Dynamics 365 organization
+origin to `frame-ancestors`; same-tenant users still require the Code App to be
+shared with them.
+
+```mermaid
+flowchart LR
+  ADVB2(["Advisor"])
+    subgraph MDAB2["Model-driven Advisor App"]
+        SHELLB2["Sitemap + native navigation"]
+        FRAMEB2["Full-page web-resource host\niframe"]
+    end
+    subgraph HOSTB2["Power Apps managed host"]
+        CODEB2["Advisor Cockpit Code App"]
+    end
+    DVB2[("Dataverse\nuser-context access")]
+
+    ADVB2 --> SHELLB2 --> FRAMEB2 --> CODEB2 --> DVB2
+```
+
+| Endpoint | Capability / service | Role |
+| --- | --- | --- |
+| Model-driven Advisor App | Sitemap, forms, views, timeline, native navigation | Owns the containing CRM shell |
+| Full-page web-resource iframe | Supported host for the Code App play URL | Places the bespoke cockpit inside the MDA |
+| Environment CSP `frame-ancestors` | Least-privilege organization-origin allowlist | Permits the MDA to frame the Code App |
+| Power Apps managed host + generated Dataverse services | Entra-authenticated runtime and typed data access | Runs the cockpit and records the advisor decision |
+
+- **Pros.** Keeps advisors inside one CRM navigation model and places bespoke
+  Code App pages beside native forms and views. Native deep work is one MDA
+  navigation action away, while Code App source retains normal React,
+  TypeScript, Vite, and test practices.
+- **Cons.** Adds a web-resource host, environment-specific CSP
+  configuration, nested loading/navigation, and viewport/accessibility
+  constraints. The embedded path must be tested in the real MDA, not only in
+  the standalone player. Framed Code Apps are same-tenant only, and both MDA
+  access and Code App sharing must be correct.
+- **Design pattern.** Governed iframe micro-frontend inside the native CRM
+  shell.
+- **Licence.** Power Apps Premium plus any applicable Dynamics 365 and
+  Copilot Studio entitlements; exact persona-level use rights require
+  licensing validation.
+- **Maturity.** Power Apps Code Apps and documented iframe hosting are
+  generally available. This B2 composition remains a design option until
+  proved in DEV and TEST.
+
+##### Advisory Cockpit walk-through (Option B2)
+
+The same **AG-F-01** NBA records validate B2, but the model-driven Advisor App
+owns the outer navigation and hosts the Code App cockpit. The walkthrough
+therefore tests the extra CSP, iframe, sharing, and nested-navigation boundary
+that B1 avoids.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant ADV as Advisor
+    participant MDA as Model-driven Advisor App
+    participant FRAME as Web-resource iframe host
+    participant HOST as Power Apps managed host
+    participant CODE as Advisor Cockpit Code App
+    participant DV as Dataverse
+
+    ADV->>MDA: Open Advisor Cockpit sitemap page
+    MDA->>FRAME: Load full-page host
+    FRAME->>HOST: Frame Code App play URL
+    HOST->>HOST: Enforce Entra, sharing, DLP, and frame-ancestors CSP
+    HOST->>CODE: Load app + user/query/session context
+    CODE->>DV: Query ranked NBA cards via generated service
+    DV-->>CODE: NBA cards + explanation + provenance
+    CODE-->>ADV: Render cockpit inside MDA shell
+    ADV->>CODE: Accept / edit / dismiss recommendation
+    CODE->>DV: Record structured human decision
+    ADV->>MDA: Navigate to native household timeline
+    MDA-->>ADV: Open native form without leaving CRM shell
+```
+
+```mermaid
+flowchart TD
+    STARTB2["Advisor opens cockpit sitemap in MDA"]
+    FRAMEB2F["MDA web resource frames Code App"]
+    GATEB2["Entra + sharing + least-privilege CSP"]
+    READB2["Generated Dataverse service\nloads NBA + provenance"]
+    DECIDEB2["Advisor decision written once"]
+    NATIVEB2["MDA navigation opens native deep work"]
+
+    STARTB2 --> FRAMEB2F --> GATEB2 --> READB2 --> DECIDEB2 --> NATIVEB2
+```
+
+**Challenge exposed by the use case.** B2 is credible only if the embedded
+cockpit receives the correct household context, fits the production MDA
+viewport without nested-navigation or accessibility regressions, and survives
+DEV-to-TEST promotion with environment-specific CSP and app identity resolved
+without source edits. Passing the standalone Code App tests alone does not
+prove B2.
+
+#### Option B Code App variant comparison
+
+| Criterion | B1 — Standalone Code App | B2 — Embedded Code App |
+| --- | --- | --- |
+| Advisor shell | Dedicated full-screen Power Apps experience | Model-driven Advisor App |
+| Native CRM deep work | Record-aware cross-launch from Code App | Adjacent MDA navigation |
+| Viewport and responsive freedom | Highest | Constrained by MDA + iframe host |
+| Environment configuration | App identity, sharing, and solution deployment | Same, plus least-privilege CSP `frame-ancestors` |
+| Runtime coupling | Code App + Dataverse | Code App + iframe host + MDA + Dataverse |
+| Primary failure mode | Lost context or duplicate UX across Code App/MDA | CSP, sharing, viewport, or nested-navigation failure |
+| Required E2E proof | Power Apps player → Code App → decision → MDA deep link | MDA sitemap → embedded Code App → decision → native page |
+
+Neither B1 nor B2 is selected. Both preserve the candidate engineering rule
+that Code Apps are primary for **bespoke full-page experiences**, while
+model-driven configuration remains primary for forms, views, timelines, and
+other native CRM capabilities.
+
+The approved visual baseline for this proof is the fixture-backed local PCF
+harness and its captured screenshots. Although the PCF artifact is deployed to
+DEV, it is not attached to a user-visible running surface and is therefore
+neither live comparison evidence nor a runtime fallback. The live comparison
+is B1 versus B2 in DEV and TEST.
 
 ### Option C — Hybrid: embedded glance surfaces + cross-launch for deep work
 
@@ -418,16 +664,16 @@ points.
 
 | Criterion | Option A — CRM headless | Option B — CRM is the UX layer | Option C — Hybrid |
 | --- | --- | --- | --- |
-| Custom UI build/maintenance burden | Highest — everything re-built | None | Medium — glance widgets only |
-| Native D365/Copilot Studio feature inheritance | None — must be re-implemented | Full, automatic | Full for deep work; partial for glance widgets |
+| Custom UI build/maintenance burden | Highest — everything re-built | None for B0; focused bespoke-page build for B1/B2 | Medium — glance widgets only |
+| Native D365/Copilot Studio feature inheritance | None — must be re-implemented | Full in B0/deep-work MDA; deliberate hand-off from B1/B2 | Full for deep work; partial for glance widgets |
 | Consistency with other core systems' pattern | Diverges — CRM is special-cased into B2E | Matches — same cross-launch pattern as ARO/Versicherungsprozesse/Schadenprozesse | Matches for deep work; diverges for glance widgets |
-| Time to deliver | Slowest | Fastest | Medium |
-| Responsible AI/Content Safety inheritance | Must be re-implemented and kept in parity | Inherited natively | Inherited for deep work; must be re-verified for the embedded chat widget |
-| Advisor context-switch | None — one shell throughout | Yes, between B2E and D365 | Only when deep work is needed |
-| Licence cost driver | Dataverse API + Copilot Studio message consumption, possibly BFF compute | Standard per-user licensing only | Superset of A and B |
-| Upgrade impact | High | Low | Medium |
-| Reversibility | Low — large custom investment to unwind | High — nothing custom to unwind | Medium — glance widgets to unwind, deep-link path unaffected |
-| Design pattern fit | BFF / API Gateway | Cross-launch / deep-link with SSO | Composite UI / micro-frontend |
+| Time to deliver | Slowest | B0 fastest; B1 simpler than B2 | Medium |
+| Responsible AI/Content Safety inheritance | Must be re-implemented and kept in parity | Native for MDA capabilities; explicitly implemented/tested in bespoke B1/B2 pages | Inherited for deep work; must be re-verified for the embedded chat widget |
+| Advisor context-switch | None — one shell throughout | B0: B2E→MDA; B1 adds Code App→MDA; B2 stays inside MDA | Only when deep work is needed |
+| Licence cost driver | Dataverse API + Copilot Studio message consumption, possibly BFF compute | Dynamics 365 for B0; B1/B2 add Power Apps Code App entitlement validation | Superset of A and B |
+| Upgrade impact | High | Low for B0; medium for focused B1/B2 pages | Medium |
+| Reversibility | Low — large custom investment to unwind | High for B0; medium-high for isolated B1/B2 pages | Medium — glance widgets to unwind, deep-link path unaffected |
+| Design pattern fit | BFF / API Gateway | Cross-launch + native baseline or managed-host micro-frontend | Composite UI / micro-frontend |
 
 ## Decision or working hypothesis
 
@@ -439,6 +685,12 @@ does not force an all-or-nothing choice between "rebuild everything" and
 "accept every context-switch" — but it is not automatically the
 recommendation, since it also carries the added governance burden of
 running two integration mechanisms at once.
+
+Option B now has three delivery shapes: native baseline B0 and Code App
+variants B1/B2. No delivery shape is selected either. The Advisory Cockpit
+walkthrough is mandatory for each future variant added to this ADR: an option
+that cannot preserve identity, CRM record context, one accountable human
+decision, and a governed DEV-to-TEST path is not a viable architecture option.
 
 ## Evidence and assumptions
 
@@ -458,6 +710,17 @@ running two integration mechanisms at once.
   (embedding the whole D365 UCI app inside a third-party shell via iframe)
   is not a documented, supported pattern and is deliberately **not**
   proposed as an option here.
+- **Known (verified, Code Apps).** Power Apps Code Apps are generally
+  available and run on the Power Apps managed host with Entra authentication,
+  DLP, sharing, and platform monitoring. The Power Apps client library
+  generates models/services for connector requests; `getContext` exposes app,
+  environment, Dataverse organization, query-parameter, user, tenant, and
+  session context. Microsoft documents framing a deployed Code App in a
+  model-driven app web resource and requires the Dynamics 365 organization
+  origin in the environment's CSP `frame-ancestors`; embedded users must be
+  in the same tenant. Source: [Code Apps architecture](https://learn.microsoft.com/power-apps/developer/code-apps/architecture),
+  [get context](https://learn.microsoft.com/power-apps/developer/code-apps/how-to/retrieve-context),
+  and [embed in an iframe](https://learn.microsoft.com/power-apps/developer/code-apps/how-to/embed-iframe).
 - **Inferred, not yet confirmed.** That B2E already performs SSO-backed
   cross-launch for Versicherungsprozesse/Schadenprozesse/ARO today, as
   described conceptually by the customer — the actual mechanism (deep link,
@@ -471,6 +734,13 @@ running two integration mechanisms at once.
   (framework version, hosting, extensibility APIs). Copilot Studio Direct
   Line channel governance and message-cost model at the customer's actual
   advisor headcount.
+- **Evidence still required for B1/B2.** A like-for-like Advisory Cockpit
+  proof in DEV and TEST: generated Dataverse service behavior under the
+  advisor role; app/session context and record-aware navigation into native MDA
+  work; one-write decision semantics; responsive/accessibility results;
+  telemetry correlation; Code App sharing and environment rebinding; and, for
+  B2 only, least-privilege CSP plus real MDA viewport/navigation behavior. B2E
+  integration evidence is explicitly outside this proof.
 
 ## Validation and review triggers
 
@@ -484,6 +754,11 @@ and advisor feedback is collected. Decision owner: `AG-E-03` Enterprise
 Architect (accountable), with `AG-E-02` Developer, `AG-E-06`
 Responsible-AI & Compliance Officer, and the customer's IT/Architect
 stakeholder as required reviewers.
+
+For B1/B2 specifically, reopen when the Advisory Cockpit proof produces DEV
+and TEST evidence or when Code Apps hosting, ALM, licensing, CSP, context, or
+model-driven embedding guidance changes. A local Vite pass or standalone
+player screenshot is insufficient evidence for either end-to-end option.
 
 ## Consequences
 
@@ -501,9 +776,9 @@ stakeholder as required reviewers.
   ([ADR-0034](./ADR-0034-aro-case-task-management-integration-pattern.md))
   should use the same UX-placement answer this ADR eventually settles on,
   for consistency across the B2E landscape's core systems.
-- **Reversibility.** Highest for Option B (native, nothing custom to
-  unwind), lowest for Option A (large custom investment), medium for
-  Option C.
+- **Reversibility.** Highest for Option B0 (native, nothing custom to
+  unwind), medium-high for B1/B2 because each bespoke page remains isolated,
+  lowest for Option A (large custom investment), and medium for Option C.
 
 ## Competitive note
 
