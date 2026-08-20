@@ -14,6 +14,8 @@
     "refreshTypes": "pcf-scripts refreshTypes"
   },
   "dependencies": {
+    "@crmshow/advisor-cockpit-domain": "file:../../../packages/advisor-cockpit-domain",
+    "@crmshow/advisor-cockpit-ui": "file:../../../packages/advisor-cockpit-ui",
     "@fluentui/react-components": "^9.54.0",
     "@fluentui/react-icons": "^2.0.245",
     "react": "^18.3.1",

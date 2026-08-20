@@ -19,7 +19,7 @@ import type {
   MeasureRow,
   NbaRecord,
   PolicyRecord,
-} from './types';
+} from '@crmshow/advisor-cockpit-domain';
 
 // The signed-in advisor. In the PCF this is mapped from `context` — userSettings.userName plus a
 // WebAPI retrieve of systemuser.title and the user's businessunit.name — it is not seeded data.

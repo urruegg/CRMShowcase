@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { FluentProvider, webLightTheme } from '@fluentui/react-components';
-import { AdvisorCockpit } from './AdvisorCockpit';
+import { AdvisorCockpit } from '@crmshow/advisor-cockpit-ui';
 import { cockpitFixtures } from './fixtures';
 
 function renderCockpit() {

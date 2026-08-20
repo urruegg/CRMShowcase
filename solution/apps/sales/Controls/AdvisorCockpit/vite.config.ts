@@ -21,5 +21,16 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
+    alias: {
+      tabster: resolve(here, '../../node_modules/tabster/dist/esm/index.js'),
+    },
+    server: {
+      deps: {
+        inline: [
+          /@crmshow\/advisor-cockpit-(domain|ui)/,
+          /@fluentui\//,
+        ],
+      },
+    },
   },
 });

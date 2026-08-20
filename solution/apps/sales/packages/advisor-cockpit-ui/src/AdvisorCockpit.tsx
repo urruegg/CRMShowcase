@@ -31,10 +31,23 @@ import {
   SaveRegular,
   TextBulletListLtrRegular,
 } from '@fluentui/react-icons';
-import type { ActivityRecord, CockpitData, ClaimRecord, LeadRecord, NbaRecord } from './types';
+import {
+  appointments,
+  boardBuckets,
+  buildAccountIndex,
+  filterLeads,
+  groupLeads,
+  openTasks,
+  sortLeads,
+  sortedNba,
+  type ActivityRecord,
+  type ClaimRecord,
+  type CockpitData,
+  type LeadRecord,
+  type LeadSortKey,
+  type NbaRecord,
+} from '@crmshow/advisor-cockpit-domain';
 import { badge, font, nbaAccent, palette, priority, provenance, provenanceLabel } from './tokens';
-import { appointments, boardBuckets, buildAccountIndex, filterLeads, groupLeads, openTasks, sortLeads, sortedNba } from './selectors';
-import type { LeadSortKey } from './selectors';
 import {
   arbeitsvorratSummary,
   empfohlenerFokus,

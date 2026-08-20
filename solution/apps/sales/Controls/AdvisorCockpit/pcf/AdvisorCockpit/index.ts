@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import { FluentProvider, webLightTheme } from '@fluentui/react-components';
-import { AdvisorCockpit as AdvisorCockpitComponent } from '../../src/AdvisorCockpit';
+import { AdvisorCockpit as AdvisorCockpitComponent } from '@crmshow/advisor-cockpit-ui';
 import { cockpitFixtures } from '../../src/fixtures';
 import { IInputs, IOutputs } from './generated/ManifestTypes';
 

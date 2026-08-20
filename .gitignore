@@ -233,6 +233,9 @@ PublishScripts/
 **/[Pp]ackages/*
 # except build/, which is used as an MSBuild target.
 !**/[Pp]ackages/build/
+# Power Apps Code App workspace packages are source, not restored NuGet output.
+!solution/apps/sales/packages/
+!solution/apps/sales/packages/**
 # Uncomment if necessary however generally it will be regenerated when needed
 #!**/[Pp]ackages/repositories.config
 # NuGet v3's project.json files produces more ignorable files
