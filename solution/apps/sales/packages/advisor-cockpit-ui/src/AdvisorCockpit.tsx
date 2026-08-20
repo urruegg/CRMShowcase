@@ -37,16 +37,22 @@ import {
   buildAccountIndex,
   filterLeads,
   groupLeads,
+  isCapabilityExecutable,
   openTasks,
   sortLeads,
   sortedNba,
   type ActivityRecord,
+  type AdvisorCockpitHost,
   type ClaimRecord,
+  type CockpitWriteCommand,
+  type CommandResult,
+  type ContactRecord,
   type CockpitData,
   type LeadRecord,
   type LeadSortKey,
   type NbaRecord,
 } from '@crmshow/advisor-cockpit-domain';
+import { CapabilityButton } from './CapabilityButton';
 import { badge, font, nbaAccent, palette, priority, provenance, provenanceLabel } from './tokens';
 import {
   arbeitsvorratSummary,
@@ -446,9 +452,10 @@ function sortRows<T>(rows: T[], sort: SortState, val: (r: T, key: string) => str
 
 export interface AdvisorCockpitProps {
   data: CockpitData;
+  host: AdvisorCockpitHost;
 }
 
-export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
+export function AdvisorCockpit({ data, host }: AdvisorCockpitProps): JSX.Element {
   const s = useStyles();
   const [tab, setTab] = React.useState<string>('tagesplan');
   const [leadView, setLeadView] = React.useState<'list' | 'board' | 'cockpit'>('list');
@@ -459,7 +466,11 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
   const [selected, setSelected] = React.useState<Set<string>>(() => new Set());
   const [assignTo, setAssignTo] = React.useState('');
   const [assignNote, setAssignNote] = React.useState<string | null>(null);
-  const [bundle, setBundle] = React.useState<{ title: string; leads: LeadRecord[] } | null>(null);
+  const [bundle, setBundle] = React.useState<{
+    title: string;
+    leads: LeadRecord[];
+    clusterId: string | null;
+  } | null>(null);
   const [sortKey, setSortKey] = React.useState<LeadSortKey>('score');
   const [sortDir, setSortDir] = React.useState<'asc' | 'desc'>('desc');
   const [collapsed, setCollapsed] = React.useState<Set<string>>(() => new Set());
@@ -496,8 +507,88 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
   const nba = React.useMemo(() => sortedNba(data.nba), [data]);
   const appts = React.useMemo(() => appointments(data.activities), [data]);
   const tasks = React.useMemo(() => openTasks(data.activities), [data]);
+  const contacts = React.useMemo(
+    () => new Map(
+      data.accountsContacts
+        .filter((row): row is ContactRecord => row.recordType === 'contact')
+        .map((row) => [row.key, row]),
+    ),
+    [data.accountsContacts],
+  );
+  const topNba = nba[0] ?? null;
+  const defaultAccountId = topNba?.accountKey
+    ?? data.accountsContacts.find((row) => row.recordType === 'account')?.key
+    ?? '';
   const accountName = (key: string) => accounts.get(key) ?? key;
   const today = new Date().toLocaleDateString('de-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  const runCommand = async (
+    command: CockpitWriteCommand,
+    setNote?: React.Dispatch<React.SetStateAction<string | null>>,
+  ): Promise<CommandResult> => {
+    try {
+      const result = await host.execute(command);
+      setLive(result.message);
+      setNote?.(result.message);
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'The command failed.';
+      setLive(message);
+      setNote?.(message);
+      return { ok: false, message };
+    }
+  };
+
+  const navigate = async (
+    table: 'account' | 'lead' | 'crmshow_claimprojection',
+    id: string,
+  ): Promise<void> => {
+    try {
+      await host.navigate(table, id);
+    } catch (error) {
+      setLive(error instanceof Error ? error.message : 'Navigation failed.');
+    }
+  };
+
+  const callLead = async (lead: LeadRecord): Promise<void> => {
+    const phoneNumber = contacts.get(lead.contactKey)?.phone;
+    if (!phoneNumber) {
+      setLive('No mapped phone number is available for this lead.');
+      return;
+    }
+
+    await runCommand({ type: 'call', phoneNumber }, setAssignNote);
+  };
+
+  const runFocusAction = async (action: string): Promise<void> => {
+    if (action === 'Vorbereiten') {
+      setLive('Gesprächsvorbereitung ist in diesem Host nicht verfügbar.');
+      return;
+    }
+    if (!topNba) {
+      setLive('No recommendation is available for this action.');
+      return;
+    }
+
+    switch (action) {
+      case 'Anpassen':
+        await runCommand({
+          type: 'editNba',
+          nbaId: topNba.key,
+          changes: { channel: topNba.channel, rank: topNba.rank },
+        });
+        break;
+      case 'Kundenkontext öffnen':
+        await navigate('account', topNba.accountKey);
+        break;
+      case 'Später planen':
+        await runCommand({ type: 'snoozeNba', nbaId: topNba.key });
+        break;
+      case 'Vorschlag verwerfen':
+        await runCommand({ type: 'dismissNba', nbaId: topNba.key });
+        break;
+    }
+  };
 
   const visibleKeys = React.useMemo(() => filteredLeads.map((l) => l.key), [filteredLeads]);
   const allSelected = visibleKeys.length > 0 && visibleKeys.every((k) => selected.has(k));
@@ -514,12 +605,17 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
     setSelected(new Set());
     setAssignNote(null);
   };
-  const applyAssignment = () => {
+  const applyAssignment = async () => {
     if (!assignTo || selected.size === 0) return;
-    const n = selected.size;
-    setAssignNote(`${n} Lead${n > 1 ? 's' : ''} an ${assignTo} zugewiesen · Demo — Schreibzugriff über die Aktionsschicht (DEV-gated).`);
-    setSelected(new Set());
-    setAssignTo('');
+    const result = await runCommand({
+      type: 'assignLead',
+      leadIds: [...selected],
+      ownerId: assignTo,
+    }, setAssignNote);
+    if (result.ok) {
+      setSelected(new Set());
+      setAssignTo('');
+    }
   };
   const toggleGroup = (leads: LeadRecord[]) =>
     setSelected((prev) => {
@@ -547,15 +643,15 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
       else next.add(name);
       return next;
     });
-  const splitCluster = (name: string) => {
-    setSplitClusters((prev) => new Set(prev).add(name));
-    setAssignNote(`Gruppe „${name}" aufgelöst · Leads einzeln bearbeitbar (Demo — Schreibzugriff über die Aktionsschicht, DEV-gated).`);
+  const splitCluster = async (name: string, leads: readonly LeadRecord[]) => {
+    const result = await runCommand({
+      type: 'splitLeads',
+      leadIds: leads.map((lead) => lead.key),
+    }, setAssignNote);
+    if (result.ok) setSplitClusters((prev) => new Set(prev).add(name));
   };
-  const saveView = () => {
-    try {
-      window.localStorage?.setItem('advisorcockpit.meineleads.view', JSON.stringify({ leadView, sortKey, sortDir, fCustomer, fChannel, fStatus, fSource }));
-    } catch { /* localStorage unavailable */ }
-    setAssignNote('Ansicht als persönliche Ansicht gespeichert · in Dynamics als persönliche Ansicht/Personal View (DEV-gated Demo).');
+  const saveView = async () => {
+    await runCommand({ type: 'savePersonalView', name: 'Advisor Cockpit - Meine Leads' }, setAssignNote);
   };
   const applyTop10 = () => {
     setLeadView('list');
@@ -563,20 +659,39 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
     setSortDir('desc');
     setAssignNote('Top 10 nach Priorität · Liste nach KI-Score sortiert (Preset).');
   };
-  React.useEffect(() => {
-    try {
-      const raw = window.localStorage?.getItem('advisorcockpit.meineleads.view');
-      if (!raw) return;
-      const v = JSON.parse(raw) as Partial<{ leadView: 'list' | 'board' | 'cockpit'; sortKey: LeadSortKey; sortDir: 'asc' | 'desc'; fCustomer: string; fChannel: string; fStatus: string; fSource: string }>;
-      if (v.leadView) setLeadView(v.leadView);
-      if (v.sortKey) setSortKey(v.sortKey);
-      if (v.sortDir) setSortDir(v.sortDir);
-      if (typeof v.fCustomer === 'string') setFCustomer(v.fCustomer);
-      if (v.fChannel) setFChannel(v.fChannel);
-      if (v.fStatus) setFStatus(v.fStatus);
-      if (v.fSource) setFSource(v.fSource);
-    } catch { /* ignore malformed saved view */ }
-  }, []);
+  const confirmBundle = async (): Promise<void> => {
+    if (!bundle) return;
+    if (!bundle.clusterId) {
+      setLive('No mapped Lead Cluster target is available.');
+      return;
+    }
+    const result = await runCommand({
+      type: 'bundleLeads',
+      leadIds: bundle.leads.map((lead) => lead.key),
+      clusterId: bundle.clusterId,
+    }, setAssignNote);
+    if (result.ok) {
+      setBundle(null);
+      setSelected(new Set());
+    }
+  };
+
+  const createActivity = async (type: 'createAppointment' | 'createTask'): Promise<void> => {
+    if (!defaultAccountId) {
+      setLive('No mapped Account is available for this activity.');
+      return;
+    }
+    await runCommand({ type, accountId: defaultAccountId }, setActivityNote);
+  };
+
+  const hostBundleCapability = host.capability('bundleLeads');
+  const bundleCapability = bundle?.clusterId || !isCapabilityExecutable(hostBundleCapability)
+    ? hostBundleCapability
+    : {
+        availability: 'blocked' as const,
+        reason: 'No mapped Lead Cluster target is available.',
+        target: hostBundleCapability.target,
+      };
   React.useEffect(() => {
     setLive(selected.size > 0 ? `${selected.size} Lead${selected.size > 1 ? 's' : ''} ausgewählt` : '');
   }, [selected]);
@@ -716,7 +831,7 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                     <div className={s.tpStatValue}>{tagesplan.plannedActivities}</div>
                     <div className={s.tpStatLabel}>Geplante Aktivitäten</div>
                   </div>
-                  <div className={s.provWrap} style={{ backgroundColor: provenance.dbx }} title={provenanceLabel.dbx}>
+                  <div className={s.provWrap} style={{ backgroundColor: provenance.external }} title={provenanceLabel.external}>
                     <div className={s.tpStatValue}>{tagesplan.estimatedConversion}</div>
                     <div className={s.tpStatLabel}>erwartete Abschlüsse (Prognose)</div>
                   </div>
@@ -752,11 +867,33 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                     ))}
                   </div>
                   <div className={s.fokusActions}>
-                    {empfohlenerFokus.actions.map((a, i) => (
-                      <Button key={a} size="small" icon={ACTION_ICON[a]} appearance={i === 0 ? 'primary' : 'secondary'} style={i === 0 ? { backgroundColor: palette.brand } : undefined}>
-                        {a}
-                      </Button>
-                    ))}
+                    {empfohlenerFokus.actions.map((a, i) => {
+                      const commandType: CockpitWriteCommand['type'] | null =
+                        a === 'Anpassen' ? 'editNba'
+                          : a === 'Später planen' ? 'snoozeNba'
+                            : a === 'Vorschlag verwerfen' ? 'dismissNba'
+                              : null;
+                      const buttonProps = {
+                        size: 'small' as const,
+                        icon: ACTION_ICON[a],
+                        appearance: i === 0 ? 'primary' as const : 'secondary' as const,
+                        style: i === 0 ? { backgroundColor: palette.brand } : undefined,
+                      };
+                      return commandType ? (
+                        <CapabilityButton
+                          key={a}
+                          {...buttonProps}
+                          capability={host.capability(commandType)}
+                          onClick={() => void runFocusAction(a)}
+                        >
+                          {a}
+                        </CapabilityButton>
+                      ) : (
+                        <Button key={a} {...buttonProps} onClick={() => void runFocusAction(a)}>
+                          {a}
+                        </Button>
+                      );
+                    })}
                   </div>
                   <div className={s.disclosure} title="KI-unterstützt — im CRM-Kontext verankert">✦ {empfohlenerFokus.disclosure}</div>
                 </div>
@@ -781,7 +918,15 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                   </div>
                   <div className={s.vtActions}>
                     <Button size="small" icon={<FilterRegular />} appearance="secondary" onClick={applyTop10}>Top 10 nach Priorität</Button>
-                    <Button size="small" icon={<SaveRegular />} appearance="secondary" onClick={saveView}>Ansicht speichern</Button>
+                    <CapabilityButton
+                      size="small"
+                      icon={<SaveRegular />}
+                      appearance="secondary"
+                      capability={host.capability('savePersonalView')}
+                      onClick={() => void saveView()}
+                    >
+                      Ansicht speichern
+                    </CapabilityButton>
                   </div>
                 </div>
 
@@ -819,8 +964,30 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                         <option value="">Bearbeiter/in wählen …</option>
                         {OWNER_OPTIONS.map((o) => <option key={o}>{o}</option>)}
                       </select>
-                      <Button size="small" icon={<ArrowSwapRegular />} appearance="primary" style={{ backgroundColor: palette.brand }} disabled={!assignTo} onClick={applyAssignment}>Zuweisen</Button>
-                      <Button size="small" icon={<LinkMultipleRegular />} appearance="secondary" disabled={selected.size < 2} onClick={() => setBundle({ title: 'Ausgewählte Leads', leads: selectedLeads })}>Bündeln</Button>
+                      <CapabilityButton
+                        size="small"
+                        icon={<ArrowSwapRegular />}
+                        appearance="primary"
+                        style={{ backgroundColor: palette.brand }}
+                        capability={host.capability('assignLead')}
+                        disabled={!assignTo}
+                        onClick={() => void applyAssignment()}
+                      >
+                        Zuweisen
+                      </CapabilityButton>
+                      <Button
+                        size="small"
+                        icon={<LinkMultipleRegular />}
+                        appearance="secondary"
+                        disabled={selected.size < 2}
+                        onClick={() => setBundle({
+                          title: 'Ausgewählte Leads',
+                          leads: selectedLeads,
+                          clusterId: selectedLeads.find((lead) => lead.leadClusterId)?.leadClusterId ?? null,
+                        })}
+                      >
+                        Bündeln
+                      </Button>
                       <Button size="small" icon={<DismissRegular />} appearance="transparent" onClick={clearSelection}>Auswahl aufheben</Button>
                     </div>
                   </div>
@@ -903,7 +1070,11 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                         icon={<LinkMultipleRegular />}
                         appearance="secondary"
                         disabled={selected.size < 2}
-                        onClick={() => setBundle({ title: 'Ausgewählte Leads', leads: selectedLeads })}
+                        onClick={() => setBundle({
+                          title: 'Ausgewählte Leads',
+                          leads: selectedLeads,
+                          clusterId: selectedLeads.find((lead) => lead.leadClusterId)?.leadClusterId ?? null,
+                        })}
                       >
                         Auswahl gruppieren
                       </Button>
@@ -912,7 +1083,12 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                     <div className={s.boardColumns}>
                       <div className={s.boardCol}>
                         <div className={s.boardColHead}><span>Neu</span> <span className={s.boardColCount}>{boards.neu.length}</span></div>
-                        <div className={s.boardColHint}>Karten hierher ziehen, um Status zu ändern</div>
+                        <div
+                          className={s.boardColHint}
+                          aria-description={host.capability('updateLeadQueueStatus').reason}
+                        >
+                          Karten hierher ziehen, um Status zu ändern
+                        </div>
                         <div className={s.boardColBody}>
                           {boards.neu.map((l) => renderBoardCard(l))}
                           {boards.neu.length === 0 && <div className={s.boardEmpty}>—</div>}
@@ -935,7 +1111,16 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                               <div className={s.boardClusterHead}>
                                 <span className={s.link}>{g.clusterName}</span>
                                 <Badge kind="amber">Auto-Gruppe · {g.leads.length}</Badge>
-                                <Button size="small" icon={<BranchRegular />} appearance="secondary" className={s.splitBtn} onClick={() => splitCluster(g.clusterName ?? '')}>Splitten</Button>
+                                <CapabilityButton
+                                  size="small"
+                                  icon={<BranchRegular />}
+                                  appearance="secondary"
+                                  className={s.splitBtn}
+                                  capability={host.capability('splitLeads')}
+                                  onClick={() => void splitCluster(g.clusterName ?? '', g.leads)}
+                                >
+                                  Splitten
+                                </CapabilityButton>
                               </div>
                               {g.leads.map((l) => renderBoardCard(l))}
                             </div>
@@ -970,10 +1155,32 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                             <div className={s.muted}>Teil der Auto-Gruppe „{focusCluster.clusterName}" · wirkt auf {focusCluster.leads.length} Leads</div>
                           )}
                           <div className={s.fokusActions}>
-                            <Button size="small" icon={<CallRegular />} appearance="primary" style={{ backgroundColor: palette.brand }} onClick={() => setAssignNote(`Click-to-call: ${accountName(cockpitFocus.accountKey)} — ${cockpitFocus.topic} (DEV-gated Demo).`)}>Anrufen</Button>
-                            <Button size="small" icon={<EditRegular />} appearance="secondary" onClick={() => setAssignNote(`Gespräch vorbereitet für „${cockpitFocus.topic}" (DEV-gated Demo).`)}>Vorbereiten</Button>
-                            {focusCluster && <Button size="small" icon={<LinkMultipleRegular />} appearance="secondary" onClick={() => setBundle({ title: focusCluster.clusterName ?? 'Gruppe', leads: focusCluster.leads })}>Leads bündeln</Button>}
-                            <Button size="small" icon={<OpenRegular />} appearance="secondary" onClick={() => setAssignNote(`360°-Kundenkontext „${accountName(cockpitFocus.accountKey)}" öffnen · Navigation zur Dynamics-Kontaktform (DEV-gated).`)}>360° öffnen</Button>
+                            <CapabilityButton
+                              size="small"
+                              icon={<CallRegular />}
+                              appearance="primary"
+                              style={{ backgroundColor: palette.brand }}
+                              capability={host.capability('call')}
+                              onClick={() => void callLead(cockpitFocus)}
+                            >
+                              Anrufen
+                            </CapabilityButton>
+                            <Button size="small" icon={<EditRegular />} appearance="secondary" onClick={() => setLive('Meeting preparation is not available in this host.')}>Vorbereiten</Button>
+                            {focusCluster && (
+                              <Button
+                                size="small"
+                                icon={<LinkMultipleRegular />}
+                                appearance="secondary"
+                                onClick={() => setBundle({
+                                  title: focusCluster.clusterName ?? 'Gruppe',
+                                  leads: focusCluster.leads,
+                                  clusterId: focusCluster.leads.find((lead) => lead.leadClusterId)?.leadClusterId ?? null,
+                                })}
+                              >
+                                Leads bündeln
+                              </Button>
+                            )}
+                            <Button size="small" icon={<OpenRegular />} appearance="secondary" onClick={() => void navigate('account', cockpitFocus.accountKey)}>360° öffnen</Button>
                             <Button size="small" icon={<ArrowRightRegular />} appearance="subtle" disabled={cockpitRest.length === 0} onClick={() => setFocusKey(cockpitRest[0]?.key ?? null)}>Nächster Lead →</Button>
                           </div>
                         </div>
@@ -1020,26 +1227,20 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                           ))}
                         </div>
                         <div className={s.demoNote}>
-                          Hinweis: Die Bündelung wird über die Aktionsschicht geschrieben (DEV-gated). In dieser lokalen
-                          Ansicht ist der Schritt eine Demonstration.
+                          Hinweis: Diese Schreibaktion ist noch nicht freigegeben. {bundleCapability.reason}
                         </div>
                       </DialogContent>
                       <DialogActions>
                         <Button appearance="secondary" icon={<DismissRegular />} onClick={() => setBundle(null)}>Abbrechen</Button>
-                        <Button
+                        <CapabilityButton
                           icon={<CheckmarkRegular />}
                           appearance="primary"
                           style={{ backgroundColor: palette.brand }}
-                          onClick={() => {
-                            const n = bundle?.leads.length ?? 0;
-                            const t = bundle?.title ?? '';
-                            setAssignNote(`${n} Leads gebündelt · ${t} · Demo — Schreibzugriff über die Aktionsschicht (DEV-gated).`);
-                            setBundle(null);
-                            setSelected(new Set());
-                          }}
+                          capability={bundleCapability}
+                          onClick={() => void confirmBundle()}
                         >
                           Bündelung bestätigen
-                        </Button>
+                        </CapabilityButton>
                       </DialogActions>
                     </DialogBody>
                   </DialogSurface>
@@ -1053,7 +1254,16 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                 <section className={s.card}>
                   <div className={s.cardHead}>
                     <span>Termine heute</span>
-                    <Button size="small" icon={<AddRegular />} appearance="primary" style={{ marginLeft: 'auto', backgroundColor: palette.brand }} onClick={() => setActivityNote('Neuen Termin anlegen · Dynamics-Terminformular (DEV-gated Demo).')}>+ Termin</Button>
+                    <CapabilityButton
+                      size="small"
+                      icon={<AddRegular />}
+                      appearance="primary"
+                      style={{ marginLeft: 'auto', backgroundColor: palette.brand }}
+                      capability={host.capability('createAppointment')}
+                      onClick={() => void createActivity('createAppointment')}
+                    >
+                      + Termin
+                    </CapabilityButton>
                   </div>
                   <div className={s.cardBody}>
                     {appts.map((a) => (
@@ -1070,7 +1280,16 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                 <section className={s.card}>
                   <div className={s.cardHead}>
                     <span>Offene Aufgaben</span>
-                    <Button size="small" icon={<AddRegular />} appearance="secondary" style={{ marginLeft: 'auto' }} onClick={() => setActivityNote('Neue Aufgabe anlegen · Dynamics-Aufgabenformular (DEV-gated Demo).')}>+ Aufgabe</Button>
+                    <CapabilityButton
+                      size="small"
+                      icon={<AddRegular />}
+                      appearance="secondary"
+                      style={{ marginLeft: 'auto' }}
+                      capability={host.capability('createTask')}
+                      onClick={() => void createActivity('createTask')}
+                    >
+                      + Aufgabe
+                    </CapabilityButton>
                   </div>
                   <div className={s.cardBody}>
                     <table className={s.table}>
@@ -1144,9 +1363,31 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
                       <div className={s.copText}>{card.rationale}</div>
                       <div className={s.disclosure} title="KI-unterstützt — im CRM-Kontext verankert">✦ {card.disclosure}</div>
                       <div style={{ marginTop: '10px' }}>
-                        <Button size="small" icon={card.channel === 'Anruf' ? <CallRegular /> : <OpenRegular />} appearance="primary" style={{ backgroundColor: palette.brand }}>
-                          {card.channel === 'Anruf' ? 'Anrufen' : card.channel === 'Termin' ? 'Termin öffnen' : 'Öffnen'}
-                        </Button>
+                        {card.channel === 'Anruf' && card.leadKey ? (
+                          <CapabilityButton
+                            size="small"
+                            icon={<CallRegular />}
+                            appearance="primary"
+                            style={{ backgroundColor: palette.brand }}
+                            capability={host.capability('call')}
+                            onClick={() => {
+                              const lead = data.leads.find((candidate) => candidate.key === card.leadKey);
+                              if (lead) void callLead(lead);
+                            }}
+                          >
+                            Anrufen
+                          </CapabilityButton>
+                        ) : (
+                          <Button
+                            size="small"
+                            icon={<OpenRegular />}
+                            appearance="primary"
+                            style={{ backgroundColor: palette.brand }}
+                            onClick={() => void navigate(card.leadKey ? 'lead' : 'account', card.leadKey ?? card.accountKey)}
+                          >
+                            {card.channel === 'Termin' ? 'Termin öffnen' : 'Öffnen'}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -1159,7 +1400,7 @@ export function AdvisorCockpit({ data }: AdvisorCockpitProps): JSX.Element {
         <div className={s.legend}>
           <span className={s.legendTitle}>Datenquelle</span>
           <span className={s.legendItem}><span className={s.legendSwatch} style={{ backgroundColor: palette.n0 }} />{provenanceLabel.crm}</span>
-          <span className={s.legendItem}><span className={s.legendSwatch} style={{ backgroundColor: provenance.dbx }} />{provenanceLabel.dbx}</span>
+          <span className={s.legendItem}><span className={s.legendSwatch} style={{ backgroundColor: provenance.external }} />{provenanceLabel.external}</span>
           <span className={s.legendItem}><span className={s.legendSwatch} style={{ backgroundColor: provenance.unmapped }} />{provenanceLabel.unmapped}</span>
         </div>
       </div>

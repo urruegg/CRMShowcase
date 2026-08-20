@@ -33,19 +33,21 @@ export const badge = {
   grey: { bg: '#f6f5f2', fg: '#605e5e' },
 } as const;
 
-// Data-source provenance tints (per request): CRM = standard (no tint),
-// Databricks (mockup Dataverse) = light grey, not-yet-mapped = light yellow.
+import type { ProvenanceKind } from '@crmshow/advisor-cockpit-domain';
+
+// Data-source provenance tints: CRM = standard (no tint), external/projected =
+// light grey, and not-yet-mapped = light yellow.
 export const provenance = {
   crm: 'transparent',
-  dbx: '#eeedea',
+  external: '#eeedea',
   unmapped: '#fcf4d6',
-} as const;
+} as const satisfies Record<ProvenanceKind, string>;
 
-export type ProvenanceKind = keyof typeof provenance;
+export type { ProvenanceKind } from '@crmshow/advisor-cockpit-domain';
 
 export const provenanceLabel: Record<ProvenanceKind, string> = {
   crm: 'CRM (Dataverse)',
-  dbx: 'Databricks (Mock)',
+  external: 'Databricks (Mock)',
   unmapped: 'Noch nicht gemappt',
 };
 

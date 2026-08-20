@@ -32,27 +32,27 @@ const cockpitFixtures: CockpitData = {
     {
       key: 'LEAD-BRUNNER-1', topic: 'Brunner offer', accountKey: 'ACC-BRUNNER', contactKey: 'CONTACT-1',
       channel: 'Online', priority: 'Hoch', sla: 'Today', score: 99, status: 'Neu', source: 'Online',
-      leadCluster: 'Haushalt Brunner', clusterRole: 'child', owner: 'Test Advisor',
+      leadCluster: 'Haushalt Brunner', leadClusterId: 'CLUSTER-BRUNNER', clusterRole: 'child', owner: 'Test Advisor',
     },
     {
       key: 'LEAD-BRUNNER-2', topic: 'Brunner renewal', accountKey: 'ACC-BRUNNER', contactKey: 'CONTACT-1',
       channel: 'Phone', priority: 'Hoch', sla: 'Today', score: 87, status: 'In Arbeit', source: 'Retention',
-      leadCluster: 'Haushalt Brunner', clusterRole: 'child', owner: 'Test Advisor',
+      leadCluster: 'Haushalt Brunner', leadClusterId: 'CLUSTER-BRUNNER', clusterRole: 'child', owner: 'Test Advisor',
     },
     {
       key: 'LEAD-BRUNNER-3', topic: 'Brunner appointment', accountKey: 'ACC-BRUNNER', contactKey: 'CONTACT-1',
       channel: 'Appointment', priority: 'Hoch', sla: 'Today', score: 81, status: 'Gebündelt', source: 'Appointment',
-      leadCluster: 'Haushalt Brunner', clusterRole: 'child', owner: 'Test Advisor',
+      leadCluster: 'Haushalt Brunner', leadClusterId: 'CLUSTER-BRUNNER', clusterRole: 'child', owner: 'Test Advisor',
     },
     {
       key: 'LEAD-KELLER-1', topic: 'Keller pension', accountKey: 'ACC-KELLER', contactKey: 'CONTACT-2',
       channel: 'Kampagne', priority: 'Mittel', sla: 'Tomorrow', score: 74, status: 'Neu', source: 'Vorsorge 25',
-      leadCluster: null, clusterRole: 'single', owner: 'Test Advisor',
+      leadCluster: null, leadClusterId: null, clusterRole: 'single', owner: 'Test Advisor',
     },
     {
       key: 'LEAD-KELLER-2', topic: 'Keller life event', accountKey: 'ACC-KELLER', contactKey: 'CONTACT-2',
       channel: 'Appointment', priority: 'Mittel', sla: 'Tomorrow', score: 68, status: 'Neu', source: 'Life Event',
-      leadCluster: null, clusterRole: 'single', owner: 'Test Advisor',
+      leadCluster: null, leadClusterId: null, clusterRole: 'single', owner: 'Test Advisor',
     },
   ],
   activities: [

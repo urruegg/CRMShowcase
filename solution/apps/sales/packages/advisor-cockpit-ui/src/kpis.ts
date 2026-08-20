@@ -34,9 +34,9 @@ export const focusHero = {
   headline: 'Mehr Zeit für vorbereitete Kundengespräche',
   body: 'Der Tagesplan bündelt Signale, hält offene Aufgaben sichtbar und erklärt seine Prioritäten. Sie entscheiden, was Sie übernehmen, ändern oder später erledigen.',
   stats: [
-    { value: '5', label: 'Kundengespräche vorbereitet', prov: 'dbx' },
-    { value: '2', label: 'Doppelkontakte vermieden', prov: 'dbx' },
-    { value: '35 Min', label: 'Fahrzeit im Tagesplan gespart', prov: 'dbx' },
+    { value: '5', label: 'Kundengespräche vorbereitet', prov: 'external' },
+    { value: '2', label: 'Doppelkontakte vermieden', prov: 'external' },
+    { value: '35 Min', label: 'Fahrzeit im Tagesplan gespart', prov: 'external' },
   ] as OutcomeStat[],
 };
 
@@ -48,15 +48,15 @@ export const kpiCards: KpiCard[] = [
   { label: 'Kundentermine heute', value: '5', sub: '4 vorbereitet · nächster 09:30', prov: 'crm' },
   { label: 'Nachfassaktionen heute', value: '6', sub: '2 überfällig', warn: true, prov: 'crm' },
   { label: 'Angebote nachfassen', value: '4', sub: '3 Kundenrückmeldungen ausstehend', prov: 'unmapped' },
-  { label: 'Lead → Beratung (Q2)', value: '28%', sub: '14 von 50 bearbeiteten Leads', prov: 'dbx' },
-  { label: 'Erstkontakt innert 24h', value: '88%', sub: '44 von 50 Leads · Ziel 90%', prov: 'dbx' },
+  { label: 'Lead → Beratung (Q2)', value: '28%', sub: '14 von 50 bearbeiteten Leads', prov: 'external' },
+  { label: 'Erstkontakt innert 24h', value: '88%', sub: '44 von 50 Leads · Ziel 90%', prov: 'external' },
 ];
 
 export const progressCards: ProgressCard[] = [
-  { label: 'Erstkontakt innert 24h', current: '44 / 50', percent: 88, color: 'amber', sub: 'Q2 · persönliches Ziel 90%', prov: 'dbx' },
-  { label: 'Lead → Beratung', current: '14 / 50', percent: 28, color: 'green', sub: 'Q2 · Ziel 30% · GA-Schnitt 24%', prov: 'dbx' },
-  { label: 'Nachfassaktionen fristgerecht', current: '31 / 35', percent: 89, color: 'green', sub: 'Diese Woche · persönliches Ziel 95%', prov: 'dbx' },
-  { label: 'Neugeschäftsvolumen (Q2)', current: "CHF 82'000", percent: 82, color: 'green', sub: "Persönliches Ziel CHF 100'000 · Quelle: Abschluss-/Provisionssystem", prov: 'dbx' },
+  { label: 'Erstkontakt innert 24h', current: '44 / 50', percent: 88, color: 'amber', sub: 'Q2 · persönliches Ziel 90%', prov: 'external' },
+  { label: 'Lead → Beratung', current: '14 / 50', percent: 28, color: 'green', sub: 'Q2 · Ziel 30% · GA-Schnitt 24%', prov: 'external' },
+  { label: 'Nachfassaktionen fristgerecht', current: '31 / 35', percent: 89, color: 'green', sub: 'Diese Woche · persönliches Ziel 95%', prov: 'external' },
+  { label: 'Neugeschäftsvolumen (Q2)', current: "CHF 82'000", percent: 82, color: 'green', sub: "Persönliches Ziel CHF 100'000 · Quelle: Abschluss-/Provisionssystem", prov: 'external' },
 ];
 
 export const disclaimer =

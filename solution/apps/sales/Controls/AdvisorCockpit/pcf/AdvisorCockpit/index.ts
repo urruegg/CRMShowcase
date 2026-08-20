@@ -3,7 +3,10 @@ import { createRoot, Root } from 'react-dom/client';
 import { FluentProvider, webLightTheme } from '@fluentui/react-components';
 import { AdvisorCockpit as AdvisorCockpitComponent } from '@crmshow/advisor-cockpit-ui';
 import { cockpitFixtures } from '../../src/fixtures';
+import { createFixtureHost } from '../../src/fixtureHost';
 import { IInputs, IOutputs } from './generated/ManifestTypes';
+
+const fixtureHost = createFixtureHost('pcf-artifact');
 
 // PCF wrap for the already-built, already-tested AdvisorCockpit component
 // (merged PR #70). Per the local-first polish loop pattern (step 4) and the
@@ -32,7 +35,7 @@ export class AdvisorCockpit implements ComponentFramework.StandardControl<IInput
             React.createElement(
                 FluentProvider,
                 { theme: webLightTheme },
-                React.createElement(AdvisorCockpitComponent, { data: cockpitFixtures }),
+                React.createElement(AdvisorCockpitComponent, { data: cockpitFixtures, host: fixtureHost }),
             ),
         );
     }

@@ -43,6 +43,7 @@ export interface LeadRecord {
   status: string;
   source: string;
   leadCluster: string | null;
+  leadClusterId: string | null;
   clusterRole: 'child' | 'single' | 'parent';
   owner: string;
 }

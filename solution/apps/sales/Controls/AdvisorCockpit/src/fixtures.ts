@@ -32,7 +32,10 @@ export const advisorProfile: AdvisorProfile = {
 export const cockpitFixtures: CockpitData = {
   advisor: advisorProfile,
   accountsContacts: accountsContacts as AccountOrContact[],
-  leads: leads as LeadRecord[],
+  leads: (leads as Omit<LeadRecord, 'leadClusterId'>[]).map((lead) => ({
+    ...lead,
+    leadClusterId: null,
+  })),
   activities: activities as ActivityRecord[],
   nba: nba as NbaRecord[],
   policies: policies as PolicyRecord[],
