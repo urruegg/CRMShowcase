@@ -27,15 +27,25 @@ establishes one narrow authoring exception while the current noninteractive
 Code Apps CLI publication path requires secret-based service-principal
 authentication:
 
-- A maker/admin may run attended `pa app push` in **DEV only** for a reviewed
-  Code App commit.
-- Git remains the source of truth. The evidence records the commit, successful
-  build and tests, CLI version, app identity, solution identity, operator,
-  timestamp and result.
+- A maker/admin may publish a reviewed Code App commit to **DEV only**. The
+  maker/admin starts from a clean reviewed checkout at the reviewed commit,
+  verifies each app's `power.config.json` is bound to the approved DEV
+  environment ID, and builds and tests immediately before publication. The
+  maker/admin creates a sorted per-file SHA-256 manifest of `dist` using
+  normalized relative paths, serializes it as a BOM-free UTF-8 manifest, and
+  hashes the manifest. Leave `dist` unchanged between hashing and push, then
+  run attended
+  `pa app push --solution-id <crmshow_Sales GUID>`.
+- Git remains the source of truth. Publication evidence records the commit,
+  manifest hash, successful build and test evidence, CLI version, app identity,
+  solution identity, approved DEV environment ID, returned play URL, runtime
+  environment ID, operator, timestamp and result. After publication, the
+  operator opens the app and verifies `getContext().app.environmentId` equals
+  the approved DEV environment ID.
 - No client secret is introduced or stored in source, automation, fixtures,
   configuration or logs.
-- There is no direct TEST authoring. The existing OIDC pipeline exports the
-  complete DEV solution and imports that exact managed artifact into TEST.
+- TEST receives the exact managed artifact through the existing OIDC pipeline.
+  Direct TEST authoring is prohibited.
 - Existing solution validation, approval, export/import, convergence and
   rollback controls remain unchanged.
 
@@ -45,8 +55,8 @@ permit an unreviewed environment-only change.
 ## Consequences
 
 - **Manual environment changes remain forbidden outside the bounded attended
-  DEV Code App publication above.** The reviewed source and publication
-  evidence make that exception visible and reconcilable.
+  DEV Code App publication above.** Only that deterministic, evidenced
+  procedure may publish a Code App directly, and only to DEV.
 - **Rollback must be demonstrable, not described.** If we cannot roll a live
   change back in front of the customer, we should not make the claim.
 - **TEST remains pipeline-only.** Direct authoring, unmanaged substitution and

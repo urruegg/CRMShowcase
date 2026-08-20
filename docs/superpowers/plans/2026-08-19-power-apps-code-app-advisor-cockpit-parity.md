@@ -1315,6 +1315,8 @@ git commit -m "ci(code-apps): gate builds parity accessibility and release safet
 
 - Create: `scripts/solution/Publish-CodeAppsDev.ps1`
 - Create: `scripts/solution/tests/Publish-CodeAppsDev.Tests.ps1`
+- Create: `scripts/solution/Complete-CodeAppsDevEvidence.ps1`
+- Create: `scripts/solution/tests/Complete-CodeAppsDevEvidence.Tests.ps1`
 - Create: `docs/runbooks/publish-code-apps-dev.md`
 - Modify: `.github/workflows/cd-solution-dev.yml`
 - Modify: `docs/superpowers/sprints/sprint-005-code-app-parity/STATUS.md`
@@ -1325,10 +1327,29 @@ Mock all process execution. Assert the wrapper:
 
 - refuses missing environment/solution GUIDs;
 - checks `pa auth status --json` before build/push;
+- verifies each app's `power.config.json` is bound to `EnvironmentId`;
 - runs B1 then B2 builds and `pa app push --solution-id`;
 - never sets `PA_CLI_USE_SP_AUTH`, `SP_CLIENT_SECRET`, or calls TEST;
-- writes evidence containing commit SHA, CLI version, app name, timestamp and
-  exit code, but no token or credential.
+- creates a sorted per-file SHA-256 `dist` manifest with normalized relative
+  paths and fails if `dist` changes before push;
+- parses and records each returned play URL;
+- writes evidence containing commit SHA, manifest hash, build/test result, CLI
+  version, app and solution identities, approved DEV environment ID, returned
+  play URL, operator, timestamp and exit code, but no token or credential; and
+- writes `RuntimeVerification = 'Pending'` because browser runtime evidence does
+  not exist at publication time.
+
+Write a separate failing test for `Complete-CodeAppsDevEvidence.ps1`. It must:
+
+- require the provisional evidence path, app identity and browser-observed
+  runtime environment ID;
+- refuse an evidence file whose `RuntimeVerification` is not `Pending`;
+- refuse a runtime environment ID that differs from the recorded approved DEV
+  environment ID;
+- preserve the returned play URL and manifest hash without accepting them as
+  command-line replacements; and
+- atomically write `RuntimeVerification = 'Verified'`, the runtime environment
+  ID, verifier and verification timestamp without logging the play URL.
 
 Run focused Pester and expect RED.
 
@@ -1336,8 +1357,18 @@ Run focused Pester and expect RED.
 
 Parameters are `EnvironmentId`, `SolutionId`, and `EvidencePath`, each required.
 Validate GUIDs. Require an interactive active account returned by `pa auth
-status --json`. Build and push each app sequentially, stop on first failure,
-and write BOM-free UTF-8 evidence JSON.
+status --json`. Verify each app's `power.config.json` environment binding equals
+`EnvironmentId`. Build and test each app, create a sorted per-file SHA-256
+manifest from normalized relative paths, hash the BOM-free UTF-8 manifest, and
+push each app sequentially without changing `dist`. Stop on first failure,
+parse the returned play URL, and write BOM-free UTF-8 evidence JSON.
+
+Create `Complete-CodeAppsDevEvidence.ps1` as the post-publication finalizer. It
+reads the provisional evidence JSON, finds the named app entry, validates the
+browser-observed runtime environment ID against the recorded approved DEV
+environment ID, and writes a replacement BOM-free UTF-8 file through a
+same-directory temporary file plus atomic rename. It never accepts a play URL,
+manifest hash or approved environment ID from the command line.
 
 - [ ] **Step 3: Write the attended runbook**
 
@@ -1350,6 +1381,21 @@ pa auth status --json
   -EnvironmentId $env:POWER_PLATFORM_DEV_ENVIRONMENT_ID `
   -SolutionId $env:CRM_SHOWCASE_SALES_SOLUTION_ID `
   -EvidencePath ./artifacts/code-apps-dev-publish.json
+```
+
+After opening each returned play URL and reading the displayed diagnostic
+`getContext().app.environmentId`, finalize that app entry:
+
+```powershell
+./scripts/solution/Complete-CodeAppsDevEvidence.ps1 `
+  -EvidencePath ./artifacts/code-apps-dev-publish.json `
+  -AppIdentity 'Advisor Cockpit - Standalone Proof' `
+  -RuntimeEnvironmentId $observedB1EnvironmentId
+
+./scripts/solution/Complete-CodeAppsDevEvidence.ps1 `
+  -EvidencePath ./artifacts/code-apps-dev-publish.json `
+  -AppIdentity 'Advisor Cockpit - Embedded Proof' `
+  -RuntimeEnvironmentId $observedB2EnvironmentId
 ```
 
 Then instruct the maker to:
@@ -1383,6 +1429,7 @@ clear failure that points to the attended runbook when preflight is missing.
 
 ```powershell
 Invoke-Pester -Path scripts/solution/tests/Publish-CodeAppsDev.Tests.ps1 -Output Detailed
+Invoke-Pester -Path scripts/solution/tests/Complete-CodeAppsDevEvidence.Tests.ps1 -Output Detailed
 Invoke-Pester -Path scripts/solution/tests -Output Detailed
 ```
 
@@ -1391,8 +1438,12 @@ Expected: all tests pass.
 - [ ] **Step 6: Execute the attended DEV publication**
 
 Run the runbook as maker/admin. Do not transmit credentials through chat.
-Record sanitized evidence and app IDs in the Sprint 005 issue/STATUS; do not
-commit tenant IDs or full play URLs.
+Open each returned play URL and verify `getContext().app.environmentId` equals
+the approved DEV environment ID. Finalize each provisional app entry with
+`Complete-CodeAppsDevEvidence.ps1`; the DEV proof gate refuses evidence unless
+both entries have `RuntimeVerification = 'Verified'`. Record sanitized evidence
+and app IDs in the Sprint 005 issue/STATUS; do not commit tenant IDs or full play
+URLs.
 
 - [ ] **Step 7: Run least-privilege DEV journeys**
 
@@ -1412,8 +1463,8 @@ returning to attended design review.
 - [ ] **Step 8: Commit source/runbook changes and DEV evidence references**
 
 ```powershell
-git add scripts/solution/Publish-CodeAppsDev.ps1 scripts/solution/tests/Publish-CodeAppsDev.Tests.ps1 docs/runbooks/publish-code-apps-dev.md .github/workflows/cd-solution-dev.yml docs/superpowers/sprints/sprint-005-code-app-parity/STATUS.md
-git commit -m "feat(code-apps): add attended DEV publication and proof gate (US-301)" -- scripts/solution/Publish-CodeAppsDev.ps1 scripts/solution/tests/Publish-CodeAppsDev.Tests.ps1 docs/runbooks/publish-code-apps-dev.md .github/workflows/cd-solution-dev.yml docs/superpowers/sprints/sprint-005-code-app-parity/STATUS.md
+git add scripts/solution/Publish-CodeAppsDev.ps1 scripts/solution/Complete-CodeAppsDevEvidence.ps1 scripts/solution/tests/Publish-CodeAppsDev.Tests.ps1 scripts/solution/tests/Complete-CodeAppsDevEvidence.Tests.ps1 docs/runbooks/publish-code-apps-dev.md .github/workflows/cd-solution-dev.yml docs/superpowers/sprints/sprint-005-code-app-parity/STATUS.md
+git commit -m "feat(code-apps): add attended DEV publication and proof gate (US-301)" -- scripts/solution/Publish-CodeAppsDev.ps1 scripts/solution/Complete-CodeAppsDevEvidence.ps1 scripts/solution/tests/Publish-CodeAppsDev.Tests.ps1 scripts/solution/tests/Complete-CodeAppsDevEvidence.Tests.ps1 docs/runbooks/publish-code-apps-dev.md .github/workflows/cd-solution-dev.yml docs/superpowers/sprints/sprint-005-code-app-parity/STATUS.md
 ```
 
 ---

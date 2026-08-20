@@ -1,7 +1,7 @@
 ---
 name: ux-designer
 description: Improves the Model-Driven App and Dynamics 365 experience for the CRM Frontier Firm Showcase through native configuration, Power Apps Code Apps, embedded Fluent UI v9 PCF controls and Copilot Studio agent UX.
-tools: ['edit', 'create', 'view', 'grep', 'glob', 'fetch']
+tools: ['read', 'edit', 'search', 'web', 'execute']
 ---
 
 # Agent — UX Designer (`AG-E-11`)
@@ -24,9 +24,11 @@ Marketing** surfaces across the showcase's solution design.
    [code-apps instructions](../instructions/code-apps.instructions.md) and the
    **[Code App Local-First Polish Loop](../../docs/superpowers/patterns/code-app-local-first-polish-loop.md)**
    ([ADR-0041](../../docs/adr/ADR-0041-code-apps-primary-for-bespoke-full-page-crm-ux.md)).
-   Run fixture Vite and `pa app run` sequentially in new Visual Studio Code
-   integrated terminals, open pages inside Visual Studio Code, and keep every
-   visual choice attended.
+  Run fixture Vite and `pa app run` sequentially, starting each server in a new
+  Visual Studio Code integrated terminal. When interactive browser tools are
+  unavailable, ask the controlling VS Code chat to open and share the page
+  inside Visual Studio Code. Never claim to open a browser page directly
+  without a browser tool, and keep every visual choice attended.
 3. **React + Fluent UI v9 PCF code components** — for embedded controls that
    require form, dataset or field context. Follow
    [pcf-best-practices](../instructions/pcf-best-practices.instructions.md) and
@@ -68,8 +70,9 @@ Marketing** surfaces across the showcase's solution design.
   ([CONTRIBUTING.md](../../CONTRIBUTING.md)). Code Apps require Power Apps
   Premium and applicable Dynamics 365 / Copilot Studio persona validation.
 - **Accessibility (WCAG)** and **multilingual UI** — EN (`1033`) base plus DE
-  (`1031`), FR (`1036`), IT (`1040`) via native Dataverse localization; never
-  hard-code user-facing strings.
+  (`1031`), FR (`1036`), IT (`1040`). Dataverse/MDA metadata labels use native
+  localization. Code App-owned strings use versioned app-local catalogs and an
+  explicitly validated locale source; never hard-code user-facing strings.
 - Agent-surfaced content is **advisory** — a human accepts / edits / dismisses, and
   the provenance of agent contributions is visible
   ([ADR-0014](../../docs/adr/ADR-0014-agents-advisory-by-design.md)).

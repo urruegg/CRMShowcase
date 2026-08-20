@@ -63,11 +63,25 @@ PCF remains the extension path for embedded controls requiring form, dataset or
 field context. The Advisor Cockpit B1/B2 proof validates host placement without
 changing that build rule.
 
-DEV Code App creation and update use an attended maker `pa app push` because
-the current noninteractive CLI requires secret-based service-principal
-authentication. Git remains source of truth; TEST receives only the exact
-managed solution artifact exported from DEV by the existing OIDC pipeline. No
-client secret is introduced, and direct TEST authoring is prohibited.
+DEV Code App creation and update use one deterministic attended publication
+contract because the current noninteractive CLI requires secret-based
+service-principal authentication.
+A maker/admin starts from a clean reviewed checkout at the reviewed commit,
+verifies each app's `power.config.json` is bound to the approved DEV environment
+ID, and builds and tests immediately before publication. The maker/admin creates
+a sorted per-file SHA-256 manifest of `dist` using normalized relative paths,
+serializes it as a BOM-free UTF-8 manifest, and hashes the manifest. Leave
+`dist` unchanged between hashing and push, then run attended
+`pa app push --solution-id <crmshow_Sales GUID>` to DEV only. The
+operator captures the returned play URL, opens the published app, and verifies
+`getContext().app.environmentId` equals the approved DEV environment ID.
+Publication evidence records the commit, manifest hash, successful build and
+test evidence, CLI version, app identity, solution identity, approved DEV
+environment ID, returned play URL, runtime environment ID, operator, timestamp
+and result. No client secret is introduced or stored.
+
+Git remains source of truth. TEST receives the exact managed artifact through
+the existing OIDC pipeline. Direct TEST authoring is prohibited.
 
 ADR-0033 options B1 and B2 remain unselected until the same complete Advisor
 Cockpit has produced reviewable DEV and TEST parity evidence. This ADR chooses
@@ -124,9 +138,12 @@ bespoke full-page requirement without pro-code.
 - **At the next release:** Code Apps, shared packages, generated services and
   solution membership are rebuilt and retested; embedded PCF controls continue
   under their existing ALM instructions.
-- **Operationally:** attended `pa app push` is allowed only in DEV with commit,
-  CLI, app, solution, operator and result evidence. TEST changes arrive only as
-  the exact managed solution through the existing OIDC pipeline.
+- **Operationally:** attended publication is DEV-only and follows the
+  deterministic contract above. The recorded commit, sorted per-file manifest,
+  manifest hash, returned play URL and runtime environment ID bind the
+  publication to the reviewed build and DEV target; TEST changes arrive only
+  as the exact managed solution through the existing OIDC pipeline, never
+  through direct TEST authoring.
 - **For the customer's teams (shared responsibility):** makers publish to DEV,
   the pipeline promotes to TEST, administrators assign least-privilege access,
   and owners validate Power Apps Premium plus applicable product rights per

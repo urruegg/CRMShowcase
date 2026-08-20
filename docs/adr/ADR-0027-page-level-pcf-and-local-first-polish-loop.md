@@ -93,7 +93,7 @@ this ADR as authority for a new page-level PCF.
 
 - **At the next release:** retained PCF controls and their pattern stay
   source-controlled and tested; new bespoke full-page work follows ADR-0041.
-- **Operationally:** controls are Jest-tested and versioned; upgrade impact is
+- **Operationally:** controls are Vitest-tested and versioned; upgrade impact is
   declared per control.
 - **For the customer's teams:** a repeatable, reviewable UX build method rather
   than ad-hoc pixel-pushing, without presenting embedded PCF as the default

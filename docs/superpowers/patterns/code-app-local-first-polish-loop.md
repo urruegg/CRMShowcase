@@ -71,18 +71,26 @@ embedding, environment sharing, CSP, managed promotion or TEST parity.
 
 ### Gate 3 - live DEV and TEST evidence
 
-1. Build and test the reviewed Git commit.
-2. A maker/admin performs attended `pa app push` to DEV only and records the
-   commit, CLI version, app identity, solution identity, operator, timestamp
-   and result. Do not introduce or store a client secret.
-3. Validate the live DEV host with the least-privilege advisor and synthetic
-   scenario.
-4. Export the complete solution from DEV through the existing OIDC pipeline
-   and import that exact managed artifact into TEST. Do not author directly in
-   TEST.
-5. Apply environment-specific configuration without hard-coding a DEV play URL
+1. Start from a clean reviewed checkout at the reviewed Git commit and verify
+   each app's `power.config.json` is bound to the approved DEV environment ID.
+   Build and test immediately before publication.
+2. Create a sorted per-file SHA-256 manifest of `dist` using normalized relative
+   paths, serialize it as a BOM-free UTF-8 manifest, and hash the manifest.
+   Leave `dist` unchanged between hashing and push.
+3. A maker/admin performs attended
+   `pa app push --solution-id <crmshow_Sales GUID>` to DEV only. Publication
+   evidence records the commit, manifest hash, successful build and test
+   evidence, CLI version, app identity, solution identity, approved DEV
+   environment ID, returned play URL, runtime environment ID, operator,
+   timestamp and result. No client secret is introduced or stored.
+4. Validate the live DEV host with the least-privilege advisor and synthetic
+   scenario, including `getContext().app.environmentId` against the approved DEV
+   environment ID.
+5. TEST receives the exact managed artifact through the existing OIDC pipeline.
+   Direct TEST authoring is prohibited.
+6. Apply environment-specific configuration without hard-coding a DEV play URL
    in source.
-6. Repeat the same advisor journey in TEST and compare the evidence with DEV.
+7. Repeat the same advisor journey in TEST and compare the evidence with DEV.
 
 Only live DEV and TEST evidence can support a host-placement decision. B1 and
 B2 remain unselected until both have completed the approved parity scorecard.
