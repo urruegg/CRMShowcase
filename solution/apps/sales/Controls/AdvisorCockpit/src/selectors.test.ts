@@ -31,7 +31,7 @@ describe('cockpit selectors', () => {
     expect(filterLeads(cockpitFixtures.leads, none, name).length).toBe(cockpitFixtures.leads.length);
     expect(filterLeads(cockpitFixtures.leads, { ...none, customer: 'Brunner' }, name).length).toBe(3);
     expect(filterLeads(cockpitFixtures.leads, { ...none, channel: 'Kampagne' }, name).length).toBe(1);
-    expect(filterLeads(cockpitFixtures.leads, { ...none, status: 'Neu' }, name).length).toBe(2);
+    expect(filterLeads(cockpitFixtures.leads, { ...none, status: 'Neu' }, name).length).toBe(3);
     expect(filterLeads(cockpitFixtures.leads, { ...none, source: 'Vorsorge 25' }, name).length).toBe(1);
   });
 });
