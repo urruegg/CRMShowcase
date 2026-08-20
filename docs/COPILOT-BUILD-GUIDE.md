@@ -18,7 +18,7 @@ slides cannot win and a working pipeline wins easily.
 
 ## The loop
 
-```
+```text
 change request
   → AG-E-03 Enterprise Architect  → ADR: options · trade-offs · upgrade impact
   → AG-E-02 Developer             → solution change + test
@@ -29,6 +29,35 @@ change request
   → rollback                      → and it is gone again
 ```
 
+## Route CRM UX work before building
+
+Use the placement rule committed by
+[ADR-0041](./adr/ADR-0041-code-apps-primary-for-bespoke-full-page-crm-ux.md):
+
+1. Model-driven configuration for native forms, views, timelines and commands.
+2. Power Apps Code Apps for bespoke full-page CRM experiences.
+3. PCF for embedded controls requiring form, dataset or field context.
+
+Code Apps are a pro-code own-build extension even though Power Apps supplies
+the managed host. Validate Power Apps Premium and applicable Dynamics 365 /
+Copilot Studio rights per persona before rollout.
+
+For bespoke full-page work, use the attended
+[Code App Local-First Polish Loop](./superpowers/patterns/code-app-local-first-polish-loop.md):
+fixture-backed `npm run dev`, stop the Vite server, authenticated `pa app run`,
+then live DEV and TEST evidence. Start each server in a new Visual Studio Code
+integrated terminal, open the page inside Visual Studio Code and keep visual
+choices attended.
+
+Git remains the source of truth. While noninteractive Code App publication
+requires secret-based service-principal authentication, a maker/admin may run
+attended `pa app push` in DEV only with reviewed build evidence. No client
+secret is stored. TEST receives only the exact managed solution exported from
+DEV through the existing OIDC pipeline; direct TEST authoring is prohibited.
+
+The Advisor Cockpit B1 and B2 hosts remain unselected until both produce the
+approved live DEV/TEST parity evidence and a human reviews the scorecard.
+
 ## Story shape
 
 Every story links to a use case in [PRD.md](./PRD.md) and one or more
@@ -36,7 +65,7 @@ principles in [DESIGN-PRINCIPLES.md](./DESIGN-PRINCIPLES.md).
 
 ## PR template (paste into every PR description)
 
-```
+```markdown
 ### What
 <one-line summary>
 
@@ -68,6 +97,8 @@ Add an ADR under [adr/](./adr/) when the change:
 - Changes the human/agent split in a workflow.
 - Changes the identity or network posture.
 - Changes the CI / IaC pipeline.
+- Introduces a bespoke full-page CRM surface or changes the Code App / PCF /
+   model-driven placement rule.
 
 ## When to refuse
 
@@ -97,9 +128,14 @@ Refuse and open a `governance-escalation` issue if the ask requires:
 
 Selection criteria: touches the golden thread · pure configuration or low-code
 · reversible · under 8 minutes of agent work · licensing flag is ✅ or 🧩.
-`[TBD — select and validate before the next review.]`
+The active candidate is named and validated in the approved sprint charter and
+handover packet before the demonstration. A substitute is not introduced live.
+
+Pro-code Code App or PCF changes use an attended engineering session rather
+than the under-eight-minute configuration/low-code demonstration path.
 
 ## Fallback
 
-`[TBD — record a clean run of the full flow and cue it. Test the playback on
-the room's hardware.]`
+Use the clean recorded run linked from the sprint evidence when a live service
+or environment is unavailable. Verify playback on the room hardware before the
+session and state clearly that the recording, not a live deployment, is shown.

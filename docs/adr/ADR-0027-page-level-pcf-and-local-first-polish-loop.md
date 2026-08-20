@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| **Status** | Accepted |
+| **Status** | Superseded by ADR-0041 for bespoke full-page experiences; retained for embedded PCF controls and its local polish method |
 | **Date** | 2026-08-11 |
 | **Decision mode** | Committed decision |
 | **Confidence** | High — grounded in the pcf-best-practices / pcf-alm instructions and the pixel-fidelity requirement |
@@ -16,6 +16,11 @@
 | **Zero Trust** | Controls read Dataverse under the user's context and security roles. |
 | **Responsible AI** | Transparency — AI-authored content (NBA cards) renders a visible provenance badge + "AI-assisted" disclosure. |
 
+> **Scope after ADR-0041.** The page-level PCF default is superseded only for
+> bespoke full-page CRM experiences. PCF remains the selected extension path
+> for embedded controls requiring form, dataset or field context, and the PCF
+> Local-First Polish Loop remains active for those controls.
+
 ## Context
 
 The Advisor Cockpit must reproduce two dense, full-bleed HTML cockpits **as
@@ -26,27 +31,34 @@ the build method as a reusable pattern.
 
 ## Options
 
-### Option A — One page-level PCF per surface ✅ preferred
+### Option A — One page-level PCF per surface (historical selection)
+
 Each surface is a single React + Fluent UI v9 control rendering the whole page.
 **Why:** full control of every pixel, 1:1 with the mockup, one focused build per
 surface, clean local harness. The mockup already uses the Fluent palette, so
 tokens port directly.
 
 ### Option B — Many small PCF tiles on an MDA custom page
+
 Each region is its own PCF, arranged on the page. **Why not:** MDA page/section
 layout fights pixel-perfect spacing; the dense header/KPI band is hard to match;
 more controls to wire.
 
 ### Option C — Hybrid
+
 Page-level PCF for the hero, native + small tiles elsewhere. **Why not:** mixes
 two layout models on one page; harder to keep visually consistent for a
 pixel-perfect target.
 
 ## Decision or working hypothesis
 
-Use **Option A — one page-level PCF per surface** (`AdvisorCockpit`,
-`SalesLeaderDashboard`), and adopt the **PCF Local-First Polish Loop** as the
-build method for pixel-faithful PCF in this repo:
+The original decision used **Option A — one page-level PCF per surface** for
+`AdvisorCockpit` and `SalesLeaderDashboard`. ADR-0041 supersedes that default
+for bespoke full-page CRM UX. It does not retire the controls, their fixture
+harnesses or this polish method.
+
+For embedded PCF controls that require model-driven form, dataset or field
+context, continue to use the **PCF Local-First Polish Loop**:
 
 1. Derive TypeScript types + mock fixtures from the data model.
 2. Build the component in a **Vite** harness with fixtures (hot reload, full
@@ -73,16 +85,19 @@ and referenced by the `ux-designer` agent.
 
 Reopen if a surface needs to be recomposed from independently-reusable tiles, or
 if MDA native config can meet the fidelity bar for a future, simpler surface
-(config → low-code → pro-code still applies).
+(config → low-code → pro-code still applies). Route a new bespoke full-page
+surface through ADR-0041 and the Code App parity evidence instead of treating
+this ADR as authority for a new page-level PCF.
 
 ## Consequences
 
-- **At the next release:** two PCF controls + the pattern doc ship; the loop is
-  reusable for every future pixel-faithful surface.
-- **Operationally:** controls are Jest-tested and versioned; upgrade impact is
+- **At the next release:** retained PCF controls and their pattern stay
+  source-controlled and tested; new bespoke full-page work follows ADR-0041.
+- **Operationally:** controls are Vitest-tested and versioned; upgrade impact is
   declared per control.
 - **For the customer's teams:** a repeatable, reviewable UX build method rather
-  than ad-hoc pixel-pushing.
+  than ad-hoc pixel-pushing, without presenting embedded PCF as the default
+  full-page host.
 - **Reversibility:** medium — a control can be re-split into tiles later, but the
   component code is reusable either way.
 
