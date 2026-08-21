@@ -5,7 +5,7 @@ Live status for charter [#139](https://github.com/urruegg/CRMShowcase/issues/139
 | Stream | Issue | Autonomy | Branch | PR | Status |
 | --- | --- | --- | --- | --- | --- |
 | governance | #140 | DESIGN-SENSITIVE | `feat/sprint-005-governance` | #149 | merged |
-| shared-foundation | #141 | DESIGN-SENSITIVE | `feat/sprint-005-shared-foundation` | pending | ready for review |
+| shared-foundation | #141 | DESIGN-SENSITIVE | `feat/sprint-005-shared-foundation` | [#150](https://github.com/urruegg/CRMShowcase/pull/150) | PR open; paused for review |
 | b1-standalone | #142 | DESIGN-SENSITIVE | `feat/sprint-005-b1-standalone` | - | blocked by shared foundation |
 | b2-embedded | #143 | DESIGN-SENSITIVE | `feat/sprint-005-b2-embedded` | - | blocked by shared foundation |
 | quality-gates | #144 | EXECUTION-ONLY | `feat/sprint-005-quality-gates` | - | blocked by B1/B2 |
@@ -21,6 +21,7 @@ Live status for charter [#139](https://github.com/urruegg/CRMShowcase/issues/139
 - Eight stream issues and isolated worktrees created on 2026-08-19.
 - Local PCF harness is the visual baseline; no live PCF runtime claim.
 - Shared workspace extraction committed at `0353642`; honest host-capability contract committed at `29a8578`.
+- User-approved local visual baseline committed at `cd4dafd` and submitted in PR #150.
 - Shared-foundation verification on 2026-08-21: 13 domain tests, 23 harness tests, 2 Playwright visual comparisons, TypeScript checks, Vite build, and PCF build passed; `npm audit` reported 0 vulnerabilities.
 
 ## Approved local visual baseline
@@ -29,6 +30,19 @@ Live status for charter [#139](https://github.com/urruegg/CRMShowcase/issues/139
 | --- | --- | --- | --- |
 | Desktop `1440 x 1000` | `advisor-cockpit-desktop-win32.png` (`1440 x 1186` full page) | passed without update mode | Approved by the user in the attended Copilot session on 2026-08-21. |
 | Mobile `390 x 844` | `advisor-cockpit-mobile-win32.png` (`390 x 2625` full page) | passed without update mode; no horizontal overflow | Approved by the user in the attended Copilot session on 2026-08-21. |
+
+## Pause checkpoint - 2026-08-21
+
+- Work stopped after opening shared-foundation PR #150. No B1, B2, quality-gate,
+	DEV, or TEST implementation started in this session.
+- Branch `feat/sprint-005-shared-foundation` and its worktree remain available
+	for PR feedback. Do not remove either until the PR is merged.
+- Tomorrow starts by checking PR #150 and its required reviews/checks. A human
+	merges it; the agent must not self-merge.
+- After merge, refresh `main`, update this status board, then bring the B1 and
+	B2 worktrees onto the merged shared foundation before starting Tasks 5-7.
+- The quality-gates stream must capture Linux-specific Playwright snapshots on
+	`ubuntu-latest` before enabling visual comparison in CI.
 
 ## Live DEV + TEST evidence
 
