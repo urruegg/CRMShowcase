@@ -52,8 +52,8 @@ surface the question to the control-plane chat. Never self-approve.
 	capability contracts.
 - `cd4dafd` adds the user-approved Win32 desktop/mobile Playwright baseline and
 	responsive reflow coverage.
-- PR [#150](https://github.com/urruegg/CRMShowcase/pull/150) targets `main` and
-	is open for human review.
+- PR [#150](https://github.com/urruegg/CRMShowcase/pull/150) was human-merged
+	into `main` at `6459c8c` after CI `gate1` passed.
 
 ### Final evidence
 
@@ -68,14 +68,20 @@ surface the question to the control-plane chat. Never self-approve.
 
 ### Resume tomorrow
 
+Post-merge status synchronization is tracked in PR
+[#151](https://github.com/urruegg/CRMShowcase/pull/151). Confirm that PR before
+refreshing the host worktrees.
+
 ```powershell
-Set-Location C:\Users\urruegg\source\urruegg\wt\sprint-005-shared-foundation
-gh pr view 150 --json state,mergeStateStatus,statusCheckRollup,reviews,url
+Set-Location C:\Users\urruegg\source\urruegg\wt\sprint-005-resume-checkpoint
+git fetch origin
+git log -1 --oneline origin/main
 git status --short
 ```
 
-1. Address PR #150 review findings on this branch and rerun the affected gates.
-2. Wait for a human to merge PR #150; never self-merge.
-3. Refresh `main` and the Sprint 005 status board after merge.
-4. Rebase or recreate the B1 and B2 stream worktrees from merged `main`.
-5. Start Tasks 5-7 only after the shared-foundation merge is verified.
+1. Confirm `origin/main` contains merge commit `6459c8c`.
+2. Rebase or recreate the B1 and B2 stream worktrees from merged `main`.
+3. Run the shared workspace typecheck/tests in each refreshed host worktree.
+4. Start Tasks 5-7; B1 and B2 may proceed in parallel without editing shared
+	packages.
+5. Leave the quality-gates stream blocked until both hosts are merged.
