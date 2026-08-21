@@ -1,13 +1,33 @@
 import { describe, expect, it } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { FluentProvider, webLightTheme } from '@fluentui/react-components';
-import { AdvisorCockpit } from './AdvisorCockpit';
+import {
+  writeCapabilities,
+  type AdvisorCockpitHost,
+  type CockpitWriteCommand,
+  type CommandResult,
+} from '@crmshow/advisor-cockpit-domain';
+import { AdvisorCockpit } from '@crmshow/advisor-cockpit-ui';
 import { cockpitFixtures } from './fixtures';
 
-function renderCockpit() {
+const blockedHost: AdvisorCockpitHost = {
+  context: {
+    hostKind: 'fixture-harness',
+    appId: null,
+    environmentId: null,
+    sessionId: null,
+    userObjectId: null,
+    locale: 'de-CH',
+  },
+  capability: (command: CockpitWriteCommand['type']) => writeCapabilities[command],
+  execute: async () => ({ ok: false, message: 'Fixture writes are disabled.' }),
+  navigate: async () => undefined,
+};
+
+function renderCockpit(host: AdvisorCockpitHost = blockedHost) {
   return render(
     <FluentProvider theme={webLightTheme}>
-      <AdvisorCockpit data={cockpitFixtures} />
+      <AdvisorCockpit data={cockpitFixtures} host={host} />
     </FluentProvider>,
   );
 }
@@ -26,7 +46,7 @@ describe('<AdvisorCockpit />', () => {
     };
     render(
       <FluentProvider theme={webLightTheme}>
-        <AdvisorCockpit data={custom} />
+        <AdvisorCockpit data={custom} host={blockedHost} />
       </FluentProvider>,
     );
     expect(screen.getByText(/Guten Morgen, Test Advisor/)).toBeInTheDocument();
@@ -73,24 +93,28 @@ describe('<AdvisorCockpit />', () => {
     expect(screen.queryByText('Hausrat-Offerte fortsetzen')).not.toBeInTheDocument();
   });
 
-  it('selects a lead and shows a demo reassignment note', () => {
+  it('keeps blocked lead assignment focusable and explains the limitation', () => {
     renderCockpit();
     fireEvent.click(screen.getByRole('tab', { name: 'Meine Leads' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Lead Frau Keller — Vorsorge 3a auswählen' }));
     expect(screen.getAllByText(/ausgewählt/).length).toBeGreaterThan(0);
     fireEvent.change(screen.getByLabelText('Zuweisen an'), { target: { value: 'Thomas Vogt' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Zuweisen' }));
-    expect(screen.getByText(/an Thomas Vogt zugewiesen/)).toBeInTheDocument();
+    const assign = screen.getByRole('button', { name: 'Zuweisen' });
+    expect(assign).toHaveAttribute('aria-disabled', 'true');
+    expect(assign).toHaveAttribute('tabindex', '0');
+    expect(assign).toHaveAccessibleDescription(/polymorphic owner lookup/i);
   });
 
-  it('opens the Live-Bündelung modal from the Cockpit view and confirms', () => {
+  it('opens the Live-Bündelung modal but explains its unverified write', () => {
     renderCockpit();
     fireEvent.click(screen.getByRole('tab', { name: 'Meine Leads' }));
     fireEvent.click(screen.getByRole('button', { name: 'Cockpit' }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Leads bündeln' })[0]);
     expect(screen.getByText(/Live-Bündelung/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Bündelung bestätigen' }));
-    expect(screen.getByText(/gebündelt/)).toBeInTheDocument();
+    expect(screen.queryByText(/DEV-gated|Demonstration/i)).not.toBeInTheDocument();
+    const confirm = screen.getByRole('button', { name: 'Bündelung bestätigen' });
+    expect(confirm).toHaveAttribute('aria-disabled', 'true');
+    expect(confirm).toHaveAccessibleDescription(/lookup association/i);
   });
 
   it('sorts the lead list when a column header is clicked', () => {
@@ -106,7 +130,7 @@ describe('<AdvisorCockpit />', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Meine Leads' }));
     fireEvent.click(screen.getByRole('button', { name: 'Board' }));
     expect(screen.getByText('Gebündelt / Geplant')).toBeInTheDocument();
-    expect(screen.getByText('Karten hierher ziehen, um Status zu ändern')).toBeInTheDocument();
+    expect(screen.getByText('Karten hierher ziehen, um Status zu ändern')).toHaveAccessibleDescription(/generated-service update/i);
     expect(screen.getByText('Gebündelte Leads bleiben verknüpft')).toBeInTheDocument();
   });
 
@@ -119,12 +143,13 @@ describe('<AdvisorCockpit />', () => {
     expect(screen.getByLabelText('Zuweisen an')).toBeInTheDocument();
   });
 
-  it('splits a bundled group from the Board view', () => {
+  it('keeps unverified cluster splitting visible and explained', () => {
     renderCockpit();
     fireEvent.click(screen.getByRole('tab', { name: 'Meine Leads' }));
     fireEvent.click(screen.getByRole('button', { name: 'Board' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Splitten' }));
-    expect(screen.getByText(/aufgelöst/)).toBeInTheDocument();
+    const split = screen.getByRole('button', { name: 'Splitten' });
+    expect(split).toHaveAttribute('aria-disabled', 'true');
+    expect(split).toHaveAccessibleDescription(/lookup disassociation/i);
   });
 
   it('marks the Fokus-Lead in the Cockpit view', () => {
@@ -152,11 +177,60 @@ describe('<AdvisorCockpit />', () => {
     expect(kunde).toHaveAttribute('aria-sort', 'ascending');
   });
 
-  it('creates a Termin via the + Termin action (demo)', () => {
+  it('keeps blocked appointment creation visible and explained', () => {
     renderCockpit();
     fireEvent.click(screen.getByRole('tab', { name: 'Termine & Aufgaben' }));
-    fireEvent.click(screen.getByRole('button', { name: '+ Termin' }));
-    expect(screen.getByText(/Neuen Termin anlegen/)).toBeInTheDocument();
+    const createAppointment = screen.getByRole('button', { name: '+ Termin' });
+    expect(createAppointment).toHaveAttribute('aria-disabled', 'true');
+    expect(createAppointment).toHaveAccessibleDescription(/regarding relationship is polymorphic/i);
+  });
+
+  it('announces command success only after the host promise resolves', async () => {
+    let resolveCommand!: (result: CommandResult) => void;
+    const host: AdvisorCockpitHost = {
+      ...blockedHost,
+      execute: () => new Promise((resolve) => {
+        resolveCommand = resolve;
+      }),
+    };
+    renderCockpit(host);
+    fireEvent.click(screen.getByRole('tab', { name: 'Meine Leads' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cockpit' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Anrufen' }));
+    expect(screen.getByRole('status')).not.toHaveTextContent('Call launched.');
+
+    await act(async () => resolveCommand({ ok: true, message: 'Call launched.' }));
+    expect(screen.getByRole('status')).toHaveTextContent('Call launched.');
+  });
+
+  it('does not silently accept an NBA when the advisor starts a call', async () => {
+    const commands: CockpitWriteCommand[] = [];
+    const host: AdvisorCockpitHost = {
+      ...blockedHost,
+      capability: (command) => command === 'acceptNba'
+        ? { availability: 'supported', reason: 'Verified.', target: 'crmshow_nextbestaction.crmshow_status' }
+        : writeCapabilities[command],
+      execute: async (command) => {
+        commands.push(command);
+        return { ok: true, message: `${command.type} completed.` };
+      },
+    };
+    renderCockpit(host);
+    fireEvent.click(screen.getByRole('tab', { name: 'Meine Leads' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cockpit' }));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Anrufen' }));
+    });
+
+    expect(commands.map((command) => command.type)).toEqual(['call']);
+  });
+
+  it('does not claim meeting preparation opened when no preparation surface exists', () => {
+    renderCockpit();
+    fireEvent.click(screen.getByRole('button', { name: 'Vorbereiten' }));
+    expect(screen.getByRole('status')).toHaveTextContent('Gesprächsvorbereitung ist in diesem Host nicht verfügbar.');
   });
 
   it('conveys data-source provenance without per-tile badges', () => {

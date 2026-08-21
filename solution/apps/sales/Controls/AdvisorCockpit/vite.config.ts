@@ -14,6 +14,7 @@ export default defineConfig({
   base: './',
   server: {
     port: 5173,
+    strictPort: true,
     // Allow importing the shared synthetic fixtures under data/scenarios from outside this control folder.
     fs: { allow: [repoRoot] },
   },
@@ -21,5 +22,16 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
+    alias: {
+      tabster: resolve(here, '../../node_modules/tabster/dist/esm/index.js'),
+    },
+    server: {
+      deps: {
+        inline: [
+          /@crmshow\/advisor-cockpit-(domain|ui)/,
+          /@fluentui\//,
+        ],
+      },
+    },
   },
 });

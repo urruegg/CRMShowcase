@@ -1,5 +1,5 @@
 {
-  "name": "advisor-cockpit-pcf",
+  "name": "@crmshow/advisor-cockpit-harness",
   "version": "0.1.0",
   "private": true,
   "description": "Advisor Cockpit page-level PCF (React 18 + Fluent UI v9 + Recharts) — local-first harness. Sprint-003 stream advisorcockpit-pcf (#62).",
@@ -8,9 +8,12 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@crmshow/advisor-cockpit-domain": "0.1.0",
+    "@crmshow/advisor-cockpit-ui": "0.1.0",
     "@fluentui/react-components": "^9.54.0",
     "@fluentui/react-icons": "^2.0.245",
     "react": "^18.3.1",

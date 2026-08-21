@@ -1,0 +1,22 @@
+{
+  "name": "@crmshow/advisor-cockpit-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@crmshow/advisor-cockpit-domain": "0.1.0",
+    "@fluentui/react-components": "^9.54.0",
+    "@fluentui/react-icons": "^2.0.245"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}
