@@ -68,6 +68,10 @@ surface the question to the control-plane chat. Never self-approve.
 
 ### Resume tomorrow
 
+Post-merge status synchronization is tracked in PR
+[#151](https://github.com/urruegg/CRMShowcase/pull/151). Confirm that PR before
+refreshing the host worktrees.
+
 ```powershell
 Set-Location C:\Users\urruegg\source\urruegg\wt\sprint-005-resume-checkpoint
 git fetch origin

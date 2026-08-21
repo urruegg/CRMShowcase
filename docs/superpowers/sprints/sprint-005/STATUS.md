@@ -35,6 +35,9 @@ Live status for charter [#139](https://github.com/urruegg/CRMShowcase/issues/139
 
 ## Restart checkpoint - 2026-08-21
 
+- Post-merge status synchronization is tracked in PR
+	[#151](https://github.com/urruegg/CRMShowcase/pull/151); confirm its state
+	before refreshing the host worktrees.
 - Work stopped after human merge of shared-foundation PR #150. No B1, B2,
 	quality-gate, DEV, or TEST implementation started in this session.
 - Tomorrow starts by refreshing the B1 and B2 worktrees from merged `main`
