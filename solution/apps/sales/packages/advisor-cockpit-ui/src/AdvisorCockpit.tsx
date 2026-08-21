@@ -75,6 +75,9 @@ const useStyles = makeStyles({
     backgroundColor: palette.n0,
     ...shorthands.padding('18px', '24px', '16px'),
     ...shorthands.borderBottom('1px', 'solid', palette.n30),
+    '@media (max-width: 700px)': {
+      ...shorthands.padding('16px'),
+    },
   },
   breadcrumb: { fontSize: '11px', color: palette.n130, marginBottom: '8px' },
   title: { fontSize: '24px', fontWeight: 600, ...shorthands.margin(0), color: palette.n190 },
@@ -84,6 +87,10 @@ const useStyles = makeStyles({
     flexDirection: 'column',
     ...shorthands.gap('18px'),
     ...shorthands.padding('18px', '24px'),
+    '@media (max-width: 700px)': {
+      ...shorthands.gap('16px'),
+      ...shorthands.padding('16px'),
+    },
   },
   hero: {
     display: 'grid',
@@ -94,6 +101,11 @@ const useStyles = makeStyles({
     ...shorthands.border('1px', 'solid', palette.n30),
     ...shorthands.borderRadius('12px'),
     ...shorthands.padding('18px', '22px'),
+    '@media (max-width: 700px)': {
+      gridTemplateColumns: 'minmax(0, 1fr)',
+      ...shorthands.gap('16px'),
+      ...shorthands.padding('16px'),
+    },
   },
   heroEyebrow: {
     fontSize: '11px',
@@ -104,9 +116,25 @@ const useStyles = makeStyles({
   },
   heroHeadline: { fontSize: '18px', fontWeight: 600, ...shorthands.margin('6px', 0, '8px', 0) },
   heroBody: { fontSize: '13px', color: palette.n130, lineHeight: 1.55, ...shorthands.margin(0), maxWidth: '640px' },
-  heroStats: { display: 'flex', ...shorthands.gap('26px'), alignItems: 'flex-start' },
+  heroStats: {
+    display: 'flex',
+    ...shorthands.gap('26px'),
+    alignItems: 'flex-start',
+    '@media (max-width: 700px)': {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+      ...shorthands.gap('8px'),
+      width: '100%',
+    },
+  },
   heroStatValue: { fontSize: '26px', fontWeight: 700, color: palette.brand, lineHeight: 1.1 },
-  heroStatLabel: { fontSize: '11px', color: palette.n130, maxWidth: '120px', marginTop: '2px' },
+  heroStatLabel: {
+    fontSize: '11px',
+    color: palette.n130,
+    maxWidth: '120px',
+    marginTop: '2px',
+    '@media (max-width: 700px)': { maxWidth: 'none' },
+  },
   sectionHead: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -172,7 +200,12 @@ const useStyles = makeStyles({
     fontWeight: 600,
     fontSize: '14px',
   },
-  cardBody: { ...shorthands.padding('4px', '0') },
+  cardBody: {
+    ...shorthands.padding('4px', '0'),
+    '@media (max-width: 700px)': {
+      overflowX: 'auto',
+    },
+  },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: '13px' },
   th: {
     textAlign: 'left',
@@ -214,7 +247,15 @@ const useStyles = makeStyles({
   // Tagesplan (KI)
   tpHead: { fontSize: '16px', fontWeight: 600 },
   tpBody: { fontSize: '13px', color: palette.n130, ...shorthands.margin('4px', 0, '14px', 0), maxWidth: '720px' },
-  tpStats: { display: 'flex', ...shorthands.gap('28px'), marginBottom: '16px' },
+  tpStats: {
+    display: 'flex',
+    ...shorthands.gap('28px'),
+    marginBottom: '16px',
+    '@media (max-width: 700px)': {
+      ...shorthands.gap('12px'),
+      flexWrap: 'wrap',
+    },
+  },
   tpStatValue: { fontSize: '22px', fontWeight: 700 },
   tpStatLabel: { fontSize: '11px', color: palette.n130 },
   // Empfohlener Fokus
@@ -245,8 +286,23 @@ const useStyles = makeStyles({
     color: palette.n130,
     marginBottom: '6px',
   },
-  provItem: { display: 'flex', ...shorthands.gap('8px'), fontSize: '12px', marginBottom: '4px' },
-  provLabel: { fontWeight: 600, minWidth: '110px' },
+  provItem: {
+    display: 'flex',
+    ...shorthands.gap('8px'),
+    fontSize: '12px',
+    marginBottom: '4px',
+    '@media (max-width: 700px)': {
+      display: 'grid',
+      gridTemplateColumns: '105px minmax(0, 1fr)',
+    },
+  },
+  provLabel: {
+    fontWeight: 600,
+    minWidth: '110px',
+    '@media (max-width: 700px)': {
+      minWidth: 0,
+    },
+  },
   fokusFields: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
@@ -270,6 +326,9 @@ const useStyles = makeStyles({
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
     ...shorthands.gap('12px'),
+    '@media (max-width: 700px)': {
+      gridTemplateColumns: 'minmax(0, 1fr)',
+    },
   },
   copCard: {
     backgroundColor: palette.n0,
@@ -289,7 +348,13 @@ const useStyles = makeStyles({
   copText: { fontSize: '12px', color: palette.n130, lineHeight: 1.5 },
   // Meine Leads — view switch + filters + board/cockpit
   viewTools: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...shorthands.gap('12px'), flexWrap: 'wrap', marginBottom: '12px' },
-  viewSwitch: { display: 'inline-flex', ...shorthands.border('1px', 'solid', palette.n30), ...shorthands.borderRadius('8px'), ...shorthands.overflow('hidden') },
+  viewSwitch: {
+    display: 'inline-flex',
+    ...shorthands.border('1px', 'solid', palette.n30),
+    ...shorthands.borderRadius('8px'),
+    ...shorthands.overflow('hidden'),
+    '@media (max-width: 700px)': { width: '100%' },
+  },
   viewBtn: {
     ...shorthands.padding('6px', '14px'),
     backgroundColor: palette.n0,
@@ -300,10 +365,17 @@ const useStyles = makeStyles({
     fontWeight: 600,
     color: palette.n130,
     fontFamily: font,
+    '@media (max-width: 700px)': { flexGrow: 1 },
   },
   viewBtnActive: { backgroundColor: palette.brand, color: palette.n0 },
   vtActions: { display: 'flex', ...shorthands.gap('8px'), flexWrap: 'wrap' },
-  filters: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))', ...shorthands.gap('10px'), marginBottom: '12px' },
+  filters: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))',
+    ...shorthands.gap('10px'),
+    marginBottom: '12px',
+    '@media (max-width: 700px)': { gridTemplateColumns: 'minmax(0, 1fr)' },
+  },
   filterField: { display: 'flex', flexDirection: 'column', ...shorthands.gap('4px') },
   filterLabel: { fontSize: '11px', color: palette.n130, fontWeight: 600 },
   filterInput: {
@@ -314,13 +386,25 @@ const useStyles = makeStyles({
     fontFamily: font,
     backgroundColor: palette.n0,
   },
-  boardGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', ...shorthands.gap('12px'), alignItems: 'start' },
+  boardGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+    ...shorthands.gap('12px'),
+    alignItems: 'start',
+    '@media (max-width: 700px)': { gridTemplateColumns: 'minmax(0, 1fr)' },
+  },
   boardGroup: { ...shorthands.border('1px', 'solid', palette.brand), ...shorthands.borderRadius('8px'), backgroundColor: '#ffedeb', ...shorthands.padding('8px') },
   boardGroupHead: { display: 'flex', alignItems: 'center', ...shorthands.gap('7px'), fontWeight: 700, fontSize: '13px', marginBottom: '8px', flexWrap: 'wrap' },
   boardGroupBody: { display: 'flex', flexDirection: 'column', ...shorthands.gap('8px') },
   boardCard: { backgroundColor: palette.n0, ...shorthands.border('1px', 'solid', palette.n30), ...shorthands.borderRadius('6px'), ...shorthands.padding('8px', '10px') },
   boardCardTitle: { fontWeight: 600, fontSize: '13px' },
-  cockpitGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', ...shorthands.gap('12px'), alignItems: 'start' },
+  cockpitGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+    ...shorthands.gap('12px'),
+    alignItems: 'start',
+    '@media (max-width: 700px)': { gridTemplateColumns: 'minmax(0, 1fr)' },
+  },
   clusterCard: { backgroundColor: palette.n0, ...shorthands.border('1px', 'solid', palette.n30), ...shorthands.borderRadius('10px'), ...shorthands.padding('12px', '14px') },
   clusterHead: { display: 'flex', alignItems: 'center', ...shorthands.gap('8px'), fontWeight: 600, marginBottom: '8px', flexWrap: 'wrap' },
   miniLead: { display: 'flex', alignItems: 'center', ...shorthands.gap('8px'), ...shorthands.padding('6px', 0), ...shorthands.borderTop('1px', 'solid', palette.n20) },
@@ -359,7 +443,13 @@ const useStyles = makeStyles({
   connector: { color: palette.n60, marginRight: '2px' },
   boardToolbar: { display: 'flex', alignItems: 'center', ...shorthands.gap('8px'), flexWrap: 'wrap', marginBottom: '10px' },
   boardHint: { fontSize: '11px', color: palette.n130 },
-  boardColumns: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', ...shorthands.gap('12px'), alignItems: 'start' },
+  boardColumns: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    ...shorthands.gap('12px'),
+    alignItems: 'start',
+    '@media (max-width: 700px)': { gridTemplateColumns: 'minmax(0, 1fr)' },
+  },
   boardCol: { backgroundColor: palette.n10, ...shorthands.border('1px', 'solid', palette.n30), ...shorthands.borderRadius('8px'), ...shorthands.padding('10px') },
   boardColHead: { display: 'flex', alignItems: 'center', ...shorthands.gap('6px'), fontWeight: 700, fontSize: '11px', letterSpacing: '0.04em', textTransform: 'uppercase', color: palette.n160 },
   boardColCount: { backgroundColor: palette.n30, color: palette.n160, ...shorthands.borderRadius('10px'), ...shorthands.padding('0', '7px'), fontSize: '11px' },
@@ -376,7 +466,13 @@ const useStyles = makeStyles({
   legendTitle: { fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' },
   legendItem: { display: 'inline-flex', alignItems: 'center', ...shorthands.gap('6px') },
   legendSwatch: { width: '12px', height: '12px', ...shorthands.borderRadius('3px'), ...shorthands.border('1px', 'solid', palette.n60), display: 'inline-block' },
-  cockpitPanes: { display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)', ...shorthands.gap('12px'), alignItems: 'start' },
+  cockpitPanes: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)',
+    ...shorthands.gap('12px'),
+    alignItems: 'start',
+    '@media (max-width: 700px)': { gridTemplateColumns: 'minmax(0, 1fr)' },
+  },
   cockpitFocus: { backgroundColor: palette.n0, ...shorthands.border('1px', 'solid', palette.brand), ...shorthands.borderRadius('10px'), ...shorthands.padding('14px') },
   cockpitQueue: { backgroundColor: palette.n0, ...shorthands.border('1px', 'solid', palette.n30), ...shorthands.borderRadius('10px'), ...shorthands.padding('14px') },
   cockpitPaneHead: { display: 'flex', alignItems: 'center', ...shorthands.gap('8px'), fontWeight: 700, fontSize: '11px', letterSpacing: '0.04em', textTransform: 'uppercase', color: palette.n160, marginBottom: '10px' },
@@ -385,13 +481,27 @@ const useStyles = makeStyles({
   focusTopic: { fontWeight: 700, fontSize: '15px' },
   focusScore: { marginLeft: 'auto', fontWeight: 700, fontSize: '15px' },
   focusAccount: { fontSize: '13px' },
-  focusGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', ...shorthands.gap('8px', '14px'), ...shorthands.padding('10px', 0), ...shorthands.borderTop('1px', 'solid', palette.n20), ...shorthands.borderBottom('1px', 'solid', palette.n20) },
+  focusGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    ...shorthands.gap('8px', '14px'),
+    ...shorthands.padding('10px', 0),
+    ...shorthands.borderTop('1px', 'solid', palette.n20),
+    ...shorthands.borderBottom('1px', 'solid', palette.n20),
+    '@media (max-width: 700px)': { gridTemplateColumns: 'minmax(0, 1fr)' },
+  },
   fLabel: { fontSize: '10px', color: palette.n130, textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: '2px' },
   queueBody: { display: 'flex', flexDirection: 'column', ...shorthands.gap('2px') },
   queueItem: { display: 'flex', alignItems: 'center', ...shorthands.gap('10px'), ...shorthands.padding('8px', '2px'), ...shorthands.borderTop('1px', 'solid', palette.n20) },
   queueScore: { fontWeight: 700, minWidth: '26px' },
   queueMain: { display: 'flex', flexDirection: 'column', minWidth: 0, flexGrow: 1 },
   queueTopic: { fontWeight: 600, fontSize: '13px' },
+  tabList: {
+    '@media (max-width: 700px)': {
+      flexWrap: 'wrap',
+      rowGap: '4px',
+    },
+  },
   viewBtnInner: { display: 'inline-flex', alignItems: 'center', ...shorthands.gap('5px') },
   srOnly: { position: 'absolute', width: '1px', height: '1px', ...shorthands.overflow('hidden'), clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', ...shorthands.borderWidth('0'), ...shorthands.padding('0'), ...shorthands.margin('-1px') },
 });
@@ -813,7 +923,7 @@ export function AdvisorCockpit({ data, host }: AdvisorCockpitProps): JSX.Element
         </section>
 
         <div>
-          <TabList selectedValue={tab} onTabSelect={(_, d) => setTab(d.value as string)}>
+          <TabList className={s.tabList} selectedValue={tab} onTabSelect={(_, d) => setTab(d.value as string)}>
             <Tab value="tagesplan">Tagesplan (KI)</Tab>
             <Tab value="leads">Meine Leads</Tab>
             <Tab value="termine">Termine &amp; Aufgaben</Tab>

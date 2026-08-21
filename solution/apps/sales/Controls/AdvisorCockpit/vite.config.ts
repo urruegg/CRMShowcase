@@ -14,6 +14,7 @@ export default defineConfig({
   base: './',
   server: {
     port: 5173,
+    strictPort: true,
     // Allow importing the shared synthetic fixtures under data/scenarios from outside this control folder.
     fs: { allow: [repoRoot] },
   },

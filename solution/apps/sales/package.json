@@ -9,9 +9,11 @@
   "scripts": {
     "build": "npm run build --workspace @crmshow/advisor-cockpit-domain && npm run build --workspace @crmshow/advisor-cockpit-ui && npm run build --workspace @crmshow/advisor-cockpit-harness && npm --prefix Controls/AdvisorCockpit/pcf run build",
     "test": "npm run test --workspace @crmshow/advisor-cockpit-domain && npm run test --workspace @crmshow/advisor-cockpit-harness",
+    "test:visual": "playwright test tests/visual/advisor-cockpit-parity.spec.ts",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "jsdom": "^24.1.1",
