@@ -127,6 +127,7 @@ Describe 'seed-advisor-cockpit' {
     It 'includes claim and account upserts alongside analytics upserts when Invoke-AdvisorCockpitSeed is given an AccountKeyMap' {
         $map = @{ 'ACC-AEBISCHER' = '44444444-4444-4444-4444-444444444444'; 'ACC-BRUNNER' = '55555555-5555-5555-5555-555555555555' }
         Mock -CommandName az -MockWith { $global:LASTEXITCODE = 0 }
+        Mock -CommandName Get-DemoPresenterUser -MockWith { 'presenter-guid' }
         Invoke-AdvisorCockpitSeed -EnvironmentUrl 'https://example.crm.dynamics.com' -AccountKeyMap $map -Confirm:$false
         $measureCount = (Get-SeedPlan | Where-Object { $_.Shape -eq 'measure' }).Count
         $accountCount = @((Get-SeedPlan | Where-Object { $_.Fixture -eq 'accounts-contacts.json' }).Records | Where-Object { $_.recordType -eq 'account' }).Count
@@ -151,6 +152,7 @@ Describe 'seed-advisor-cockpit' {
 
     It 'auto-resolves the AccountKeyMap via Get-AccountKeyMap when the caller supplies none' {
         Mock -CommandName az -MockWith { $global:LASTEXITCODE = 0 }
+        Mock -CommandName Get-DemoPresenterUser -MockWith { 'presenter-guid' }
         Mock -CommandName Get-AccountKeyMap -MockWith {
             @{ 'ACC-AEBISCHER' = '44444444-4444-4444-4444-444444444444'; 'ACC-BRUNNER' = '55555555-5555-5555-5555-555555555555' }
         }
@@ -200,5 +202,41 @@ Describe 'seed-advisor-cockpit' {
         $requests = @(Get-AccountUpsertRequests)
         $requests.Count | Should -Be $accountCount
         $requests | ForEach-Object { $_.Method | Should -Be 'POST' }
+    }
+
+    It 'sets ownerid@odata.bind on the account upsert body when a presenter is supplied' {
+        $row = [pscustomobject]@{ recordType = 'account'; key = 'ACC-BRUNNER'; name = 'Haushalt Brunner'; accountType = 'Household' }
+        $body = ConvertTo-AccountUpsertBody -Row $row -PresenterUserId 'aaa-bbb-ccc'
+        $body.'ownerid@odata.bind' | Should -Be '/systemusers(aaa-bbb-ccc)'
+    }
+
+    It 'omits ownerid@odata.bind on the account upsert body when no presenter is supplied' {
+        $row = [pscustomobject]@{ recordType = 'account'; key = 'ACC-BRUNNER'; name = 'Haushalt Brunner'; accountType = 'Household' }
+        $body = ConvertTo-AccountUpsertBody -Row $row
+        $body.Contains('ownerid@odata.bind') | Should -BeFalse
+    }
+
+    It 'threads -PresenterUserId from Get-AccountUpsertRequests into every account body' {
+        $requests = @(Get-AccountUpsertRequests -PresenterUserId 'ppp-qqq-rrr')
+        $requests.Count | Should -BeGreaterThan 0
+        $requests | ForEach-Object { $_.Body.'ownerid@odata.bind' | Should -Be '/systemusers(ppp-qqq-rrr)' }
+    }
+
+    It 'resolves the presenter via Get-DemoPresenterUser when Invoke-AdvisorCockpitSeed is given no override' {
+        Mock -CommandName az -MockWith { $global:LASTEXITCODE = 0 }
+        Mock -CommandName Get-AccountKeyMap -MockWith { @{} }
+        Mock -CommandName Get-DemoPresenterUser -MockWith { 'resolved-presenter-id' }
+        Invoke-AdvisorCockpitSeed -EnvironmentUrl 'https://example.crm.dynamics.com' -Confirm:$false
+        Should -Invoke -CommandName Get-DemoPresenterUser -Times 1 -Exactly -ParameterFilter {
+            $EnvironmentUrl -eq 'https://example.crm.dynamics.com'
+        }
+    }
+
+    It 'does not call Get-DemoPresenterUser when the caller supplies -PresenterUserId directly' {
+        Mock -CommandName az -MockWith { $global:LASTEXITCODE = 0 }
+        Mock -CommandName Get-AccountKeyMap -MockWith { @{} }
+        Mock -CommandName Get-DemoPresenterUser -MockWith { 'should-not-be-called' }
+        Invoke-AdvisorCockpitSeed -EnvironmentUrl 'https://example.crm.dynamics.com' -PresenterUserId 'explicit-id' -Confirm:$false
+        Should -Invoke -CommandName Get-DemoPresenterUser -Times 0 -Exactly
     }
 }

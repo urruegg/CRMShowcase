@@ -128,6 +128,24 @@ jobs:
           ./scripts/solution/Import-Solution.ps1 -ZipFile (Join-Path $out 'crmshow_DataModel_managed.zip')   -Mode ${{ inputs.mode }} -PublishChanges
           ./scripts/solution/Import-Solution.ps1 -ZipFile (Join-Path $out 'crmshow_Integration_managed.zip') -Mode ${{ inputs.mode }} -PublishChanges
           ./scripts/solution/Import-Solution.ps1 -ZipFile (Join-Path $out 'crmshow_Sales_managed.zip')       -Mode ${{ inputs.mode }} -PublishChanges
+      - name: Seed Advisor Cockpit demo data
+        shell: pwsh
+        run: |
+          $root = $env:GITHUB_WORKSPACE
+          & (Join-Path $root 'scripts/solution/seed-advisor-cockpit.ps1') `
+            -EnvironmentUrl $env:POWER_PLATFORM_ENV_URL `
+            -Confirm:$false
+          if ($LASTEXITCODE -ne 0) { throw 'Advisor Cockpit demo data seeding failed.' }
+      - name: Smoke-check seeded demo data
+        shell: pwsh
+        run: |
+          $baseUrl = $env:POWER_PLATFORM_ENV_URL.TrimEnd('/')
+          $url = "$baseUrl/api/data/v9.2/crmshow_measuresnapshots?`$select=crmshow_measuresnapshotid&`$top=1"
+          $response = az rest --method GET --url $url --resource "$baseUrl/" --only-show-errors | ConvertFrom-Json
+          if (@($response.value).Count -lt 1) {
+            throw 'Smoke check failed: no crmshow_measuresnapshot records found after seeding.'
+          }
+          Write-Output 'Smoke check passed: measure-snapshot records present.'
       - name: Smoke evidence
         shell: pwsh
         run: |
